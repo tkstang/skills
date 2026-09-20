@@ -142,6 +142,12 @@ describe('activity projection budgets', () => {
         previewBytes: 2 * 1024,
         lateContextBytes: 256,
       },
+      'complete-capture': {
+        maxBytes: null,
+        maxInvocations: null,
+        previewBytes: 2 * 1024,
+        lateContextBytes: 256,
+      },
     });
   });
 
@@ -170,7 +176,7 @@ describe('activity projection budgets', () => {
 
     expect(renderActivityReport(second)).toBe(serialized);
     expect(first.renderedBytes).toBe(Buffer.byteLength(serialized, 'utf8'));
-    expect(first.renderedBytes).toBeLessThanOrEqual(first.limits.maxBytes);
+    expect(first.renderedBytes).toBeLessThanOrEqual(first.limits.maxBytes!);
     expect(preview).toBeDefined();
     expect(preview?.truncated).toBe(true);
     expect(preview?.displayedBytes).toBe(
@@ -552,7 +558,7 @@ describe('activity projection budgets', () => {
       { ...GENEROUS_LIMITS, maxBytes: empty.renderedBytes + 256 },
     );
 
-    expect(report.renderedBytes).toBeLessThanOrEqual(report.limits.maxBytes);
+    expect(report.renderedBytes).toBeLessThanOrEqual(report.limits.maxBytes!);
     expect(report.events).toEqual([]);
     expect(report.omitted).toMatchObject({
       calls: 1,
@@ -636,7 +642,7 @@ describe('activity projection budgets', () => {
 
       expect(first.events).toEqual([]);
       expect(first.renderedBytes).toBe(Buffer.byteLength(serialized, 'utf8'));
-      expect(first.renderedBytes).toBeLessThanOrEqual(first.limits.maxBytes);
+      expect(first.renderedBytes).toBeLessThanOrEqual(first.limits.maxBytes!);
       expect(first.omitted.diagnostics).toBeGreaterThan(0);
       expect(first.omitted.coverageEntries).toBeGreaterThan(0);
       expect(first.diagnostics.length + first.omitted.diagnostics).toBe(1_000);
@@ -720,7 +726,7 @@ describe('activity projection budgets', () => {
         report.omitted.usageDiagnostics,
     ).toBe(40);
     expect(report.omitted.usageSamples).toBeGreaterThan(0);
-    expect(report.renderedBytes).toBeLessThanOrEqual(report.limits.maxBytes);
+    expect(report.renderedBytes).toBeLessThanOrEqual(report.limits.maxBytes!);
   });
 
   it('trims oversized optional source metadata before delivered event evidence', () => {
@@ -978,7 +984,7 @@ describe('activity projection budgets', () => {
       expect(markdown.renderedFormat).toBe('markdown');
       expect(markdown.renderedBytes).toBe(Buffer.byteLength(finalText, 'utf8'));
       expect(markdown.renderedBytes).toBeLessThanOrEqual(
-        markdown.limits.maxBytes,
+        markdown.limits.maxBytes!,
       );
       expect(markdown.omitted.byteLimitGroups).toBeGreaterThan(0);
       expect(markdown.omitted.calls).toBe(
@@ -992,7 +998,7 @@ describe('activity projection budgets', () => {
         Buffer.byteLength(renderActivityReport(compactJson), 'utf8'),
       );
       expect(compactJson.renderedBytes).toBeLessThanOrEqual(
-        compactJson.limits.maxBytes,
+        compactJson.limits.maxBytes!,
       );
       expect(compactJson.events.length).toBeGreaterThan(markdown.events.length);
     },
@@ -1055,5 +1061,52 @@ describe('activity projection budgets', () => {
     );
     expect(markdown).toContain('record-activity: truncated; captured 1100');
     expect(markdown).toContain('POSSIBLE_SOURCE_TRUNCATION');
+  });
+
+  it('keeps every invocation and preview under complete-capture limits when a byte budget would evict groups', () => {
+    const events = Array.from({ length: 1_100 }, (_, index) =>
+      event(`complete-call-${index}`, 'call', index, {
+        nativeName: 'custom_tool',
+        arguments: { index, value: 'x'.repeat(4 * 1024) },
+      }),
+    );
+    const correlated = activity(events);
+    const options = {
+      mode: 'complete-capture' as const,
+      renderFormat: 'compact-json' as const,
+      deliveryRange: wholeRange(events),
+    };
+
+    const bounded = projectActivityWithLimits(correlated, options, {
+      maxBytes: 64 * 1024,
+      maxInvocations: null,
+      previewBytes: 2 * 1024,
+      lateContextBytes: 256,
+    });
+    const complete = projectActivityWithLimits(
+      correlated,
+      options,
+      ACTIVITY_PROJECTION_LIMITS['complete-capture'],
+    );
+
+    expect(bounded.events.length).toBeLessThan(1_100);
+    expect(bounded.omitted.byteLimitGroups).toBeGreaterThan(0);
+    expect(complete.limits).toMatchObject({
+      maxBytes: null,
+      maxInvocations: null,
+      previewBytes: 2 * 1024,
+    });
+    expect(complete.events).toHaveLength(1_100);
+    expect(complete.omitted).toMatchObject({
+      calls: 0,
+      invocationLimitGroups: 0,
+      byteLimitGroups: 0,
+    });
+    expect(
+      complete.events.every(
+        (candidate) =>
+          (candidate.inputPreview?.displayedBytes ?? 0) <= 2 * 1024,
+      ),
+    ).toBe(true);
   });
 });

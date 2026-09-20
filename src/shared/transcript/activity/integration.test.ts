@@ -233,7 +233,7 @@ describe('captured activity pipeline', () => {
       results: 0,
       failures: 0,
     });
-    expect(report.renderedBytes).toBeLessThanOrEqual(report.limits.maxBytes);
+    expect(report.renderedBytes).toBeLessThanOrEqual(report.limits.maxBytes!);
   });
 
   it('keeps malformed input diagnostics stable and free of source content', async () => {

@@ -3,13 +3,13 @@ name: session-export-transcript
 description: Use when the user asks to export, save, or download the current coding-agent conversation as a Markdown file (e.g. "export this session transcript", "save the conversation as markdown"). Locates the live transcript via an announced session marker, drops tool calls and hidden injected payloads, and writes a sanitized branch-named Markdown file (default ~/Downloads).
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies.
-argument-hint: '[output-path] [--runtime <claude-code|codex|cursor|auto>] [--match <marker>] [--session <id>] [--all] [--include-activity] [--out <path>]'
+argument-hint: '[output-path] [--runtime <claude-code|codex|cursor|auto>] [--match <marker>] [--session <id>] [--all] [--include-activity] [--activity-output <path>] [--out <path>]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: thomas.stang
-  version: '2.0.29'
+  version: '2.0.30'
 ---
 
 # session-export-transcript
@@ -99,16 +99,17 @@ The CLI prints the written path. By default it is `~/Downloads/<branch>.md` (wit
 
 ## Modes and flags
 
-| Flag                 | Default         | Description                                                                                                               |
-| -------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `--runtime <r>`      | `auto`          | `claude-code\|codex\|cursor\|auto`. `auto` uses an env hint (`SESSION_OBSERVER_SELF`-style) then best-effort auto-detect. |
-| `--match <marker>`   | —               | Grep cwd candidates for this marker (selects the current session).                                                        |
-| `--session <id>`     | —               | Export a specific session id (bypasses `--match`).                                                                        |
-| `--all`              | false           | Export every session for the cwd — one file each.                                                                         |
-| `--include-activity` | false           | Append a bounded, source-attributed activity report after the sanitized conversation.                                     |
-| `--cwd <path>`       | `process.cwd()` | Project dir to match transcripts against.                                                                                 |
-| `--out <path>`       | —               | Output file or directory (also accepted positionally).                                                                    |
-| `--help`             | —               | Usage.                                                                                                                    |
+| Flag                       | Default         | Description                                                                                                               |
+| -------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `--runtime <r>`            | `auto`          | `claude-code\|codex\|cursor\|auto`. `auto` uses an env hint (`SESSION_OBSERVER_SELF`-style) then best-effort auto-detect. |
+| `--match <marker>`         | —               | Grep cwd candidates for this marker (selects the current session).                                                        |
+| `--session <id>`           | —               | Export a specific session id (bypasses `--match`).                                                                        |
+| `--all`                    | false           | Export every session for the cwd — one file each.                                                                         |
+| `--include-activity`       | false           | Append a bounded, source-attributed activity report after the sanitized conversation.                                     |
+| `--activity-output <path>` | —               | Write a complete sensitive activity JSON artifact paired with one exact `--session`; rejects `--all` and `--match`.       |
+| `--cwd <path>`             | `process.cwd()` | Project dir to match transcripts against.                                                                                 |
+| `--out <path>`             | —               | Output file or directory (also accepted positionally).                                                                    |
+| `--help`                   | —               | Usage.                                                                                                                    |
 
 **Selection-mode precedence:** the selection modes are mutually exclusive, with
 precedence `--all` > `--session` > `--match` > default (current session). The
@@ -148,6 +149,37 @@ Cursor exports include settled calls and snapshot-visible
 `pending-lifecycle` calls for retrospective review. They use positional
 frame/block identity, report tool results as not recorded, and never infer a
 per-call outcome from the turn-level terminal status.
+
+### Complete structured activity capture
+
+`--activity-output <path>` is a separate explicit opt-in for retrospective
+analysis. It requires exactly one native `--session <id>` and rejects `--all`,
+marker discovery, and fallback selection. The exporter reads the selected
+source once, corroborates Claude Code and Codex identity from native records in
+that snapshot (or Cursor identity from its documented native path), and derives
+both the sanitized Markdown and structured artifact from the same capture.
+Codex uses the first `session_meta.payload.id`, or a consistent native
+`token_usage_record.payload.thread_id` when the dedicated header is absent.
+`session_id`, legacy top-level aliases, message/item IDs, and filenames are not
+accepted as native Codex identity proof.
+
+The JSON is labelled `sensitive: not-publish-safe`. It contains the existing
+activity report schema in `complete-capture` mode, with no total-byte or
+invocation eviction and the same 2 KiB cap on each preview. It also carries the
+shared capture timestamp, native identity evidence, source/decoded record
+counts, and message-free narrative entry coordinates matching stable anchors in
+the paired Markdown. Malformed or partial records remain visible through honest
+coverage, diagnostics, and counts. Complete means every supported invocation in
+the captured bytes; it does not prove the session stopped or that the runtime
+recorded every action.
+
+The activity destination may be absent or an existing ordinary file. An
+existing ordinary file is replaced atomically through an exporter-owned
+temporary sibling. Directories, symlinks, special files, the source transcript,
+the narrative output, and either the effective or default Session Observer
+state root are rejected before either output is written. Any failure returns a
+nonzero exit and does not print a success claim. The exporter never reads or
+writes Observer checkpoints.
 
 ### Output path resolution
 

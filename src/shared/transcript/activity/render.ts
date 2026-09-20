@@ -124,7 +124,7 @@ export function renderActivityMarkdown(report: ActivityReport): string {
     `- Source: ${markdownData(report.source.transcriptPath)}`,
     `- Source snapshot: ${report.sourceSnapshot.sourceBytes} bytes captured at ${report.sourceSnapshot.capturedAt}`,
     `- Delivery range: [${report.deliveryRange.start}, ${report.deliveryRange.end}) ${report.deliveryRange.indexBase}`,
-    `- Activity bytes: ${report.renderedBytes}/${report.limits.maxBytes}; preview cap: ${report.limits.previewBytes}; late context cap: ${report.limits.lateContextBytes}`,
+    `- Activity bytes: ${report.renderedBytes}/${report.limits.maxBytes ?? 'unbounded'}; preview cap: ${report.limits.previewBytes}; late context cap: ${report.limits.lateContextBytes}`,
     countLine(report.counts.capturedSource),
     countLine(report.counts.deliveredRange),
     countLine(report.counts.displayed),

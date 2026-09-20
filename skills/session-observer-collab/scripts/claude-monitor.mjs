@@ -4703,7 +4703,7 @@ function renderActivityMarkdown(report) {
     `- Source: ${markdownData(report.source.transcriptPath)}`,
     `- Source snapshot: ${report.sourceSnapshot.sourceBytes} bytes captured at ${report.sourceSnapshot.capturedAt}`,
     `- Delivery range: [${report.deliveryRange.start}, ${report.deliveryRange.end}) ${report.deliveryRange.indexBase}`,
-    `- Activity bytes: ${report.renderedBytes}/${report.limits.maxBytes}; preview cap: ${report.limits.previewBytes}; late context cap: ${report.limits.lateContextBytes}`,
+    `- Activity bytes: ${report.renderedBytes}/${report.limits.maxBytes ?? "unbounded"}; preview cap: ${report.limits.previewBytes}; late context cap: ${report.limits.lateContextBytes}`,
     countLine(report.counts.capturedSource),
     countLine(report.counts.deliveredRange),
     countLine(report.counts.displayed),
@@ -4818,6 +4818,12 @@ var ACTIVITY_PROJECTION_LIMITS = {
     maxInvocations: null,
     previewBytes: 2 * KIB,
     lateContextBytes: 256
+  },
+  "complete-capture": {
+    maxBytes: null,
+    maxInvocations: null,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
   }
 };
 function inRange(event, range) {
@@ -4829,7 +4835,7 @@ function validateRange(range) {
   }
 }
 function validateLimits(limits) {
-  if (!Number.isSafeInteger(limits.maxBytes) || limits.maxBytes <= 0 || limits.maxInvocations !== null && (!Number.isSafeInteger(limits.maxInvocations) || limits.maxInvocations < 0) || !Number.isSafeInteger(limits.previewBytes) || limits.previewBytes <= 0 || !Number.isSafeInteger(limits.lateContextBytes) || limits.lateContextBytes <= 0) {
+  if (limits.maxBytes !== null && (!Number.isSafeInteger(limits.maxBytes) || limits.maxBytes <= 0) || limits.maxInvocations !== null && (!Number.isSafeInteger(limits.maxInvocations) || limits.maxInvocations < 0) || !Number.isSafeInteger(limits.previewBytes) || limits.previewBytes <= 0 || !Number.isSafeInteger(limits.lateContextBytes) || limits.lateContextBytes <= 0) {
     throw new Error("Activity projection limits must be positive integers");
   }
 }
@@ -5242,7 +5248,10 @@ function projectActivityWithLimits(activity, options, limits) {
     metadata,
     initialReasons
   );
-  if (initial.renderedBytes <= limits.maxBytes) return initial;
+  if (limits.maxBytes === null || initial.renderedBytes <= limits.maxBytes) {
+    return initial;
+  }
+  const maxBytes = limits.maxBytes;
   const optionalMetadataCount = metadata.sourceSkills.length + metadata.usage.samples.length + metadata.usage.diagnostics.length;
   let optionalLow = 0;
   let optionalHigh = optionalMetadataCount;
@@ -5267,7 +5276,7 @@ function projectActivityWithLimits(activity, options, limits) {
         usageDiagnostics: metadata.usage.diagnostics.length - retainedMetadata.usage.diagnostics.length
       }
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       optionalLow = retainedCount + 1;
     } else {
@@ -5304,7 +5313,7 @@ function projectActivityWithLimits(activity, options, limits) {
         byteLimitGroups: removedCount
       }
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       high = removedCount - 1;
     } else {
@@ -5332,7 +5341,7 @@ function projectActivityWithLimits(activity, options, limits) {
         diagnostics: boundedMetadata.diagnostics.length - retainedMetadata.diagnostics.length
       }
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       metadataLow = retainedCount + 1;
     } else {

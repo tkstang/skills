@@ -3,16 +3,21 @@
 
 // src/skills/session-export-transcript/src/session-export-transcript.ts
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import {
+  lstat,
   readdir,
   stat,
   mkdir,
+  open as open3,
+  rename,
+  unlink,
   writeFile,
   readFile as readFile2,
   realpath
 } from "node:fs/promises";
 import { homedir as homedir2 } from "node:os";
-import { dirname as dirname2, join as join2, basename as basename2 } from "node:path";
+import { basename as basename2, dirname as dirname2, join as join2, relative, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
 import { promisify } from "node:util";
 
@@ -2550,7 +2555,7 @@ function renderActivityMarkdown(report) {
     `- Source: ${markdownData(report.source.transcriptPath)}`,
     `- Source snapshot: ${report.sourceSnapshot.sourceBytes} bytes captured at ${report.sourceSnapshot.capturedAt}`,
     `- Delivery range: [${report.deliveryRange.start}, ${report.deliveryRange.end}) ${report.deliveryRange.indexBase}`,
-    `- Activity bytes: ${report.renderedBytes}/${report.limits.maxBytes}; preview cap: ${report.limits.previewBytes}; late context cap: ${report.limits.lateContextBytes}`,
+    `- Activity bytes: ${report.renderedBytes}/${report.limits.maxBytes ?? "unbounded"}; preview cap: ${report.limits.previewBytes}; late context cap: ${report.limits.lateContextBytes}`,
     countLine(report.counts.capturedSource),
     countLine(report.counts.deliveredRange),
     countLine(report.counts.displayed),
@@ -2665,6 +2670,12 @@ var ACTIVITY_PROJECTION_LIMITS = {
     maxInvocations: null,
     previewBytes: 2 * KIB,
     lateContextBytes: 256
+  },
+  "complete-capture": {
+    maxBytes: null,
+    maxInvocations: null,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
   }
 };
 function inRange(event, range) {
@@ -2676,7 +2687,7 @@ function validateRange(range) {
   }
 }
 function validateLimits(limits) {
-  if (!Number.isSafeInteger(limits.maxBytes) || limits.maxBytes <= 0 || limits.maxInvocations !== null && (!Number.isSafeInteger(limits.maxInvocations) || limits.maxInvocations < 0) || !Number.isSafeInteger(limits.previewBytes) || limits.previewBytes <= 0 || !Number.isSafeInteger(limits.lateContextBytes) || limits.lateContextBytes <= 0) {
+  if (limits.maxBytes !== null && (!Number.isSafeInteger(limits.maxBytes) || limits.maxBytes <= 0) || limits.maxInvocations !== null && (!Number.isSafeInteger(limits.maxInvocations) || limits.maxInvocations < 0) || !Number.isSafeInteger(limits.previewBytes) || limits.previewBytes <= 0 || !Number.isSafeInteger(limits.lateContextBytes) || limits.lateContextBytes <= 0) {
     throw new Error("Activity projection limits must be positive integers");
   }
 }
@@ -3089,7 +3100,10 @@ function projectActivityWithLimits(activity, options, limits) {
     metadata,
     initialReasons
   );
-  if (initial.renderedBytes <= limits.maxBytes) return initial;
+  if (limits.maxBytes === null || initial.renderedBytes <= limits.maxBytes) {
+    return initial;
+  }
+  const maxBytes = limits.maxBytes;
   const optionalMetadataCount = metadata.sourceSkills.length + metadata.usage.samples.length + metadata.usage.diagnostics.length;
   let optionalLow = 0;
   let optionalHigh = optionalMetadataCount;
@@ -3114,7 +3128,7 @@ function projectActivityWithLimits(activity, options, limits) {
         usageDiagnostics: metadata.usage.diagnostics.length - retainedMetadata.usage.diagnostics.length
       }
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       optionalLow = retainedCount + 1;
     } else {
@@ -3151,7 +3165,7 @@ function projectActivityWithLimits(activity, options, limits) {
         byteLimitGroups: removedCount
       }
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       high = removedCount - 1;
     } else {
@@ -3179,7 +3193,7 @@ function projectActivityWithLimits(activity, options, limits) {
         diagnostics: boundedMetadata.diagnostics.length - retainedMetadata.diagnostics.length
       }
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       metadataLow = retainedCount + 1;
     } else {
@@ -3856,6 +3870,7 @@ var execFileAsync = promisify(execFile);
 var VALID_RUNTIMES = ["claude-code", "codex", "cursor"];
 var LOOKBACK_DAYS = 30;
 var MARKER_LINE_RE = /EXPORT_SESSION_MARKER\s*=\s*\S+/;
+var STRUCTURED_ACTIVITY_FORMAT_VERSION = 1;
 var CODEX_ROLLOUT_FILENAME_PATTERN2 = /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/iu;
 function codexFilenameSessionId(transcriptPath) {
   return CODEX_ROLLOUT_FILENAME_PATTERN2.exec(basename2(transcriptPath))?.[1];
@@ -3899,6 +3914,7 @@ function parseCliArgs(argv) {
       session: { type: "string", default: void 0 },
       all: { type: "boolean", default: false },
       "include-activity": { type: "boolean", default: false },
+      "activity-output": { type: "string", default: void 0 },
       cwd: { type: "string", default: process.cwd() },
       out: { type: "string", default: void 0 },
       help: { type: "boolean", default: false }
@@ -3910,6 +3926,7 @@ function parseCliArgs(argv) {
     session: typeof values.session === "string" ? values.session : void 0,
     all: values.all === true,
     includeActivity: values["include-activity"] === true,
+    activityOutput: typeof values["activity-output"] === "string" ? values["activity-output"] : void 0,
     cwd: typeof values.cwd === "string" ? values.cwd : process.cwd(),
     out: typeof values.out === "string" ? values.out : positionals[0] ?? void 0,
     help: values.help === true
@@ -3926,6 +3943,8 @@ Flags:
   --session <id>        export a specific session id
   --all                 export every session for the cwd (one file each)
   --include-activity    append bounded source-attributed tool activity
+  --activity-output <path>
+                        write complete sensitive activity JSON for one exact --session
   --cwd <path>          project dir to match against (default: process.cwd())
   --out <path>          output file or directory (also accepted positionally)
   --help                this message
@@ -4237,6 +4256,332 @@ async function resolveOutputPath(opts, branch, session, multi) {
   }
   return join2(homedir2(), "Downloads", fileName);
 }
+function isErrnoException(error) {
+  return error instanceof Error && "code" in error;
+}
+async function canonicalPotentialPath(path) {
+  let cursor = resolve(path);
+  const suffix = [];
+  while (true) {
+    try {
+      const canonical = await realpath(cursor);
+      return join2(canonical, ...suffix);
+    } catch (error) {
+      if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
+      const parent = dirname2(cursor);
+      if (parent === cursor) throw error;
+      suffix.unshift(basename2(cursor));
+      cursor = parent;
+    }
+  }
+}
+async function inspectDestination(path, label) {
+  const canonicalPath = await canonicalPotentialPath(path);
+  try {
+    const info = await lstat(path);
+    if (info.isSymbolicLink()) {
+      throw new Error(`${label} must not be a symbolic link: ${path}`);
+    }
+    if (!info.isFile()) {
+      throw new Error(`${label} must be absent or an ordinary file: ${path}`);
+    }
+    return {
+      path,
+      canonicalPath,
+      inodeKey: `${info.dev}:${info.ino}`
+    };
+  } catch (error) {
+    if (isErrnoException(error) && error.code === "ENOENT") {
+      return { path, canonicalPath };
+    }
+    throw error;
+  }
+}
+function pathIsInside(path, root) {
+  const child = relative(root, path);
+  return child === "" || !child.startsWith(`..${sep}`) && child !== "..";
+}
+function observerStateRoots() {
+  const defaultRoot = join2(homedir2(), ".local", "state", "session-observer");
+  return [.../* @__PURE__ */ new Set([process.env.STATE_DIR ?? defaultRoot, defaultRoot])];
+}
+async function inodeKeyIfOrdinaryFile(path) {
+  try {
+    const info = await lstat(path);
+    return info.isFile() && !info.isSymbolicLink() ? `${info.dev}:${info.ino}` : null;
+  } catch (error) {
+    if (isErrnoException(error) && error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+async function observerStateFileNames(root) {
+  const names = [
+    "state.json",
+    "state.json.lock",
+    "cursor-state-transition.lock"
+  ];
+  try {
+    const entries = await readdir(root);
+    for (const entry of entries) {
+      if (/^state\.json\.\d+\.tmp$/u.test(entry) || /^state\.json\..+\.bak$/u.test(entry)) {
+        names.push(entry);
+      }
+    }
+  } catch (error) {
+    if (!isErrnoException(error) || error.code !== "ENOENT") throw error;
+  }
+  return [...new Set(names)];
+}
+async function validateStructuredDestinations(narrativePath, activityPath, transcriptPath) {
+  const [narrative, activity, canonicalSource] = await Promise.all([
+    inspectDestination(narrativePath, "Narrative output"),
+    inspectDestination(activityPath, "Activity output"),
+    realpath(transcriptPath)
+  ]);
+  const sourceInfo = await stat(canonicalSource);
+  const sourceInode = `${sourceInfo.dev}:${sourceInfo.ino}`;
+  if (narrative.canonicalPath === activity.canonicalPath || narrative.inodeKey !== void 0 && narrative.inodeKey === activity.inodeKey) {
+    throw new Error(
+      "OUTPUT_COLLISION: narrative and activity outputs must be distinct files"
+    );
+  }
+  for (const destination of [narrative, activity]) {
+    if (destination.canonicalPath === canonicalSource || destination.inodeKey === sourceInode) {
+      throw new Error(
+        `OUTPUT_COLLISION: ${destination.path} aliases the source transcript`
+      );
+    }
+  }
+  const canonicalStateRoots = await Promise.all(
+    observerStateRoots().map((root) => canonicalPotentialPath(root))
+  );
+  for (const destination of [narrative, activity]) {
+    if (canonicalStateRoots.some(
+      (root) => pathIsInside(destination.canonicalPath, root)
+    )) {
+      throw new Error(
+        `OUTPUT_COLLISION: ${destination.path} is inside a Session Observer state root`
+      );
+    }
+  }
+  const rootsWithStateFiles = await Promise.all(
+    observerStateRoots().map(async (root) => ({
+      root,
+      names: await observerStateFileNames(root)
+    }))
+  );
+  const stateInodes = new Set(
+    (await Promise.all(
+      rootsWithStateFiles.flatMap(
+        ({ root, names }) => names.map((name) => inodeKeyIfOrdinaryFile(join2(root, name)))
+      )
+    )).filter((value) => value !== null)
+  );
+  for (const destination of [narrative, activity]) {
+    if (destination.inodeKey !== void 0 && stateInodes.has(destination.inodeKey)) {
+      throw new Error(
+        `OUTPUT_COLLISION: ${destination.path} aliases Session Observer state`
+      );
+    }
+  }
+}
+async function writeAtomicActivityJson(outputPath, contents) {
+  await mkdir(dirname2(outputPath), { recursive: true });
+  const temporaryPath = join2(
+    dirname2(outputPath),
+    `.${basename2(outputPath)}.session-export-${process.pid}-${randomUUID()}.tmp`
+  );
+  let handle;
+  try {
+    handle = await open3(temporaryPath, "wx", 384);
+    await handle.writeFile(contents, "utf8");
+    await handle.close();
+    handle = void 0;
+    await rename(temporaryPath, outputPath);
+  } catch (error) {
+    if (handle) await handle.close().catch(() => void 0);
+    await unlink(temporaryPath).catch((cleanupError) => {
+      if (!isErrnoException(cleanupError) || cleanupError.code !== "ENOENT") {
+        throw cleanupError;
+      }
+    });
+    throw error;
+  }
+}
+function stringProperty(record, key) {
+  const value = record[key];
+  return typeof value === "string" && value.length > 0 ? value : void 0;
+}
+function capturedIdentity(runtime, requestedSessionId, read, transcriptPath) {
+  const records = read.records.map(({ record }) => record);
+  const meta = extractMetaFromRecords(runtime, records, transcriptPath);
+  if (meta === null) {
+    throw new Error(
+      `SESSION_IDENTITY_INVALID: captured ${runtime} records contain contradictory native identity`
+    );
+  }
+  if (runtime === "claude-code") {
+    const carriers = read.records.flatMap((detailed) => {
+      if (!Object.hasOwn(detailed.record, "sessionId")) return [];
+      const value = stringProperty(detailed.record, "sessionId");
+      if (value === void 0) {
+        throw new Error(
+          "SESSION_IDENTITY_INVALID: captured Claude record has a malformed native sessionId"
+        );
+      }
+      return [{ value, detailed }];
+    });
+    const identities = new Set(carriers.map(({ value }) => value));
+    if (identities.size === 0) {
+      throw new Error(
+        "SESSION_IDENTITY_MISSING: captured Claude records provide no native sessionId"
+      );
+    }
+    if (identities.size !== 1) {
+      throw new Error(
+        "SESSION_IDENTITY_INVALID: captured Claude records contradict one another"
+      );
+    }
+    const nativeSessionId2 = carriers[0].value;
+    if (nativeSessionId2 !== requestedSessionId) {
+      throw new Error(
+        `SESSION_IDENTITY_MISMATCH: captured Claude identity ${nativeSessionId2} does not match requested ${requestedSessionId}`
+      );
+    }
+    return {
+      nativeSessionId: nativeSessionId2,
+      evidence: {
+        kind: "claude-record-session-id",
+        locator: {
+          physicalLine: carriers[0].detailed.physicalLine,
+          recordIndex: carriers[0].detailed.recordIndex,
+          jsonPointer: "/sessionId"
+        }
+      }
+    };
+  }
+  const header = read.records.find(
+    ({ record }) => record.type === "session_meta"
+  );
+  const headerPayload = header && typeof header.record.payload === "object" && header.record.payload !== null && !Array.isArray(header.record.payload) ? header.record.payload : void 0;
+  if (header && headerPayload && Object.hasOwn(headerPayload, "id")) {
+    const nativeSessionId2 = stringProperty(headerPayload, "id");
+    if (nativeSessionId2 === void 0 || meta.nativeSessionId !== nativeSessionId2) {
+      throw new Error(
+        "SESSION_IDENTITY_INVALID: captured Codex session_meta identity is malformed or contradictory"
+      );
+    }
+    if (nativeSessionId2 !== requestedSessionId) {
+      throw new Error(
+        `SESSION_IDENTITY_MISMATCH: captured Codex identity ${nativeSessionId2} does not match requested ${requestedSessionId}`
+      );
+    }
+    return {
+      nativeSessionId: nativeSessionId2,
+      evidence: {
+        kind: "codex-session-meta-id",
+        locator: {
+          physicalLine: header.physicalLine,
+          recordIndex: header.recordIndex,
+          jsonPointer: "/payload/id"
+        }
+      }
+    };
+  }
+  const responseUsageCarriers = read.records.flatMap((detailed) => {
+    if (detailed.record.type !== "token_usage_record") return [];
+    const payload = typeof detailed.record.payload === "object" && detailed.record.payload !== null && !Array.isArray(detailed.record.payload) ? detailed.record.payload : void 0;
+    if (!payload || !Object.hasOwn(payload, "thread_id")) return [];
+    const value = payload.thread_id;
+    if (typeof value !== "string" || value.length === 0) {
+      throw new Error(
+        "SESSION_IDENTITY_INVALID: captured Codex token usage record has malformed native thread identity"
+      );
+    }
+    return [{ value, detailed }];
+  });
+  const responseUsageIdentities = new Set(
+    responseUsageCarriers.map(({ value }) => value)
+  );
+  if (responseUsageIdentities.size === 0) {
+    throw new Error(
+      "SESSION_IDENTITY_MISSING: captured Codex records provide no native session identity"
+    );
+  }
+  if (responseUsageIdentities.size !== 1) {
+    throw new Error(
+      "SESSION_IDENTITY_INVALID: captured Codex records contradict one another"
+    );
+  }
+  const nativeSessionId = responseUsageCarriers[0].value;
+  if (nativeSessionId !== requestedSessionId) {
+    throw new Error(
+      `SESSION_IDENTITY_MISMATCH: captured Codex identity ${nativeSessionId} does not match requested ${requestedSessionId}`
+    );
+  }
+  return {
+    nativeSessionId,
+    evidence: {
+      kind: "codex-token-usage-thread-id",
+      locator: {
+        physicalLine: responseUsageCarriers[0].detailed.physicalLine,
+        recordIndex: responseUsageCarriers[0].detailed.recordIndex,
+        jsonPointer: "/payload/thread_id"
+      }
+    }
+  };
+}
+async function cursorCapturedIdentity(requestedSessionId, transcriptPath) {
+  const canonicalTranscriptPath = await realpath(transcriptPath);
+  const transcriptBase = basename2(canonicalTranscriptPath).replace(
+    /\.jsonl$/u,
+    ""
+  );
+  const directorySessionId = basename2(dirname2(canonicalTranscriptPath));
+  const genericTranscriptName = [
+    "transcript",
+    "conversation",
+    "messages"
+  ].includes(transcriptBase);
+  const nativeSessionId = genericTranscriptName ? directorySessionId : transcriptBase;
+  if (nativeSessionId !== requestedSessionId || !genericTranscriptName && directorySessionId !== requestedSessionId) {
+    throw new Error(
+      `SESSION_IDENTITY_MISMATCH: Cursor native path does not corroborate requested ${requestedSessionId}`
+    );
+  }
+  return {
+    nativeSessionId,
+    evidence: {
+      kind: "cursor-native-path",
+      locator: { canonicalTranscriptPath }
+    }
+  };
+}
+function narrativeEvidence(runtime, entries, nativeLocators) {
+  const ordinals = /* @__PURE__ */ new Map();
+  return entries.map((entry) => {
+    const sourceDenseIndex = entry.sourceRecordIndex ?? entry.recordIndex;
+    const sourceLocator = nativeLocators[sourceDenseIndex];
+    const consumptionLocator = nativeLocators[entry.recordIndex];
+    if (!sourceLocator || !consumptionLocator) {
+      throw new Error(
+        `NARRATIVE_LOCATOR_INVALID: ${runtime} entry references an uncaptured record`
+      );
+    }
+    const coordinateKey = `${sourceLocator.index}:${consumptionLocator.index}`;
+    const ordinal = (ordinals.get(coordinateKey) ?? 0) + 1;
+    ordinals.set(coordinateKey, ordinal);
+    return {
+      entryKey: `entry-${runtime}-${sourceLocator.index}-${consumptionLocator.index}-${ordinal}`,
+      role: entry.role,
+      kind: entry.kind,
+      origin: entry.origin ?? "unknown",
+      displayRole: entry.displayRole ?? "unknown",
+      sourceLocator,
+      consumptionLocator
+    };
+  });
+}
 var SANITIZE_NOTE = "Note: Only visible conversation. Ordinary tool calls, tool outputs, developer/system instructions, environment/AGENTS.md/skill payloads, and subagent notifications are excluded. Ask-user exchanges \u2014 the questions put to you and any answers the runtime recorded \u2014 are preserved as visible conversation.";
 function stripMarkerAndEmpty(entries) {
   const out = [];
@@ -4255,18 +4600,22 @@ function renderMarkdown({
   entries,
   branchFromGit,
   session,
-  activity
+  activity,
+  completeActivity,
+  capturedAt,
+  exactNativeSessionId,
+  narrativeEvidence: entryEvidence
 }) {
   const lines = [];
   const title = branchFromGit ? branch : `${branch} (no git branch)`;
   lines.push(`# Conversation History: ${title}`);
   lines.push("");
-  lines.push(`Exported: ${(/* @__PURE__ */ new Date()).toISOString()}`);
+  lines.push(`Exported: ${capturedAt ?? (/* @__PURE__ */ new Date()).toISOString()}`);
   lines.push(`Source: ${source}`);
   lines.push(`Runtime: ${runtime}`);
   lines.push(`Session: ${session.sessionId}`);
-  if (session.nativeSessionId)
-    lines.push(`Native session: ${session.nativeSessionId}`);
+  const nativeSessionId = exactNativeSessionId ?? session.nativeSessionId;
+  if (nativeSessionId) lines.push(`Native session: ${nativeSessionId}`);
   if (session.rootSessionId)
     lines.push(`Root session: ${session.rootSessionId}`);
   if (session.parentSessionId)
@@ -4281,6 +4630,11 @@ function renderMarkdown({
       "Activity export: Sensitive activity/debug data is included below as recorded data. Tool inputs, outputs, paths, and identifiers may be present in bounded previews; external output files and child trajectories are not read."
     );
   }
+  if (entryEvidence) {
+    lines.push(
+      "Structured activity capture: Sensitive, not publish-safe JSON was paired from this exact source snapshot. Narrative provenance below records native coordinates without adding message bodies to the JSON artifact."
+    );
+  }
   lines.push("");
   if (entries.length === 0) {
     lines.push("*No visible messages.*");
@@ -4293,6 +4647,14 @@ function renderMarkdown({
       lines.push(header);
       lines.push("");
       while (i < entries.length && entries[i].role === role) {
+        const evidence = entryEvidence?.[i];
+        if (evidence) {
+          lines.push(`<a id="${evidence.entryKey}"></a>`);
+          lines.push(
+            `Entry: \`${evidence.entryKey}\`; source: ${evidence.sourceLocator.indexBase} ${evidence.sourceLocator.index}, physical line ${evidence.sourceLocator.physicalLine}; consumption: ${evidence.consumptionLocator.indexBase} ${evidence.consumptionLocator.index}, physical line ${evidence.consumptionLocator.physicalLine}; role: ${evidence.role}; display role: ${evidence.displayRole}; origin: ${evidence.origin}`
+          );
+          lines.push("");
+        }
         lines.push(entries[i].text);
         lines.push("");
         i++;
@@ -4300,6 +4662,18 @@ function renderMarkdown({
     }
   }
   if (activity) lines.push(renderActivityMarkdown(activity));
+  if (completeActivity) {
+    lines.push("## Structured Activity Capture Index", "");
+    const invocationKeys = completeActivity.events.filter((event) => event.kind === "call").map((event) => event.eventKey);
+    if (invocationKeys.length === 0) {
+      lines.push("- No captured invocation keys.", "");
+    } else {
+      for (const invocationKey of invocationKeys) {
+        lines.push(`- Invocation key: ${JSON.stringify(invocationKey)}`);
+      }
+      lines.push("");
+    }
+  }
   return lines.join("\n");
 }
 function unavailableActivityReport(source, sourceBytes, capturedAt, deliveryRange) {
@@ -4344,8 +4718,18 @@ function unavailableActivityReport(source, sourceBytes, capturedAt, deliveryRang
   );
 }
 async function exportSession(opts, runtime, branch, branchFromGit, session, multi) {
-  const cursorCapture = opts.includeActivity && runtime === "cursor" ? await (async () => {
-    const capturedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const outPath = await resolveOutputPath(opts, branch, session, multi);
+  const structuredCapture = opts.activityOutput !== void 0;
+  if (structuredCapture) {
+    await validateStructuredDestinations(
+      outPath,
+      opts.activityOutput,
+      session.transcriptPath
+    );
+  }
+  const captureActivity = opts.includeActivity || structuredCapture;
+  const cursorCapture = captureActivity && runtime === "cursor" ? await (async () => {
+    const capturedAt2 = (/* @__PURE__ */ new Date()).toISOString();
     const accumulator = createCursorTurnAccumulator(
       {
         runtime: "cursor",
@@ -4360,96 +4744,159 @@ async function exportSession(opts, runtime, branch, branchFromGit, session, mult
       onFrame(frame) {
         accumulator.onFrame(frame);
         if (frame.parseState === "parsed" && frame.record !== null) {
-          records2.push(frame.record);
+          records2.push({
+            record: frame.record,
+            frameIndex: frame.frameIndex
+          });
         }
       }
     });
     return {
-      capturedAt,
+      capturedAt: capturedAt2,
       scan,
       analysis: accumulator.finish(scan),
       records: records2
     };
   })() : void 0;
-  const capturedRead = opts.includeActivity && runtime !== "cursor" ? await readRecordsDetailed(session.transcriptPath) : void 0;
-  const records = cursorCapture ? cursorCapture.records : capturedRead ? capturedRead.records.map(({ record }) => record) : await readRecords(session.transcriptPath);
+  const capturedRead = captureActivity && runtime !== "cursor" ? await readRecordsDetailed(session.transcriptPath) : void 0;
+  const records = cursorCapture ? cursorCapture.records.map(({ record }) => record) : capturedRead ? capturedRead.records.map(({ record }) => record) : await readRecords(session.transcriptPath);
   const normalized = normalizeEntries(runtime, records, {});
   const sanitized = sanitizeEntries(normalized, { runtime });
   const entries = stripMarkerAndEmpty(sanitized);
+  const nativeLocators = structuredCapture ? cursorCapture ? cursorCapture.records.map(({ frameIndex }) => ({
+    indexBase: "zero-based-jsonl-frame-index",
+    index: frameIndex,
+    physicalLine: frameIndex + 1
+  })) : capturedRead?.records.map(({ recordIndex, physicalLine }) => ({
+    indexBase: "zero-based-decoded-record-index",
+    index: recordIndex,
+    physicalLine
+  })) : void 0;
+  const entryEvidence = nativeLocators ? narrativeEvidence(runtime, entries, nativeLocators) : void 0;
+  let exactIdentity;
+  if (structuredCapture) {
+    if (!opts.session) {
+      throw new Error(
+        "ACTIVITY_OUTPUT_REQUIRES_EXACT_SESSION: pass exactly one --session <id>"
+      );
+    }
+    exactIdentity = runtime === "cursor" ? await cursorCapturedIdentity(opts.session, session.transcriptPath) : capturedIdentity(
+      runtime,
+      opts.session,
+      capturedRead,
+      session.transcriptPath
+    );
+  }
   let activity;
-  if (opts.includeActivity && cursorCapture && runtime === "cursor") {
-    const source = {
+  let completeActivity;
+  let capturedAt;
+  let sourceBytes;
+  if (captureActivity && cursorCapture && runtime === "cursor") {
+    const cursorSource = {
       runtime: "cursor",
-      sessionId: session.sessionId,
-      nativeSessionId: session.sessionId,
+      sessionId: exactIdentity?.nativeSessionId ?? session.sessionId,
+      nativeSessionId: exactIdentity?.nativeSessionId ?? session.sessionId,
       transcriptPath: session.transcriptPath
     };
-    const deliveryRange = {
+    const cursorDeliveryRange = {
       indexBase: "zero-based-jsonl-frame-index",
       start: 0,
       end: cursorCapture.scan.totalFrames
     };
+    capturedAt = cursorCapture.capturedAt;
+    sourceBytes = cursorCapture.scan.file.size;
     try {
-      activity = projectActivity(
-        correlateActivity(
-          extractCursorActivity({
-            source,
-            scan: cursorCapture.scan,
-            analysis: cursorCapture.analysis,
-            capturedAt: cursorCapture.capturedAt,
-            mode: "stateless-snapshot"
-          })
-        ),
-        {
+      const correlated = correlateActivity(
+        extractCursorActivity({
+          source: cursorSource,
+          scan: cursorCapture.scan,
+          analysis: cursorCapture.analysis,
+          capturedAt: cursorCapture.capturedAt,
+          mode: "stateless-snapshot"
+        })
+      );
+      if (opts.includeActivity) {
+        activity = projectActivity(correlated, {
           mode: "export",
           renderFormat: "markdown",
-          deliveryRange
-        }
-      );
-    } catch {
-      activity = unavailableActivityReport(
-        source,
-        cursorCapture.scan.file.size,
-        cursorCapture.capturedAt,
-        deliveryRange
-      );
+          deliveryRange: cursorDeliveryRange
+        });
+      }
+      if (structuredCapture) {
+        completeActivity = projectActivity(correlated, {
+          mode: "complete-capture",
+          renderFormat: "compact-json",
+          deliveryRange: cursorDeliveryRange
+        });
+      }
+    } catch (error) {
+      if (structuredCapture) {
+        throw new Error(
+          "ACTIVITY_CAPTURE_FAILED: complete structured activity extraction failed",
+          { cause: error }
+        );
+      }
+      if (opts.includeActivity) {
+        activity = unavailableActivityReport(
+          cursorSource,
+          sourceBytes,
+          capturedAt,
+          cursorDeliveryRange
+        );
+      }
     }
-  } else if (opts.includeActivity && capturedRead) {
+  } else if (captureActivity && capturedRead) {
     const identity = extractMetaFromRecords(
       runtime,
       records,
       session.transcriptPath
     );
-    const source = {
+    const detailedSource = {
       runtime,
-      sessionId: session.sessionId,
-      nativeSessionId: identity?.nativeSessionId ?? session.nativeSessionId ?? session.sessionId,
+      sessionId: exactIdentity?.nativeSessionId ?? session.sessionId,
+      nativeSessionId: exactIdentity?.nativeSessionId ?? identity?.nativeSessionId ?? session.nativeSessionId ?? session.sessionId,
       transcriptPath: session.transcriptPath
     };
+    const detailedDeliveryRange = {
+      indexBase: "zero-based-decoded-record-index",
+      start: 0,
+      end: records.length
+    };
+    capturedAt = capturedRead.capturedAt;
+    sourceBytes = capturedRead.sourceBytes;
     try {
-      activity = projectActivity(
-        correlateActivity(extractActivity({ source, read: capturedRead })),
-        {
+      const correlated = correlateActivity(
+        extractActivity({ source: detailedSource, read: capturedRead })
+      );
+      if (opts.includeActivity) {
+        activity = projectActivity(correlated, {
           mode: "export",
           renderFormat: "markdown",
-          deliveryRange: {
-            indexBase: "zero-based-decoded-record-index",
-            start: 0,
-            end: records.length
-          }
-        }
-      );
-    } catch {
-      activity = unavailableActivityReport(
-        source,
-        capturedRead.sourceBytes,
-        capturedRead.capturedAt,
-        {
-          indexBase: "zero-based-decoded-record-index",
-          start: 0,
-          end: records.length
-        }
-      );
+          deliveryRange: detailedDeliveryRange
+        });
+      }
+      if (structuredCapture) {
+        completeActivity = projectActivity(correlated, {
+          mode: "complete-capture",
+          renderFormat: "compact-json",
+          deliveryRange: detailedDeliveryRange
+        });
+      }
+    } catch (error) {
+      if (structuredCapture) {
+        throw new Error(
+          "ACTIVITY_CAPTURE_FAILED: complete structured activity extraction failed",
+          { cause: error }
+        );
+      }
+      if (opts.includeActivity) {
+        activity = unavailableActivityReport(
+          detailedSource,
+          sourceBytes,
+          capturedAt,
+          detailedDeliveryRange
+        );
+      }
     }
   }
   const md = renderMarkdown({
@@ -4459,18 +4906,65 @@ async function exportSession(opts, runtime, branch, branchFromGit, session, mult
     runtime,
     session,
     entries,
-    activity
+    activity,
+    completeActivity,
+    ...structuredCapture ? {
+      capturedAt,
+      exactNativeSessionId: exactIdentity.nativeSessionId,
+      narrativeEvidence: entryEvidence
+    } : {}
   });
-  const outPath = await resolveOutputPath(opts, branch, session, multi);
   await mkdir(dirname2(outPath), { recursive: true });
   await writeFile(outPath, md, "utf8");
-  return outPath;
+  if (structuredCapture) {
+    const recordCounts = cursorCapture ? {
+      source: cursorCapture.scan.totalFrames,
+      decoded: cursorCapture.records.length
+    } : {
+      source: (capturedRead?.records.length ?? 0) + (capturedRead?.diagnostics.length ?? 0),
+      decoded: capturedRead?.records.length ?? 0
+    };
+    const envelope = {
+      formatVersion: STRUCTURED_ACTIVITY_FORMAT_VERSION,
+      activitySchemaVersion: completeActivity.activitySchemaVersion,
+      sensitive: "not-publish-safe",
+      runtime,
+      nativeSessionId: exactIdentity.nativeSessionId,
+      capturedAt,
+      identityEvidence: exactIdentity.evidence,
+      recordCounts,
+      narrativeEntries: entryEvidence,
+      activity: completeActivity
+    };
+    try {
+      await writeAtomicActivityJson(
+        opts.activityOutput,
+        `${JSON.stringify(envelope, null, 2)}
+`
+      );
+    } catch (error) {
+      throw new Error(
+        `ACTIVITY_OUTPUT_WRITE_FAILED after narrative output was written to ${outPath}: ${errorMessage(error)}`,
+        { cause: error }
+      );
+    }
+  }
+  return {
+    narrativePath: outPath,
+    ...structuredCapture ? { activityPath: opts.activityOutput } : {}
+  };
 }
 async function main() {
   const opts = parseCliArgs(process.argv.slice(2));
   if (opts.help) {
     console.log(HELP);
     return 0;
+  }
+  if (opts.activityOutput !== void 0 && (!opts.session || opts.all || opts.match !== void 0)) {
+    console.error(
+      "[session-export-transcript] ACTIVITY_OUTPUT_REQUIRES_EXACT_SESSION: --activity-output requires exactly one --session <id> and cannot be combined with --all or --match."
+    );
+    return 1;
   }
   let runtime;
   try {
@@ -4542,8 +5036,13 @@ Try --cwd <path> or confirm ${runtime} has run in this project.`
     );
     return 1;
   }
-  for (const p of written) {
-    console.log(`[session-export-transcript] wrote ${p}`);
+  for (const output of written) {
+    console.log(`[session-export-transcript] wrote ${output.narrativePath}`);
+    if (output.activityPath) {
+      console.log(
+        `[session-export-transcript] wrote sensitive activity ${output.activityPath}`
+      );
+    }
   }
   return 0;
 }

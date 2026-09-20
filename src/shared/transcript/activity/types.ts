@@ -267,7 +267,12 @@ export interface CorrelatedActivity extends Omit<ExtractedActivity, 'events'> {
   correlationCounts: ActivityCorrelationCounts;
 }
 
-export type ActivityProjectionMode = 'watch' | 'catch-up' | 'review' | 'export';
+export type ActivityProjectionMode =
+  | 'watch'
+  | 'catch-up'
+  | 'review'
+  | 'export'
+  | 'complete-capture';
 export type ActivityRenderFormat = 'compact-json' | 'markdown';
 
 export interface ActivityDeliveryRange {
@@ -277,7 +282,7 @@ export interface ActivityDeliveryRange {
 }
 
 export interface ActivityProjectionLimits {
-  maxBytes: number;
+  maxBytes: number | null;
   maxInvocations: number | null;
   previewBytes: number;
   lateContextBytes: number;

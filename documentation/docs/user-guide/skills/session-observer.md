@@ -135,6 +135,16 @@ failures likewise remain visible as `record-activity: not-read` plus
 `ACTIVITY_EXTRACTION_ERROR`. Empty or unread coverage is not proof that the
 session had no activity.
 
+For an uncapped retrospective artifact, use Session Export Transcript with one
+exact native session pin and `--activity-output <path>`. That exporter mode is
+independent from Observer review/catch-up budgets and never reads or advances an
+Observer checkpoint. Its JSON is labelled `sensitive: not-publish-safe`, keeps
+the ordinary per-preview cap while disabling total-byte and invocation
+eviction, and describes only one captured source snapshot rather than proving
+the session stopped. An existing ordinary destination is replaced atomically;
+directories, symlinks, special files, transcript/narrative aliases, and paths in
+the effective or default Observer state root are rejected before output.
+
 ## Identity and provenance
 
 - **Codex identity:** the first physical `session_meta.payload.id` is the

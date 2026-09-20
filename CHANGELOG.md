@@ -21,6 +21,14 @@
 
 ### Added
 
+- `session-export-transcript` 2.0.30 adds exact-session complete structured
+  activity captures with one-snapshot native identity evidence, stable
+  narrative anchors and physical provenance, unbounded total report retention
+  with bounded previews, and guarded atomic JSON replacement.
+  `session-observer` 1.0.79, `session-observer-collab` 1.0.67, and
+  `session-fork-to-destination` 0.2.44 receive validation-only shared activity
+  projection closure; their existing defaults remain unchanged.
+
 - `session-observer` 1.0.76 and `session-export-transcript` 2.0.27 add
   captured-source token metadata with exact Claude Code message deduplication,
   separate Codex cumulative, last-turn, and response semantics, explicit reset

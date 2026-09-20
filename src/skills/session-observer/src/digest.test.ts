@@ -2423,7 +2423,7 @@ describe('optional activity projection', () => {
     });
     expect(digest.activity!.events.length).toBeGreaterThan(0);
     expect(digest.activity!.renderedBytes).toBeLessThanOrEqual(
-      digest.activity!.limits.maxBytes,
+      digest.activity!.limits.maxBytes!,
     );
     expect(markdown).toContain('## Activity');
     expect(markdown).not.toContain('[Bash]');
@@ -2481,7 +2481,7 @@ describe('optional activity projection', () => {
         digest.activity?.renderedBytes,
       );
       expect(digest.activity!.renderedBytes).toBeLessThanOrEqual(
-        digest.activity!.limits.maxBytes,
+        digest.activity!.limits.maxBytes!,
       );
       expect(digest.activity!.omitted.byteLimitGroups).toBeGreaterThan(0);
       expect(digest.activity!.omitted.calls).toBe(

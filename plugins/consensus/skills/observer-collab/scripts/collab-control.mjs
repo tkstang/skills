@@ -2651,6 +2651,12 @@ var ACTIVITY_PROJECTION_LIMITS = {
     maxInvocations: null,
     previewBytes: 2 * KIB,
     lateContextBytes: 256
+  },
+  "complete-capture": {
+    maxBytes: null,
+    maxInvocations: null,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
   }
 };
 

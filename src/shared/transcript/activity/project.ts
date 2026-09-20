@@ -51,6 +51,12 @@ export const ACTIVITY_PROJECTION_LIMITS: Readonly<
     previewBytes: 2 * KIB,
     lateContextBytes: 256,
   },
+  'complete-capture': {
+    maxBytes: null,
+    maxInvocations: null,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256,
+  },
 };
 
 interface EvidenceGroup {
@@ -113,8 +119,8 @@ function validateRange(range: ActivityDeliveryRange): void {
 
 function validateLimits(limits: ActivityProjectionLimits): void {
   if (
-    !Number.isSafeInteger(limits.maxBytes) ||
-    limits.maxBytes <= 0 ||
+    (limits.maxBytes !== null &&
+      (!Number.isSafeInteger(limits.maxBytes) || limits.maxBytes <= 0)) ||
     (limits.maxInvocations !== null &&
       (!Number.isSafeInteger(limits.maxInvocations) ||
         limits.maxInvocations < 0)) ||
@@ -681,7 +687,11 @@ export function projectActivityWithLimits(
     metadata,
     initialReasons,
   );
-  if (initial.renderedBytes <= limits.maxBytes) return initial;
+  if (limits.maxBytes === null || initial.renderedBytes <= limits.maxBytes) {
+    return initial;
+  }
+
+  const maxBytes = limits.maxBytes;
 
   const optionalMetadataCount =
     metadata.sourceSkills.length +
@@ -714,7 +724,7 @@ export function projectActivityWithLimits(
           retainedMetadata.usage.diagnostics.length,
       },
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       optionalLow = retainedCount + 1;
     } else {
@@ -755,7 +765,7 @@ export function projectActivityWithLimits(
         byteLimitGroups: removedCount,
       },
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       high = removedCount - 1;
     } else {
@@ -788,7 +798,7 @@ export function projectActivityWithLimits(
           retainedMetadata.diagnostics.length,
       },
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       metadataLow = retainedCount + 1;
     } else {
