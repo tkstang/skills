@@ -499,6 +499,10 @@ var PANEL_EXIT_CODES = Object.freeze({
 });
 var PROVIDER_CLI_KILL_GRACE_MS = 250;
 var PROVIDER_CLI_FINAL_RESOLUTION_MS = 1e3;
+var PANEL_UNDERSTOOD_QUESTION_MAX_CHARS = 4096;
+var PANEL_RESPONSE_MAX_CHARS = 16384;
+var PANEL_RESPONSE_ARRAY_MAX_ITEMS = 50;
+var PANEL_RESPONSE_ARRAY_ITEM_MAX_CHARS = 4096;
 var RESPONSE_KEYS = /* @__PURE__ */ new Set([
   "schema_version",
   "understood_question",
@@ -820,14 +824,34 @@ function parsePanelResponsePayload(value) {
   if (value.schema_version !== "v1") {
     throw new Error('Panel response schema_version must be "v1"');
   }
-  const understoodQuestion = parseNonEmptyString(
+  const understoodQuestion = parseBoundedNonEmptyString(
     value.understood_question,
-    "understood_question"
+    "understood_question",
+    PANEL_UNDERSTOOD_QUESTION_MAX_CHARS
   );
-  const response = parseNonEmptyString(value.response, "response");
-  const keyPoints = parseStringArray(value.key_points, "key_points");
-  const risks = parseStringArray(value.risks, "risks");
-  const assumptions = parseStringArray(value.assumptions, "assumptions");
+  const response = parseBoundedNonEmptyString(
+    value.response,
+    "response",
+    PANEL_RESPONSE_MAX_CHARS
+  );
+  const keyPoints = parseStringArray(
+    value.key_points,
+    "key_points",
+    PANEL_RESPONSE_ARRAY_MAX_ITEMS,
+    PANEL_RESPONSE_ARRAY_ITEM_MAX_CHARS
+  );
+  const risks = parseStringArray(
+    value.risks,
+    "risks",
+    PANEL_RESPONSE_ARRAY_MAX_ITEMS,
+    PANEL_RESPONSE_ARRAY_ITEM_MAX_CHARS
+  );
+  const assumptions = parseStringArray(
+    value.assumptions,
+    "assumptions",
+    PANEL_RESPONSE_ARRAY_MAX_ITEMS,
+    PANEL_RESPONSE_ARRAY_ITEM_MAX_CHARS
+  );
   const confidence = parseConfidence(value.confidence);
   return {
     schema_version: "v1",
@@ -846,20 +870,24 @@ function assertKnownKeys2(record, knownKeys, label) {
     }
   }
 }
-function parseNonEmptyString(value, field) {
+function parseBoundedNonEmptyString(value, field, maxLength) {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${field} must be a non-empty string`);
   }
+  if ([...value].length > maxLength) {
+    throw new Error(`${field} must be at most ${maxLength} characters`);
+  }
   return value;
 }
-function parseStringArray(value, field) {
+function parseStringArray(value, field, maxItems, maxItemLength) {
   if (!Array.isArray(value)) {
     throw new Error(`${field} must be an array`);
   }
+  if (value.length > maxItems) {
+    throw new Error(`${field} must contain at most ${maxItems} items`);
+  }
   for (const [index, item] of value.entries()) {
-    if (typeof item !== "string") {
-      throw new Error(`${field}[${index}] must be a string`);
-    }
+    parseBoundedNonEmptyString(item, `${field}[${index}]`, maxItemLength);
   }
   return value;
 }

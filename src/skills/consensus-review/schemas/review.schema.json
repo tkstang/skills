@@ -2,6 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/tkstang/skills/consensus-review/review.schema.json",
   "title": "Consensus review reply",
+  "description": "A bounded review reply. Findings must refer to captured repository content or an external document anchor.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -58,6 +59,7 @@
   },
   "definitions": {
     "finding": {
+      "description": "Supply exactly one of location or anchor. Use location for captured repository files and anchor only for an external document scope; never supply both or omit both.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -73,8 +75,15 @@
           "enum": ["critical", "high", "medium", "low"]
         },
         "title": { "type": "string", "minLength": 1, "maxLength": 512 },
-        "location": { "$ref": "#/definitions/location" },
-        "anchor": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "location": {
+          "$ref": "#/definitions/location"
+        },
+        "anchor": {
+          "description": "An external document heading or other textual anchor. Mutually exclusive with location.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
         "claim": { "type": "string", "minLength": 1, "maxLength": 8192 },
         "evidence": { "type": "string", "minLength": 1, "maxLength": 8192 },
         "suggestion": {
@@ -82,7 +91,12 @@
           "minLength": 1,
           "maxLength": 8192
         },
-        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        "confidence": {
+          "description": "Confidence in this individual finding, from 0 (least certain) to 1 (most certain).",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       },
       "oneOf": [
         { "required": ["location"], "not": { "required": ["anchor"] } },
@@ -90,15 +104,20 @@
       ]
     },
     "location": {
+      "description": "A location in a captured repository file. Mutually exclusive with an external document anchor.",
       "type": "object",
       "additionalProperties": false,
       "required": ["path", "start_line", "end_line", "source_version"],
       "properties": {
         "path": {
+          "description": "The exact repository-relative path from the selected review scope, using forward slashes. This is a literal path, not a shell expression; the host also checks membership in captured paths.",
           "type": "string",
           "minLength": 1,
           "maxLength": 4096,
-          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+          "pattern": "^.+",
+          "not": {
+            "anyOf": [{ "pattern": "^/" }, { "pattern": "(^|/)\\.\\.(/|$)" }]
+          }
         },
         "start_line": { "type": "integer", "minimum": 1 },
         "end_line": { "type": "integer", "minimum": 1 },

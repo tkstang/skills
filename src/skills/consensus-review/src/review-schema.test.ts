@@ -40,10 +40,39 @@ describe('review response schema', () => {
         additionalProperties: false,
       });
     }
-    expect(schema.definitions.finding.properties.confidence).toEqual({
+    expect(schema.definitions.finding.properties.confidence).toMatchObject({
       type: 'number',
       minimum: 0,
       maximum: 1,
     });
+  });
+
+  it('rejects absolute and parent-traversal paths without regex lookaround', () => {
+    const pathSchema = schema.definitions.location.properties.path;
+    const rejected = pathSchema.not.anyOf.map(
+      (rule: { pattern: string }) => new RegExp(rule.pattern),
+    );
+    for (const pattern of [
+      pathSchema.pattern,
+      ...pathSchema.not.anyOf.map((rule: { pattern: string }) => rule.pattern),
+    ]) {
+      expect(pattern).not.toMatch(/\(\?[!=<]/u);
+    }
+    for (const [path, accepted] of [
+      ['src/example.ts', true],
+      ['src/a..b.ts', true],
+      ['src/.hidden', true],
+      ['/etc/passwd', false],
+      ['..', false],
+      ['../outside.ts', false],
+      ['src/../outside.ts', false],
+      ['src/..', false],
+      ['', false],
+    ] as const) {
+      expect(
+        new RegExp(pathSchema.pattern).test(path) &&
+          !rejected.some((pattern: RegExp) => pattern.test(path)),
+      ).toBe(accepted);
+    }
   });
 });

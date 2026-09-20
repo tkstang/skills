@@ -187,6 +187,10 @@ const PROVIDER_CLI_KILL_GRACE_MS = 250;
 // to wait after SIGKILL for 'close' before forcing settlement anyway (guards
 // against a descendant process holding the stdio pipes open).
 const PROVIDER_CLI_FINAL_RESOLUTION_MS = 1000;
+const PANEL_UNDERSTOOD_QUESTION_MAX_CHARS = 4096;
+const PANEL_RESPONSE_MAX_CHARS = 16384;
+const PANEL_RESPONSE_ARRAY_MAX_ITEMS = 50;
+const PANEL_RESPONSE_ARRAY_ITEM_MAX_CHARS = 4096;
 
 interface ProviderReadiness {
   agent: ConsensusAgentRef;
@@ -603,14 +607,34 @@ export function parsePanelResponsePayload(
     throw new Error('Panel response schema_version must be "v1"');
   }
 
-  const understoodQuestion = parseNonEmptyString(
+  const understoodQuestion = parseBoundedNonEmptyString(
     value.understood_question,
     'understood_question',
+    PANEL_UNDERSTOOD_QUESTION_MAX_CHARS,
   );
-  const response = parseNonEmptyString(value.response, 'response');
-  const keyPoints = parseStringArray(value.key_points, 'key_points');
-  const risks = parseStringArray(value.risks, 'risks');
-  const assumptions = parseStringArray(value.assumptions, 'assumptions');
+  const response = parseBoundedNonEmptyString(
+    value.response,
+    'response',
+    PANEL_RESPONSE_MAX_CHARS,
+  );
+  const keyPoints = parseStringArray(
+    value.key_points,
+    'key_points',
+    PANEL_RESPONSE_ARRAY_MAX_ITEMS,
+    PANEL_RESPONSE_ARRAY_ITEM_MAX_CHARS,
+  );
+  const risks = parseStringArray(
+    value.risks,
+    'risks',
+    PANEL_RESPONSE_ARRAY_MAX_ITEMS,
+    PANEL_RESPONSE_ARRAY_ITEM_MAX_CHARS,
+  );
+  const assumptions = parseStringArray(
+    value.assumptions,
+    'assumptions',
+    PANEL_RESPONSE_ARRAY_MAX_ITEMS,
+    PANEL_RESPONSE_ARRAY_ITEM_MAX_CHARS,
+  );
   const confidence = parseConfidence(value.confidence);
 
   return {
@@ -636,23 +660,36 @@ function assertKnownKeys(
   }
 }
 
-function parseNonEmptyString(value: unknown, field: string) {
+function parseBoundedNonEmptyString(
+  value: unknown,
+  field: string,
+  maxLength: number,
+) {
   if (typeof value !== 'string' || value.length === 0) {
     throw new Error(`${field} must be a non-empty string`);
+  }
+  if ([...value].length > maxLength) {
+    throw new Error(`${field} must be at most ${maxLength} characters`);
   }
   return value;
 }
 
-function parseStringArray(value: unknown, field: string) {
+function parseStringArray(
+  value: unknown,
+  field: string,
+  maxItems: number,
+  maxItemLength: number,
+) {
   if (!Array.isArray(value)) {
     throw new Error(`${field} must be an array`);
   }
-  for (const [index, item] of value.entries()) {
-    if (typeof item !== 'string') {
-      throw new Error(`${field}[${index}] must be a string`);
-    }
+  if (value.length > maxItems) {
+    throw new Error(`${field} must contain at most ${maxItems} items`);
   }
-  return value;
+  for (const [index, item] of value.entries()) {
+    parseBoundedNonEmptyString(item, `${field}[${index}]`, maxItemLength);
+  }
+  return value as string[];
 }
 
 function parseConfidence(value: unknown): PanelResponsePayload['confidence'] {

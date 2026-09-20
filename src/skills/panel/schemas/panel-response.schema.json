@@ -1,6 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/tkstang/skills/panel/panel-response.schema.json",
   "title": "Consensus Panel Response",
+  "description": "One panelist's independent response to the panel question.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,31 +20,45 @@
       "const": "v1"
     },
     "understood_question": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
     },
     "response": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
     },
     "key_points": {
       "type": "array",
+      "maxItems": 50,
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
       }
     },
     "risks": {
       "type": "array",
+      "maxItems": 50,
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
       }
     },
     "assumptions": {
       "type": "array",
+      "maxItems": 50,
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
       }
     },
     "confidence": {
       "type": "string",
+      "description": "The panelist's overall confidence in this complete response, not the per-finding numeric confidence used by Consensus Review.",
       "enum": ["low", "medium", "high"]
     }
   }
