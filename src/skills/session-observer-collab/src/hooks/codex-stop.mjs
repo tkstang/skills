@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { realpathSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 import { activationStatus } from '../../../../shared/collaboration/activation.js';
@@ -582,7 +581,9 @@ export async function runCodexStopHook(event, options = {}) {
 }
 
 async function readStdin() {
-  const input = await readFile('/dev/stdin', 'utf8');
+  process.stdin.setEncoding('utf8');
+  let input = '';
+  for await (const chunk of process.stdin) input += chunk;
   return JSON.parse(input || '{}');
 }
 

@@ -3,7 +3,6 @@
 
 // src/skills/session-observer-collab/src/hooks/codex-stop.mjs
 import { realpathSync } from "node:fs";
-import { readFile as readFile4 } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 // src/shared/collaboration/activation.ts
@@ -5397,7 +5396,9 @@ async function runCodexStopHook(event, options = {}) {
   }
 }
 async function readStdin() {
-  const input = await readFile4("/dev/stdin", "utf8");
+  process.stdin.setEncoding("utf8");
+  let input = "";
+  for await (const chunk of process.stdin) input += chunk;
   return JSON.parse(input || "{}");
 }
 async function runCodexStopMain() {

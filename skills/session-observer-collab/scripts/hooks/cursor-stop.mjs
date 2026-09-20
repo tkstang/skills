@@ -3,7 +3,6 @@
 
 // src/skills/session-observer-collab/src/hooks/cursor-stop.mjs
 import { realpathSync } from "node:fs";
-import { readFile as readFile3 } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 // src/skills/session-observer/src/lib/digest.ts
@@ -3807,7 +3806,9 @@ async function runCursorStopHook(event, options = {}) {
   }
 }
 async function readStdin() {
-  const input = await readFile3("/dev/stdin", "utf8");
+  process.stdin.setEncoding("utf8");
+  let input = "";
+  for await (const chunk of process.stdin) input += chunk;
   return JSON.parse(input || "{}");
 }
 async function runCursorStopMain() {

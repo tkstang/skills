@@ -139,6 +139,10 @@
 
 ### Fixed
 
+- `session-observer-collab` 1.0.48 reads Codex and Cursor Stop-hook payloads
+  directly from the stdin stream so socket-backed Linux hook invocations no
+  longer fail while reopening `/dev/stdin`.
+
 - `session-observer-collab` 1.0.47 decodes URL-derived repository paths in its
   generated shared-log integration test before filesystem access.
 
