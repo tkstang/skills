@@ -3147,7 +3147,7 @@ async function runReview(input, dependencies = {}) {
       approval_policy: "never"
     },
     max_attempts: 1,
-    max_runtime_sec: input.maxRuntimeSec ?? 600,
+    max_runtime_sec: input.maxRuntimeSec ?? 900,
     max_output_bytes: input.maxOutputBytes ?? 1024 * 1024,
     ...input.model ? { model: input.model } : {},
     ...input.effort ? { effort: input.effort } : {}

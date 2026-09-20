@@ -65,6 +65,9 @@ drift comparison. It refuses overwrite, symlink/input aliases, and destructive
 destinations. Human and `--json` output report full absolute paths to every
 artifact actually written.
 
+Each provider invocation has a 15-minute wall-clock runtime by default. The CLI
+does not expose a timeout override.
+
 ## Results and exit codes
 
 A valid stable reply produces external `result.json` and `review.md` artifacts.

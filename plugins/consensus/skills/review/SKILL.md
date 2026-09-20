@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Read
 argument-hint: base_branch=<ref> | --files <paths...> | --document <path> --host <runtime>
 metadata:
   author: thomas.stang
-  version: '0.1.13'
+  version: '0.1.14'
 ---
 
 # Consensus Review
@@ -62,6 +62,8 @@ returns usage exit 2, lists the three selectors, and invokes no provider; never
 pipe a menu answer to stdin. Exit 0 means a completed valid review (including
 findings) or an explicitly labeled empty-scope no-op. Exit 1 means incomplete,
 defective, or output failure. Parse the returned status, not only the exit code.
+Each provider invocation has a 15-minute wall-clock runtime by default. The CLI
+does not expose a timeout override.
 
 ## Present the handoff
 
