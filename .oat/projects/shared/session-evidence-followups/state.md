@@ -104,7 +104,7 @@ oat_generated: false
 
 ## Current Phase
 
-p00 and p01 complete and independently reviewed. p02 skill/usage implementation complete; accepted Opus findings are fixed; independent bounded verification is next before p03. User authorized continuation through one mergeable PR.
+p00 and p01 complete and independently reviewed. p02 skill/usage implementation complete; independent verification passed; five Low follow-ups are being polished before p03 and will be included in its independent review. User authorized continuation through one mergeable PR.
 
 ## Artifacts
 
