@@ -155,3 +155,17 @@ Draft PR #99 opened on branch backlog-review-2026-09-20 against main at remote h
 ## Watcher CI acceptance proof
 
 PR #99 Validate workflow `35540437989`, attempts 1, 2 and 3, all completed successfully at fixing head `90086e6e2c857185e14d6c57af624fd31737b550`. Each validate job passed; [machine-readable receipt](evidence/p01-ci-proof.json) retains exact job URLs, timestamps and conclusions. Two deliberate successful-run reruns provide three consecutive executions on the same watcher implementation. No failed run was hidden or retried. The later changelog-only wording correction does not change watcher behavior. This satisfies the three-run stability criterion alongside the final-tree50-run local stress proof. Ticket closeout will be finalized with the full wave acceptance audit; any subsequent validation failure must be investigated and the current success streak re-established.
+
+## p02 independent review disposition
+
+Consensus run `af48661b-3642-4447-8bec-cd81881f0bea` completed validly with changes_requested: zero Critical, two High, two Medium, two Low. [Canonical review](reviews/p02-opus-review.md), [immutable packet](evidence/p02-review-packet.md), packet SHA256 `11b52f6b3b71afedbb5f7a0fc923351a001319c92f07ba6e72e2e370a0e5767c`; reviewed HEAD `8094b2dff14d9f2bea6f0b03f2ec82857e7d1898`. Requested `claude:opus --effort high` via user-selected Consensus route, model/effort unobserved by wrapper; no OAT-native reconnaissance claim fabricated. Root verified valid envelope and stable diff.
+
+All six findings accepted within the existing p02 scope:
+- H1: response usage must compare native thread_id, not originating session_id, against nativeSessionId. Root independently inspected a local2026-09-04 rollout:114/114 usage records have thread_id matching native header id while session_id differs. Use native-shaped regression fixtures.
+- H2: bound new optional source metadata before it can evict delivered calls/results. Preserve captured-source semantics and explicit omitted counts; do not relabel range-filtered metadata as complete source. Root confirmed event-first reduction currently reaches metadata trimming only with an empty event set. Add mixed events plus oversized metadata regression.
+- M1: apply existing Codex ownership evidence to cumulative/last-turn usage, preventing inherited parent context from appearing as child-owned usage or a reset across ownership boundaries. Preserve unknown evidence honestly; reuse narrow existing ownership rules.
+- M2: restore Skill invocation arguments under the existing preview cap. Caller args are not attachment instruction bodies; keep names-only attachment extraction. No silent redaction beyond the existing contract.
+- L1: make coverage explicitly describe source-level skill-name carriers, distinct from per-event evidence; update consumers/docs and distinguish absent carrier from a valid empty listing.
+- L2: deduplicate available names within captured source retaining a documented representative locator; keep invoked occurrences distinct. Test repeated names and invocation occurrences.
+
+Same exact Sol/high handle receives `evidence-p02-fix1-20260920`, linked to original request `evidence-p02-20260920`; bounded one-commit fix, self-review and focused checks, then independent Opus verification. Review-fix round1 of2, no implementation recovery attempts. p03 remains gated on this review resolution.
