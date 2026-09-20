@@ -1,6 +1,6 @@
 ---
 oat_current_task: p02-t01
-oat_last_commit: 82ea5a103497aa8210035a889e256f07cb5cafa9
+oat_last_commit: a9f409b28d916beef6105e2dc0fd369be349580a
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -85,7 +85,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/skills/pull/99
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-20T21:59:24.828332+00:00'
+oat_project_state_updated: '2026-09-20T22:10:34.302234+00:00'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -104,7 +104,7 @@ oat_generated: false
 
 ## Current Phase
 
-p00 complete and independently reviewed. p01 implementation complete, independent review pending before p02 dispatch. User authorized continuation through one mergeable PR.
+p00 complete and independently reviewed. p01 implementation and independent reviews complete; p02 skill/usage metadata is next. User authorized continuation through one mergeable PR.
 
 ## Artifacts
 
@@ -120,7 +120,8 @@ p00 complete and independently reviewed. p01 implementation complete, independen
 - ✓ Execution artifacts scaffolded
 - ✓ Plan Opus review and complexity pass complete
 - ✓ p00 timeout implemented and independently reviewed
-- ⧗ p01 watcher independent review
+- ✓ p01 watcher implemented and independently reviewed
+- ⧗ p02 skill and usage metadata next
 
 ## Blockers
 
@@ -128,7 +129,7 @@ None
 
 ## Next Milestone
 
-Review p01, open progress PR for CI proof, then implement p02
+Implement p02 native skill attribution and honest usage accounting
 
 ## Review routing for this authorized run
 

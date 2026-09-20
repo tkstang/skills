@@ -1,0 +1,489 @@
+{
+  "pr": "https://github.com/tkstang/skills/pull/99",
+  "method": "Three consecutive successful workflow executions (attempts1,2,3); successful prior attempts were deliberately rerun for stability acceptance, no failed run retried away.",
+  "executions": [
+    {
+      "databaseId": 35540437989,
+      "attempt": 1,
+      "headSha": "90086e6e2c857185e14d6c57af624fd31737b550",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/tkstang/skills/actions/runs/35540437989",
+      "validateJob": {
+        "completedAt": "2026-09-20T22:03:49Z",
+        "conclusion": "success",
+        "databaseId": 106156978300,
+        "name": "validate",
+        "startedAt": "2026-09-20T22:02:35Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-09-20T22:02:37Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-09-20T22:02:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:02:39Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 2,
+            "startedAt": "2026-09-20T22:02:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:02:44Z",
+            "conclusion": "success",
+            "name": "Run pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+            "number": 3,
+            "startedAt": "2026-09-20T22:02:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:02:49Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+            "number": 4,
+            "startedAt": "2026-09-20T22:02:44Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:02:49Z",
+            "conclusion": "success",
+            "name": "Run pnpm install --frozen-lockfile",
+            "number": 5,
+            "startedAt": "2026-09-20T22:02:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:02:50Z",
+            "conclusion": "success",
+            "name": "Capture generated output paths",
+            "number": 6,
+            "startedAt": "2026-09-20T22:02:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:02:53Z",
+            "conclusion": "success",
+            "name": "Verify committed generated outputs before tests",
+            "number": 7,
+            "startedAt": "2026-09-20T22:02:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:02:58Z",
+            "conclusion": "success",
+            "name": "Run pnpm run type-check",
+            "number": 8,
+            "startedAt": "2026-09-20T22:02:53Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:03:45Z",
+            "conclusion": "success",
+            "name": "Run pnpm run test",
+            "number": 9,
+            "startedAt": "2026-09-20T22:02:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:03:45Z",
+            "conclusion": "success",
+            "name": "Run pnpm run validate",
+            "number": 10,
+            "startedAt": "2026-09-20T22:03:45Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:03:46Z",
+            "conclusion": "success",
+            "name": "Run pnpm run smoke",
+            "number": 11,
+            "startedAt": "2026-09-20T22:03:45Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:03:46Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+            "number": 20,
+            "startedAt": "2026-09-20T22:03:46Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:03:47Z",
+            "conclusion": "success",
+            "name": "Post Run pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+            "number": 21,
+            "startedAt": "2026-09-20T22:03:46Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:03:47Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 22,
+            "startedAt": "2026-09-20T22:03:47Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:03:47Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 23,
+            "startedAt": "2026-09-20T22:03:47Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/tkstang/skills/actions/runs/35540437989/job/106156978300"
+      },
+      "jobConclusions": [
+        {
+          "name": "lint",
+          "conclusion": "success"
+        },
+        {
+          "name": "validate",
+          "conclusion": "success"
+        },
+        {
+          "name": "skill-versions",
+          "conclusion": "success"
+        },
+        {
+          "name": "commitlint",
+          "conclusion": "success"
+        },
+        {
+          "name": "internal-flags",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "databaseId": 35540437989,
+      "attempt": 2,
+      "headSha": "90086e6e2c857185e14d6c57af624fd31737b550",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/tkstang/skills/actions/runs/35540437989",
+      "validateJob": {
+        "completedAt": "2026-09-20T22:07:05Z",
+        "conclusion": "success",
+        "databaseId": 106157387353,
+        "name": "validate",
+        "startedAt": "2026-09-20T22:05:40Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-09-20T22:05:41Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-09-20T22:05:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:05:43Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 2,
+            "startedAt": "2026-09-20T22:05:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:05:46Z",
+            "conclusion": "success",
+            "name": "Run pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+            "number": 3,
+            "startedAt": "2026-09-20T22:05:43Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:05:47Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+            "number": 4,
+            "startedAt": "2026-09-20T22:05:46Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:05:48Z",
+            "conclusion": "success",
+            "name": "Run pnpm install --frozen-lockfile",
+            "number": 5,
+            "startedAt": "2026-09-20T22:05:47Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:05:49Z",
+            "conclusion": "success",
+            "name": "Capture generated output paths",
+            "number": 6,
+            "startedAt": "2026-09-20T22:05:48Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:05:53Z",
+            "conclusion": "success",
+            "name": "Verify committed generated outputs before tests",
+            "number": 7,
+            "startedAt": "2026-09-20T22:05:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:05:59Z",
+            "conclusion": "success",
+            "name": "Run pnpm run type-check",
+            "number": 8,
+            "startedAt": "2026-09-20T22:05:53Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:07:02Z",
+            "conclusion": "success",
+            "name": "Run pnpm run test",
+            "number": 9,
+            "startedAt": "2026-09-20T22:05:59Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:07:02Z",
+            "conclusion": "success",
+            "name": "Run pnpm run validate",
+            "number": 10,
+            "startedAt": "2026-09-20T22:07:02Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:07:04Z",
+            "conclusion": "success",
+            "name": "Run pnpm run smoke",
+            "number": 11,
+            "startedAt": "2026-09-20T22:07:02Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:07:04Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+            "number": 20,
+            "startedAt": "2026-09-20T22:07:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:07:04Z",
+            "conclusion": "success",
+            "name": "Post Run pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+            "number": 21,
+            "startedAt": "2026-09-20T22:07:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:07:04Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 22,
+            "startedAt": "2026-09-20T22:07:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:07:04Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 23,
+            "startedAt": "2026-09-20T22:07:04Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/tkstang/skills/actions/runs/35540437989/job/106157387353"
+      },
+      "jobConclusions": [
+        {
+          "name": "validate",
+          "conclusion": "success"
+        },
+        {
+          "name": "skill-versions",
+          "conclusion": "success"
+        },
+        {
+          "name": "lint",
+          "conclusion": "success"
+        },
+        {
+          "name": "commitlint",
+          "conclusion": "success"
+        },
+        {
+          "name": "internal-flags",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "databaseId": 35540437989,
+      "attempt": 3,
+      "headSha": "90086e6e2c857185e14d6c57af624fd31737b550",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/tkstang/skills/actions/runs/35540437989",
+      "validateJob": {
+        "completedAt": "2026-09-20T22:10:08Z",
+        "conclusion": "success",
+        "databaseId": 106157739589,
+        "name": "validate",
+        "startedAt": "2026-09-20T22:08:16Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-09-20T22:08:18Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-09-20T22:08:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:08:20Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 2,
+            "startedAt": "2026-09-20T22:08:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:08:24Z",
+            "conclusion": "success",
+            "name": "Run pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+            "number": 3,
+            "startedAt": "2026-09-20T22:08:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:08:26Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+            "number": 4,
+            "startedAt": "2026-09-20T22:08:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:08:27Z",
+            "conclusion": "success",
+            "name": "Run pnpm install --frozen-lockfile",
+            "number": 5,
+            "startedAt": "2026-09-20T22:08:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:08:28Z",
+            "conclusion": "success",
+            "name": "Capture generated output paths",
+            "number": 6,
+            "startedAt": "2026-09-20T22:08:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:08:34Z",
+            "conclusion": "success",
+            "name": "Verify committed generated outputs before tests",
+            "number": 7,
+            "startedAt": "2026-09-20T22:08:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:08:43Z",
+            "conclusion": "success",
+            "name": "Run pnpm run type-check",
+            "number": 8,
+            "startedAt": "2026-09-20T22:08:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:10:04Z",
+            "conclusion": "success",
+            "name": "Run pnpm run test",
+            "number": 9,
+            "startedAt": "2026-09-20T22:08:43Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:10:05Z",
+            "conclusion": "success",
+            "name": "Run pnpm run validate",
+            "number": 10,
+            "startedAt": "2026-09-20T22:10:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:10:07Z",
+            "conclusion": "success",
+            "name": "Run pnpm run smoke",
+            "number": 11,
+            "startedAt": "2026-09-20T22:10:05Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:10:07Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+            "number": 20,
+            "startedAt": "2026-09-20T22:10:07Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:10:07Z",
+            "conclusion": "success",
+            "name": "Post Run pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+            "number": 21,
+            "startedAt": "2026-09-20T22:10:07Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:10:07Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 22,
+            "startedAt": "2026-09-20T22:10:07Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-09-20T22:10:07Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 23,
+            "startedAt": "2026-09-20T22:10:07Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/tkstang/skills/actions/runs/35540437989/job/106157739589"
+      },
+      "jobConclusions": [
+        {
+          "name": "validate",
+          "conclusion": "success"
+        },
+        {
+          "name": "commitlint",
+          "conclusion": "success"
+        },
+        {
+          "name": "internal-flags",
+          "conclusion": "success"
+        },
+        {
+          "name": "skill-versions",
+          "conclusion": "success"
+        },
+        {
+          "name": "lint",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ]
+}

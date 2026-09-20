@@ -14,7 +14,7 @@ oat_generated: false
 | Phase | Status  | Tasks | Completed |
 | ----- | ------- | ----- | --------- |
 | p00   | complete | 1     | 1/1       |
-| p01   | review | 2     | 2/2       |
+| p01   | complete | 2     | 2/2       |
 | p02   | pending | 2     | 0/2       |
 | p03   | pending | 1     | 0/1       |
 | p04   | pending | 1     | 0/1       |
@@ -41,7 +41,7 @@ Disposition: M1 accepted as host-budget documentation guidance; same native hand
 
 Validation: focused run.test.ts 25/25, type-check, build, build:check, scoped lint/format, skill-version validation from baseline, documentation production build and diff check passed. Docs follow-up repeated build freshness, scoped format, version validation, production docs build and self-review. Global installs remain unchanged until merge.
 
-### p01 — implemented, independent review pending
+### p01 — complete and independently reviewed
 
 Request `evidence-p01-20260920`, native `/root/p01_watcher` accepted/completed as `oat-phase-implementer-gpt-5-6-sol-high`; High policy, hard-reasoning class, high effort for cross-runtime signal and checkpoint semantics; candidates Sol medium/high, high selected. No nested workers, recovery 0/10.
 
@@ -55,7 +55,7 @@ Final-tree stress: [log](evidence/p01-final-stress.log), [temporary harness reta
 
 Review routing: exact Opus reviewer under High policy, `--effort high` user-selected Consensus route. The base-branch selector's 2 MiB whole-file snapshot cap is exceeded by duplicated generated bundles. Preserve authored before/after diff including deletions, immutable base/head and hashes of every changed file in a bounded external review packet; verify generated units with build:check and version validation. Keep entire checkout stable. This changes review transport only, not review scope or acceptance requirements; final review uses the same method if needed.
 
-### p01 review disposition — fixes implemented, verification review pending
+### p01 review disposition — fixes verified
 
 Independent Opus review run `446cd7d0-bd2c-4b53-b1f4-6b62e1bdd9c4` passed with zero Critical/High, two Medium and one Low; [canonical result](reviews/archived/p01-opus-review.md), [immutable reviewed packet](evidence/p01-review-packet.md), captured packet SHA256 `465a369170673c235b4f99923648479223b6db86c7600965bf96fa948d9ef8ec`. Requested `claude:opus --effort high`; actual model/effort unobserved by wrapper. No OAT-native reconnaissance claim is fabricated for this user-selected external review.
 
@@ -64,6 +64,8 @@ M1 accepted: preserve meaningful aborted/truncated assistant output; suppress pr
 Same Sol handle receives bounded continuation `evidence-p01-fix1-20260920`, linked to `evidence-p01-20260920`; no replacement or target change. Review passed does not waive these accepted fixes or their verification. A bounded independent follow-up will verify the changes.
 
 Fix continuation completed as `82ea5a103497aa8210035a889e256f07cb5cafa9`, exactly one append-only commit from `a3f782c4da52ab0a02cdd0869904e41e6f6e32ca`. Root inspected the native join and digest accounting diff; clean worktree verified. M1/M2/L1 implemented, including root's future-only pointer and double-accounting checks. Observer1.0.74, collab1.0.62, export2.0.25 and fork0.2.39. Watcher60/60, shared decoder/activity34/34, digest62/62, collab199/199; types, build/freshness, validate, version checks, scoped lint/format and docs build passed. Signal/rearm mechanics unchanged; retained 50-run stress proof remains applicable. One nonblocking fix round, no implementation recovery attempts. Focused independent verification review pending.
+
+Bounded independent verification run `c47f8d9e-a43b-48e3-b790-fdf445abf041` passed: zero Critical/High/Medium, all original M1/M2/L1 fixes verified. [Canonical review](reviews/p01-opus-fix-verification.md), [packet](evidence/p01-fix-review-packet.md), packet SHA256 `e62eeba813f08ef151da7ec6b7ea819e4d704db2867fdcc2bd21a9ae2dd9b359`; reviewed HEAD `c7b17f4455e20d2231c92caf210c252faefce822`. Requested Opus/high, actual model/effort unobserved by wrapper. One new Low changelog wording issue accepted and fixed by same Sol handle in `a9f409b28d916beef6105e2dc0fd369be349580a`; root inspected exact one-file diff, scoped formatting/self-review passed. It accurately distinguishes runtime changes from conservative transitive source version-validation bumps. No runtime change followed the passing review. Independent final integration review still covers the complete delta.
 
 ## Task Records
 
@@ -85,7 +87,7 @@ Fix continuation completed as `82ea5a103497aa8210035a889e256f07cb5cafa9`, exactl
 
 **Status:** completed
 **Commit:** 83b36bf602c26a7309ed1e2b6e173ccf83a0798a
-**Outcome:** Claude/Codex/Cursor metadata-only terminal watch events, existing checkpoint dedup and bounded inferred retry fragments. Accepted nonblocking review fixes remain in progress above.
+**Outcome:** Claude/Codex/Cursor metadata-only terminal watch events, existing checkpoint dedup and bounded inferred retry fragments. Accepted review fixes are implemented and independently verified above.
 **Verification:** Watcher60, decoder/activity32, collaboration199 tests and phase gates passed; independent review pass with accepted follow-up findings.
 
 ## Implementation Log
@@ -121,3 +123,7 @@ p00 completed: Consensus Review defaults to 900 seconds with explicit internal o
 ## Progress PR
 
 Draft PR #99 opened on branch backlog-review-2026-09-20 against main at remote head90086e6e. Pre-push validate/buildfreshness/types/version/internalflags passed. Conventional Commit title: `feat(session): add reliable activity evidence for retros`. Progress artifact is local `pr/progress-p01-2026-09-20.md`. Implementation remains in progress. CI at this fixing-PR head can qualify for watcher acceptance; no CI pass is yet claimed.
+
+## Watcher CI acceptance proof
+
+PR #99 Validate workflow `35540437989`, attempts 1, 2 and 3, all completed successfully at fixing head `90086e6e2c857185e14d6c57af624fd31737b550`. Each validate job passed; [machine-readable receipt](evidence/p01-ci-proof.json) retains exact job URLs, timestamps and conclusions. Two deliberate successful-run reruns provide three consecutive executions on the same watcher implementation. No failed run was hidden or retried. The later changelog-only wording correction does not change watcher behavior. This satisfies the three-run stability criterion alongside the final-tree50-run local stress proof. Ticket closeout will be finalized with the full wave acceptance audit; any subsequent validation failure must be investigated and the current success streak re-established.
