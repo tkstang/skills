@@ -55,6 +55,37 @@ Final-tree stress: [log](evidence/p01-final-stress.log), [temporary harness reta
 
 Review routing: exact Opus reviewer under High policy, `--effort high` user-selected Consensus route. The base-branch selector's 2 MiB whole-file snapshot cap is exceeded by duplicated generated bundles. Preserve authored before/after diff including deletions, immutable base/head and hashes of every changed file in a bounded external review packet; verify generated units with build:check and version validation. Keep entire checkout stable. This changes review transport only, not review scope or acceptance requirements; final review uses the same method if needed.
 
+### p01 review disposition — bounded fixes in progress
+
+Independent Opus review run `446cd7d0-bd2c-4b53-b1f4-6b62e1bdd9c4` passed with zero Critical/High, two Medium and one Low; [canonical result](reviews/p01-opus-review.md), [immutable reviewed packet](evidence/p01-review-packet.md), captured packet SHA256 `465a369170673c235b4f99923648479223b6db86c7600965bf96fa948d9ef8ec`. Requested `claude:opus --effort high`; actual model/effort unobserved by wrapper. No OAT-native reconnaissance claim is fabricated for this user-selected external review.
+
+M1 accepted: preserve meaningful aborted/truncated assistant output; suppress provider API-error bodies only with explicit filtered accounting and documented behavior. M2 accepted: native Claude message IDs span records; fold explicit-abort evidence across prior same-session blocks, with tests for non-final abort flags and later-only/orphan references. Root additionally observed that the existing map could join a future assistant record, contrary to the plan's prior-record requirement; fix in the same join scope. L1 accepted: stop/heartbeat documentation and printed label must describe delivered delta plus terminal events. Retry suffix whitespace question declined: strict observed grammar is intentional; no unsupported locale/whitespace inference is required. Cursor metadata frames already lack narrative content, so preserving meaningful Claude partial output resolves the apparent asymmetry.
+
+Same Sol handle receives bounded continuation `evidence-p01-fix1-20260920`, linked to `evidence-p01-20260920`; no replacement or target change. Review passed does not waive these accepted fixes or their verification. A bounded independent follow-up will verify the changes.
+
+## Task Records
+
+### Task p00-t01: Give Consensus Review fifteen minutes by default
+
+**Status:** completed
+**Commit:** 852be12cf67f5231f481dd97ce741e057d841937
+**Outcome:** Provider dispatch defaults to 900 seconds with explicit internal overrides retained; host budget guidance added in 37f2832f.
+**Verification:** 25 focused tests, typecheck, build/freshness, version gate, docs build and independent Opus pass; details in p00 above.
+
+### Task p01-t01: Stabilize SIGTERM re-arm evidence
+
+**Status:** completed
+**Commit:** c1b68367b3cb143654f095e308b3f1cc81ba4788
+**Outcome:** Condition-based delta/checkpoint wait replaces fixed120ms lifetime; runtime shutdown unchanged.
+**Verification:** 50 consecutive final-tree passes including30 loaded; full watch suite and subprocess audit. Three PR CI successes remain ticket acceptance.
+
+### Task p01-t02: Emit unsuccessful terminal metadata
+
+**Status:** completed
+**Commit:** 83b36bf602c26a7309ed1e2b6e173ccf83a0798a
+**Outcome:** Claude/Codex/Cursor metadata-only terminal watch events, existing checkpoint dedup and bounded inferred retry fragments. Accepted nonblocking review fixes remain in progress above.
+**Verification:** Watcher60, decoder/activity32, collaboration199 tests and phase gates passed; independent review pass with accepted follow-up findings.
+
 ## Implementation Log
 
 - Plan committed and reviewed; initial response-format failures preserved as diagnostics, not passes. Valid review found one High native retry-grammar issue; bounded fix verification passed with zero findings.

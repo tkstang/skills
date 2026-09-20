@@ -156,7 +156,7 @@ Close each fully satisfied item via repo Backlog Lifecycle: status/updated, comp
 
 | Scope  | Type     | Status          | Date       | Artifact                      | Reviewed Head | Invocation | Gate Target |
 | ------ | -------- | --------------- | ---------- | ----------------------------- | ------------- | ---------- | ----------- |
-| p01    | code     | pending         | -          | -                             | -             | -          | -           |
+| p01 | code | fixes_added | 2026-09-20 | reviews/p01-opus-review.md | - | manual | - |
 | p02    | code     | pending         | -          | -                             | -             | -          | -           |
 | final  | code     | pending         | -          | -                             | -             | -          | -           |
 | spec   | artifact | pending         | -          | -                             | -             | -          | -           |
