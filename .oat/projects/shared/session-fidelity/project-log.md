@@ -104,6 +104,10 @@ Phase p12 passed on the identity layer after one implementation commit and one i
 
 sf-remote-closeout-20260919: p12 fixes published; PR #95 and #96 review threads replied to and resolved; clean remote receive artifacts recorded; configured gate project-disabled by user; independent final review passed.
 
+### 2026-09-20 · structural · oat-project-retro · project-retro
+
+retro artifact=.oat/projects/shared/session-fidelity/references/project-retro.md evidence_used=gate-receipts,git-history,github-pr-state,lifecycle-artifacts,project-log,review-artifacts,session-transcript evidence_unavailable=oat-execution-learnings promotions=2 upstream=3 apply=performed filing=deferred
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
