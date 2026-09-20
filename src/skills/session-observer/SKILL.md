@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.73'
+  version: '1.0.74'
 ---
 
 # {{distribution.name}}
@@ -330,7 +330,7 @@ For combined catch-up/watch requests, run `catch-up-then-watch`. Starting `watch
 
 Each emitted watch digest is equivalent to a debounced `catch-up` result and advances the runtime-specific high-water mark. Schema-v1/non-Cursor targets consume JSONL records. Cursor schema v2 consumes physical JSONL frames only after its stability, continuity, and delivery checks pass. The debounce waits for `--debounce-sec` seconds of quiet, but continuous writes are still emitted after `--max-pending-sec` seconds so a busy transcript cannot starve the watcher indefinitely. If the watcher prints JSON lines, route by stable event type: `baseline`, `delta`, `terminal`, `heartbeat`, `stopped`, or `error`. Respond to `delta` events with digest content; treat `terminal` as lifecycle metadata; stay quiet on `baseline` and `heartbeat` unless their metadata shows a problem. If it prints markdown, read each emitted digest before commenting.
 
-A `terminal` event reports a natively recorded unsuccessful turn without copying the transcript body or provider error message. Its source locator belongs to the exact consumed record or frame range. Terminal-only growth still advances the checkpoint and is delivered at most once; `--quiet-empty` suppresses only an empty `delta`, never the terminal event. A later successful record does not erase an earlier terminal event. Terminal metadata is evidence about peer lifecycle, not a peer-authored message or authority to send or continue collaboration work.
+A `terminal` event reports a natively recorded unsuccessful turn without copying the transcript body or provider error message. Its source locator belongs to the exact consumed record or frame range. Terminal-only growth still advances the checkpoint and is delivered at most once; `--quiet-empty` suppresses only an empty `delta`, never the terminal event. Partial assistant output from aborted or truncated Claude records and meaningful user content remain in the ordinary delta. Claude provider API-error records are omitted to avoid body leakage and appear under `accounting.filtered.apiErrorRecords` and the rendered `provider API-error records` filter summary. A later successful record does not erase an earlier terminal event. Terminal metadata is evidence about peer lifecycle, not a peer-authored message or authority to send or continue collaboration work. `eventCount` in heartbeat/stopped JSON and the final watch result counts emitted `delta` plus `terminal` events; it excludes baseline, heartbeat, and control/status events. Markdown stop output labels the same total as `events`.
 
 Runtime evidence is intentionally narrow:
 

@@ -95,6 +95,7 @@ interface WatchEventState {
   pid: number;
   debounceMs: number;
   maxPendingMs: number;
+  /** Delivered delta plus terminal events; excludes heartbeat/control status. */
   eventCount: number;
   lastHeartbeatAt: number;
   heartbeatMs: number | null;
@@ -572,7 +573,7 @@ function stoppedEvent(ts: string, reason: string, eventState: WatchEventState) {
 }
 
 function stoppedLine(reason: string, eventState: WatchEventState): string {
-  return `[session-observer] watch stopped reason=${reason} deltaEvents=${eventState.eventCount}\n`;
+  return `[session-observer] watch stopped reason=${reason} events=${eventState.eventCount}\n`;
 }
 
 async function emitStopped(

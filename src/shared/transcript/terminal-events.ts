@@ -264,76 +264,67 @@ function claudeSessionId(record: JsonObject): string | undefined {
 function claudeTerminalEvents(
   source: ExactTerminalSource,
 ): UnsuccessfulTerminalEvent[] {
-  const assistants = new Map<
-    string,
-    {
-      detailed: DetailedTranscriptRecord;
-      status: UnsuccessfulTerminalStatus | null;
-    }
-  >();
+  const assistants = new Map<string, { hasExplicitAbort: boolean }>();
+  const events: UnsuccessfulTerminalEvent[] = [];
   for (const detailed of source.read.records) {
     const { record } = detailed;
     if (claudeSessionId(record) !== source.sessionId) continue;
     const message = isJsonObject(record.message) ? record.message : undefined;
-    if (message?.role !== 'assistant') continue;
-    const messageId = stringValue(message.id);
-    if (!messageId) continue;
-    assistants.set(messageId, {
-      detailed,
-      status: claudeAssistantStatus(record),
+    if (message?.role === 'assistant') {
+      const messageId = stringValue(message.id);
+      if (messageId) {
+        const prior = assistants.get(messageId);
+        assistants.set(messageId, {
+          hasExplicitAbort:
+            (prior?.hasExplicitAbort ?? false) ||
+            record.isAbortedMidStream === true,
+        });
+      }
+    }
+    if (
+      detailed.recordIndex < source.fromIndex ||
+      detailed.recordIndex >= source.nextIndex
+    ) {
+      continue;
+    }
+
+    const status = claudeAssistantStatus(record);
+    if (message?.role === 'assistant' && status !== null) {
+      const apiErrorStatus = record.apiErrorStatus;
+      events.push({
+        type: 'terminal',
+        runtime: 'claude-code',
+        sessionId: source.sessionId,
+        nativeSessionId: source.nativeSessionId,
+        nativeType: 'assistant',
+        status,
+        source: recordLocator(detailed, ''),
+        ...(status === 'api-error' &&
+        typeof apiErrorStatus === 'number' &&
+        Number.isFinite(apiErrorStatus)
+          ? { nativeErrorCode: apiErrorStatus }
+          : {}),
+      });
+      continue;
+    }
+
+    if (message?.role !== 'user') continue;
+    const interruptedMessageId = stringValue(record.interruptedMessageId);
+    if (!interruptedMessageId) continue;
+    const target = assistants.get(interruptedMessageId);
+    if (!target || target.hasExplicitAbort) continue;
+    events.push({
+      type: 'terminal',
+      runtime: 'claude-code',
+      sessionId: source.sessionId,
+      nativeSessionId: source.nativeSessionId,
+      nativeType: 'user-interruption',
+      status: 'interrupted',
+      source: recordLocator(detailed, '/interruptedMessageId'),
     });
   }
 
-  return source.read.records.flatMap(
-    (detailed): UnsuccessfulTerminalEvent[] => {
-      if (
-        detailed.recordIndex < source.fromIndex ||
-        detailed.recordIndex >= source.nextIndex
-      ) {
-        return [];
-      }
-      const { record } = detailed;
-      if (claudeSessionId(record) !== source.sessionId) return [];
-      const message = isJsonObject(record.message) ? record.message : undefined;
-      const status = claudeAssistantStatus(record);
-      if (message?.role === 'assistant' && status !== null) {
-        const apiErrorStatus = record.apiErrorStatus;
-        return [
-          {
-            type: 'terminal' as const,
-            runtime: 'claude-code' as const,
-            sessionId: source.sessionId,
-            nativeSessionId: source.nativeSessionId,
-            nativeType: 'assistant' as const,
-            status,
-            source: recordLocator(detailed, ''),
-            ...(status === 'api-error' &&
-            typeof apiErrorStatus === 'number' &&
-            Number.isFinite(apiErrorStatus)
-              ? { nativeErrorCode: apiErrorStatus }
-              : {}),
-          },
-        ];
-      }
-
-      if (message?.role !== 'user') return [];
-      const interruptedMessageId = stringValue(record.interruptedMessageId);
-      if (!interruptedMessageId) return [];
-      const target = assistants.get(interruptedMessageId);
-      if (!target || target.status === 'aborted-mid-stream') return [];
-      return [
-        {
-          type: 'terminal' as const,
-          runtime: 'claude-code' as const,
-          sessionId: source.sessionId,
-          nativeSessionId: source.nativeSessionId,
-          nativeType: 'user-interruption' as const,
-          status: 'interrupted' as const,
-          source: recordLocator(detailed, '/interruptedMessageId'),
-        },
-      ];
-    },
-  );
+  return events;
 }
 
 export function extractRecordedTerminalEvents(

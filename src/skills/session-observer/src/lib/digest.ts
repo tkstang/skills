@@ -306,6 +306,14 @@ function formatHeader(digest: Digest): string {
       filterParts.push(`command messages: ${filtered.commandMessages}`);
     if (filtered.bootstrapRecords > 0)
       filterParts.push(`bootstrap records: ${filtered.bootstrapRecords}`);
+    if (
+      'apiErrorRecords' in filtered &&
+      filtered.apiErrorRecords !== undefined &&
+      filtered.apiErrorRecords > 0
+    )
+      filterParts.push(
+        `provider API-error records: ${filtered.apiErrorRecords}`,
+      );
     if (filtered.metadataRecords > 0)
       filterParts.push(
         `metadata/non-message records: ${filtered.metadataRecords}`,
@@ -1298,9 +1306,11 @@ export async function buildDigest(
           nextIndex: totalRecords,
         })
       : undefined;
-  const terminalRecordIndexes = new Set(
+  const apiErrorRecordIndexes = new Set(
     terminalEvents?.flatMap((event) =>
-      event.source.recordIndex === undefined ? [] : [event.source.recordIndex],
+      event.status === 'api-error' && event.source.recordIndex !== undefined
+        ? [event.source.recordIndex]
+        : [],
     ) ?? [],
   );
 
@@ -1325,12 +1335,12 @@ export async function buildDigest(
   const allEntriesWithTools = allEntriesWithToolsBeforeBootstrap.filter(
     (e) =>
       !bootstrapRecordIndexes.has(e.recordIndex) &&
-      !terminalRecordIndexes.has(e.recordIndex),
+      !apiErrorRecordIndexes.has(e.recordIndex),
   );
   const allEntries = allEntriesBeforeBootstrap.filter(
     (e) =>
       !bootstrapRecordIndexes.has(e.recordIndex) &&
-      !terminalRecordIndexes.has(e.recordIndex),
+      !apiErrorRecordIndexes.has(e.recordIndex),
   );
 
   // Filter to only entries with recordIndex >= effectiveFromIndex
@@ -1442,8 +1452,17 @@ export async function buildDigest(
       bootstrapMessages: fullEntriesInRawRangeBeforeBootstrap.filter((e) =>
         bootstrapRecordIndexes.has(e.recordIndex),
       ).length,
+      ...(includeTerminalEvents
+        ? {
+            apiErrorRecords: [...apiErrorRecordIndexes].filter(
+              (index) => index >= rawFromIndex && index < totalRecords,
+            ).length,
+          }
+        : {}),
       metadataRecords: [...rawRecordIndexes].filter(
-        (index) => !rawRecordIndexesWithAnyEntry.has(index),
+        (index) =>
+          !rawRecordIndexesWithAnyEntry.has(index) &&
+          !apiErrorRecordIndexes.has(index),
       ).length,
       tailSliceEntries: Math.max(
         0,

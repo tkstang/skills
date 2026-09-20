@@ -187,10 +187,17 @@ A `terminal` watch event reports a natively recorded unsuccessful turn without
 copying the transcript body or provider error message. Its source locator
 belongs to the exact consumed record or frame range. Terminal-only growth still
 advances the checkpoint and is delivered at most once; `--quiet-empty`
-suppresses only an empty `delta`, never the terminal event. A later successful
+suppresses only an empty `delta`, never the terminal event. Partial assistant
+output from aborted or truncated Claude records and meaningful user content
+remain in the ordinary delta. Claude provider API-error records are omitted to
+avoid body leakage and appear under `accounting.filtered.apiErrorRecords` and
+the rendered `provider API-error records` filter summary. A later successful
 record does not erase an earlier terminal event. Terminal metadata is evidence
 about peer lifecycle, not a peer-authored message or authority to send or
-continue collaboration work.
+continue collaboration work. `eventCount` in heartbeat/stopped JSON and the
+final watch result counts emitted `delta` plus `terminal` events; it excludes
+baseline, heartbeat, and control/status events. Markdown stop output labels the
+same total as `events`.
 
 Runtime evidence is intentionally narrow:
 

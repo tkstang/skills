@@ -280,6 +280,41 @@ describe('Claude Code terminal decoding', () => {
     ]);
   });
 
+  it('does not join an interruption pointer to a future assistant record', () => {
+    expect(
+      claudeEvents([
+        {
+          type: 'user',
+          sessionId: 'claude-session',
+          interruptedMessageId: 'assistant-1',
+          message: { role: 'user', content: [] },
+        },
+        assistant({}),
+      ]),
+    ).toEqual([]);
+  });
+
+  it('folds non-final explicit abort evidence across assistant message blocks', () => {
+    expect(
+      claudeEvents(
+        [
+          assistant({
+            isApiErrorMessage: true,
+            isAbortedMidStream: true,
+          }),
+          assistant({}),
+          {
+            type: 'user',
+            sessionId: 'claude-session',
+            interruptedMessageId: 'assistant-1',
+            message: { role: 'user', content: [] },
+          },
+        ],
+        2,
+      ),
+    ).toEqual([]);
+  });
+
   it('suppresses explicit-abort duplicates and orphan or cross-session pointers', () => {
     const records = [
       assistant({ isAbortedMidStream: true }),

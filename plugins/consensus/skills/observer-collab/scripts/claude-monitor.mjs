@@ -3663,60 +3663,54 @@ function claudeSessionId(record) {
 }
 function claudeTerminalEvents(source) {
   const assistants = /* @__PURE__ */ new Map();
+  const events = [];
   for (const detailed of source.read.records) {
     const { record } = detailed;
     if (claudeSessionId(record) !== source.sessionId) continue;
     const message = isJsonObject2(record.message) ? record.message : void 0;
-    if (message?.role !== "assistant") continue;
-    const messageId = stringValue2(message.id);
-    if (!messageId) continue;
-    assistants.set(messageId, {
-      detailed,
-      status: claudeAssistantStatus(record)
+    if (message?.role === "assistant") {
+      const messageId = stringValue2(message.id);
+      if (messageId) {
+        const prior = assistants.get(messageId);
+        assistants.set(messageId, {
+          hasExplicitAbort: (prior?.hasExplicitAbort ?? false) || record.isAbortedMidStream === true
+        });
+      }
+    }
+    if (detailed.recordIndex < source.fromIndex || detailed.recordIndex >= source.nextIndex) {
+      continue;
+    }
+    const status = claudeAssistantStatus(record);
+    if (message?.role === "assistant" && status !== null) {
+      const apiErrorStatus = record.apiErrorStatus;
+      events.push({
+        type: "terminal",
+        runtime: "claude-code",
+        sessionId: source.sessionId,
+        nativeSessionId: source.nativeSessionId,
+        nativeType: "assistant",
+        status,
+        source: recordLocator2(detailed, ""),
+        ...status === "api-error" && typeof apiErrorStatus === "number" && Number.isFinite(apiErrorStatus) ? { nativeErrorCode: apiErrorStatus } : {}
+      });
+      continue;
+    }
+    if (message?.role !== "user") continue;
+    const interruptedMessageId = stringValue2(record.interruptedMessageId);
+    if (!interruptedMessageId) continue;
+    const target = assistants.get(interruptedMessageId);
+    if (!target || target.hasExplicitAbort) continue;
+    events.push({
+      type: "terminal",
+      runtime: "claude-code",
+      sessionId: source.sessionId,
+      nativeSessionId: source.nativeSessionId,
+      nativeType: "user-interruption",
+      status: "interrupted",
+      source: recordLocator2(detailed, "/interruptedMessageId")
     });
   }
-  return source.read.records.flatMap(
-    (detailed) => {
-      if (detailed.recordIndex < source.fromIndex || detailed.recordIndex >= source.nextIndex) {
-        return [];
-      }
-      const { record } = detailed;
-      if (claudeSessionId(record) !== source.sessionId) return [];
-      const message = isJsonObject2(record.message) ? record.message : void 0;
-      const status = claudeAssistantStatus(record);
-      if (message?.role === "assistant" && status !== null) {
-        const apiErrorStatus = record.apiErrorStatus;
-        return [
-          {
-            type: "terminal",
-            runtime: "claude-code",
-            sessionId: source.sessionId,
-            nativeSessionId: source.nativeSessionId,
-            nativeType: "assistant",
-            status,
-            source: recordLocator2(detailed, ""),
-            ...status === "api-error" && typeof apiErrorStatus === "number" && Number.isFinite(apiErrorStatus) ? { nativeErrorCode: apiErrorStatus } : {}
-          }
-        ];
-      }
-      if (message?.role !== "user") return [];
-      const interruptedMessageId = stringValue2(record.interruptedMessageId);
-      if (!interruptedMessageId) return [];
-      const target = assistants.get(interruptedMessageId);
-      if (!target || target.status === "aborted-mid-stream") return [];
-      return [
-        {
-          type: "terminal",
-          runtime: "claude-code",
-          sessionId: source.sessionId,
-          nativeSessionId: source.nativeSessionId,
-          nativeType: "user-interruption",
-          status: "interrupted",
-          source: recordLocator2(detailed, "/interruptedMessageId")
-        }
-      ];
-    }
-  );
+  return events;
 }
 function extractRecordedTerminalEvents(source) {
   if (source.runtime === "claude-code") return claudeTerminalEvents(source);
@@ -6005,9 +5999,9 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     fromIndex: rawFromIndex,
     nextIndex: totalRecords
   }) : void 0;
-  const terminalRecordIndexes = new Set(
+  const apiErrorRecordIndexes = new Set(
     terminalEvents?.flatMap(
-      (event) => event.source.recordIndex === void 0 ? [] : [event.source.recordIndex]
+      (event) => event.status === "api-error" && event.source.recordIndex !== void 0 ? [event.source.recordIndex] : []
     ) ?? []
   );
   const allEntriesWithToolsBeforeBootstrap = normalizeEntries(
@@ -6027,10 +6021,10 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     includeCommandMessages
   });
   const allEntriesWithTools = allEntriesWithToolsBeforeBootstrap.filter(
-    (e) => !bootstrapRecordIndexes.has(e.recordIndex) && !terminalRecordIndexes.has(e.recordIndex)
+    (e) => !bootstrapRecordIndexes.has(e.recordIndex) && !apiErrorRecordIndexes.has(e.recordIndex)
   );
   const allEntries = allEntriesBeforeBootstrap.filter(
-    (e) => !bootstrapRecordIndexes.has(e.recordIndex) && !terminalRecordIndexes.has(e.recordIndex)
+    (e) => !bootstrapRecordIndexes.has(e.recordIndex) && !apiErrorRecordIndexes.has(e.recordIndex)
   );
   const entriesBeforeTailSlice = allEntries.filter(
     (e) => e.recordIndex >= effectiveFromIndex
@@ -6113,8 +6107,13 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
       bootstrapMessages: fullEntriesInRawRangeBeforeBootstrap.filter(
         (e) => bootstrapRecordIndexes.has(e.recordIndex)
       ).length,
+      ...includeTerminalEvents ? {
+        apiErrorRecords: [...apiErrorRecordIndexes].filter(
+          (index) => index >= rawFromIndex && index < totalRecords
+        ).length
+      } : {},
       metadataRecords: [...rawRecordIndexes].filter(
-        (index) => !rawRecordIndexesWithAnyEntry.has(index)
+        (index) => !rawRecordIndexesWithAnyEntry.has(index) && !apiErrorRecordIndexes.has(index)
       ).length,
       tailSliceEntries: Math.max(
         0,

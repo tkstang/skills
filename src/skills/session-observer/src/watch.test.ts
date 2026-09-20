@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 
 import { expect, afterEach, describe, test, vi } from 'vitest';
 
+import { renderMarkdown } from './lib/digest.js';
 import { observeCatchUp } from './lib/observe.js';
 import * as watchState from './lib/watch-state.js';
 import { runWatchLoop } from './lib/watch.js';
@@ -1194,6 +1195,17 @@ describe('runWatchLoop', () => {
             type: 'assistant',
             sessionId,
             isAbortedMidStream: true,
+            apiBlockIndex: 0,
+            message: {
+              id: 'assistant-explicit-abort',
+              role: 'assistant',
+              content: [],
+            },
+          },
+          {
+            type: 'assistant',
+            sessionId,
+            apiBlockIndex: 1,
             message: {
               id: 'assistant-explicit-abort',
               role: 'assistant',
@@ -1236,7 +1248,7 @@ describe('runWatchLoop', () => {
       );
       let savedState = await readJsonIfExists(join(stateDir, 'state.json'));
       expect(savedState?.sessions?.[`claude-code:${sessionId}`]).toMatchObject({
-        lastRecordIndex: 3,
+        lastRecordIndex: 4,
       });
 
       await appendFile(
@@ -1252,7 +1264,10 @@ describe('runWatchLoop', () => {
             type: 'user',
             sessionId,
             interruptedMessageId: 'assistant-interruption-target',
-            message: { role: 'user', content: [] },
+            message: {
+              role: 'user',
+              content: 'operator interruption note survives',
+            },
           },
           {
             type: 'assistant',
@@ -1268,6 +1283,16 @@ describe('runWatchLoop', () => {
                   text: 'private Claude provider failure body',
                 },
               ],
+            },
+          },
+          {
+            type: 'assistant',
+            sessionId,
+            isAbortedMidStream: true,
+            message: {
+              id: 'assistant-partial-output',
+              role: 'assistant',
+              content: 'partial assistant output survives',
             },
           },
         ]
@@ -1300,7 +1325,7 @@ describe('runWatchLoop', () => {
       );
 
       const events = parseJsonLines(stdout.join(''));
-      expect(result.eventCount).toBe(2);
+      expect(result.eventCount).toBe(4);
       expect(events.filter((event) => event.type === 'terminal')).toEqual([
         expect.objectContaining({
           runtime: 'claude-code',
@@ -1309,8 +1334,8 @@ describe('runWatchLoop', () => {
           status: 'interrupted',
           source: {
             indexBase: 'zero-based-jsonl-record-index',
-            recordIndex: 4,
-            physicalLine: 5,
+            recordIndex: 5,
+            physicalLine: 6,
             jsonPointer: '/interruptedMessageId',
           },
         }),
@@ -1322,18 +1347,57 @@ describe('runWatchLoop', () => {
           nativeErrorCode: 503,
           source: {
             indexBase: 'zero-based-jsonl-record-index',
-            recordIndex: 5,
-            physicalLine: 6,
+            recordIndex: 6,
+            physicalLine: 7,
+            jsonPointer: '',
+          },
+        }),
+        expect.objectContaining({
+          runtime: 'claude-code',
+          sessionId,
+          nativeType: 'assistant',
+          status: 'aborted-mid-stream',
+          source: {
+            indexBase: 'zero-based-jsonl-record-index',
+            recordIndex: 7,
+            physicalLine: 8,
             jsonPointer: '',
           },
         }),
       ]);
-      expect(events.some((event) => event.type === 'delta')).toBe(false);
+      const deltas = events.filter((event) => event.type === 'delta');
+      expect(deltas).toHaveLength(1);
+      expect(deltas[0]).toMatchObject({
+        ranges: {
+          fromIndex: 4,
+          nextIndex: 8,
+          renderedFromIndex: 5,
+          renderedToIndex: 7,
+        },
+        digest: {
+          accounting: {
+            raw: { count: 4 },
+            rendered: { count: 2 },
+            filtered: { apiErrorRecords: 1, metadataRecords: 1 },
+          },
+          entries: [
+            expect.objectContaining({
+              text: 'operator interruption note survives',
+            }),
+            expect.objectContaining({
+              text: 'partial assistant output survives',
+            }),
+          ],
+        },
+      });
+      expect(renderMarkdown(deltas[0].digest)).toContain(
+        'provider API-error records: 1',
+      );
       expect(stdout.join('')).not.toContain('private Claude provider failure');
       savedState = await readJsonIfExists(join(stateDir, 'state.json'));
       expect(savedState?.sessions?.[`claude-code:${sessionId}`]).toMatchObject({
-        lastRecordIndex: 6,
-        lastTotalRecords: 6,
+        lastRecordIndex: 8,
+        lastTotalRecords: 8,
       });
     });
   });
@@ -4883,6 +4947,8 @@ describe('runWatchLoop', () => {
       expect(
         stdout.join('').includes('watch stopped reason=control-stop'),
       ).toBeTruthy();
+      expect(stdout.join('')).toContain('events=0');
+      expect(stdout.join('')).not.toContain('deltaEvents=');
 
       const watchJson = JSON.parse(
         await readFile(join(stateDir, 'watch.json'), 'utf8'),

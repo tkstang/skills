@@ -432,6 +432,8 @@ export interface DigestAccounting {
     commandMessages: number;
     bootstrapRecords: number;
     bootstrapMessages: number;
+    /** Claude provider API-error records omitted to avoid error-body leakage. */
+    apiErrorRecords?: number;
     metadataRecords: number;
     tailSliceEntries: number;
   };
