@@ -91,6 +91,57 @@ describe('review CLI', () => {
   );
 
   it.each([
+    { timeoutArgs: [], expected: 900 },
+    { timeoutArgs: ['--timeout-sec', '1200'], expected: 1200 },
+    { timeoutArgs: ['--timeout-sec', '1'], expected: 1 },
+    { timeoutArgs: ['--timeout-sec', '3600'], expected: 3600 },
+  ])(
+    'forwards the $expected-second wall-clock limit',
+    async ({ timeoutArgs, expected }) => {
+      const execute = vi.fn(async (input: ExecuteReviewInput) => {
+        expect(input.maxRuntimeSec).toBe(expected);
+        return {
+          ok: true,
+          status: 'empty_scope',
+          invocation_count: 0,
+          scope: { selectedPaths: [], externalDocuments: [] },
+        } as unknown as ExecuteReviewResult;
+      });
+
+      const result = await runReviewCli(
+        ['--files', 'src/a.ts', '--host', 'codex', ...timeoutArgs],
+        { execute },
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(execute).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([
+    [['--timeout-sec', '0'], 'timeout_invalid'],
+    [['--timeout-sec', '3601'], 'timeout_invalid'],
+    [['--timeout-sec', '1.5'], 'timeout_invalid'],
+    [['--timeout-sec', 'abc'], 'timeout_invalid'],
+    [['--timeout-sec', '30', '--timeout-sec', '60'], 'argument_duplicate'],
+  ])(
+    'rejects invalid timeout arguments before dispatch',
+    async (timeoutArgs, reason) => {
+      const execute = vi.fn();
+      const result = await runReviewCli(
+        ['--files', 'src/a.ts', '--host', 'codex', ...timeoutArgs],
+        { execute },
+      );
+
+      expect(result).toMatchObject({
+        exitCode: 2,
+        payload: { reason, invocation_count: 0 },
+      });
+      expect(execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
     [
       ['base_branch=main', '--document', 'plan.md', '--host', 'codex'],
       'selector_conflict',

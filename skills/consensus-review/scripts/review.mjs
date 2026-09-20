@@ -3147,7 +3147,7 @@ async function runReview(input, dependencies = {}) {
       approval_policy: "never"
     },
     max_attempts: 1,
-    max_runtime_sec: input.maxRuntimeSec ?? 600,
+    max_runtime_sec: input.maxRuntimeSec ?? 900,
     max_output_bytes: input.maxOutputBytes ?? 1024 * 1024,
     ...input.model ? { model: input.model } : {},
     ...input.effort ? { effort: input.effort } : {}
@@ -3320,6 +3320,7 @@ async function executeBoundedReview(input, dependencies = {}) {
       allowSameProvider: selected.allowSameProvider,
       ...selected.reviewer.model ? { model: selected.reviewer.model } : {},
       ...selected.reviewer.effort ? { effort: selected.reviewer.effort } : {},
+      ...input.maxRuntimeSec !== void 0 ? { maxRuntimeSec: input.maxRuntimeSec } : {},
       ...selected.reviewer.provider === "codex" ? {
         codexCapturePath: path9.join(
           runState.runDirectory,
@@ -4202,6 +4203,7 @@ Options:
   --reviewer <id[:model]> Pin one reviewer provider and optional model
   --model <id>            Model for an explicitly pinned reviewer
   --effort <value>        Effort for an explicitly pinned reviewer
+  --timeout-sec <seconds> Provider wall-clock limit, integer 1..3600 (default: 900)
   --allow-same-provider   Confirm user consent for a pinned same-provider reviewer
   --output <path>         Export completed Markdown after drift checking; refuses overwrite
   --json                  Emit one JSON result
@@ -4260,6 +4262,7 @@ async function runReviewCli(argv, dependencies = {}) {
     ...parsed.reviewer ? { reviewer: parsed.reviewer } : {},
     ...parsed.model ? { model: parsed.model } : {},
     ...parsed.effort ? { effort: parsed.effort } : {},
+    maxRuntimeSec: parsed.timeoutSec,
     ...parsed.allowSameProvider ? { allowSameProvider: parsed.allowSameProvider } : {}
   };
   const result = await execute(input, { env: dependencies.env });
@@ -4443,6 +4446,8 @@ async function parseReviewArgs(argv, cwd, fileSystem) {
   let reviewer;
   let model;
   let effort;
+  let timeoutSec = 900;
+  let timeoutSeen = false;
   let output;
   let allowSameProvider = false;
   let json = false;
@@ -4503,7 +4508,28 @@ async function parseReviewArgs(argv, cwd, fileSystem) {
       else if (argument === "--reviewer") reviewer = option;
       else if (argument === "--model") model = option;
       else if (argument === "--effort") effort = option;
-      else if (argument === "--output") output = option;
+      else if (argument === "--timeout-sec") {
+        if (timeoutSeen) {
+          throw new UsageError(
+            "argument_duplicate",
+            "--timeout-sec was repeated"
+          );
+        }
+        timeoutSeen = true;
+        if (!/^\d+$/u.test(option)) {
+          throw new UsageError(
+            "timeout_invalid",
+            "--timeout-sec must be an integer between 1 and 3600"
+          );
+        }
+        timeoutSec = Number(option);
+        if (!Number.isSafeInteger(timeoutSec) || timeoutSec < 1 || timeoutSec > 3600) {
+          throw new UsageError(
+            "timeout_invalid",
+            "--timeout-sec must be an integer between 1 and 3600"
+          );
+        }
+      } else if (argument === "--output") output = option;
       continue;
     }
     throw new UsageError("argument_unknown", `Unknown argument: ${argument}`);
@@ -4555,6 +4581,7 @@ async function parseReviewArgs(argv, cwd, fileSystem) {
     ...reviewer ? { reviewer } : {},
     ...model ? { model } : {},
     ...effort ? { effort } : {},
+    timeoutSec,
     ...allowSameProvider ? { allowSameProvider } : {},
     ...output ? { output } : {},
     json
@@ -4569,6 +4596,7 @@ function optionValue(argv, index, argument) {
     "--reviewer",
     "--model",
     "--effort",
+    "--timeout-sec",
     "--output"
   ]);
   if (!valued.has(argument)) return null;

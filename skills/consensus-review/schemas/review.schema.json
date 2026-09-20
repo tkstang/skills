@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/tkstang/skills/consensus-review/review.schema.json",
   "title": "Consensus review reply",
   "type": "object",
@@ -27,7 +27,7 @@
     "findings": {
       "type": "array",
       "maxItems": 100,
-      "items": { "$ref": "#/$defs/finding" }
+      "items": { "$ref": "#/definitions/finding" }
     },
     "questions": {
       "type": "array",
@@ -47,16 +47,16 @@
     "inspected_context": {
       "type": "array",
       "maxItems": 200,
-      "items": { "$ref": "#/$defs/inspectedContext" }
+      "items": { "$ref": "#/definitions/inspectedContext" }
     },
     "checks": {
       "type": "array",
       "maxItems": 100,
-      "items": { "$ref": "#/$defs/check" }
+      "items": { "$ref": "#/definitions/check" }
     },
-    "reviewer_identity": { "$ref": "#/$defs/reviewerIdentity" }
+    "reviewer_identity": { "$ref": "#/definitions/reviewerIdentity" }
   },
-  "$defs": {
+  "definitions": {
     "finding": {
       "type": "object",
       "additionalProperties": false,
@@ -73,7 +73,7 @@
           "enum": ["critical", "high", "medium", "low"]
         },
         "title": { "type": "string", "minLength": 1, "maxLength": 512 },
-        "location": { "$ref": "#/$defs/location" },
+        "location": { "$ref": "#/definitions/location" },
         "anchor": { "type": "string", "minLength": 1, "maxLength": 1024 },
         "claim": { "type": "string", "minLength": 1, "maxLength": 8192 },
         "evidence": { "type": "string", "minLength": 1, "maxLength": 8192 },

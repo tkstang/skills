@@ -31,6 +31,7 @@ Options:
   --reviewer <id[:model]> Pin one reviewer provider and optional model
   --model <id>            Model for an explicitly pinned reviewer
   --effort <value>        Effort for an explicitly pinned reviewer
+  --timeout-sec <seconds> Provider wall-clock limit, integer 1..3600 (default: 900)
   --allow-same-provider   Confirm user consent for a pinned same-provider reviewer
   --output <path>         Export completed Markdown after drift checking; refuses overwrite
   --json                  Emit one JSON result
@@ -71,6 +72,7 @@ interface ParsedReviewArgs {
   reviewer?: string;
   model?: string;
   effort?: string;
+  timeoutSec: number;
   allowSameProvider?: boolean;
   output?: string;
   json: boolean;
@@ -143,6 +145,7 @@ export async function runReviewCli(
     ...(parsed.reviewer ? { reviewer: parsed.reviewer } : {}),
     ...(parsed.model ? { model: parsed.model } : {}),
     ...(parsed.effort ? { effort: parsed.effort } : {}),
+    maxRuntimeSec: parsed.timeoutSec,
     ...(parsed.allowSameProvider
       ? { allowSameProvider: parsed.allowSameProvider }
       : {}),
@@ -343,6 +346,8 @@ async function parseReviewArgs(
   let reviewer: string | undefined;
   let model: string | undefined;
   let effort: string | undefined;
+  let timeoutSec = 900;
+  let timeoutSeen = false;
   let output: string | undefined;
   let allowSameProvider = false;
   let json = false;
@@ -404,7 +409,32 @@ async function parseReviewArgs(
       else if (argument === '--reviewer') reviewer = option;
       else if (argument === '--model') model = option;
       else if (argument === '--effort') effort = option;
-      else if (argument === '--output') output = option;
+      else if (argument === '--timeout-sec') {
+        if (timeoutSeen) {
+          throw new UsageError(
+            'argument_duplicate',
+            '--timeout-sec was repeated',
+          );
+        }
+        timeoutSeen = true;
+        if (!/^\d+$/u.test(option)) {
+          throw new UsageError(
+            'timeout_invalid',
+            '--timeout-sec must be an integer between 1 and 3600',
+          );
+        }
+        timeoutSec = Number(option);
+        if (
+          !Number.isSafeInteger(timeoutSec) ||
+          timeoutSec < 1 ||
+          timeoutSec > 3600
+        ) {
+          throw new UsageError(
+            'timeout_invalid',
+            '--timeout-sec must be an integer between 1 and 3600',
+          );
+        }
+      } else if (argument === '--output') output = option;
       continue;
     }
     throw new UsageError('argument_unknown', `Unknown argument: ${argument}`);
@@ -461,6 +491,7 @@ async function parseReviewArgs(
     ...(reviewer ? { reviewer } : {}),
     ...(model ? { model } : {}),
     ...(effort ? { effort } : {}),
+    timeoutSec,
     ...(allowSameProvider ? { allowSameProvider } : {}),
     ...(output ? { output } : {}),
     json,
@@ -480,6 +511,7 @@ function optionValue(
     '--reviewer',
     '--model',
     '--effort',
+    '--timeout-sec',
     '--output',
   ]);
   if (!valued.has(argument)) return null;
