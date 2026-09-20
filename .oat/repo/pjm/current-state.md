@@ -61,12 +61,12 @@ See the [standalone catalog](../../../documentation/docs/user-guide/skills/index
 
 There are **29 active item files** after closing and archiving Session Fidelity and Agent Messaging. Their deterministic implementations remain in completed history; release, installation, and exact live-host acceptance retain separate evidence boundaries.
 
-**BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills** remains open for live acceptance; its implementation is already merged in PR #90. Session Fidelity and Agent Messaging are merged and archived. The September 20 [full backlog review](backlog/reviews/backlog-and-roadmap-review.md) proposes the next evidence/retro and reliability/acceptance lanes. The September 16 alignment is historical; current-cycle kickoff membership, ordering and concurrency await the operator walkthrough.
+**BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills** remains open for live acceptance; its implementation is already merged in PR #90. Session Fidelity and Agent Messaging are merged and archived. The September 20 [priority alignment](backlog/reviews/priority-alignment.md) records the approved six-ticket session-evidence wave plus the requested 15-minute review timeout. [session-evidence-followups](../../projects/shared/session-evidence-followups/plan.md) is implementing on backlog-review-2026-09-20 toward one mergeable PR, with Sol workers and independent Opus reviews. Nothing in this wave is claimed merged or accepted yet.
 
 Agent Messaging is a completed provider-neutral inbox implementation independent of transcript observation. The shared-session-log substrate may reuse Session Fidelity's merged activity contract; neither completed project delivers safe N>2 transcript-consumer ownership automatically.
 
 - [Roadmap](roadmap.md) — Now / Next / Later direction.
 - [Backlog index](backlog/index.md) — active item inventory.
 - [Full review](backlog/reviews/backlog-and-roadmap-review.md) — ratings, dependencies, and evidence.
-- [Priority alignment](backlog/reviews/priority-alignment.md) — historical September 16 kickoff; refresh after agreeing the current cycle.
+- [Priority alignment](backlog/reviews/priority-alignment.md) — current approved one-wave selection and execution boundaries.
 - [Completed history](backlog/completed.md) and [decision records](../reference/decisions/index.md) — durable history; do not repeat it as active work.

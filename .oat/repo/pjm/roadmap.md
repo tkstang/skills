@@ -1,7 +1,7 @@
 # Skills Repo Roadmap
 
 **Last updated:** 2026-09-20
-**Status:** Session Fidelity (PR #96) and Agent Messaging (PR #98) are merged. The installer implementation (PR #90) is also merged; its live host acceptance remains open. The September 20 [full review](backlog/reviews/backlog-and-roadmap-review.md) proposes a consumer-first evidence/retro sequence and a reliability/acceptance lane. Current-cycle kickoff order and concurrency await priority alignment; the September 16 [alignment](backlog/reviews/priority-alignment.md) is historical.
+**Status:** Session Fidelity (PR #96) and Agent Messaging (PR #98) are merged. The installer implementation (PR #90) is also merged; its live host acceptance remains open. The September 20 [full review](backlog/reviews/backlog-and-roadmap-review.md) proposes a consumer-first evidence/retro sequence and a reliability/acceptance lane. The current [alignment](backlog/reviews/priority-alignment.md) approves one six-ticket session-evidence wave plus a bounded Consensus Review timeout increase; remaining recommendations are unselected.
 
 ## Planning model
 
@@ -11,6 +11,10 @@ Completed source colocation, Session packaging, skill promotion, docs IA/visuals
 
 ## Now
 
+### Approved session-evidence wave
+
+The `session-evidence-followups` project owns watcher SIGTERM stability, unsuccessful terminal events, skill attribution, usage accounting, complete structured activity export and the activity-backed retro consumer. A user-requested review timeout increase executes first. One plan, sequential product phases with parallel read-only recon, and one PR. Full criteria and independent reviews are required before closeout.
+
 ### Finishing onboarding acceptance
 
 - **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills.** Implementation and deterministic checks merged in PR #90. Remaining work is a suitable pinned payload tag and live install, discovery, invocation and permission checks for Codex, Claude Code and Cursor at project and user scope. Keep the item active until those acceptance criteria pass.
@@ -19,7 +23,7 @@ Release/discovery verification for already-merged distributions can proceed inde
 
 ## Next
 
-The following order is proposed, not yet operator-confirmed. Session Fidelity and inbox implementation are now merged; the next product investment can use their shipped contracts. Live-submit diagnosis and live messaging acceptance are independent authorization-gated slots.
+Outside the approved wave above, the following order remains proposed rather than operator-confirmed. Selected ticket descriptions below are retained for thematic context; their execution order is owned by the current alignment and project plan. Session Fidelity and inbox implementation are now merged; the next product investment can use their shipped contracts. Live-submit diagnosis and live messaging acceptance are independent authorization-gated slots.
 
 ### Consensus correctness
 

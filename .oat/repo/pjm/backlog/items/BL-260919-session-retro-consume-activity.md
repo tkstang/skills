@@ -1,7 +1,7 @@
 ---
 id: BL-260919-session-retro-consume-activity
 title: "Session-retro: consume activity evidence"
-status: open
+status: in_progress
 priority: high
 scope: feature
 scope_estimate: M
@@ -11,7 +11,7 @@ labels:
   - session-export-transcript
 assignee: null
 created: 2026-09-19T19:24:00.179Z
-updated: 2026-09-19T19:24:00.179Z
+updated: 2026-09-20T21:00:05.602592Z
 associated_issues: []
 external_plans: []
 ---

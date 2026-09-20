@@ -4,7 +4,7 @@
 
 ## Curated Overview
 
-- **September 20 state:** 29 active items remain after Session Fidelity and Agent Messaging were closed and archived. See the September 20 [full review](reviews/backlog-and-roadmap-review.md), current [roadmap](../roadmap.md), and [current-state snapshot](../current-state.md). The September 16 alignment is historical. The new review proposes evidence/retro and reliability/acceptance lanes; current-cycle kickoff order and concurrency await the operator walkthrough.
+- **September 20 state:** 29 active items remain after Session Fidelity and Agent Messaging were closed and archived. See the September 20 [full review](reviews/backlog-and-roadmap-review.md), current [roadmap](../roadmap.md), and [current-state snapshot](../current-state.md). The current [priority alignment](reviews/priority-alignment.md) selects six evidence/reliability tickets for one active quick project and one PR; a requested review-timeout adjustment is included. Other candidates remain unselected.
 - **September 18 collaboration follow-ups:** [Codex self identity with duplicate rollouts](items/BL-260919-resolve-codex-self-identity.md) and [default digest coverage/full-history recovery](items/BL-260919-improve-default-observer.md) remain independent of completed Agent Messaging and Session Fidelity work; no kickoff order changed.
 - **Merged baseline:** PR #83 completed the documentation IA/visuals and typed config reference; canonical source colocation, Session packaging, Must We?, Next Steps, and Session Retro are already on main. Transitive skill-version validation is implemented and archived, not a future prerequisite.
 - **Immediate workflow:** **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills** is implemented in merged PR #90; its six live host/scope acceptance cells remain open.
@@ -20,10 +20,10 @@
 <!-- OAT BACKLOG-INDEX -->
 | ID | Title | Status | Priority | Scope | Estimate |
 | --- | --- | --- | --- | --- | --- |
-| BL-260919-session-retro-consume-activity | Session-retro: consume activity evidence | open | high | feature | M |
-| BL-260919-skill-attribution-in-session | Skill attribution in session activity events | open | high | feature | S |
+| BL-260919-session-retro-consume-activity | Session-retro: consume activity evidence | in_progress | high | feature | M |
+| BL-260919-skill-attribution-in-session | Skill attribution in session activity events | in_progress | high | feature | S |
 | BL-260919-skill-evaluation-retro | Skill evaluation retro: activation, adherence, outcome, efficiency | open | high | feature | M |
-| BL-260919-uncapped-structured-activity | Uncapped structured activity export for cross-session analysis | open | high | feature | M |
+| BL-260919-uncapped-structured-activity | Uncapped structured activity export for cross-session analysis | in_progress | high | feature | M |
 | BL-260916-add-a-first-party-install | Add a first-party install command for standalone skills | open | medium | feature | S |
 | BL-260919-collaboration-protocol-peer | Collaboration protocol: peer-initiated headless resume and provenance | open | medium | task | S |
 | BL-260919-delegation-and-subagent | Delegation and subagent evaluation in retros | open | medium | feature | M |
@@ -33,10 +33,10 @@
 | BL-260919-read-linked-session-sidecars | Read linked session sidecars in the activity view | open | medium | feature | L |
 | BL-260919-resolve-codex-self-identity | Resolve Codex self identity with duplicate rollout candidates | open | medium | task | S |
 | BL-260919-retro-findings-ledger | Retro findings ledger with recurrence detection | open | medium | feature | M |
-| BL-260919-stabilize-the-watcher-sigterm | Stabilize the watcher SIGTERM re-arm test | open | medium | task | S |
+| BL-260919-stabilize-the-watcher-sigterm | Stabilize the watcher SIGTERM re-arm test | in_progress | medium | task | S |
 | BL-260619-shared-session-log-substrate | Stateless multi-session activity merge | open | medium | initiative | L |
-| BL-260919-surface-terminally | Surface terminally unsuccessful peer turns as watch events | open | medium | feature | S |
-| BL-260919-token-and-usage-accounting | Token and usage accounting for session activity | open | medium | feature | S |
+| BL-260919-surface-terminally | Surface terminally unsuccessful peer turns as watch events | in_progress | medium | feature | S |
+| BL-260919-token-and-usage-accounting | Token and usage accounting for session activity | in_progress | medium | feature | S |
 | BL-260919-verify-live-agent-messaging | Verify live agent-messaging host acceptance | open | medium | task | S |
 | BL-260612-add-consensus-research-skill | Add consensus-research skill (investigate question, synthesized findings) | open | low | feature | M |
 | BL-260612-add-deliberation-metrics | Add deliberation metrics (tokens, wall-clock, rounds) to artifacts | open | low | feature | S |

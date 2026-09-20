@@ -1,7 +1,7 @@
 ---
 id: BL-260919-uncapped-structured-activity
 title: Uncapped structured activity export for cross-session analysis
-status: open
+status: in_progress
 priority: high
 scope: feature
 scope_estimate: M
@@ -12,7 +12,7 @@ labels:
   - retro
 assignee: null
 created: 2026-09-19T19:23:58.637Z
-updated: 2026-09-19T19:23:58.637Z
+updated: 2026-09-20T21:00:05.602379Z
 associated_issues: []
 external_plans: []
 ---
