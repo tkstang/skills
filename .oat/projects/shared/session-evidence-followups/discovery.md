@@ -48,7 +48,7 @@ Native evidence is version-specific: use redacted structural fixtures with sourc
 
 ## Open Questions
 
-No product decisions pending. Exact native retry-message grammar is being verified before the plan review; extraction must preserve its ambiguity rather than fabricate a timestamp.
+No product decisions pending. Native retry-message grammar and source CLI versions are now recorded in p01-t02; extraction preserves clock/date ambiguity rather than fabricating a timestamp.
 
 ## References
 
