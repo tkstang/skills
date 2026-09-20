@@ -1,7 +1,7 @@
 # Skills Repo Current State
 
 **Last updated:** 2026-09-20
-**Verified baseline:** `origin/main` at `6f896ae6`, including Session Fidelity from PR #96, merged into the completed agent-messaging implementation on `backlog-triage`. PR #98's published head `76d93a00` was clean and green before the reconciliation; newer local closeout commits require push and fresh CI. Branch-only delivery is labeled below; this is not a claim that every payload is merged, installed, released, or externally published.
+**Verified baseline:** `origin/main` at `6f896ae6`, including Session Fidelity from PR #96, merged into the completed and archived agent-messaging implementation on `backlog-triage`. PR #98 is published, clean, mergeable, and green after reconciliation and lifecycle closeout. Branch-only delivery is labeled below; this is not a claim that every payload is merged, installed, released, or externally published.
 
 ## What is available in the verified source tree
 
