@@ -1,17 +1,17 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-09-19
-**Verified baseline:** `origin/main` at `b7a5283a`, plus the completed agent-messaging implementation on `backlog-triage` through reviewed code commit `dd22025c` and project bookkeeping commit `4b9b8b37`. Branch-only delivery is labeled below; this is not a claim that every payload is merged, installed, released, or externally published.
+**Last updated:** 2026-09-20
+**Verified baseline:** `origin/main` at `dacd1cad`, plus the completed and remotely reviewed agent-messaging implementation on `backlog-triage` at PR #98 head `76d93a00`. GitHub reports the open PR clean and mergeable with all checks passing; final OAT lifecycle approval remains pending. Branch-only delivery is labeled below; this is not a claim that every payload is merged, installed, released, or externally published.
 
 ## What is available in the verified source tree
 
 Canonical authored skills live under `src/skills/`, shared transcript code under `src/shared/transcript/`, and Consensus shared runtime under `src/plugins/consensus/`. `src/distributions.ts` declares the generated, self-contained installation units under `skills/` and `plugins/*/skills/`. Runtime remains Node >=22, standard-library only; TypeScript, Vitest, bundling, and pnpm are developer tooling.
 
-| Distribution | Committed version / members | Boundary |
-| --- | --- | --- |
-| Consensus plugin | Manifest `0.2.0`; create, decide, plan, refine, evaluate, review, panel, phone-a-friend, observer, observer-collab | Deliberation, bounded review, consultation, and cross-session observation. |
-| Session plugin | Manifest `0.3.2`; messaging, handoff, export-transcript, fork-to-destination, retro | Addressed local messaging plus transfer, export, fork guidance, and retrospective workflows. Agent messaging is branch delivery pending merge/release. |
-| Standalone skills | agent-messaging, complexity-review, consensus-review, must-we, next-steps, session-handoff, session-export-transcript, session-fork-to-destination, session-observer, session-observer-collab, session-retro | Eleven declared standalone payloads; plugin and standalone forms share canonical owners. Agent Messaging is branch delivery pending merge/release. |
+| Distribution      | Committed version / members                                                                                                                                                                                  | Boundary                                                                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Consensus plugin  | Manifest `0.2.0`; create, decide, plan, refine, evaluate, review, panel, phone-a-friend, observer, observer-collab                                                                                           | Deliberation, bounded review, consultation, and cross-session observation.                                                                             |
+| Session plugin    | Manifest `0.3.2`; messaging, handoff, export-transcript, fork-to-destination, retro                                                                                                                          | Addressed local messaging plus transfer, export, fork guidance, and retrospective workflows. Agent messaging is branch delivery pending merge/release. |
+| Standalone skills | agent-messaging, complexity-review, consensus-review, must-we, next-steps, session-handoff, session-export-transcript, session-fork-to-destination, session-observer, session-observer-collab, session-retro | Eleven declared standalone payloads; plugin and standalone forms share canonical owners. Agent Messaging is branch delivery pending merge/release.     |
 
 Plugin manifest versions are independent of each skill's sole authored `metadata.version`. Shared-source changes also require affected consumer version bumps; the transitive version guard is already implemented and archived, not new work.
 
@@ -30,7 +30,7 @@ Exact behavior: [Consensus guide](../../../documentation/docs/user-guide/consens
 
 - Observer discovers and reviews Claude Code, Codex, and supported Cursor transcript surfaces, with exact-pin catch-up, bounded foreground watch, filtered digests, and locked state.
 - Collaborative Observer composes that observation into bounded **N=2** collaboration. Peer text does not acquire user authority. Wake/callback capabilities remain harness-specific; bounded continuation is not an indefinite idle-session wake guarantee.
-- Agent Messaging `1.0.18` adds provider-neutral immutable recipient inboxes, exact native identity plus explicit alias takeover, recipient-owned acknowledgments, and an append-only collaboration log for three or more local sessions without requiring transcript observation. State stays under one resolved local collaboration root and peer text never carries user authority.
+- Agent Messaging `1.0.22` adds provider-neutral immutable recipient inboxes, exact native identity plus explicit alias takeover, recipient-owned acknowledgments, and an append-only collaboration log for three or more local sessions without requiring transcript observation. State stays under one resolved local collaboration root and peer text never carries user authority.
 - Codex and Claude Code adapters provide bounded prompt/Stop delivery when their exact-session ownership and installation inventories are proven. Claude can additionally compose inbox-first notification with optional observation through one finite Monitor. Cursor remains manual unless a separately proven host boundary is available.
 - Deterministic fixtures, generated-payload execution, and repository gates are green on the delivery branch. Live Codex/Claude host delivery, installation, release, and publication remain unverified and are tracked separately by BL-260919-verify-live-agent-messaging.
 - Export produces sanitized conversation Markdown by default. General correlated tool/result activity is not yet implemented; the optional `--include-activity` contract remains backlog work.
@@ -45,7 +45,7 @@ See the [standalone catalog](../../../documentation/docs/user-guide/skills/index
 - PR #79 colocated canonical owners and generated distributions; PR #82 promoted Must We?, Next Steps, and Session Retro.
 - PR #83 reorganized the site into User Guide (Getting Started, Plugins, Standalone Skills) and Engineering (Architecture, Development, Contributing, Operations), expanded TypeScript/build guidance, added diagrams and the Markdown/Visuals catalog, and completed the configuration reference.
 - README is an entry point; the [documentation site source](../../../documentation/docs/index.md) is the detailed reference. Engineering owns the build/packaging/testing and CI/release explanations.
-- The agent-messaging branch adds the standalone Messaging guide, Session plugin install and usage forms, host-boundary references, generated standalone/plugin payloads, and production-built navigation. Its reviewed versions are `agent-messaging` 1.0.18, `session-observer-collab` 1.0.46, and Session plugin 0.3.2; none is claimed released or globally installed.
+- The agent-messaging branch adds the standalone Messaging guide, Session plugin install and usage forms, host-boundary references, generated standalone/plugin payloads, and production-built navigation. Its reviewed versions are `agent-messaging` 1.0.22, `session-observer-collab` 1.0.48, and Session plugin 0.3.2; none is claimed released or globally installed.
 - The retained [session-fidelity research packet](../reference/research/session-fidelity-2026-09-10/README.md) is design input, not implemented functionality. Its original source paths/revisions predate colocation; native schemas are observational and examples synthetic.
 
 ## Release and verification posture
