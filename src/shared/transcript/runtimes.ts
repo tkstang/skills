@@ -12,6 +12,7 @@
  *   encodeCwdVariants(runtime, cwd)                → string[]
  *   extractMeta(runtime, transcriptPath)           → Promise<{ sessionId, recordedCwd } | null>
  *   extractMetaFromRecords(runtime, records, path) → { sessionId, recordedCwd } | null
+ *   readRecordsDetailed(transcriptPath)            → Promise<DetailedTranscriptRead>
  *   readRecords(transcriptPath)                    → Promise<JsonObject[]>
  *   normalizeEntries(runtime, records, opts)       → DigestEntry[]
  */
@@ -76,6 +77,43 @@ export interface BoundedTailReadResult {
   bytesRead: number;
   recordsInspected: number;
   recordLimitExceeded?: true;
+}
+
+export type TranscriptParseDiagnosticKind =
+  | 'malformed'
+  | 'not-object'
+  | 'partial-tail';
+
+export interface TranscriptParseDiagnostic {
+  kind: TranscriptParseDiagnosticKind;
+  /** One-based physical line in the JSONL carrier. */
+  physicalLine: number;
+}
+
+export interface TranscriptSourceSnapshot {
+  /** Wall-clock time immediately after the complete source read. */
+  capturedAt: string;
+  /** Exact number of bytes returned by that source read. */
+  sourceBytes: number;
+}
+
+export interface DetailedTranscriptRecord {
+  record: JsonObject;
+  /** Original decoded source line, excluding LF and retaining any CR/BOM. */
+  sourceCarrier: string;
+  /** Zero-based index among successfully decoded records. */
+  recordIndex: number;
+  /** One-based physical line in the JSONL carrier. */
+  physicalLine: number;
+}
+
+export interface DetailedTranscriptRead extends TranscriptSourceSnapshot {
+  records: DetailedTranscriptRecord[];
+  diagnostics: TranscriptParseDiagnostic[];
+}
+
+interface DetailedTranscriptReadInternal extends DetailedTranscriptRead {
+  legacyWarnings: string[];
 }
 
 export interface CursorIdentityEvidence {
@@ -173,7 +211,7 @@ interface AskUserQuestion {
 
 type SafeParseResult =
   | { ok: true; value: JsonObject }
-  | { ok: false; reason: string };
+  | { ok: false; kind: 'malformed' | 'not-object'; reason: string };
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -646,11 +684,18 @@ function askUserAnswerText(value: unknown): string | undefined {
 function safeParseLine(line: string): SafeParseResult {
   try {
     const parsed = JSON.parse(line);
-    if (!isObject(parsed)) return { ok: false, reason: 'not a JSON object' };
+    if (!isObject(parsed)) {
+      return {
+        ok: false,
+        kind: 'not-object',
+        reason: 'not a JSON object',
+      };
+    }
     return { ok: true, value: parsed };
   } catch (err) {
     return {
       ok: false,
+      kind: 'malformed',
       reason: err instanceof Error ? err.message : String(err),
     };
   }
@@ -1012,34 +1057,52 @@ export async function readTailRecordsBounded(
 }
 
 /**
- * Read a JSONL transcript file tolerantly:
+ * Read a JSONL transcript file with source coordinates and parse diagnostics:
  * - Blank/whitespace-only lines are silently dropped.
- * - A line that is invalid JSON emits a console.warn and is skipped.
+ * - A line that is invalid JSON contributes a diagnostic and is skipped.
  * - The last line is checked: if it is non-empty but fails to parse AND the
  *   file did not end with a newline (i.e., it is a partial write), it is
- *   dropped with a warning.
+ *   dropped with a partial-tail diagnostic.
+ * - Records split only on LF. JSON parsing treats CRLF's CR as trailing
+ *   whitespace; U+2028/U+2029 remain data.
+ * - Successful records retain their exact decoded line carrier internally.
+ * - The result records a capture timestamp and exact byte length from this read.
  *
  * @param {string} transcriptPath
- * @returns {Promise<object[]>}
+ * @returns {Promise<DetailedTranscriptRead>}
  */
-export async function readRecords(
+async function readRecordsDetailedInternal(
   transcriptPath: string,
-): Promise<JsonObject[]> {
-  const raw = await readFile(transcriptPath, 'utf8');
-  if (!raw) return [];
+): Promise<DetailedTranscriptReadInternal> {
+  const rawBytes = await readFile(transcriptPath);
+  const capturedAt = new Date().toISOString();
+  const sourceBytes = rawBytes.byteLength;
+  const raw = rawBytes.toString('utf8');
+  if (!raw) {
+    return {
+      records: [],
+      diagnostics: [],
+      legacyWarnings: [],
+      capturedAt,
+      sourceBytes,
+    };
+  }
 
-  const lines = raw.split(/\r?\n/);
-  const records = [];
+  const lines = raw.split('\n');
+  const records: DetailedTranscriptRecord[] = [];
+  const diagnostics: TranscriptParseDiagnostic[] = [];
+  const legacyWarnings: string[] = [];
 
   // Detect whether the file ends with a newline.
   // If the last character is a newline, the final split token is an empty string
   // and that token represents the trailing newline (not a partial line).
   // If the last character is NOT a newline, the last token is potentially partial.
-  const fileEndsWithNewline = raw.endsWith('\n') || raw.endsWith('\r\n');
+  const fileEndsWithNewline = raw.endsWith('\n');
   const lastIndex = lines.length - 1;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const carrier = lines[i];
+    const line = carrier.trim();
 
     // Skip blank lines silently
     if (!line) continue;
@@ -1047,23 +1110,64 @@ export async function readRecords(
     const result = safeParseLine(line);
 
     if (result.ok) {
-      records.push(result.value);
+      records.push({
+        record: result.value,
+        sourceCarrier: carrier,
+        recordIndex: records.length,
+        physicalLine: i + 1,
+      });
       continue;
     }
 
     // Parse failed — is this the last non-empty line of a file that doesn't end in \n?
     const isLastToken = i === lastIndex;
     if (isLastToken && !fileEndsWithNewline) {
-      console.warn(
+      diagnostics.push({
+        kind: 'partial-tail',
+        physicalLine: i + 1,
+      });
+      legacyWarnings.push(
         `[runtimes] Partial trailing line dropped from ${transcriptPath} (line ${i + 1}): ${result.reason}`,
       );
     } else {
-      console.warn(
+      diagnostics.push({
+        kind: result.kind,
+        physicalLine: i + 1,
+      });
+      legacyWarnings.push(
         `[runtimes] Malformed JSONL line ${i + 1} in ${transcriptPath} skipped: ${result.reason}`,
       );
     }
   }
 
+  return { records, diagnostics, legacyWarnings, capturedAt, sourceBytes };
+}
+
+export async function readRecordsDetailed(
+  transcriptPath: string,
+): Promise<DetailedTranscriptRead> {
+  const { records, diagnostics, capturedAt, sourceBytes } =
+    await readRecordsDetailedInternal(transcriptPath);
+  return { records, diagnostics, capturedAt, sourceBytes };
+}
+
+/**
+ * Compatibility projection for existing transcript consumers. It preserves
+ * the decoded-record array, skip behavior, and warning text that predate the
+ * detailed reader.
+ *
+ * @param {string} transcriptPath
+ * @returns {Promise<object[]>}
+ */
+export async function readRecords(
+  transcriptPath: string,
+): Promise<JsonObject[]> {
+  const detailed = await readRecordsDetailedInternal(transcriptPath);
+  for (const warning of detailed.legacyWarnings) {
+    console.warn(warning);
+  }
+
+  const records = detailed.records.map(({ record }) => record);
   return records;
 }
 

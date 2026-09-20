@@ -2029,9 +2029,6 @@ async function assessAutomaticOwnership(input) {
 // src/skills/session-observer/src/lib/digest.ts
 import { createHash as createHash6 } from "node:crypto";
 
-// src/shared/transcript/cursor-analysis.ts
-import { createHash as createHash5 } from "node:crypto";
-
 // src/shared/transcript/runtimes.ts
 import { open as open2, readFile as readFile3 } from "node:fs/promises";
 import { homedir as homedir2 } from "node:os";
@@ -2308,41 +2305,87 @@ function askUserAnswerText(value) {
 function safeParseLine(line) {
   try {
     const parsed = JSON.parse(line);
-    if (!isObject(parsed)) return { ok: false, reason: "not a JSON object" };
+    if (!isObject(parsed)) {
+      return {
+        ok: false,
+        kind: "not-object",
+        reason: "not a JSON object"
+      };
+    }
     return { ok: true, value: parsed };
   } catch (err) {
     return {
       ok: false,
+      kind: "malformed",
       reason: err instanceof Error ? err.message : String(err)
     };
   }
 }
-async function readRecords(transcriptPath) {
-  const raw = await readFile3(transcriptPath, "utf8");
-  if (!raw) return [];
-  const lines = raw.split(/\r?\n/);
+async function readRecordsDetailedInternal(transcriptPath) {
+  const rawBytes = await readFile3(transcriptPath);
+  const capturedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const sourceBytes = rawBytes.byteLength;
+  const raw = rawBytes.toString("utf8");
+  if (!raw) {
+    return {
+      records: [],
+      diagnostics: [],
+      legacyWarnings: [],
+      capturedAt,
+      sourceBytes
+    };
+  }
+  const lines = raw.split("\n");
   const records = [];
-  const fileEndsWithNewline = raw.endsWith("\n") || raw.endsWith("\r\n");
+  const diagnostics = [];
+  const legacyWarnings = [];
+  const fileEndsWithNewline = raw.endsWith("\n");
   const lastIndex = lines.length - 1;
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const carrier = lines[i];
+    const line = carrier.trim();
     if (!line) continue;
     const result = safeParseLine(line);
     if (result.ok) {
-      records.push(result.value);
+      records.push({
+        record: result.value,
+        sourceCarrier: carrier,
+        recordIndex: records.length,
+        physicalLine: i + 1
+      });
       continue;
     }
     const isLastToken = i === lastIndex;
     if (isLastToken && !fileEndsWithNewline) {
-      console.warn(
+      diagnostics.push({
+        kind: "partial-tail",
+        physicalLine: i + 1
+      });
+      legacyWarnings.push(
         `[runtimes] Partial trailing line dropped from ${transcriptPath} (line ${i + 1}): ${result.reason}`
       );
     } else {
-      console.warn(
+      diagnostics.push({
+        kind: result.kind,
+        physicalLine: i + 1
+      });
+      legacyWarnings.push(
         `[runtimes] Malformed JSONL line ${i + 1} in ${transcriptPath} skipped: ${result.reason}`
       );
     }
   }
+  return { records, diagnostics, legacyWarnings, capturedAt, sourceBytes };
+}
+async function readRecordsDetailed(transcriptPath) {
+  const { records, diagnostics, capturedAt, sourceBytes } = await readRecordsDetailedInternal(transcriptPath);
+  return { records, diagnostics, capturedAt, sourceBytes };
+}
+async function readRecords(transcriptPath) {
+  const detailed = await readRecordsDetailedInternal(transcriptPath);
+  for (const warning of detailed.legacyWarnings) {
+    console.warn(warning);
+  }
+  const records = detailed.records.map(({ record }) => record);
   return records;
 }
 function claudeSessionIdFromRecord(record) {
@@ -2981,17 +3024,1747 @@ function normalizeEntries(runtime, records, opts = {}) {
   throw new Error(`Unknown runtime: ${runtime}`);
 }
 
+// src/shared/transcript/activity/classify.ts
+var CATEGORY_BY_NATIVE_NAME = /* @__PURE__ */ new Map([
+  ["Bash", "shell"],
+  ["Shell", "shell"],
+  ["exec_command", "shell"],
+  ["shell_command", "shell"],
+  ["write_stdin", "shell"],
+  ["Read", "read"],
+  ["read_file", "read"],
+  ["Write", "write"],
+  ["write_file", "write"],
+  ["Edit", "edit"],
+  ["MultiEdit", "edit"],
+  ["ApplyPatch", "edit"],
+  ["apply_patch", "edit"],
+  ["Grep", "grep"],
+  ["grep", "grep"],
+  ["Glob", "glob"],
+  ["glob", "glob"],
+  ["WebSearch", "search"],
+  ["search_query", "search"],
+  ["web_search", "search"],
+  ["WebFetch", "fetch"],
+  ["fetch", "fetch"],
+  ["web_fetch", "fetch"],
+  ["Agent", "task"],
+  ["Subagent", "task"],
+  ["Task", "task"],
+  ["close_agent", "task"],
+  ["followup_task", "task"],
+  ["interrupt_agent", "task"],
+  ["list_agents", "task"],
+  ["multi_agent_v1__spawn_agent", "task"],
+  ["send_message", "task"],
+  ["send_input", "task"],
+  ["spawn_agent", "task"],
+  ["wait", "task"],
+  ["wait_agent", "task"],
+  ["AskQuestion", "ask"],
+  ["AskUserQuestion", "ask"],
+  ["request_user_input", "ask"],
+  ["request_user_input_async", "ask"]
+]);
+var CATEGORY_BY_ITEM_TYPE = /* @__PURE__ */ new Map([
+  ["CollabAgentToolCall", "task"],
+  ["CommandExecution", "shell"],
+  ["FileChange", "edit"],
+  ["McpToolCall", "mcp"],
+  ["SubAgentActivity", "task"],
+  ["WebSearch", "search"]
+]);
+function classifyNativeName(nativeName) {
+  if (nativeName === void 0) return "other";
+  const exact = CATEGORY_BY_NATIVE_NAME.get(nativeName);
+  if (exact !== void 0) return exact;
+  return /^mcp__.+__.+$/.test(nativeName) ? "mcp" : "other";
+}
+function classifyStandaloneItem(event) {
+  if (event.kind !== "item") return void 0;
+  return CATEGORY_BY_ITEM_TYPE.get(event.nativeType) ?? "other";
+}
+
+// src/shared/transcript/activity/correlate.ts
+function metadataObject(event) {
+  return event.metadata;
+}
+function headerOwnershipEvidence(event) {
+  const metadata = metadataObject(event);
+  const directParentThreadId = metadata?.directParentThreadId;
+  const nestedParentThreadId = metadata?.nestedParentThreadId;
+  const directParent = typeof directParentThreadId === "string" ? directParentThreadId : void 0;
+  const nestedParent = typeof nestedParentThreadId === "string" ? nestedParentThreadId : void 0;
+  if (metadata?.directParentMarkerPresent === true && directParent === void 0 || metadata?.nestedParentMarkerPresent === true && nestedParent === void 0) {
+    return { kind: "unknown" };
+  }
+  if (directParent !== void 0 && nestedParent !== void 0 && directParent !== nestedParent) {
+    return { kind: "unknown" };
+  }
+  const parentThreadId = directParent ?? nestedParent;
+  const lineageMarkerPresent = metadata?.directParentMarkerPresent === true || metadata?.nestedParentMarkerPresent === true || metadata?.subagentMarkerPresent === true || metadata?.subagentHistoryStartOrdinalPresent === true;
+  if (parentThreadId === void 0) {
+    return lineageMarkerPresent ? { kind: "unknown" } : { kind: "root" };
+  }
+  const boundary = metadata?.subagentHistoryStartOrdinal;
+  if (typeof boundary !== "number" || !Number.isSafeInteger(boundary) || boundary < 0) {
+    return { kind: "unknown" };
+  }
+  return { kind: "bounded-child", boundary, parentThreadId };
+}
+function ownershipContext(activity) {
+  if (activity.source.runtime !== "codex") return { kind: "root" };
+  const headers = activity.events.filter((event) => {
+    if (event.kind !== "metadata" || event.nativeType !== "session_meta") {
+      return false;
+    }
+    return metadataObject(event)?.nativeSessionId === activity.source.nativeSessionId;
+  });
+  if (headers.length === 0) return { kind: "unknown" };
+  const evidence = headers.map(headerOwnershipEvidence);
+  if (evidence.every((entry) => entry.kind === "root")) return { kind: "root" };
+  if (evidence.some((entry) => entry.kind !== "bounded-child")) {
+    return { kind: "unknown" };
+  }
+  const parentThreadIds = new Set(
+    evidence.map((entry) => entry.parentThreadId)
+  );
+  const boundaries = new Set(evidence.map((entry) => entry.boundary));
+  if (parentThreadIds.size !== 1 || boundaries.size !== 1) {
+    return { kind: "unknown" };
+  }
+  return {
+    kind: "bounded-child",
+    boundary: evidence[0].boundary
+  };
+}
+function ownershipFor(event, context) {
+  if (context.kind === "root") return "owned";
+  if (context.kind === "unknown" || typeof event.locator.ordinal !== "number" || !Number.isSafeInteger(event.locator.ordinal)) {
+    return "unknown";
+  }
+  return event.locator.ordinal < context.boundary ? "inherited" : "owned";
+}
+function callsBy(calls, field) {
+  const lookup = /* @__PURE__ */ new Map();
+  for (const call of calls) {
+    const value = call[field];
+    if (!value) continue;
+    const matches = lookup.get(value) ?? [];
+    matches.push(call);
+    lookup.set(value, matches);
+  }
+  return lookup;
+}
+function uniqueCall(lookup, nativeId) {
+  if (!nativeId) return void 0;
+  const matches = lookup.get(nativeId);
+  return matches?.length === 1 ? matches[0] : void 0;
+}
+function relatedCall(event, byCallId, byNativeId) {
+  if (event.kind === "result") {
+    return uniqueCall(byCallId, event.nativeCallId);
+  }
+  if (event.kind !== "item") return void 0;
+  const candidates = /* @__PURE__ */ new Map();
+  const byCall = uniqueCall(byCallId, event.nativeCallId);
+  const byItem = uniqueCall(byNativeId, event.nativeId);
+  if (byCall) candidates.set(byCall.eventKey, byCall);
+  if (byItem) candidates.set(byItem.eventKey, byItem);
+  return candidates.size === 1 ? [...candidates.values()][0] : void 0;
+}
+function ambiguousDiagnostics(lookup, field) {
+  return [...lookup.entries()].flatMap(([nativeId, calls]) => {
+    if (calls.length < 2) return [];
+    return [
+      {
+        code: "AMBIGUOUS_NATIVE_CORRELATION",
+        locator: calls[0].locator,
+        field,
+        nativeId
+      }
+    ];
+  });
+}
+function conflictingItemDiagnostics(events, byCallId, byNativeId) {
+  return events.flatMap((event) => {
+    if (event.kind !== "item") return [];
+    const byCall = uniqueCall(byCallId, event.nativeCallId);
+    const byItem = uniqueCall(byNativeId, event.nativeId);
+    if (!byCall || !byItem || byCall.eventKey === byItem.eventKey) return [];
+    return [
+      {
+        code: "AMBIGUOUS_NATIVE_CORRELATION",
+        locator: event.locator,
+        field: "nativeCallId+nativeId"
+      }
+    ];
+  });
+}
+function categoryFor(event, related) {
+  if (event.kind === "call") return classifyNativeName(event.nativeName);
+  if (related) return classifyNativeName(related.nativeName);
+  if (event.kind === "result") return "other";
+  return classifyStandaloneItem(event);
+}
+function correlationCounts(events) {
+  const calls = events.filter((event) => event.kind === "call");
+  const results = events.filter((event) => event.kind === "result");
+  const items = events.filter((event) => event.kind === "item");
+  const countOwnership = (ownership) => calls.filter((event) => event.ownership === ownership).length;
+  const owned = countOwnership("owned");
+  return {
+    responseStreamCalls: {
+      captured: calls.length,
+      counted: owned,
+      owned,
+      inherited: countOwnership("inherited"),
+      unknown: countOwnership("unknown")
+    },
+    results: {
+      matched: results.filter((event) => event.relatedCallKey !== void 0).length,
+      unmatched: results.filter((event) => event.relatedCallKey === void 0).length
+    },
+    itemEvidence: {
+      linked: items.filter((event) => event.relatedCallKey !== void 0).length,
+      standalone: items.filter((event) => event.relatedCallKey === void 0).length
+    }
+  };
+}
+function correlateActivity(activity) {
+  const context = ownershipContext(activity);
+  const calls = activity.events.filter((event) => event.kind === "call");
+  const byCallId = callsBy(calls, "nativeCallId");
+  const byNativeId = callsBy(calls, "nativeId");
+  const events = activity.events.map((event) => {
+    const related = relatedCall(event, byCallId, byNativeId);
+    const category = categoryFor(event, related);
+    return {
+      ...event,
+      ownership: ownershipFor(event, context),
+      ...category === void 0 ? {} : { category },
+      ...related === void 0 ? {} : { relatedCallKey: related.eventKey }
+    };
+  });
+  return {
+    ...activity,
+    events,
+    correlationCounts: correlationCounts(events),
+    diagnostics: [
+      ...activity.diagnostics,
+      ...ambiguousDiagnostics(byCallId, "nativeCallId"),
+      ...ambiguousDiagnostics(byNativeId, "nativeId"),
+      ...conflictingItemDiagnostics(activity.events, byCallId, byNativeId)
+    ]
+  };
+}
+
+// src/shared/transcript/activity/types.ts
+var ACTIVITY_SCHEMA_VERSION = 1;
+function isJsonObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function stringValue(value) {
+  return typeof value === "string" ? value : void 0;
+}
+function numberValue(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : void 0;
+}
+function recordLocator(detailed, jsonPointer) {
+  const ordinal = numberValue(detailed.record.ordinal);
+  return {
+    recordIndex: detailed.recordIndex,
+    physicalLine: detailed.physicalLine,
+    jsonPointer,
+    ...ordinal === void 0 ? {} : { ordinal }
+  };
+}
+function eventKey(source, locator) {
+  return `${source.runtime}:${source.nativeSessionId}:${locator.recordIndex}:${locator.jsonPointer}`;
+}
+function outcomeFromStatus(status) {
+  if (typeof status !== "string") return "unknown";
+  switch (status.toLowerCase()) {
+    case "success":
+    case "succeeded":
+    case "completed":
+      return "success";
+    case "error":
+    case "failed":
+      return "error";
+    case "aborted":
+    case "cancelled":
+    case "canceled":
+    case "interrupted":
+      return "cancelled";
+    case "pending":
+    case "started":
+    case "running":
+    case "in_progress":
+    case "async_launched":
+      return "pending";
+    default:
+      return "unknown";
+  }
+}
+
+// src/shared/transcript/activity/claude-code.ts
+function claudeResultOutcome(block) {
+  if (block.is_error === true) return "error";
+  if (block.is_error === false) return "success";
+  return "unknown";
+}
+function topLevelResultOutcome(toolUseResult) {
+  if (!isJsonObject(toolUseResult)) return "unknown";
+  if (toolUseResult.interrupted === true) return "cancelled";
+  return outcomeFromStatus(toolUseResult.status);
+}
+function externalReference(toolUseResult) {
+  if (!isJsonObject(toolUseResult)) return void 0;
+  const path9 = stringValue(toolUseResult.persistedOutputPath);
+  const size = numberValue(toolUseResult.persistedOutputSize);
+  if (path9 === void 0 && size === void 0) return void 0;
+  return {
+    kind: "persisted-output",
+    availability: "not-read",
+    ...path9 === void 0 ? {} : { path: path9 },
+    ...size === void 0 ? {} : { size }
+  };
+}
+function childReference(toolUseResult) {
+  if (!isJsonObject(toolUseResult)) return void 0;
+  const nativeId = stringValue(toolUseResult.agentId);
+  if (!nativeId) return void 0;
+  const nickname = stringValue(toolUseResult.description);
+  const status = stringValue(toolUseResult.status);
+  return {
+    nativeId,
+    ...nickname === void 0 ? {} : { nickname },
+    ...status === void 0 ? {} : { status },
+    trajectoryAvailability: "not-read"
+  };
+}
+function topLevelToolUseResultActivity(source, detailed, origin) {
+  const { record } = detailed;
+  if (!Object.hasOwn(record, "toolUseResult")) {
+    return { events: [], coverage: [], diagnostics: [] };
+  }
+  const toolUseResult = record.toolUseResult;
+  const locator = recordLocator(detailed, "/toolUseResult");
+  const persisted = externalReference(toolUseResult);
+  const child = childReference(toolUseResult);
+  const status = isJsonObject(toolUseResult) ? toolUseResult.interrupted === true ? "interrupted" : stringValue(toolUseResult.status) : void 0;
+  return {
+    events: [
+      {
+        eventKey: eventKey(source, locator),
+        kind: "item",
+        nativeType: "toolUseResult",
+        locator,
+        outcome: topLevelResultOutcome(toolUseResult),
+        ...status === void 0 ? {} : { nativeStatus: status },
+        ...origin === void 0 ? {} : { origin },
+        result: toolUseResult,
+        ...persisted === void 0 ? {} : { externalReference: persisted },
+        ...child === void 0 ? {} : { childReference: child }
+      }
+    ],
+    coverage: [
+      ...persisted ? [
+        {
+          dataClass: "persisted-output",
+          status: "not-read",
+          captured: 1,
+          locator
+        }
+      ] : [],
+      ...child ? [
+        {
+          dataClass: "child-trajectory",
+          status: "not-read",
+          captured: 1,
+          locator
+        }
+      ] : []
+    ],
+    diagnostics: []
+  };
+}
+function selectedClaudeMetadata(record) {
+  const message = isJsonObject(record.message) ? record.message : void 0;
+  const model = message ? stringValue(message.model) : void 0;
+  const effort = stringValue(record.effort);
+  const perTurnEffort = stringValue(record.perTurnEffort);
+  const timestamp3 = stringValue(record.timestamp);
+  if (model === void 0 && effort === void 0 && perTurnEffort === void 0 && timestamp3 === void 0) {
+    return void 0;
+  }
+  return {
+    ...model === void 0 ? {} : { model },
+    ...effort === void 0 ? {} : { effort },
+    ...perTurnEffort === void 0 ? {} : { perTurnEffort },
+    ...timestamp3 === void 0 ? {} : { timestamp: timestamp3 }
+  };
+}
+function claudeSystemActivity(source, detailed) {
+  const { record } = detailed;
+  if (record.type !== "system") return void 0;
+  const subtype = stringValue(record.subtype);
+  if (subtype === "turn_duration") {
+    const locator = recordLocator(detailed, "");
+    const durationMs = numberValue(record.durationMs);
+    const messageCount = numberValue(record.messageCount);
+    const pendingBackgroundAgentCount = numberValue(
+      record.pendingBackgroundAgentCount
+    );
+    return {
+      eventKey: eventKey(source, locator),
+      kind: "lifecycle",
+      nativeType: subtype,
+      locator,
+      outcome: "unknown",
+      metadata: {
+        ...durationMs === void 0 ? {} : { durationMs },
+        ...messageCount === void 0 ? {} : { messageCount },
+        ...pendingBackgroundAgentCount === void 0 ? {} : { pendingBackgroundAgentCount }
+      }
+    };
+  }
+  if (subtype === "compact_boundary") {
+    const locator = recordLocator(detailed, "");
+    const compactMetadata = isJsonObject(record.compactMetadata) ? record.compactMetadata : void 0;
+    const trigger = compactMetadata ? stringValue(compactMetadata.trigger) : void 0;
+    const durationMs = compactMetadata ? numberValue(compactMetadata.durationMs) : void 0;
+    return {
+      eventKey: eventKey(source, locator),
+      kind: "compaction",
+      nativeType: subtype,
+      locator,
+      outcome: "unknown",
+      metadata: {
+        ...trigger === void 0 ? {} : { trigger },
+        ...durationMs === void 0 ? {} : { durationMs }
+      }
+    };
+  }
+  return void 0;
+}
+function extractClaudeRecord(source, detailed) {
+  const { record } = detailed;
+  const events = [];
+  const coverage2 = [];
+  const message = isJsonObject(record.message) ? record.message : void 0;
+  const content = message?.content;
+  const provenance = claudeUserRecordProvenance(record);
+  const systemActivity = claudeSystemActivity(source, detailed);
+  if (systemActivity) events.push(systemActivity);
+  if (record.type === "assistant") {
+    const metadata = selectedClaudeMetadata(record);
+    if (metadata) {
+      const locator = recordLocator(detailed, "/message");
+      events.push({
+        eventKey: eventKey(source, locator),
+        kind: "metadata",
+        nativeType: "assistant-metadata",
+        locator,
+        outcome: "unknown",
+        metadata
+      });
+    }
+  }
+  if (Array.isArray(content)) {
+    content.forEach((candidate, blockIndex) => {
+      if (!isJsonObject(candidate)) return;
+      const blockType = stringValue(candidate.type);
+      const locator = recordLocator(detailed, `/message/content/${blockIndex}`);
+      if (blockType === "tool_use") {
+        const nativeCallId = stringValue(candidate.id);
+        const nativeName = stringValue(candidate.name);
+        events.push({
+          eventKey: eventKey(source, locator),
+          kind: "call",
+          nativeType: blockType,
+          locator,
+          outcome: "pending",
+          ...nativeCallId === void 0 ? {} : { nativeCallId },
+          ...nativeName === void 0 ? {} : { nativeName },
+          ...Object.hasOwn(candidate, "input") ? { arguments: candidate.input } : {}
+        });
+        return;
+      }
+      if (blockType === "tool_result") {
+        const nativeCallId = stringValue(candidate.tool_use_id);
+        const result = Object.hasOwn(candidate, "content") ? { content: candidate.content } : {};
+        events.push({
+          eventKey: eventKey(source, locator),
+          kind: "result",
+          nativeType: blockType,
+          locator,
+          outcome: claudeResultOutcome(candidate),
+          ...nativeCallId === void 0 ? {} : { nativeCallId },
+          result,
+          ...provenance === "legacy-absent" ? {} : { origin: provenance }
+        });
+        return;
+      }
+      if (blockType?.includes("tool")) {
+        coverage2.push({
+          dataClass: "record-activity",
+          status: "unsupported",
+          captured: 0,
+          locator
+        });
+      }
+    });
+  }
+  const topLevelResult = topLevelToolUseResultActivity(
+    source,
+    detailed,
+    provenance === "legacy-absent" ? void 0 : provenance
+  );
+  events.push(...topLevelResult.events);
+  coverage2.push(...topLevelResult.coverage);
+  if (provenance === "runtime-notification") {
+    const locator = recordLocator(detailed, "/origin/kind");
+    events.push({
+      eventKey: eventKey(source, locator),
+      kind: "notification",
+      nativeType: "task-notification",
+      locator,
+      outcome: "unknown",
+      origin: provenance
+    });
+  }
+  return { events, coverage: coverage2, diagnostics: [] };
+}
+
+// src/shared/transcript/activity/codex.ts
+var ITEM_ACTIVITY_TYPES = /* @__PURE__ */ new Set([
+  "CollabAgentToolCall",
+  "CommandExecution",
+  "FileChange",
+  "McpToolCall",
+  "SubAgentActivity",
+  "WebSearch"
+]);
+var ITEM_NON_ACTIVITY_TYPES = /* @__PURE__ */ new Set([
+  "AgentMessage",
+  "Extension",
+  "ImageView",
+  "Reasoning",
+  "UserMessage"
+]);
+var CODEX_OUTPUT_CAPS = {
+  stdout: 1048608,
+  aggregated_output: 1048608,
+  formatted_output: 40109
+};
+function codexCallArguments(nativeType, payload, locator) {
+  const field = nativeType === "function_call" ? "arguments" : "input";
+  if (!Object.hasOwn(payload, field)) {
+    return { fields: {}, diagnostics: [] };
+  }
+  const originalArguments = payload[field];
+  if (nativeType !== "function_call" || typeof originalArguments !== "string") {
+    return {
+      fields: { arguments: originalArguments, originalArguments },
+      diagnostics: []
+    };
+  }
+  try {
+    const parsed = JSON.parse(originalArguments);
+    if (!isJsonObject(parsed)) throw new Error("arguments are not an object");
+    return {
+      fields: { arguments: parsed, originalArguments },
+      diagnostics: []
+    };
+  } catch {
+    return {
+      fields: { originalArguments },
+      diagnostics: [
+        {
+          code: "ARGUMENT_PARSE_ERROR",
+          locator,
+          field
+        }
+      ]
+    };
+  }
+}
+function codexItemOutcome(item) {
+  const statusOutcome = outcomeFromStatus(item.status);
+  if (statusOutcome !== "unknown") return statusOutcome;
+  const exitCode = numberValue(item.exit_code);
+  if (exitCode === void 0) return "unknown";
+  return exitCode === 0 ? "success" : "error";
+}
+function selectedCompactionMetadata(payload) {
+  const fields = [
+    "first_window_id",
+    "previous_window_id",
+    "window_id",
+    "window_number"
+  ];
+  return Object.fromEntries(
+    fields.flatMap(
+      (field) => Object.hasOwn(payload, field) ? [[field, payload[field]]] : []
+    )
+  );
+}
+function selectedSessionMetadata(payload) {
+  const cliVersion = stringValue(payload.cli_version);
+  const modelProvider = stringValue(payload.model_provider);
+  const nativeSessionId = stringValue(payload.id);
+  const directParentMarkerPresent = Object.hasOwn(payload, "parent_thread_id");
+  const directParentThreadId = stringValue(payload.parent_thread_id);
+  const source = isJsonObject(payload.source) ? payload.source : void 0;
+  const subagent = source && isJsonObject(source.subagent) ? source.subagent : void 0;
+  const threadSpawn = subagent && isJsonObject(subagent.thread_spawn) ? subagent.thread_spawn : void 0;
+  const nestedParentThreadId = threadSpawn ? stringValue(threadSpawn.parent_thread_id) : void 0;
+  const nestedParentMarkerPresent = threadSpawn !== void 0 && Object.hasOwn(threadSpawn, "parent_thread_id");
+  const subagentMarkerPresent = subagent !== void 0;
+  const subagentHistoryStartOrdinalPresent = Object.hasOwn(
+    payload,
+    "subagent_history_start_ordinal"
+  );
+  const subagentHistoryStartOrdinal = numberValue(
+    payload.subagent_history_start_ordinal
+  );
+  return {
+    ...cliVersion === void 0 ? {} : { cliVersion },
+    ...modelProvider === void 0 ? {} : { modelProvider },
+    ...nativeSessionId === void 0 ? {} : { nativeSessionId },
+    ...directParentThreadId === void 0 ? {} : { directParentThreadId },
+    ...nestedParentThreadId === void 0 ? {} : { nestedParentThreadId },
+    ...directParentMarkerPresent ? { directParentMarkerPresent: true } : {},
+    ...nestedParentMarkerPresent ? { nestedParentMarkerPresent: true } : {},
+    ...subagentMarkerPresent ? { subagentMarkerPresent: true } : {},
+    ...subagentHistoryStartOrdinalPresent ? { subagentHistoryStartOrdinalPresent: true } : {},
+    ...subagentHistoryStartOrdinal === void 0 ? {} : { subagentHistoryStartOrdinal }
+  };
+}
+function selectedTurnMetadata(payload) {
+  const model = stringValue(payload.model);
+  const effort = stringValue(payload.effort);
+  return {
+    ...model === void 0 ? {} : { model },
+    ...effort === void 0 ? {} : { effort }
+  };
+}
+function selectedLifecycleMetadata(payload) {
+  const fields = [
+    "started_at",
+    "completed_at",
+    "duration_ms",
+    "time_to_first_token_ms"
+  ];
+  return Object.fromEntries(
+    fields.flatMap((field) => {
+      const value = numberValue(payload[field]);
+      return value === void 0 ? [] : [[field, value]];
+    })
+  );
+}
+function codexLifecycleActivity(source, detailed, payload) {
+  const nativeType = stringValue(payload.type);
+  if (nativeType !== "task_started" && nativeType !== "task_complete" && nativeType !== "turn_aborted") {
+    return void 0;
+  }
+  const locator = recordLocator(detailed, "/payload");
+  const turnId = stringValue(payload.turn_id);
+  const nativeStatus = stringValue(payload.status);
+  const error = isJsonObject(payload.error) ? payload.error : void 0;
+  const outcome = nativeType === "task_started" ? "pending" : nativeType === "turn_aborted" ? "cancelled" : error ? "error" : "success";
+  const errorInfo = error ? stringValue(error.codex_error_info) : void 0;
+  const metadata = selectedLifecycleMetadata(payload);
+  if (errorInfo !== void 0) metadata.errorInfo = errorInfo;
+  return {
+    events: [
+      {
+        eventKey: eventKey(source, locator),
+        kind: "lifecycle",
+        nativeType,
+        locator,
+        outcome,
+        ...turnId === void 0 ? {} : { turnId },
+        ...nativeStatus === void 0 ? {} : { nativeStatus },
+        ...Object.keys(metadata).length === 0 ? {} : { metadata }
+      }
+    ],
+    coverage: [],
+    diagnostics: []
+  };
+}
+function outputCapDiagnostics(detailed, item, itemPointer) {
+  return Object.entries(CODEX_OUTPUT_CAPS).flatMap(([field, cap]) => {
+    const value = item[field];
+    if (typeof value !== "string") return [];
+    const bytes = Buffer.byteLength(value, "utf8");
+    if (bytes !== cap) return [];
+    return [
+      {
+        code: "POSSIBLE_SOURCE_TRUNCATION",
+        locator: recordLocator(detailed, `${itemPointer}/${field}`),
+        field,
+        bytes
+      }
+    ];
+  });
+}
+function responseItemActivity(source, detailed, payload) {
+  const nativeType = stringValue(payload.type);
+  const locator = recordLocator(detailed, "/payload");
+  if (nativeType === "function_call" || nativeType === "custom_tool_call") {
+    const nativeCallId = stringValue(payload.call_id);
+    const nativeId = stringValue(payload.id);
+    const nativeName = stringValue(payload.name);
+    const nativeStatus = stringValue(payload.status);
+    const argumentEvidence = codexCallArguments(nativeType, payload, locator);
+    return {
+      events: [
+        {
+          eventKey: eventKey(source, locator),
+          kind: "call",
+          nativeType,
+          locator,
+          // custom_tool_call.status is a constant carrier value, not outcome.
+          outcome: "pending",
+          ...nativeId === void 0 ? {} : { nativeId },
+          ...nativeCallId === void 0 ? {} : { nativeCallId },
+          ...nativeName === void 0 ? {} : { nativeName },
+          ...nativeStatus === void 0 ? {} : { nativeStatus },
+          ...Object.hasOwn(payload, "namespace") ? { metadata: { namespace: payload.namespace } } : {},
+          ...argumentEvidence.fields
+        }
+      ],
+      coverage: [],
+      diagnostics: argumentEvidence.diagnostics
+    };
+  }
+  if (nativeType === "function_call_output" || nativeType === "custom_tool_call_output") {
+    const nativeCallId = stringValue(payload.call_id);
+    return {
+      events: [
+        {
+          eventKey: eventKey(source, locator),
+          kind: "result",
+          nativeType,
+          locator,
+          outcome: "unknown",
+          ...nativeCallId === void 0 ? {} : { nativeCallId },
+          ...Object.hasOwn(payload, "output") ? { result: payload.output } : {}
+        }
+      ],
+      coverage: [],
+      diagnostics: []
+    };
+  }
+  if (nativeType === "web_search_call") {
+    const nativeId = stringValue(payload.id);
+    return {
+      events: [
+        {
+          eventKey: eventKey(source, locator),
+          kind: "call",
+          nativeType,
+          locator,
+          outcome: "pending",
+          nativeName: "web_search",
+          ...nativeId === void 0 ? {} : { nativeId },
+          ...Object.hasOwn(payload, "query") ? { arguments: payload.query } : {}
+        }
+      ],
+      coverage: [],
+      diagnostics: []
+    };
+  }
+  if (nativeType === "message" || nativeType === "reasoning") {
+    return { events: [], coverage: [], diagnostics: [] };
+  }
+  return {
+    events: [],
+    coverage: [
+      {
+        dataClass: "record-activity",
+        status: "unsupported",
+        captured: 0,
+        locator
+      }
+    ],
+    diagnostics: []
+  };
+}
+function itemCompletedActivity(source, detailed, payload) {
+  const item = isJsonObject(payload.item) ? payload.item : void 0;
+  const locator = recordLocator(detailed, "/payload/item");
+  if (!item) {
+    return {
+      events: [],
+      coverage: [
+        {
+          dataClass: "items",
+          status: "unsupported",
+          captured: 0,
+          locator
+        }
+      ],
+      diagnostics: []
+    };
+  }
+  const nativeType = stringValue(item.type);
+  if (nativeType === "ContextCompaction") {
+    return {
+      events: [
+        {
+          eventKey: eventKey(source, locator),
+          kind: "compaction",
+          nativeType,
+          locator,
+          outcome: "unknown",
+          metadata: selectedCompactionMetadata(item)
+        }
+      ],
+      coverage: [],
+      diagnostics: []
+    };
+  }
+  if (!nativeType || ITEM_NON_ACTIVITY_TYPES.has(nativeType)) {
+    return { events: [], coverage: [], diagnostics: [] };
+  }
+  if (!ITEM_ACTIVITY_TYPES.has(nativeType)) {
+    return {
+      events: [],
+      coverage: [
+        {
+          dataClass: "items",
+          status: "unsupported",
+          captured: 0,
+          locator
+        }
+      ],
+      diagnostics: []
+    };
+  }
+  const nativeId = stringValue(item.id);
+  const nativeCallId = stringValue(item.call_id);
+  const nativeStatus = stringValue(item.status);
+  const turnId = stringValue(payload.turn_id);
+  const childNativeId = stringValue(item.agent_thread_id);
+  const childNickname = stringValue(item.agent_nickname);
+  const childReference2 = childNativeId ? {
+    nativeId: childNativeId,
+    ...childNickname === void 0 ? {} : { nickname: childNickname },
+    ...nativeStatus === void 0 ? {} : { status: nativeStatus },
+    trajectoryAvailability: "not-read"
+  } : void 0;
+  const coverage2 = childReference2 ? [
+    {
+      dataClass: "child-trajectory",
+      status: "not-read",
+      captured: 1,
+      locator
+    }
+  ] : [];
+  const diagnostics = outputCapDiagnostics(detailed, item, "/payload/item");
+  if (diagnostics.length > 0) {
+    coverage2.push(
+      ...diagnostics.map((diagnostic) => ({
+        dataClass: "items",
+        status: "truncated",
+        captured: 1,
+        locator: diagnostic.locator
+      }))
+    );
+  }
+  return {
+    events: [
+      {
+        eventKey: eventKey(source, locator),
+        kind: "item",
+        nativeType,
+        locator,
+        outcome: codexItemOutcome(item),
+        ...nativeId === void 0 ? {} : { nativeId },
+        ...nativeCallId === void 0 ? {} : { nativeCallId },
+        ...nativeStatus === void 0 ? {} : { nativeStatus },
+        ...turnId === void 0 ? {} : { turnId },
+        nativeValue: item,
+        ...childReference2 === void 0 ? {} : { childReference: childReference2 }
+      }
+    ],
+    coverage: coverage2,
+    diagnostics
+  };
+}
+function extractCodexRecord(source, detailed) {
+  const { record } = detailed;
+  const payload = isJsonObject(record.payload) ? record.payload : void 0;
+  if (record.type === "response_item" && payload) {
+    return responseItemActivity(source, detailed, payload);
+  }
+  if (record.type === "event_msg" && payload) {
+    if (payload.type === "item_completed") {
+      return itemCompletedActivity(source, detailed, payload);
+    }
+    if (payload.type === "web_search_call") {
+      return responseItemActivity(source, detailed, payload);
+    }
+    const lifecycle = codexLifecycleActivity(source, detailed, payload);
+    if (lifecycle) return lifecycle;
+    return { events: [], coverage: [], diagnostics: [] };
+  }
+  if (record.type === "session_meta" && payload) {
+    const locator = recordLocator(detailed, "/payload");
+    return {
+      events: [
+        {
+          eventKey: eventKey(source, locator),
+          kind: "metadata",
+          nativeType: "session_meta",
+          locator,
+          outcome: "unknown",
+          metadata: selectedSessionMetadata(payload)
+        }
+      ],
+      coverage: [],
+      diagnostics: []
+    };
+  }
+  if (record.type === "turn_context" && payload) {
+    const locator = recordLocator(detailed, "/payload");
+    const turnId = stringValue(payload.turn_id);
+    return {
+      events: [
+        {
+          eventKey: eventKey(source, locator),
+          kind: "metadata",
+          nativeType: "turn_context",
+          locator,
+          outcome: "unknown",
+          ...turnId === void 0 ? {} : { turnId },
+          metadata: selectedTurnMetadata(payload)
+        }
+      ],
+      coverage: [],
+      diagnostics: []
+    };
+  }
+  if (record.type === "compacted" && payload) {
+    const locator = recordLocator(detailed, "/payload");
+    return {
+      events: [
+        {
+          eventKey: eventKey(source, locator),
+          kind: "compaction",
+          nativeType: "compacted",
+          locator,
+          outcome: "unknown",
+          metadata: selectedCompactionMetadata(payload)
+        }
+      ],
+      coverage: [],
+      diagnostics: []
+    };
+  }
+  return { events: [], coverage: [], diagnostics: [] };
+}
+
+// src/shared/transcript/activity/extract.ts
+function validateInput(input) {
+  const { source } = input;
+  if (!source.sessionId || !source.nativeSessionId || !source.transcriptPath) {
+    throw new Error("Activity extraction requires an exact selected source");
+  }
+  if (source.runtime !== "claude-code" && source.runtime !== "codex") {
+    throw new Error(`Unsupported activity runtime: ${String(source.runtime)}`);
+  }
+}
+function sourceDiagnosticCode(kind) {
+  switch (kind) {
+    case "malformed":
+      return "SOURCE_MALFORMED_RECORD";
+    case "not-object":
+      return "SOURCE_NOT_OBJECT";
+    case "partial-tail":
+      return "SOURCE_PARTIAL_TAIL";
+  }
+}
+function baseCoverage(events) {
+  const count = (dataClass) => {
+    switch (dataClass) {
+      case "calls":
+        return events.filter((event) => event.kind === "call").length;
+      case "results":
+        return events.filter((event) => event.kind === "result").length;
+      case "items":
+        return events.filter((event) => event.kind === "item").length;
+      case "metadata":
+        return events.filter(
+          (event) => ["metadata", "notification", "lifecycle", "compaction"].includes(
+            event.kind
+          )
+        ).length;
+      default:
+        return 0;
+    }
+  };
+  return ["calls", "results", "items", "metadata"].map(
+    (dataClass) => ({
+      dataClass,
+      status: "available",
+      captured: count(dataClass)
+    })
+  );
+}
+function extractionFailure(locator) {
+  return {
+    events: [],
+    diagnostics: [{ code: "ACTIVITY_EXTRACTION_ERROR", locator }],
+    coverage: [
+      {
+        dataClass: "record-activity",
+        status: "not-read",
+        captured: 0,
+        locator
+      }
+    ]
+  };
+}
+function extractActivity(input) {
+  validateInput(input);
+  const events = [];
+  const coverage2 = [];
+  const diagnostics = [];
+  for (const sourceDiagnostic of input.read.diagnostics) {
+    const locator = {
+      physicalLine: sourceDiagnostic.physicalLine,
+      jsonPointer: ""
+    };
+    diagnostics.push({
+      code: sourceDiagnosticCode(sourceDiagnostic.kind),
+      locator
+    });
+    coverage2.push({
+      dataClass: "record-activity",
+      status: "malformed",
+      captured: 0,
+      locator
+    });
+  }
+  for (const detailed of input.read.records) {
+    let extracted;
+    try {
+      extracted = input.source.runtime === "claude-code" ? extractClaudeRecord(input.source, detailed) : extractCodexRecord(input.source, detailed);
+    } catch {
+      extracted = extractionFailure({
+        recordIndex: detailed.recordIndex,
+        physicalLine: detailed.physicalLine,
+        jsonPointer: ""
+      });
+    }
+    events.push(...extracted.events);
+    coverage2.push(...extracted.coverage);
+    diagnostics.push(...extracted.diagnostics);
+  }
+  return {
+    activitySchemaVersion: ACTIVITY_SCHEMA_VERSION,
+    source: input.source,
+    sourceSnapshot: {
+      capturedAt: input.read.capturedAt,
+      sourceBytes: input.read.sourceBytes
+    },
+    events,
+    coverage: [...baseCoverage(events), ...coverage2],
+    diagnostics
+  };
+}
+
+// src/shared/transcript/activity/render.ts
+function stableJsonValue(value, seen) {
+  if (Array.isArray(value)) {
+    return value.map((item) => stableJsonValue(item, seen));
+  }
+  if (typeof value !== "object" || value === null) return value;
+  if (seen.has(value)) return "[Circular]";
+  seen.add(value);
+  const result = Object.fromEntries(
+    Object.entries(value).toSorted(([left], [right]) => left.localeCompare(right)).map(([key, item]) => [key, stableJsonValue(item, seen)])
+  );
+  seen.delete(value);
+  return result;
+}
+function stableActivityStringify(value) {
+  if (value === void 0) return "undefined";
+  return JSON.stringify(stableJsonValue(value, /* @__PURE__ */ new Set()));
+}
+function renderActivityReport(report) {
+  return stableActivityStringify(report);
+}
+function markdownData(value) {
+  return stableActivityStringify(value).replaceAll("&", "\\u0026").replaceAll("<", "\\u003c").replaceAll(">", "\\u003e").replaceAll("`", "\\u0060").replaceAll("[", "\\u005b").replaceAll("]", "\\u005d").replaceAll("(", "\\u0028").replaceAll(")", "\\u0029").replaceAll("*", "\\u002a").replace(/(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/gu, "\\u005f").replaceAll("~", "\\u007e");
+}
+function locatorText(locator) {
+  if (!locator) return "source-wide";
+  if (locator.sourceFrameIndex !== void 0) {
+    const delivery = locator.deliveryFrameIndex === void 0 ? "" : `, delivery frame ${locator.deliveryFrameIndex}`;
+    return `source frame ${locator.sourceFrameIndex}${delivery}, line ${locator.physicalLine}, pointer ${locator.jsonPointer || "/"}`;
+  }
+  const record = locator.recordIndex === void 0 ? "" : `, record ${locator.recordIndex}`;
+  return `line ${locator.physicalLine}${record}, pointer ${locator.jsonPointer || "/"}`;
+}
+function previewLine(label, preview2) {
+  if (!preview2) return [];
+  const clipped = preview2.truncated ? `; clipped ${preview2.displayedBytes}/${preview2.sourceBytes} bytes` : `; ${preview2.displayedBytes} bytes`;
+  return [`  - ${label}${clipped}: ${markdownData(preview2.text)}`];
+}
+function eventLines(event) {
+  const identity = event.nativeName ?? event.nativeType;
+  const source = locatorText(event.locator);
+  const relation = event.relatedCallKey ? `; related call ${markdownData(event.relatedCallKey)}` : "";
+  const evidence = Object.fromEntries(
+    Object.entries({
+      nativeType: event.nativeName === void 0 ? void 0 : event.nativeType,
+      category: event.category,
+      nativeId: event.nativeId,
+      nativeCallId: event.nativeCallId,
+      nativeStatus: event.nativeStatus,
+      origin: event.origin,
+      turnId: event.turnId,
+      lifecycleAvailability: event.lifecycleAvailability,
+      turnOutcome: event.turnOutcome,
+      externalReference: event.externalReference,
+      childReference: event.childReference
+    }).filter(([, value]) => value !== void 0)
+  );
+  return [
+    `- ${event.kind} ${markdownData(identity)}; ${event.outcome}; ${event.ownership}; ${source}${relation}`,
+    ...Object.keys(evidence).length === 0 ? [] : [`  - native evidence: ${markdownData(evidence)}`],
+    ...previewLine("input", event.inputPreview),
+    ...previewLine("original input", event.originalInputPreview),
+    ...previewLine("output", event.outputPreview),
+    ...previewLine("metadata", event.metadataPreview),
+    ...event.outputPreviewOmitted ? [`  - output preview: ${event.outputPreviewOmitted}`] : []
+  ];
+}
+function countLine(counts) {
+  return `- ${counts.scope}: calls ${counts.calls}; counted invocations ${counts.countedInvocations}; pending lifecycle ${counts.pendingLifecycleCalls}; results ${counts.results}; items ${counts.items}; failures ${counts.failures}`;
+}
+function renderActivityMarkdown(report) {
+  const lines = [
+    "## Activity",
+    "",
+    `- Schema: ${report.activitySchemaVersion}`,
+    `- Mode: ${report.mode}`,
+    `- Budgeted format: ${report.renderedFormat}`,
+    `- Runtime: ${report.source.runtime}`,
+    `- Native session: ${markdownData(report.source.nativeSessionId)}`,
+    `- Source: ${markdownData(report.source.transcriptPath)}`,
+    `- Source snapshot: ${report.sourceSnapshot.sourceBytes} bytes captured at ${report.sourceSnapshot.capturedAt}`,
+    `- Delivery range: [${report.deliveryRange.start}, ${report.deliveryRange.end}) ${report.deliveryRange.indexBase}`,
+    `- Activity bytes: ${report.renderedBytes}/${report.limits.maxBytes}; preview cap: ${report.limits.previewBytes}; late context cap: ${report.limits.lateContextBytes}`,
+    countLine(report.counts.capturedSource),
+    countLine(report.counts.deliveredRange),
+    countLine(report.counts.displayed),
+    `- Omitted evidence: calls ${report.omitted.calls}; results ${report.omitted.results}; failures ${report.omitted.failures}`,
+    `- Omitted groups: invocation limit ${report.omitted.invocationLimitGroups}; byte limit ${report.omitted.byteLimitGroups}`,
+    `- Omitted metadata: coverage ${report.omitted.coverageEntries}; diagnostics ${report.omitted.diagnostics}`,
+    "",
+    "### Events",
+    "",
+    ...report.events.length === 0 ? ["- None in the displayed range."] : report.events.flatMap(eventLines)
+  ];
+  if (report.callContexts.length > 0) {
+    lines.push("", "### Earlier call context", "");
+    for (const context of report.callContexts) {
+      lines.push(
+        `- ${markdownData(context.nativeName ?? context.callKey)}; ${context.availability}; ${locatorText(context.locator)}`,
+        ...previewLine("input context", context.inputPreview),
+        ...previewLine("original input context", context.originalInputPreview)
+      );
+    }
+  }
+  if (report.coverage.length > 0) {
+    lines.push("", "### Coverage", "");
+    for (const coverage2 of report.coverage) {
+      lines.push(
+        `- ${coverage2.dataClass}: ${coverage2.status}; captured ${coverage2.captured}; ${locatorText(coverage2.locator)}`
+      );
+    }
+  }
+  if (report.diagnostics.length > 0) {
+    lines.push("", "### Diagnostics", "");
+    for (const diagnostic of report.diagnostics) {
+      const details = Object.fromEntries(
+        Object.entries({
+          field: diagnostic.field,
+          bytes: diagnostic.bytes,
+          nativeId: diagnostic.nativeId
+        }).filter(([, value]) => value !== void 0)
+      );
+      lines.push(
+        `- ${diagnostic.code}; ${locatorText(diagnostic.locator)}${Object.keys(details).length === 0 ? "" : `; ${markdownData(details)}`}`
+      );
+    }
+  }
+  return `${lines.join("\n")}
+`;
+}
+
+// src/shared/transcript/activity/project.ts
+var KIB = 1024;
+var MIB = 1024 * KIB;
+var ACTIVITY_PROJECTION_LIMITS = {
+  watch: {
+    maxBytes: 32 * KIB,
+    maxInvocations: 80,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
+  },
+  "catch-up": {
+    maxBytes: 32 * KIB,
+    maxInvocations: 80,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
+  },
+  review: {
+    maxBytes: 128 * KIB,
+    maxInvocations: 1024,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
+  },
+  export: {
+    maxBytes: 64 * MIB,
+    maxInvocations: null,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
+  }
+};
+function inRange(event, range) {
+  return event.locator.recordIndex >= range.start && event.locator.recordIndex < range.end;
+}
+function validateRange(range) {
+  if (!Number.isSafeInteger(range.start) || !Number.isSafeInteger(range.end) || range.start < 0 || range.end < range.start) {
+    throw new Error("Activity delivery range must be a valid half-open range");
+  }
+}
+function validateLimits(limits) {
+  if (!Number.isSafeInteger(limits.maxBytes) || limits.maxBytes <= 0 || limits.maxInvocations !== null && (!Number.isSafeInteger(limits.maxInvocations) || limits.maxInvocations < 0) || !Number.isSafeInteger(limits.previewBytes) || limits.previewBytes <= 0 || !Number.isSafeInteger(limits.lateContextBytes) || limits.lateContextBytes <= 0) {
+    throw new Error("Activity projection limits must be positive integers");
+  }
+}
+function clipUtf8(text, maxBytes) {
+  const sourceBytes = Buffer.byteLength(text, "utf8");
+  if (sourceBytes <= maxBytes) {
+    return {
+      text,
+      sourceBytes,
+      displayedBytes: sourceBytes,
+      truncated: false
+    };
+  }
+  let displayed = "";
+  let displayedBytes = 0;
+  for (const character of text) {
+    const characterBytes = Buffer.byteLength(character, "utf8");
+    if (displayedBytes + characterBytes > maxBytes) break;
+    displayed += character;
+    displayedBytes += characterBytes;
+  }
+  return {
+    text: displayed,
+    sourceBytes,
+    displayedBytes,
+    truncated: true
+  };
+}
+function preview(value, maxBytes) {
+  return clipUtf8(stableActivityStringify(value), maxBytes);
+}
+function compareChronology(left, right) {
+  return left.locator.recordIndex - right.locator.recordIndex || left.locator.jsonPointer.localeCompare(right.locator.jsonPointer) || left.eventKey.localeCompare(right.eventKey);
+}
+function compareHighPriority(left, right) {
+  return Number(right.failure) - Number(left.failure) || right.recency - left.recency || left.key.localeCompare(right.key);
+}
+function compareLowPriority(left, right) {
+  return Number(left.failure) - Number(right.failure) || left.recency - right.recency || right.key.localeCompare(left.key);
+}
+function buildGroups(activity) {
+  const calls = new Map(
+    activity.events.filter((event) => event.kind === "call").map((event) => [event.eventKey, event])
+  );
+  const grouped = /* @__PURE__ */ new Map();
+  for (const event of activity.events) {
+    const key = event.kind === "call" ? event.eventKey : event.relatedCallKey ?? event.eventKey;
+    const events = grouped.get(key) ?? [];
+    events.push(event);
+    grouped.set(key, events);
+  }
+  return [...grouped.entries()].map(([key, events]) => {
+    const call = calls.get(key);
+    return {
+      key,
+      events: events.toSorted(compareChronology),
+      ...call === void 0 ? {} : { call },
+      displayedInvocation: call !== void 0,
+      failure: events.some(
+        (event) => event.outcome === "error" || event.outcome === "cancelled"
+      ),
+      recency: Math.max(...events.map((event) => event.locator.recordIndex))
+    };
+  });
+}
+function deliveredGroups(activity, range) {
+  return buildGroups(activity).flatMap((group) => {
+    const events = group.events.filter((event) => inRange(event, range));
+    if (events.length === 0) return [];
+    const deliveredCall = events.find((event) => event.kind === "call");
+    return [
+      {
+        ...group,
+        events,
+        displayedInvocation: deliveredCall !== void 0,
+        failure: events.some(
+          (event) => event.outcome === "error" || event.outcome === "cancelled"
+        ),
+        recency: Math.max(...events.map((event) => event.locator.recordIndex))
+      }
+    ];
+  });
+}
+function deliveredMetadata(activity, range) {
+  const locatorInRange = (locator) => {
+    const index = locator?.recordIndex;
+    return index === void 0 || index >= range.start && index < range.end;
+  };
+  return {
+    coverage: activity.coverage.filter(
+      (entry) => locatorInRange(entry.locator)
+    ),
+    diagnostics: activity.diagnostics.filter(
+      (entry) => locatorInRange(entry.locator)
+    )
+  };
+}
+function compareMetadataPriority(left, right) {
+  return (right.locator?.recordIndex ?? -1) - (left.locator?.recordIndex ?? -1) || (right.locator?.physicalLine ?? -1) - (left.locator?.physicalLine ?? -1) || Number(right.kind === "diagnostics") - Number(left.kind === "diagnostics") || left.index - right.index;
+}
+function retainMetadata(metadata, retainedCount) {
+  const priority = [
+    ...metadata.coverage.map(
+      (entry, index) => ({
+        kind: "coverage",
+        index,
+        locator: entry.locator
+      })
+    ),
+    ...metadata.diagnostics.map(
+      (entry, index) => ({
+        kind: "diagnostics",
+        index,
+        locator: entry.locator
+      })
+    )
+  ].toSorted(compareMetadataPriority);
+  const retainedCoverage = /* @__PURE__ */ new Set();
+  const retainedDiagnostics = /* @__PURE__ */ new Set();
+  for (const candidate of priority.slice(0, retainedCount)) {
+    (candidate.kind === "coverage" ? retainedCoverage : retainedDiagnostics).add(candidate.index);
+  }
+  return {
+    coverage: metadata.coverage.filter(
+      (_, index) => retainedCoverage.has(index)
+    ),
+    diagnostics: metadata.diagnostics.filter(
+      (_, index) => retainedDiagnostics.has(index)
+    )
+  };
+}
+function projectEvent(event, limits, suppressLinkedItemOutput) {
+  return {
+    eventKey: event.eventKey,
+    kind: event.kind,
+    nativeType: event.nativeType,
+    locator: event.locator,
+    outcome: event.outcome,
+    ownership: event.ownership,
+    ...event.category === void 0 ? {} : { category: event.category },
+    ...event.relatedCallKey === void 0 ? {} : { relatedCallKey: event.relatedCallKey },
+    ...event.nativeId === void 0 ? {} : { nativeId: event.nativeId },
+    ...event.nativeCallId === void 0 ? {} : { nativeCallId: event.nativeCallId },
+    ...event.nativeName === void 0 ? {} : { nativeName: event.nativeName },
+    ...event.nativeStatus === void 0 ? {} : { nativeStatus: event.nativeStatus },
+    ...event.origin === void 0 ? {} : { origin: event.origin },
+    ...event.turnId === void 0 ? {} : { turnId: event.turnId },
+    ...event.lifecycleAvailability === void 0 ? {} : { lifecycleAvailability: event.lifecycleAvailability },
+    ...event.turnOutcome === void 0 ? {} : { turnOutcome: event.turnOutcome },
+    ...Object.hasOwn(event, "arguments") ? { inputPreview: preview(event.arguments, limits.previewBytes) } : {},
+    ...Object.hasOwn(event, "originalArguments") ? {
+      originalInputPreview: preview(
+        event.originalArguments,
+        limits.previewBytes
+      )
+    } : {},
+    ...event.kind === "result" && Object.hasOwn(event, "result") ? { outputPreview: preview(event.result, limits.previewBytes) } : {},
+    ...event.kind === "item" && suppressLinkedItemOutput ? { outputPreviewOmitted: "exact-linked-duplicate-carrier" } : event.kind === "item" && Object.hasOwn(event, "nativeValue") ? { outputPreview: preview(event.nativeValue, limits.previewBytes) } : event.kind === "item" && Object.hasOwn(event, "result") ? { outputPreview: preview(event.result, limits.previewBytes) } : {},
+    ...event.metadata === void 0 ? {} : { metadataPreview: preview(event.metadata, limits.previewBytes) },
+    ...event.externalReference === void 0 ? {} : { externalReference: event.externalReference },
+    ...event.childReference === void 0 ? {} : { childReference: event.childReference }
+  };
+}
+function countEvents(scope, events) {
+  return {
+    scope,
+    calls: events.filter((event) => event.kind === "call").length,
+    countedInvocations: events.filter(
+      (event) => event.kind === "call" && event.ownership === "owned"
+    ).length,
+    pendingLifecycleCalls: events.filter(
+      (event) => event.kind === "call" && event.lifecycleAvailability === "pending-lifecycle"
+    ).length,
+    results: events.filter((event) => event.kind === "result").length,
+    items: events.filter((event) => event.kind === "item").length,
+    failures: events.filter(
+      (event) => event.outcome === "error" || event.outcome === "cancelled"
+    ).length
+  };
+}
+function finalizeRenderedBytes(report) {
+  let finalized = report;
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    const rendered = finalized.renderedFormat === "markdown" ? renderActivityMarkdown(finalized) : renderActivityReport(finalized);
+    const renderedBytes = Buffer.byteLength(rendered, "utf8");
+    if (renderedBytes === finalized.renderedBytes) return finalized;
+    finalized = { ...finalized, renderedBytes };
+  }
+  throw new Error("Activity report byte size did not stabilize");
+}
+function buildReport(activity, options, limits, groups, retainedKeys, metadata, reasons) {
+  const deliveredEvents = groups.flatMap((group) => group.events);
+  const retainedGroups = groups.filter((group) => retainedKeys.has(group.key));
+  const displayedRaw = retainedGroups.flatMap((group) => group.events).toSorted(compareChronology);
+  const groupWithOutputResult = new Set(
+    retainedGroups.filter(
+      (group) => group.events.some(
+        (event) => event.kind === "result" && Object.hasOwn(event, "result")
+      )
+    ).map((group) => group.key)
+  );
+  const eventGroup = new Map(
+    retainedGroups.flatMap(
+      (group) => group.events.map((event) => [event.eventKey, group.key])
+    )
+  );
+  const events = displayedRaw.map(
+    (event) => projectEvent(
+      event,
+      limits,
+      event.kind === "item" && event.relatedCallKey !== void 0 && groupWithOutputResult.has(eventGroup.get(event.eventKey) ?? "")
+    )
+  );
+  const callContexts = retainedGroups.flatMap((group) => {
+    if (!group.call || inRange(group.call, options.deliveryRange)) return [];
+    return [
+      {
+        callKey: group.call.eventKey,
+        availability: "outside-delivered-range",
+        locator: group.call.locator,
+        ...group.call.nativeCallId === void 0 ? {} : { nativeCallId: group.call.nativeCallId },
+        ...group.call.nativeName === void 0 ? {} : { nativeName: group.call.nativeName },
+        ...group.call.category === void 0 ? {} : { category: group.call.category },
+        ...Object.hasOwn(group.call, "arguments") ? {
+          inputPreview: preview(
+            group.call.arguments,
+            limits.lateContextBytes
+          )
+        } : {},
+        ...Object.hasOwn(group.call, "originalArguments") ? {
+          originalInputPreview: preview(
+            group.call.originalArguments,
+            limits.lateContextBytes
+          )
+        } : {}
+      }
+    ];
+  }).toSorted(
+    (left, right) => left.locator.recordIndex - right.locator.recordIndex || left.callKey.localeCompare(right.callKey)
+  );
+  const captured = countEvents("captured-source", activity.events);
+  const delivered = countEvents("delivered-range", deliveredEvents);
+  const displayed = countEvents("displayed", displayedRaw);
+  const report = {
+    activitySchemaVersion: activity.activitySchemaVersion,
+    mode: options.mode,
+    renderedFormat: options.renderFormat,
+    source: activity.source,
+    sourceSnapshot: activity.sourceSnapshot,
+    deliveryRange: options.deliveryRange,
+    limits,
+    renderedBytes: 0,
+    counts: {
+      capturedSource: captured,
+      deliveredRange: delivered,
+      displayed
+    },
+    omitted: {
+      calls: delivered.calls - displayed.calls,
+      results: delivered.results - displayed.results,
+      failures: delivered.failures - displayed.failures,
+      ...reasons
+    },
+    events,
+    callContexts,
+    coverage: metadata.coverage,
+    diagnostics: metadata.diagnostics
+  };
+  return finalizeRenderedBytes(report);
+}
+function projectActivityWithLimits(activity, options, limits) {
+  validateRange(options.deliveryRange);
+  validateLimits(limits);
+  const groups = deliveredGroups(activity, options.deliveryRange);
+  const displayedInvocations = groups.filter((group) => group.displayedInvocation).toSorted(compareHighPriority);
+  const invocationOmitted = limits.maxInvocations === null ? [] : displayedInvocations.slice(limits.maxInvocations);
+  const retained = new Set(groups.map((group) => group.key));
+  for (const group of invocationOmitted) retained.delete(group.key);
+  const metadata = deliveredMetadata(activity, options.deliveryRange);
+  const initialReasons = {
+    invocationLimitGroups: invocationOmitted.length,
+    byteLimitGroups: 0,
+    coverageEntries: 0,
+    diagnostics: 0
+  };
+  const initial = buildReport(
+    activity,
+    options,
+    limits,
+    groups,
+    retained,
+    metadata,
+    initialReasons
+  );
+  if (initial.renderedBytes <= limits.maxBytes) return initial;
+  const removable = groups.filter((group) => retained.has(group.key)).toSorted(compareLowPriority);
+  let low = 1;
+  let high = removable.length;
+  let best;
+  while (low <= high) {
+    const removedCount = Math.floor((low + high) / 2);
+    const candidateKeys = new Set(retained);
+    for (const group of removable.slice(0, removedCount)) {
+      candidateKeys.delete(group.key);
+    }
+    const candidate = buildReport(
+      activity,
+      options,
+      limits,
+      groups,
+      candidateKeys,
+      metadata,
+      {
+        ...initialReasons,
+        byteLimitGroups: removedCount
+      }
+    );
+    if (candidate.renderedBytes <= limits.maxBytes) {
+      best = candidate;
+      high = removedCount - 1;
+    } else {
+      low = removedCount + 1;
+    }
+  }
+  if (best) return best;
+  const metadataCount = metadata.coverage.length + metadata.diagnostics.length;
+  let metadataLow = 0;
+  let metadataHigh = metadataCount;
+  while (metadataLow <= metadataHigh) {
+    const retainedCount = Math.floor((metadataLow + metadataHigh) / 2);
+    const retainedMetadata = retainMetadata(metadata, retainedCount);
+    const candidate = buildReport(
+      activity,
+      options,
+      limits,
+      groups,
+      /* @__PURE__ */ new Set(),
+      retainedMetadata,
+      {
+        ...initialReasons,
+        byteLimitGroups: removable.length,
+        coverageEntries: metadata.coverage.length - retainedMetadata.coverage.length,
+        diagnostics: metadata.diagnostics.length - retainedMetadata.diagnostics.length
+      }
+    );
+    if (candidate.renderedBytes <= limits.maxBytes) {
+      best = candidate;
+      metadataLow = retainedCount + 1;
+    } else {
+      metadataHigh = retainedCount - 1;
+    }
+  }
+  if (best) return best;
+  throw new RangeError("Activity report envelope exceeds the byte limit");
+}
+function projectActivity(activity, options) {
+  return projectActivityWithLimits(
+    activity,
+    options,
+    ACTIVITY_PROJECTION_LIMITS[options.mode]
+  );
+}
+
+// src/shared/transcript/activity/cursor.ts
+function validateInput2(input) {
+  if (input.source.runtime !== "cursor" || !input.source.sessionId.trim() || !input.source.nativeSessionId.trim() || !input.source.transcriptPath.trim()) {
+    throw new Error("Cursor activity extraction requires an exact source");
+  }
+  if (!input.capturedAt.trim()) {
+    throw new Error("Cursor activity extraction requires a capture time");
+  }
+  if (input.scan.indexBase !== "zero-based-jsonl-frame-index") {
+    throw new Error("Cursor activity extraction requires frame-indexed input");
+  }
+}
+function isSettled(turn) {
+  return turn.terminalFrameIndex !== null;
+}
+function eventLocator(sourceFrameIndex, blockIndex, terminalFrameIndex) {
+  const deliveryFrameIndex = terminalFrameIndex ?? sourceFrameIndex;
+  return {
+    // Cursor JSONL frames retain a one-to-one physical-line coordinate even
+    // though delivery is selected by terminal frame rather than source line.
+    physicalLine: sourceFrameIndex + 1,
+    recordIndex: deliveryFrameIndex,
+    sourceFrameIndex,
+    ...terminalFrameIndex === null ? {} : { deliveryFrameIndex: terminalFrameIndex },
+    jsonPointer: `/message/content/${blockIndex}`
+  };
+}
+function eventKey2(turn, sourceFrameIndex, blockIndex, scan) {
+  const positional = `${turn.turnId}:frame:${sourceFrameIndex}:block:${blockIndex}`;
+  return isSettled(turn) ? positional : `${positional}:snapshot:${scan.safePrefixSha256}`;
+}
+function callEvents(input) {
+  return input.analysis.turns.flatMap((turn) => {
+    const settled = isSettled(turn);
+    if (input.mode === "stateful-delivery" && !settled) return [];
+    return (turn.toolRecords ?? []).map(
+      (tool) => ({
+        eventKey: eventKey2(
+          turn,
+          tool.sourceFrameIndex,
+          tool.blockIndex,
+          input.scan
+        ),
+        kind: "call",
+        nativeType: tool.nativeType,
+        locator: eventLocator(
+          tool.sourceFrameIndex,
+          tool.blockIndex,
+          turn.terminalFrameIndex
+        ),
+        // Cursor records only turn-level terminal evidence. A successful,
+        // errored, or aborted turn never proves an individual call's outcome.
+        outcome: "unknown",
+        turnId: turn.turnId,
+        lifecycleAvailability: settled ? "settled" : "pending-lifecycle",
+        turnOutcome: turn.lifecycle,
+        ...tool.nativeName === void 0 ? {} : { nativeName: tool.nativeName },
+        ...Object.hasOwn(tool, "arguments") ? { arguments: tool.arguments } : {}
+      })
+    );
+  });
+}
+function lifecycleCounts(analysis, emittedCalls, mode) {
+  let settledCalls = 0;
+  let pendingLifecycleCalls = 0;
+  for (const turn of analysis.turns) {
+    const count = turn.toolRecords?.length ?? 0;
+    if (isSettled(turn)) settledCalls += count;
+    else pendingLifecycleCalls += count;
+  }
+  return {
+    capturedCalls: settledCalls + pendingLifecycleCalls,
+    settledCalls,
+    pendingLifecycleCalls,
+    emittedCalls,
+    deferredPendingCalls: mode === "stateful-delivery" ? pendingLifecycleCalls : 0
+  };
+}
+function coverage(events, scan, mode) {
+  const entries = [
+    {
+      dataClass: "calls",
+      status: "available",
+      captured: events.length
+    },
+    ...events.length > 0 || mode === "stateless-snapshot" ? [
+      {
+        dataClass: "results",
+        status: "not-recorded",
+        captured: 0
+      }
+    ] : []
+  ];
+  if (scan.blockingFrame) {
+    entries.push({
+      dataClass: "record-activity",
+      status: "malformed",
+      captured: 0,
+      locator: {
+        physicalLine: scan.blockingFrame.frameIndex + 1,
+        recordIndex: scan.blockingFrame.frameIndex,
+        sourceFrameIndex: scan.blockingFrame.frameIndex,
+        jsonPointer: ""
+      }
+    });
+  }
+  return entries;
+}
+function extractCursorActivity(input) {
+  validateInput2(input);
+  const events = callEvents(input);
+  const counts = lifecycleCounts(input.analysis, events.length, input.mode);
+  return {
+    activitySchemaVersion: ACTIVITY_SCHEMA_VERSION,
+    source: input.source,
+    sourceSnapshot: {
+      capturedAt: input.capturedAt,
+      sourceBytes: input.scan.file.size
+    },
+    events,
+    coverage: coverage(events, input.scan, input.mode),
+    diagnostics: input.scan.blockingFrame ? [
+      {
+        code: input.scan.blockingFrame.parseState === "partial" ? "SOURCE_PARTIAL_TAIL" : "SOURCE_MALFORMED_RECORD",
+        locator: {
+          physicalLine: input.scan.blockingFrame.frameIndex + 1,
+          recordIndex: input.scan.blockingFrame.frameIndex,
+          sourceFrameIndex: input.scan.blockingFrame.frameIndex,
+          jsonPointer: ""
+        }
+      }
+    ] : [],
+    cursor: {
+      indexBase: input.scan.indexBase,
+      mode: input.mode,
+      counts
+    }
+  };
+}
+
 // src/shared/transcript/cursor-analysis.ts
+import { createHash as createHash5 } from "node:crypto";
 function cursorRenderTurnId(turn, sourceFrameIndex) {
   const humanFrameIndex = turn.humanRecordIndexes.findLast(
     (frameIndex) => frameIndex <= sourceFrameIndex
   );
   return `${turn.turnId}:render:${humanFrameIndex ?? turn.fromFrameIndex}`;
 }
-function isJsonObject(value) {
+function isJsonObject2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-function stringValue(value) {
+function stringValue2(value) {
   return typeof value === "string" ? value : null;
 }
 function identityScope(identity) {
@@ -3019,7 +4792,7 @@ function validateIdentity(identity) {
   }
 }
 function contentBlocks(record) {
-  if (!isJsonObject(record.message)) {
+  if (!isJsonObject2(record.message)) {
     return [{ blockIndex: 0, kind: "unsupported", text: "" }];
   }
   const message = record.message;
@@ -3031,18 +4804,29 @@ function contentBlocks(record) {
     return [{ blockIndex: 0, kind: "unsupported", text: "" }];
   }
   return content.map((block, blockIndex) => {
-    if (!isJsonObject(block)) {
+    if (!isJsonObject2(block)) {
       return { blockIndex, kind: "unsupported", text: "" };
     }
-    const type = stringValue(block.type);
+    const type = stringValue2(block.type);
     if (type === "tool_use") {
+      const nativeName = stringValue2(block.name);
+      const toolRecord = {
+        nativeType: "tool_use",
+        ...nativeName === null ? {} : { nativeName },
+        ...Object.hasOwn(block, "input") ? { arguments: block.input } : {}
+      };
       const askUserText = cursorAskUserQuestionText(block);
       if (askUserText !== null) {
-        return { blockIndex, kind: "ask-user", text: askUserText };
+        return {
+          blockIndex,
+          kind: "ask-user",
+          text: askUserText,
+          toolRecord
+        };
       }
-      return { blockIndex, kind: "tool", text: "" };
+      return { blockIndex, kind: "tool", text: "", toolRecord };
     }
-    const text = stringValue(block.text) ?? stringValue(block.content) ?? "";
+    const text = stringValue2(block.text) ?? stringValue2(block.content) ?? "";
     if (type === "runtime_diagnostic" || type === "diagnostic") {
       return { blockIndex, kind: "runtime-diagnostic", text };
     }
@@ -3088,6 +4872,7 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
       assistantRecords: [],
       humanRecordIndexes: [],
       toolRecordIndexes: [],
+      toolRecords: [],
       hasAutomaticControlInput: false,
       hasHumanInput: false
     };
@@ -3105,6 +4890,7 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
       assistantRecords: current.assistantRecords,
       humanRecordIndexes: current.humanRecordIndexes,
       toolRecordIndexes: current.toolRecordIndexes,
+      toolRecords: current.toolRecords,
       lifecycle,
       terminalFrameIndex,
       finalSubstantiveEntryKey: finalSubstantive?.entryKey ?? null
@@ -3142,7 +4928,7 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
         nextTurnStart = frame.frameIndex + 1;
         return;
       }
-      const role = stringValue(record.role);
+      const role = stringValue2(record.role);
       if (role !== "user" && role !== "assistant") {
         metadataFrameIndexes.push(frame.frameIndex);
         if (current !== null) {
@@ -3177,6 +4963,14 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
           turn.humanRecordIndexes.push(frame.frameIndex);
         }
         return;
+      }
+      for (const block of blocks) {
+        if (block.toolRecord === void 0) continue;
+        turn.toolRecords.push({
+          sourceFrameIndex: frame.frameIndex,
+          blockIndex: block.blockIndex,
+          ...block.toolRecord
+        });
       }
       for (const block of blocks) {
         if (block.kind === "tool") continue;
@@ -3825,6 +5619,87 @@ function buildCursorDigest(transcriptPath, opts) {
     includeToolResults: opts.includeToolResults ?? false,
     includeCommandMessages: opts.includeCommandMessages ?? false
   };
+  let activity;
+  if (opts.includeActivity) {
+    const stateless = (opts.mode ?? "review") === "review";
+    const activityMode = stateless ? "review" : "catch-up";
+    const defaultStart = stateless ? 0 : opts.cursorState?.continuity.nextFrameIndex ?? fromIndex;
+    const defaultEnd = stateless ? scan.totalFrames : analysis.turns.reduce(
+      (end, turn) => turn.terminalFrameIndex !== null && turn.terminalFrameIndex < nextIndex ? Math.max(end, turn.terminalFrameIndex + 1) : end,
+      defaultStart
+    );
+    const deliveryRange = opts.cursorActivityDeliveryRange ?? {
+      indexBase: "zero-based-jsonl-frame-index",
+      start: defaultStart,
+      end: defaultEnd
+    };
+    const source = {
+      runtime: "cursor",
+      sessionId: opts.sessionId ?? opts.cursorIdentity.sessionId,
+      nativeSessionId: opts.cursorIdentity.sessionId,
+      transcriptPath
+    };
+    const capturedAt = opts.cursorCapturedAt ?? (/* @__PURE__ */ new Date()).toISOString();
+    try {
+      activity = projectActivity(
+        correlateActivity(
+          extractCursorActivity({
+            source,
+            scan,
+            analysis,
+            capturedAt,
+            mode: stateless ? "stateless-snapshot" : "stateful-delivery"
+          })
+        ),
+        {
+          mode: activityMode,
+          renderFormat: opts.activityRenderFormat ?? "compact-json",
+          deliveryRange
+        }
+      );
+    } catch {
+      activity = projectActivity(
+        {
+          activitySchemaVersion: 1,
+          source,
+          sourceSnapshot: {
+            capturedAt,
+            sourceBytes: scan.file.size
+          },
+          events: [],
+          coverage: [
+            {
+              dataClass: "record-activity",
+              status: "not-read",
+              captured: 0
+            }
+          ],
+          diagnostics: [
+            {
+              code: "ACTIVITY_EXTRACTION_ERROR",
+              locator: { physicalLine: 1, jsonPointer: "" }
+            }
+          ],
+          correlationCounts: {
+            responseStreamCalls: {
+              captured: 0,
+              counted: 0,
+              owned: 0,
+              inherited: 0,
+              unknown: 0
+            },
+            results: { matched: 0, unmatched: 0 },
+            itemEvidence: { linked: 0, standalone: 0 }
+          }
+        },
+        {
+          mode: activityMode,
+          renderFormat: opts.activityRenderFormat ?? "compact-json",
+          deliveryRange
+        }
+      );
+    }
+  }
   return {
     schemaVersion: 2,
     runtime: "cursor",
@@ -3848,6 +5723,7 @@ function buildCursorDigest(transcriptPath, opts) {
     },
     accounting,
     entries,
+    ...activity ? { activity } : {},
     filters,
     warnings,
     fallbacks: opts.fallbacks ?? [],
@@ -3871,12 +5747,17 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     includeToolCalls = false,
     includeToolResults = false,
     includeCommandMessages = false,
+    includeActivity = false,
+    activityRenderFormat = "compact-json",
     maxTurns,
     maxBytes,
     fallbacks = []
   } = opts;
   const warnings = [...opts.warnings ?? []];
-  const records = await readRecords(transcriptPath);
+  const effectiveIncludeToolCalls = includeActivity ? false : includeToolCalls;
+  const effectiveIncludeToolResults = includeActivity ? false : includeToolResults;
+  const capturedRead = includeActivity ? opts.capturedRead ?? await readRecordsDetailed(transcriptPath) : void 0;
+  const records = capturedRead ? capturedRead.records.map(({ record }) => record) : await readRecords(transcriptPath);
   const totalRecords = records.length;
   const engagement = classifyTranscriptRecords(runtime, records);
   const bootstrapRecordIndexes = new Set(engagement.bootstrapRecordIndexes);
@@ -3908,8 +5789,10 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     }
   );
   const allEntriesBeforeBootstrap = normalizeEntries(runtime, records, {
-    includeToolCalls,
-    includeToolResults,
+    // The activity projection owns tool calls/results in activity mode. Ask
+    // user exchanges survive these filters in the legacy normalizer.
+    includeToolCalls: effectiveIncludeToolCalls,
+    includeToolResults: effectiveIncludeToolResults,
     includeCommandMessages
   });
   const allEntriesWithTools = allEntriesWithToolsBeforeBootstrap.filter(
@@ -3959,8 +5842,8 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     newRecords: rawCount
   };
   const filters = {
-    includeToolCalls,
-    includeToolResults,
+    includeToolCalls: effectiveIncludeToolCalls,
+    includeToolResults: effectiveIncludeToolResults,
     includeCommandMessages
   };
   const fullEntriesInRawRange = allEntriesWithTools.filter(
@@ -3990,8 +5873,8 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
       askUserEntries: filteredEntries.filter((e) => e.kind === "ask_user").length
     },
     filtered: {
-      toolCalls: includeToolCalls ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "tool_call").length,
-      toolResults: includeToolResults ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "tool_result").length,
+      toolCalls: effectiveIncludeToolCalls ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "tool_call").length,
+      toolResults: effectiveIncludeToolResults ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "tool_result").length,
       commandMessages: includeCommandMessages ? 0 : fullEntriesInRawRange.filter((e) => e.kind === "command_message").length,
       bootstrapRecords: [...bootstrapRecordIndexes].filter(
         (index) => index >= rawFromIndex
@@ -4016,6 +5899,75 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     },
     autoLargeDigest
   };
+  let activity;
+  if (includeActivity && capturedRead && runtime !== "cursor") {
+    const activityMode = mode === "catch-up" ? "catch-up" : "review";
+    const source = {
+      runtime,
+      sessionId,
+      nativeSessionId: identity?.nativeSessionId ?? sessionId,
+      transcriptPath
+    };
+    try {
+      activity = projectActivity(
+        correlateActivity(extractActivity({ source, read: capturedRead })),
+        {
+          mode: activityMode,
+          renderFormat: activityRenderFormat,
+          deliveryRange: {
+            indexBase: "zero-based-decoded-record-index",
+            start: rawFromIndex,
+            end: totalRecords
+          }
+        }
+      );
+    } catch {
+      activity = projectActivity(
+        {
+          activitySchemaVersion: 1,
+          source,
+          sourceSnapshot: {
+            capturedAt: capturedRead.capturedAt,
+            sourceBytes: capturedRead.sourceBytes
+          },
+          events: [],
+          coverage: [
+            {
+              dataClass: "record-activity",
+              status: "not-read",
+              captured: 0
+            }
+          ],
+          diagnostics: [
+            {
+              code: "ACTIVITY_EXTRACTION_ERROR",
+              locator: { physicalLine: 1, jsonPointer: "" }
+            }
+          ],
+          correlationCounts: {
+            responseStreamCalls: {
+              captured: 0,
+              counted: 0,
+              owned: 0,
+              inherited: 0,
+              unknown: 0
+            },
+            results: { matched: 0, unmatched: 0 },
+            itemEvidence: { linked: 0, standalone: 0 }
+          }
+        },
+        {
+          mode: activityMode,
+          renderFormat: activityRenderFormat,
+          deliveryRange: {
+            indexBase: "zero-based-decoded-record-index",
+            start: rawFromIndex,
+            end: totalRecords
+          }
+        }
+      );
+    }
+  }
   return {
     schemaVersion: SCHEMA_VERSION2,
     runtime,
@@ -4037,6 +5989,7 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     range,
     accounting,
     entries: filteredEntries,
+    ...activity ? { activity } : {},
     filters,
     warnings,
     fallbacks
@@ -5221,7 +7174,7 @@ import { open as open6 } from "node:fs/promises";
 // src/shared/transcript/cursor-frames.ts
 import { createHash as createHash8 } from "node:crypto";
 import { open as open5 } from "node:fs/promises";
-function isJsonObject2(value) {
+function isJsonObject3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function parseClosedFrame(frameBytes) {
@@ -5230,7 +7183,7 @@ function parseClosedFrame(frameBytes) {
   }
   try {
     const value = JSON.parse(frameBytes.toString("utf8"));
-    if (!isJsonObject2(value)) {
+    if (!isJsonObject3(value)) {
       return { parseState: "malformed", record: null };
     }
     return { parseState: "parsed", record: value };
@@ -5745,7 +7698,7 @@ async function runClaudeMonitor(input, dependencies = {}) {
         activation: composition.status.activation,
         messages: requests
       });
-      const eventKey = watchBatchEventKey({
+      const eventKey3 = watchBatchEventKey({
         activationId: input.activationId,
         bindingGeneration: composition.status.activation.bindingGeneration,
         deliveryKeys
@@ -5753,7 +7706,7 @@ async function runClaudeMonitor(input, dependencies = {}) {
       const claim = await claimDelivery({
         root: input.root,
         pin: input.self,
-        eventKey,
+        eventKey: eventKey3,
         deliveryKeys,
         now: new Date(now()),
         clock: () => new Date(now()),
@@ -5778,7 +7731,7 @@ async function runClaudeMonitor(input, dependencies = {}) {
           diagnostic: {
             attemptId: claim.event.token,
             activationId: input.activationId,
-            eventKey,
+            eventKey: eventKey3,
             boundary: "monitor",
             attemptKind: "message",
             recordedAt: new Date(now()).toISOString(),
@@ -5815,14 +7768,14 @@ async function runClaudeMonitor(input, dependencies = {}) {
             selection
           )
         };
-        const eventKey = observationEventKey({
+        const eventKey3 = observationEventKey({
           activationId: input.activationId,
           observation
         });
         const shared = await claimObservation({
           root: input.root,
           pin: input.self,
-          eventKey,
+          eventKey: eventKey3,
           observation,
           now: new Date(now()),
           clock: () => new Date(now()),
@@ -5867,7 +7820,7 @@ async function runClaudeMonitor(input, dependencies = {}) {
           collaborationId: input.collaborationId,
           activationId: input.activationId,
           attemptId: shared.event.token,
-          eventKey,
+          eventKey: eventKey3,
           peer: `${input.peer.runtime}:${input.peer.sessionId}`,
           range: {
             indexBase: observation.indexBase,
@@ -5881,7 +7834,7 @@ async function runClaudeMonitor(input, dependencies = {}) {
           diagnostic: {
             attemptId: shared.event.token,
             activationId: input.activationId,
-            eventKey,
+            eventKey: eventKey3,
             boundary: "monitor",
             attemptKind: "observation",
             observation,

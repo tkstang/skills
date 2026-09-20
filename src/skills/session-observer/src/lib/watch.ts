@@ -77,6 +77,8 @@ interface WatchTarget {
   pendingCandidateDeadline?: number | null;
   lastStatus?: ObservationStatus;
   continuityState?: 'verified' | 'blocked';
+  /** In-memory only: prevents one source snapshot's diagnostics repeating. */
+  lastActivityDiagnosticSignature?: string;
 }
 
 interface PendingEntry {
@@ -212,6 +214,25 @@ async function fileSignature(
   };
 }
 
+function errnoCode(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object' || !('code' in error)) return;
+  const code = (error as NodeJS.ErrnoException).code;
+  return typeof code === 'string' ? code : undefined;
+}
+
+function isMissingPathError(error: unknown): boolean {
+  const code = errnoCode(error);
+  return code === 'ENOENT' || code === 'ENOTDIR';
+}
+
+function statFailureDetail(error: unknown): string {
+  const code = errnoCode(error);
+  const message = error instanceof Error ? error.message : String(error);
+  return code && !message.startsWith(`${code}:`)
+    ? `${code}: ${message}`
+    : message;
+}
+
 function isCursorDigest(
   digest: SessionDigest,
 ): digest is Extract<SessionDigest, { schemaVersion: 2 }> {
@@ -246,6 +267,61 @@ function digestNewRecords(digest: SessionDigest): number {
     : digest.range.newRecords;
 }
 
+function activitySourceSignature(target: WatchTarget): string {
+  return `${target.signature.mtimeMs}:${target.signature.size}`;
+}
+
+function activityCoverageSignal(digest: SessionDigest): boolean {
+  return Boolean(
+    digest.activity?.diagnostics.length ||
+    digest.activity?.coverage.some(
+      (entry) => entry.locator !== undefined || entry.status !== 'available',
+    ),
+  );
+}
+
+function activityAccountingSignal(digest: SessionDigest): boolean {
+  const activity = digest.activity;
+  if (!activity) return false;
+  const delivered = activity.counts.deliveredRange;
+  return (
+    delivered.calls > 0 ||
+    delivered.countedInvocations > 0 ||
+    delivered.results > 0 ||
+    delivered.items > 0 ||
+    delivered.failures > 0 ||
+    Object.values(activity.omitted).some((count) => count > 0)
+  );
+}
+
+function prepareActivityDelta(
+  digest: SessionDigest,
+  target: WatchTarget,
+): {
+  renderable: boolean;
+  activityOnly: boolean;
+  diagnosticSignature?: string;
+} {
+  if (!digest.activity) return { renderable: false, activityOnly: false };
+  const hasEvents =
+    digest.activity.events.length > 0 ||
+    digest.activity.callContexts.length > 0;
+  const signature = activitySourceSignature(target);
+  const hasNewCoverage =
+    activityCoverageSignal(digest) &&
+    target.lastActivityDiagnosticSignature !== signature;
+  const renderable =
+    hasEvents || hasNewCoverage || activityAccountingSignal(digest);
+  const activityOnly = renderable && digest.accounting.rendered.count === 0;
+  if (activityOnly) digest.activityOnly = true;
+  else delete digest.activityOnly;
+  return {
+    renderable,
+    activityOnly,
+    ...(hasNewCoverage ? { diagnosticSignature: signature } : {}),
+  };
+}
+
 function eventMetadata(ts: string, digest: SessionDigest, rendered: string) {
   return {
     type: 'delta',
@@ -255,6 +331,7 @@ function eventMetadata(ts: string, digest: SessionDigest, rendered: string) {
     newRecords: digestNewRecords(digest),
     digestChars: rendered.length,
     ranges: eventRanges(digest),
+    ...(digest.activityOnly ? { activityOnly: true } : {}),
   };
 }
 
@@ -267,6 +344,7 @@ function stdoutEvent(ts: string, digest: SessionDigest, rendered: string) {
     newRecords: digestNewRecords(digest),
     digestChars: rendered.length,
     ranges: eventRanges(digest),
+    ...(digest.activityOnly ? { activityOnly: true } : {}),
     digest,
   };
 }
@@ -1019,9 +1097,14 @@ async function emitCursorDelta(
   eventState: WatchEventState,
 ): Promise<boolean> {
   const newFrames = result.digest.range.newFrames;
+  const activity = prepareActivityDelta(result.digest, target);
   const shouldRender =
-    newFrames > 0 &&
-    !(args.quietEmpty && result.digest.accounting.rendered.count === 0);
+    (newFrames > 0 || activity.renderable) &&
+    !(
+      args.quietEmpty &&
+      result.digest.accounting.rendered.count === 0 &&
+      !activity.renderable
+    );
   if (shouldRender) {
     const rendered = renderMarkdown(result.digest);
     const ts = new Date(deps.now()).toISOString();
@@ -1042,6 +1125,9 @@ async function emitCursorDelta(
       args.eventLog,
       eventMetadata(ts, result.digest, rendered),
     );
+    if (activity.diagnosticSignature) {
+      target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
+    }
     eventState.eventCount++;
     eventState.lastHeartbeatAt = deps.now();
     await watchStateLib.recordWatcherEvent({
@@ -1074,7 +1160,11 @@ async function establishCursorBaseline(
 ): Promise<WatchTarget> {
   const target = await cursorBaselineTarget(args, targets, deps, eventState);
   const result = await observeCatchUp(
-    { ...args, runtime: 'cursor' },
+    {
+      ...args,
+      runtime: 'cursor',
+      activityRenderFormat: args.json ? 'compact-json' : 'markdown',
+    },
     cursorObserveDeps(deps, eventState.pid),
   );
   if (!result.ok) {
@@ -1149,7 +1239,11 @@ async function establishBaseline(
   if (runtime === 'cursor') {
     return establishCursorBaseline(args, targets, deps, eventState);
   }
-  const result = await observeCatchUp({ ...args, runtime });
+  const result = await observeCatchUp({
+    ...args,
+    runtime,
+    activityRenderFormat: args.json ? 'compact-json' : 'markdown',
+  });
   if (!result.ok) {
     if (result.kind === 'noMatch') return null;
     throw new Error(result.message);
@@ -1235,7 +1329,7 @@ async function establishBaseline(
     .setWatchedByPid(target.runtime, target.sessionId, eventState.pid)
     .catch(() => false);
   if (args.catchUpFirst) {
-    await emitObservedDelta(result, args, deps, eventState);
+    await emitObservedDelta(result, target, args, deps, eventState);
     // Detect-then-consume: take the signature before the flush below so any
     // record appended after it is still seen as a change by the poll loop
     // (a zero-record re-observe is benign; a missed record is not).
@@ -1329,7 +1423,7 @@ async function pollTargets(
     let signature;
     try {
       signature = await fileSignature(target.transcriptPath, statFn);
-    } catch {
+    } catch (error) {
       if (target.runtime === 'cursor') {
         const state = await cursorStateLib.getCursorSession(target.sessionId);
         if (state) {
@@ -1343,8 +1437,15 @@ async function pollTargets(
         }
         continue;
       }
+      if (!isMissingPathError(error)) {
+        throw new Error(
+          `WATCH_TRANSCRIPT_STAT_FAILED: expected identity ${target.runtime}:${target.sessionId} at ${target.transcriptPath} could not be inspected: ${statFailureDetail(error)}. Retry after repairing the filesystem condition.`,
+          { cause: error },
+        );
+      }
       throw new Error(
         `WATCH_TRANSCRIPT_PATH_UNAVAILABLE: expected identity ${target.runtime}:${target.sessionId} at ${target.transcriptPath}; observed path unavailable. Run session-observer state reset --session ${target.runtime}:${target.sessionId} and re-arm the watcher.`,
+        { cause: error },
       );
     }
 
@@ -1425,6 +1526,7 @@ async function emitPending(
             ...args,
             runtime: 'cursor',
             session: `cursor:${entry.sessionId}`,
+            activityRenderFormat: args.json ? 'compact-json' : 'markdown',
             suppressWatchedWarningPid: eventState.pid,
           },
           cursorObserveDeps(deps, eventState.pid),
@@ -1433,6 +1535,7 @@ async function emitPending(
           ...args,
           runtime: entry.runtime,
           session: `${entry.runtime}:${entry.sessionId}`,
+          activityRenderFormat: args.json ? 'compact-json' : 'markdown',
           suppressWatchedWarningPid: eventState.pid,
         });
   if (!result.ok) {
@@ -1476,9 +1579,16 @@ async function emitPending(
     return emitCursorDelta(result, target, args, deps, eventState);
   }
 
+  const target = targets.get(entry.key);
+  if (!target) return false;
   const newRecords = result.digest.range.newRecords ?? 0;
-  if (newRecords <= 0) return false;
-  if (args.quietEmpty && result.digest.accounting.rendered.count === 0) {
+  const activity = prepareActivityDelta(result.digest, target);
+  if (newRecords <= 0 && !activity.renderable) return false;
+  if (
+    args.quietEmpty &&
+    result.digest.accounting.rendered.count === 0 &&
+    !activity.renderable
+  ) {
     return false;
   }
 
@@ -1495,6 +1605,9 @@ async function emitPending(
     await writeStdoutChunk(deps, rendered + '\n');
   }
   await appendEventLog(args.eventLog, metadata);
+  if (activity.diagnosticSignature) {
+    target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
+  }
   eventState.eventCount++;
   eventState.lastHeartbeatAt = deps.now();
   await watchStateLib.recordWatcherEvent({
@@ -1509,13 +1622,19 @@ async function emitPending(
 
 async function emitObservedDelta(
   result: ObserveSuccess,
+  target: WatchTarget,
   args: WatchLoopArgs,
   deps: ResolvedWatchDeps,
   eventState: WatchEventState,
 ): Promise<boolean> {
   const newRecords = result.digest.range.newRecords ?? 0;
-  if (newRecords <= 0) return false;
-  if (args.quietEmpty && result.digest.accounting.rendered.count === 0) {
+  const activity = prepareActivityDelta(result.digest, target);
+  if (newRecords <= 0 && !activity.renderable) return false;
+  if (
+    args.quietEmpty &&
+    result.digest.accounting.rendered.count === 0 &&
+    !activity.renderable
+  ) {
     return false;
   }
 
@@ -1532,6 +1651,9 @@ async function emitObservedDelta(
     await writeStdoutChunk(deps, rendered + '\n');
   }
   await appendEventLog(args.eventLog, metadata);
+  if (activity.diagnosticSignature) {
+    target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
+  }
   eventState.eventCount++;
   eventState.lastHeartbeatAt = deps.now();
   await watchStateLib.recordWatcherEvent({

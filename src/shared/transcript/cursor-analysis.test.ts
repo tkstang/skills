@@ -102,6 +102,7 @@ describe('createCursorTurnAccumulator', () => {
           ],
           humanRecordIndexes: [0],
           toolRecordIndexes: [],
+          toolRecords: [],
           lifecycle: 'success',
           terminalFrameIndex: 2,
           finalSubstantiveEntryKey: expect.any(String),
@@ -151,6 +152,15 @@ describe('createCursorTurnAccumulator', () => {
       },
     ]);
     expect(turn.toolRecordIndexes).toEqual([1]);
+    expect(turn.toolRecords).toEqual([
+      {
+        sourceFrameIndex: 1,
+        blockIndex: 1,
+        nativeType: 'tool_use',
+        nativeName: 'read_file',
+        arguments: { path: 'x.ts' },
+      },
+    ]);
     expect(turn.finalSubstantiveEntryKey).toBe(
       turn.assistantRecords[1].entryKey,
     );

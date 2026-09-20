@@ -530,6 +530,134 @@ describe('CLI subcommand dispatch', () => {
       result.stdout.includes('--watch'),
       'help should list top-level --watch alias',
     ).toBeTruthy();
+    expect(result.stdout).toContain('--include-activity');
+  });
+
+  test('review --include-activity exposes the optional schema without advancing state', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-review-activity-'));
+    try {
+      const cwd = join(home, 'Code', 'activity-project');
+      const sessionId = 'cli-review-activity';
+      await mkdir(cwd, { recursive: true });
+      await copyClaudeTranscript(home, cwd, sessionId);
+      const stateDir = join(home, '.state');
+
+      const result = spawnCli(
+        [
+          'review',
+          '--runtime',
+          'claude-code',
+          '--session',
+          `claude-code:${sessionId}`,
+          '--cwd',
+          cwd,
+          '--include-activity',
+          '--json',
+        ],
+        { HOME: home, STATE_DIR: stateDir },
+      );
+
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        schemaVersion: 1,
+        mode: 'review',
+        activity: {
+          activitySchemaVersion: 1,
+          mode: 'review',
+          renderedFormat: 'compact-json',
+          deliveryRange: { start: 0 },
+        },
+      });
+      await expect(
+        readFile(join(stateDir, 'state.json'), 'utf8'),
+      ).rejects.toThrow();
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  test('Cursor review --include-activity exposes settled positional evidence without advancing state', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'cli-review-cursor-activity-'));
+    try {
+      const cwd = join(home, 'Code', 'cursor-activity-project');
+      const sessionId = 'cli-review-cursor-activity';
+      await mkdir(cwd, { recursive: true });
+      const transcriptPath = await copyCursorTranscript(home, cwd, sessionId);
+      await writeFile(
+        transcriptPath,
+        [
+          {
+            role: 'assistant',
+            message: {
+              content: [
+                {
+                  type: 'tool_use',
+                  name: 'Read',
+                  input: { path: 'cursor-review.md' },
+                },
+              ],
+            },
+          },
+          { type: 'turn_ended', status: 'success' },
+        ]
+          .map((frame) => JSON.stringify(frame))
+          .join('\n') + '\n',
+        'utf8',
+      );
+      const stateDir = join(home, '.state');
+
+      const result = spawnCli(
+        [
+          'review',
+          '--runtime',
+          'cursor',
+          '--session',
+          `cursor:${sessionId}`,
+          '--cwd',
+          cwd,
+          '--include-activity',
+          '--json',
+        ],
+        { HOME: home, STATE_DIR: stateDir },
+      );
+
+      expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        schemaVersion: 2,
+        mode: 'review',
+        activity: {
+          activitySchemaVersion: 1,
+          mode: 'review',
+          deliveryRange: {
+            indexBase: 'zero-based-jsonl-frame-index',
+            start: 0,
+            end: 2,
+          },
+          counts: {
+            deliveredRange: {
+              countedInvocations: 1,
+              pendingLifecycleCalls: 0,
+            },
+          },
+          events: [
+            expect.objectContaining({
+              nativeName: 'Read',
+              outcome: 'unknown',
+              turnOutcome: 'success',
+              lifecycleAvailability: 'settled',
+            }),
+          ],
+        },
+      });
+      await expect(
+        readFile(join(stateDir, 'state.json'), 'utf8'),
+      ).rejects.toThrow();
+      await expect(
+        readFile(join(stateDir, 'cursor-state.json'), 'utf8'),
+      ).rejects.toThrow();
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
   });
 
   test('watch --help lists watch flags', () => {
@@ -570,6 +698,7 @@ describe('CLI subcommand dispatch', () => {
       result.stdout.includes('--event-log'),
       'watch help should include event log flag',
     ).toBeTruthy();
+    expect(result.stdout).toContain('--include-activity');
     expect(
       result.stdout.includes('--runtime <claude-code|codex|cursor|auto|both>'),
       'watch help should include both as a watch runtime option',

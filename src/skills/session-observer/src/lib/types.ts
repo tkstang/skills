@@ -1,4 +1,9 @@
 import type {
+  ActivityDeliveryRange,
+  ActivityRenderFormat,
+  ActivityReport,
+} from '../../../../shared/transcript/activity/types.js';
+import type {
   CursorLifecycleState,
   CursorTranscriptAnalysis,
 } from '../../../../shared/transcript/cursor-analysis.js';
@@ -14,6 +19,7 @@ import type {
   JsonObject,
   Runtime,
   TranscriptMeta,
+  DetailedTranscriptRead,
 } from '../../../../shared/transcript/runtimes.js';
 
 export type {
@@ -452,6 +458,9 @@ export interface BuildDigestOptions {
   includeToolCalls?: boolean;
   includeToolResults?: boolean;
   includeCommandMessages?: boolean;
+  includeActivity?: boolean;
+  activityRenderFormat?: ActivityRenderFormat;
+  capturedRead?: DetailedTranscriptRead;
   maxTurns?: number;
   maxBytes?: number;
   sessionId?: string;
@@ -483,6 +492,9 @@ export interface Digest {
   range: DigestRange;
   accounting: DigestAccounting;
   entries: DigestEntry[];
+  activity?: ActivityReport;
+  /** Watch-only marker for a delta containing activity but no conversation. */
+  activityOnly?: true;
   filters: DigestFilters;
   warnings: string[];
   fallbacks: TranscriptCandidate[];
@@ -580,6 +592,8 @@ export type CursorBuildDigestOptions = BuildDigestOptions & {
   cursorAnalysis: CursorTranscriptAnalysis;
   cursorState: CursorSessionStateEntry | null;
   cursorContinuity: 'new' | 'verified';
+  cursorActivityDeliveryRange?: ActivityDeliveryRange;
+  cursorCapturedAt?: string;
 };
 
 export interface SessionStateEntry {
@@ -730,6 +744,8 @@ export interface WatchLoopArgs {
   includeTools?: boolean;
   includeToolResults?: boolean;
   includeCommandMessages?: boolean;
+  includeActivity?: boolean;
+  activityRenderFormat?: ActivityRenderFormat;
   maxTurns?: number;
   maxBytes?: number;
   debounceSec?: number;
@@ -771,6 +787,7 @@ export interface CliArgs extends WatchLoopArgs {
   includeTools: boolean;
   includeToolResults: boolean;
   includeCommandMessages: boolean;
+  includeActivity: boolean;
   debug: boolean;
   markRead: boolean;
   watch: boolean;

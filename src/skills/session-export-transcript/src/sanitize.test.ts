@@ -297,6 +297,17 @@ describe('sanitizeEntries — input handling', () => {
     expect(out).toHaveLength(1);
     expect(out[0]?.text).toBe('a real message');
   });
+
+  test('does not invent a secret-pattern redaction policy for visible user text', () => {
+    const visible =
+      'Use the synthetic fixture token sk-test-SYNTHETIC-NOT-A-REAL-SECRET.';
+    const out = sanitizeEntries(
+      [{ role: 'user', text: visible, kind: 'message' }],
+      { runtime: 'claude-code' },
+    );
+
+    expect(out).toEqual([{ role: 'user', text: visible, kind: 'message' }]);
+  });
 });
 
 describe('sanitizeEntries — automatic-control envelopes', () => {
