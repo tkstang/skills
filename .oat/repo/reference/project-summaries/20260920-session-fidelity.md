@@ -225,3 +225,35 @@ final-review-20260919T180659Z validated final review orchestration; see reviews/
 ### 2026-09-19 · structural · oat gate review · final
 
 target=claude-fable-skip-permissions threshold=important findings=critical:0,important:0,medium:0,minor:6 exit=0 status=ok artifact=.oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T190056Z.md run=05d3cda3-7de8-475c-b831-9bdd011c51c7
+
+### 2026-09-19 · structural · oat-project-implement · complete
+
+session-fidelity-implement-complete-20260919: implementation complete with 21/21 tasks, phase reviews p00-p07, final lifecycle review, configured exit gate, summary, documentation sync, and draft PR stack #97 completed; PRs #94-#96 remain open and unmerged.
+
+### 2026-09-19 · structural · oat gate review · final
+
+target=claude-fable-skip-permissions threshold=high findings=critical:0,high:0,medium:1,low:5 exit=0 status=ok artifact=.oat/projects/shared/session-fidelity/reviews/final-review-2026-09-19T221544Z.md run=8e4a9161-9fd8-4732-9198-ee39329845ed
+
+### 2026-09-19 · structural · oat-project-implement · p10
+
+Phase p10 passed after one implementation commit and one independent zero-finding review; review artifact: reviews/p10-review-2026-09-19T223234Z.md; event sf-p10-outcome-20260919T223234Z.
+
+### 2026-09-19 · structural · oat-project-implement · p11
+
+Phase p11 passed after one artifact-alignment commit and one independent zero-finding review; artifact reviews/p11-review-2026-09-19T224947Z.md; event sf-p11-outcome-20260919T224947Z.
+
+### 2026-09-19 · structural · oat-project-implement · p12
+
+Phase p12 passed on the identity layer after one implementation commit and one independent zero-finding review; activity was cascade-rebased; artifact reviews/p12-review-2026-09-19T230338Z.md; event sf-p12-outcome-20260919T230338Z.
+
+### 2026-09-19 · structural · oat-project-implement · complete
+
+sf-remote-closeout-20260919: p12 fixes published; PR #95 and #96 review threads replied to and resolved; clean remote receive artifacts recorded; configured gate project-disabled by user; independent final review passed.
+
+### 2026-09-20 · structural · oat-project-retro · project-retro
+
+retro artifact=.oat/projects/shared/session-fidelity/references/project-retro.md evidence_used=gate-receipts,git-history,github-pr-state,lifecycle-artifacts,project-log,review-artifacts,session-transcript evidence_unavailable=oat-execution-learnings promotions=2 upstream=3 apply=performed filing=deferred
+
+### 2026-09-20 · structural · oat-project-complete · retirement-sweep
+
+Retirement sweep: no absorbed projects recorded.
