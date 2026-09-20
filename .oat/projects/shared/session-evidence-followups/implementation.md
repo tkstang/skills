@@ -15,7 +15,7 @@ oat_generated: false
 | ----- | ------- | ----- | --------- |
 | p00   | complete | 1     | 1/1       |
 | p01   | complete | 2     | 2/2       |
-| p02   | review_pending | 2     | 2/2       |
+| p02   | complete | 2     | 2/2       |
 | p03   | pending | 1     | 0/1       |
 | p04   | pending | 1     | 0/1       |
 
@@ -185,3 +185,7 @@ Consensus run `c79c4062-1531-457e-9b7e-79049cd55942` passed with zero Critical/H
 Five new Low findings accepted as bounded polish: (L1) final metadata fallback should continue using already-trimmed optional metadata instead of reintroducing it ahead of locator-less coverage; (L2) replace the vacuous old body sentinel assertion with real attachment sentinels across the whole extraction; (L3) add a mixed-event forced group-eviction regression with omission reconciliation; (L4) require the ownership events argument instead of defaulting it to an empty array; (L5) cover both source-level carriers, including invoked-only and valid empty invoked lists, with a count matching source-name evidence rather than availability-only count. Root verified the fallback and carrier predicates. Same Sol/high handle will implement one bounded follow-up `evidence-p02-fix2-20260920`. No unresolved blocking finding; the next p03 independent review will explicitly include this Low follow-up diff, and final integration review remains required, avoiding a duplicate standalone phase review for this polish.
 
 Reviewer's statement that64MiB export is a complete uncapped capture is not adopted: existing bounded export remains capped until p03 explicitly implements nullable maxBytes. This is already a separate approved requirement, not an acceptance waiver.
+
+### p02 terminal outcome
+
+Low follow-up `evidence-p02-fix2-20260920` completed in exactly one commit `9a3c11fc45fd374ab37202f980fdec50af312176` from `5ebc608671445c2f16aa5266a9cbd45ba5ceeb8b`. Root inspected the complete narrow runtime diff and verified clean tree. All five Low findings addressed: already-bounded metadata remains bounded through final fallback; real whole-extraction body sentinels; forced4KiB group-eviction omission reconciliation; required ownership input; both source-name carriers count correctly including valid empty arrays. Activity85/85 and affected consumers871/871, types, build/freshness, validate, baseline version closure, scoped lint/format, diffcheck and docs production58 pages pass. Versions observer1.0.78, export2.0.29, collab1.0.66, fork0.2.43. Self-review passed, no unresolved findings. Two bounded review-fix rounds used; no implementation recovery. p03 review will include the final Low follow-up starting at base5ebc608, as well as its own phase diff. p02 is complete; p03 may proceed.
