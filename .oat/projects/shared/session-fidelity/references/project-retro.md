@@ -19,7 +19,7 @@ oat_retro_evidence_sources:
   - source: session-transcript
     status: used
 oat_retro_promotions: complete
-oat_retro_filing: proposed
+oat_retro_filing: complete
 oat_generated: true
 oat_template: false
 ---
@@ -74,8 +74,8 @@ divergence was reproduced.
 ## Current State
 
 - **Promotions:** Complete; RP-01 was applied.
-- **Filing:** Proposed; RP-02 and UP-01 through UP-03 are unfiled.
-- **Unsettled items:** RP-02, UP-01, UP-02, and UP-03.
+- **Filing:** Complete; RP-02 is linked and UP-01 through UP-03 are filed.
+- **Unsettled items:** None.
 
 ## What Went Well
 
@@ -298,12 +298,12 @@ the generated summary and live GitHub state.
 
 - **Type:** code-follow-up
 - **Disposition:** file
-- **Status:** proposed
-- **Destination:** —
-- **Destination-receipt:** —
-- **Remote-visibility:** —
+- **Status:** filed
+- **Destination:** `.oat/repo/pjm/backlog/items/BL-260919-stabilize-the-watcher-sigterm.md`
+- **Destination-receipt:** `b7a5283ae7a112582d4f1e18987f790266b9016c`
+- **Remote-visibility:** unpushed
 - **Sanitized:** yes
-- **Disposition-note:** —
+- **Disposition-note:** Linked exact existing backlog item; the current branch has no configured upstream.
 
 Investigate the one-off CI failure in the exact Codex pin re-arm test and
 replace timing-sensitive coordination with an observable readiness or process
@@ -316,12 +316,12 @@ defect.
 
 ### UP-01: Derive current lifecycle state and invalidate stale summaries
 
-- **Status:** proposed
-- **Destination:** —
+- **Status:** filed
+- **Destination:** https://github.com/voxmedia/open-agent-toolkit/issues/310
 - **Destination-receipt:** —
 - **Remote-visibility:** —
 - **Sanitized:** yes
-- **Disposition-note:** —
+- **Disposition-note:** Filed as a new upstream issue.
 
 New phases, review-fix receipts, publication heads, rebases, and merges can
 invalidate a generated project summary while append-only ledgers remain
@@ -332,12 +332,12 @@ review, and publication state.
 
 ### UP-02: Keep documentation index generation non-mutating
 
-- **Status:** proposed
-- **Destination:** —
+- **Status:** filed
+- **Destination:** https://github.com/voxmedia/open-agent-toolkit/issues/311
 - **Destination-receipt:** —
 - **Remote-visibility:** —
 - **Sanitized:** yes
-- **Disposition-note:** —
+- **Disposition-note:** Filed as a new upstream issue.
 
 Documentation index generation repeatedly rewrote the project configuration
 even when no configuration change was requested. The command should preserve
@@ -346,12 +346,12 @@ creating unrelated workspace churn that every caller must restore.
 
 ### UP-03: Harden durable gate finalization
 
-- **Status:** proposed
-- **Destination:** —
+- **Status:** filed
+- **Destination:** https://github.com/voxmedia/open-agent-toolkit/issues/312
 - **Destination-receipt:** —
 - **Remote-visibility:** —
 - **Sanitized:** yes
-- **Disposition-note:** —
+- **Disposition-note:** Filed as a new upstream issue.
 
 Gate review, structural project-log append, and root bookkeeping competed for
 the same Git index, and one otherwise successful gate stopped at auto-commit
