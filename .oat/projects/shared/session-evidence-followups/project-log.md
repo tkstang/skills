@@ -96,6 +96,10 @@ evidence-p03-fix2-done-20260921: L2 fixed in0ca7ad65 by originalSolhigh; exporte
 
 evidence-p04-terminal-20260921: all accepted findings fixed8ac3ba9e and0ca7ad65; p04 proof/gates pass, visual evidence/p04-visual/receipt.md. All7tasks/phases complete; final review next.
 
+### 2026-09-21 · structural · oat-project-implement · p05
+
+evidence-p05-pass-20260921: two Sol task commits and independent native review passed with zero findings; exporter49/49, phase97, types, build/validate/version/lint/format pass; recovery0; see reviews/p05-review-2026-09-21T145528Z.md.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

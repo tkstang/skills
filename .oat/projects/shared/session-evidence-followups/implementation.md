@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-20
-oat_current_task_id: p05-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -18,8 +18,9 @@ oat_generated: false
 | p02   | complete | 2     | 2/2       |
 | p03   | complete | 1     | 1/1       |
 | p04   | complete | 1     | 1/1       |
+| p05   | complete | 2     | 2/2       |
 
-**Total:** 7/7 tasks completed.
+**Total:** 9/9 tasks completed.
 
 ## Orchestration Runs
 
@@ -131,6 +132,20 @@ Task2 `92b688f9fa95cd5bd8bc9d4d6267c995134ecdfa`: native Claude exact-session/me
 **Commit:** c97f65db49a08af556f14a8a151e54a23d4f86bf
 **Outcome:** Session Retro1.0.1 requires distinct exact reviewing/target identities and complete paired frozen exports, preserves coverage/origin/usage limitations, separates observed evidence from interpretation/proposal, and declares the required exporter workflow. Template, guide and generated forms updated.
 **Verification:** [Manual two-fixture acceptance](evidence/p04-acceptance.md), unchanged [frozen captures](evidence/p04-fixtures/README.md), seven-state type comparison; build/freshness, structure, types, phase-base versions, scoped lint/format and docs production passed. No new runtime or prose-equality tests. Independent phase review pending.
+
+### Task p05-t01: Clarify structured-capture selector validation
+
+**Status:** completed
+**Commit:** 451bbba4780768501c3a75a9c0c58953a763764c
+**Outcome:** Exporter instructions and the user guide now state that `--activity-output` rejects every `--match` combination before ordinary selector precedence applies.
+**Verification:** Exporter CLI 49/49, build/freshness, repository validation, version closure, scoped format and independent p05 review passed.
+
+### Task p05-t02: Protect nested Observer state hardlinks
+
+**Status:** completed
+**Commit:** 080424d49b9812f10ad1fa3987605616b4f7401c
+**Outcome:** Structured destination validation recursively includes ordinary files under both Observer state roots without following symlinks; nested narrative and activity hardlink aliases are rejected before writes.
+**Verification:** Regression reproduced before the fix; exporter CLI 49/49, phase-wide 97 tests, type-check, build/freshness, repository validation, version closure, scoped lint/format and independent p05 review passed. Protected nested sentinels remained unchanged.
 
 ## Implementation Log
 
@@ -404,3 +419,17 @@ All five phases and seven tasks are complete, final independent review and accep
 - `p05-t02` tracks comment `4059008119`: recursively include nested Observer state files in hardlink collision protection.
 
 The generic CodeRabbit docstring threshold and incomplete LanguageTool run are informational tool output, not concrete repository findings. Implementation is reopened at `p05-t01`; replies will be posted after verified fixes are pushed.
+
+## p05 implementation and independent review — passed
+
+Request `p05-impl-20260921-01`; native `/root/p05_review_corrections` accepted and completed as `oat-phase-implementer-gpt-5-6-sol-medium`. High policy, default-implementation class, medium effort selected; candidates Sol medium/high. Base `066424dc8556f502d1534f9cf0b3e38d272a1be6`; task commits `451bbba4780768501c3a75a9c0c58953a763764c` and `080424d49b9812f10ad1fa3987605616b4f7401c`. Root reconciled two planned commits, the 12-file boundary, clean worktree and zero recovery attempts. No nested dispatches.
+
+`Dispatch: scope=p05 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium`
+
+The documentation now matches the CLI's exact-session validation order. State-file inode collection recursively covers ordinary files under the effective and fixed-default Observer roots, skips symlinks, tolerates `ENOENT` and propagates other filesystem errors. Regressions exercise a nested effective-root narrative alias and a nested fixed-default activity alias and prove both protected sentinels remain unchanged. Exporter versions advanced through 2.0.35 and 2.0.36; the required fork validation closure is 0.2.49.
+
+Independent native review request `p05-review-20260921-01` used exact target `oat-reviewer-gpt-5-6-sol-high` and passed with zero Critical, Important, Medium or Minor findings. [Review artifact](reviews/p05-review-2026-09-21T145528Z.md). The reviewer attempted no reconnaissance. Focused exporter49/49, type-check, build freshness, validate, version closure, scoped lint/format and diff check passed.
+
+`Dispatch: scope=p05 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
+
+p05 is complete. Final repository verification, publication and GitHub thread resolution remain before PR99 returns to ready status.

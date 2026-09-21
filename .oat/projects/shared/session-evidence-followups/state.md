@@ -1,6 +1,6 @@
 ---
-oat_current_task: p05-t01
-oat_last_commit: 890187075ddb9143e61baaca8e70d095c3d95287
+oat_current_task: null
+oat_last_commit: 080424d49b9812f10ad1fa3987605616b4f7401c
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -86,7 +86,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/skills/pull/99
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-21T14:38:58Z'
+oat_project_state_updated: '2026-09-21T14:58:00Z'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -166,13 +166,13 @@ oat_project_recap:
 
 # Project State: session-evidence-followups
 
-**Status:** Implementation — remote review fixes in progress
+**Status:** Implementation — remote review fixes verified
 **Started:** 2026-09-20
 **Last Updated:** 2026-09-20
 
 ## Current Phase
 
-Remote review reopened implementation for two valid CodeRabbit findings. Original implementation, reviews, closeout and recap remain retained; p05 corrects selector guidance and nested Observer-state hardlink protection before PR99 can return to ready status.
+Remote review reopened implementation for two valid CodeRabbit findings. Both p05 corrections and their independent native review now pass; publication, GitHub replies and final PR-state verification remain before PR99 returns to ready status.
 
 ## Artifacts
 
@@ -180,7 +180,7 @@ Remote review reopened implementation for two valid CodeRabbit findings. Origina
 - **Spec:** N/A (quick mode)
 - **Design:** N/A (quick mode unless lightweight design is needed)
 - **Plan:** `plan.md` (complete and reviewed)
-- **Implementation:** `implementation.md` (7/7 tasks complete)
+- **Implementation:** `implementation.md` (9/9 tasks complete)
 
 ## Progress
 
@@ -199,7 +199,7 @@ Remote review reopened implementation for two valid CodeRabbit findings. Origina
 - ✓ p04 independent review and all follow-ups complete
 - ✓ Final integration checks passed
 - ✓ Final review and lifecycle closeout complete at the prior reviewed head
-- ⧗ p05 remote-review corrections
+- ✓ p05 remote-review corrections and independent review complete
 - ⧗ Revalidate, reply and resolve PR threads
 
 ## Blockers
@@ -208,7 +208,7 @@ None
 
 ## Next Milestone
 
-Implement and verify p05, reply to both CodeRabbit threads, then restore PR99 to a clean mergeable review state. Merge remains a separate user action.
+Run final verification, publish p05, reply to both CodeRabbit threads, and restore PR99 to a clean mergeable review state. Merge remains a separate user action.
 
 ## Review routing for this authorized run
 
