@@ -137,6 +137,10 @@ different sample from the findings report, which observed 25 names in 350 files)
 The two samples do not list the same names. Tool names are an open set — a parser must
 not reject an unknown name.
 
+Cursor records no native skill-invocation or skill-version field. `ReadFile`
+and `Read` calls can support inferred file-load evidence when their structured
+input path ends in `SKILL.md`; a `Shell` command or prose mention does not.
+
 ## Tool results: not recorded
 
 **Zero tool results exist in the corpus.** 0 of 1,295 files contain `tool_result`,
@@ -301,6 +305,11 @@ Cursor claims in `10-schema-guide-and-coverage.md` are supported.
 - `status: "cancelled"` — not observed in 350 files.
 - Any tool result, call id, or per-call outcome — not present corpus-wide.
 - Any timestamp, usage, model, or version metadata — not present.
+- Any source-level skill-name listing — not present. Activity coverage reports
+  `source-skill-names` as `not-recorded` independently from inferred per-call
+  `SKILL.md` read evidence.
+- The activity reader therefore reports token usage as `not-recorded`, never as
+  a numeric zero.
 - Streaming, partial, or superseded-revision markers — not present in settled files.
 - Attribution of an `agent-tools/` file to the call that produced it — not recoverable.
 - Whether a file is one conversation or one turn — undetermined.

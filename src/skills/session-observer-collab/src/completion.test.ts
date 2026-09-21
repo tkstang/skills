@@ -445,6 +445,35 @@ describe('normalized completed continuation selection', () => {
     );
   });
 
+  test('does not treat terminal metadata as peer-message continuation authority', () => {
+    const observerResult = {
+      ...digest([], 2, 3),
+      terminalEvents: [
+        {
+          type: 'terminal',
+          runtime: 'codex',
+          sessionId: 'peer',
+          nativeSessionId: 'peer',
+          nativeType: 'turn_aborted',
+          status: 'aborted',
+          source: {
+            indexBase: 'zero-based-jsonl-record-index',
+            recordIndex: 2,
+            physicalLine: 3,
+            jsonPointer: '/payload',
+          },
+        },
+      ],
+    };
+
+    expect(selectCompletedContinuation(observerResult)).toMatchObject({
+      status: 'no-continuation',
+      continuation: false,
+      peerCursor: 3,
+      budgetCost: 0,
+    });
+  });
+
   test('selects a substantive assistant response after automatic control without treating the envelope as authority', () => {
     const result = selectCompletedContinuation(
       digest(

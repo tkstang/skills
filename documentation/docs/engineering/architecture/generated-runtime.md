@@ -104,7 +104,7 @@ flowchart LR
   COLLAB["session-observer-collab"] -.->|requires installed workflow| OBSERVER
   HANDOFF["session-handoff"] -.->|optional integration| OBSERVER
   HANDOFF -.->|optional integration| EXPORT
-  RETRO["session-retro"] -.->|optional integration| OBSERVER
+  RETRO["session-retro"] -.->|requires installed workflow| EXPORT
 ```
 
 The distribution declaration carries required and optional workflow references
@@ -225,4 +225,4 @@ stateDiagram-v2
   end note
 ```
 
-_Mermaid updated 2026-09-16_
+_Mermaid updated 2026-09-20_

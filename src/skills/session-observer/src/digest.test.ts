@@ -1144,6 +1144,65 @@ describe('buildDigest', () => {
     }
   });
 
+  test('keeps default Claude API-error content but accounts watch-only omission once', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'digest-claude-api-error-'));
+    try {
+      const transcriptPath = join(tmpDir, 'api-error.jsonl');
+      await writeFile(
+        transcriptPath,
+        [
+          {
+            type: 'assistant',
+            sessionId: 'claude-api-error',
+            isApiErrorMessage: true,
+            message: {
+              id: 'api-error-with-body',
+              role: 'assistant',
+              content: 'private provider body',
+            },
+          },
+          {
+            type: 'assistant',
+            sessionId: 'claude-api-error',
+            isApiErrorMessage: true,
+            message: {
+              id: 'api-error-empty',
+              role: 'assistant',
+              content: [],
+            },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+
+      const defaultDigest = await buildDigest('claude-code', transcriptPath);
+      expect(defaultDigest.entries).toContainEqual(
+        expect.objectContaining({ text: 'private provider body' }),
+      );
+      expect(defaultDigest).not.toHaveProperty('terminalEvents');
+      expect(defaultDigest.accounting.filtered).not.toHaveProperty(
+        'apiErrorRecords',
+      );
+
+      const watchDigest = await buildDigest('claude-code', transcriptPath, {
+        includeTerminalEvents: true,
+      });
+      expect(watchDigest.entries).toEqual([]);
+      expect(watchDigest.terminalEvents).toHaveLength(2);
+      expect(watchDigest.accounting).toMatchObject({
+        raw: { count: 2 },
+        rendered: { count: 0 },
+        filtered: { apiErrorRecords: 2, metadataRecords: 0 },
+      });
+      expect(renderMarkdown(watchDigest)).toContain(
+        'provider API-error records: 2',
+      );
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('renders queued Claude input once across review and catch-up digests', async () => {
     for (const mode of ['review', 'catch-up'] as const) {
       const digest = await buildDigest('claude-code', queuedMidTurnClaude, {
@@ -2364,7 +2423,7 @@ describe('optional activity projection', () => {
     });
     expect(digest.activity!.events.length).toBeGreaterThan(0);
     expect(digest.activity!.renderedBytes).toBeLessThanOrEqual(
-      digest.activity!.limits.maxBytes,
+      digest.activity!.limits.maxBytes!,
     );
     expect(markdown).toContain('## Activity');
     expect(markdown).not.toContain('[Bash]');
@@ -2422,7 +2481,7 @@ describe('optional activity projection', () => {
         digest.activity?.renderedBytes,
       );
       expect(digest.activity!.renderedBytes).toBeLessThanOrEqual(
-        digest.activity!.limits.maxBytes,
+        digest.activity!.limits.maxBytes!,
       );
       expect(digest.activity!.omitted.byteLimitGroups).toBeGreaterThan(0);
       expect(digest.activity!.omitted.calls).toBe(

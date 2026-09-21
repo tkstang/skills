@@ -3,13 +3,13 @@ name: export-transcript
 description: Use when the user asks to export, save, or download the current coding-agent conversation as a Markdown file (e.g. "export this session transcript", "save the conversation as markdown"). Locates the live transcript via an announced session marker, drops tool calls and hidden injected payloads, and writes a sanitized branch-named Markdown file (default ~/Downloads).
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies.
-argument-hint: '[output-path] [--runtime <claude-code|codex|cursor|auto>] [--match <marker>] [--session <id>] [--all] [--include-activity] [--out <path>]'
+argument-hint: '[output-path] [--runtime <claude-code|codex|cursor|auto>] [--match <marker>] [--session <id>] [--all] [--include-activity] [--activity-output <path>] [--out <path>]'
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: thomas.stang
-  version: '2.0.23'
+  version: '2.0.36'
 ---
 
 # export-transcript
@@ -99,23 +99,27 @@ The CLI prints the written path. By default it is `~/Downloads/<branch>.md` (wit
 
 ## Modes and flags
 
-| Flag                 | Default         | Description                                                                                                               |
-| -------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `--runtime <r>`      | `auto`          | `claude-code\|codex\|cursor\|auto`. `auto` uses an env hint (`SESSION_OBSERVER_SELF`-style) then best-effort auto-detect. |
-| `--match <marker>`   | —               | Grep cwd candidates for this marker (selects the current session).                                                        |
-| `--session <id>`     | —               | Export a specific session id (bypasses `--match`).                                                                        |
-| `--all`              | false           | Export every session for the cwd — one file each.                                                                         |
-| `--include-activity` | false           | Append a bounded, source-attributed activity report after the sanitized conversation.                                     |
-| `--cwd <path>`       | `process.cwd()` | Project dir to match transcripts against.                                                                                 |
-| `--out <path>`       | —               | Output file or directory (also accepted positionally).                                                                    |
-| `--help`             | —               | Usage.                                                                                                                    |
+| Flag                       | Default         | Description                                                                                                               |
+| -------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `--runtime <r>`            | `auto`          | `claude-code\|codex\|cursor\|auto`. `auto` uses an env hint (`SESSION_OBSERVER_SELF`-style) then best-effort auto-detect. |
+| `--match <marker>`         | —               | Grep cwd candidates for this marker (selects the current session).                                                        |
+| `--session <id>`           | —               | Export a specific session id (bypasses `--match`).                                                                        |
+| `--all`                    | false           | Export every session for the cwd — one file each.                                                                         |
+| `--include-activity`       | false           | Append a bounded, source-attributed activity report after the sanitized conversation.                                     |
+| `--activity-output <path>` | —               | Write a complete sensitive activity JSON artifact paired with one exact `--session`; rejects `--all` and `--match`.       |
+| `--cwd <path>`             | `process.cwd()` | Project dir to match transcripts against.                                                                                 |
+| `--out <path>`             | —               | Output file or directory (also accepted positionally).                                                                    |
+| `--help`                   | —               | Usage.                                                                                                                    |
 
-**Selection-mode precedence:** the selection modes are mutually exclusive, with
-precedence `--all` > `--session` > `--match` > default (current session). The
+**Selection-mode precedence:** for ordinary exports, selection uses precedence
+`--all` > `--session` > `--match` > default (current session). The
 highest-precedence flag present wins and the lower ones are ignored — e.g.
 `--match` is ignored when `--all` is set, and `--session` is ignored when `--all`
-is set. With no selection flag, the CLI exports the current session (single
-candidate auto-selected; multiple candidates exit `3` as ambiguous).
+is set. Complete structured capture validates its exact-session contract first:
+when `--activity-output` is present, any `--all` or `--match` flag is rejected,
+including `--session <id> --match <marker>`. With no selection flag, the CLI
+exports the current session (single candidate auto-selected; multiple candidates
+exit `3` as ambiguous).
 
 ### Optional activity appendix
 
@@ -149,6 +153,48 @@ Cursor exports include settled calls and snapshot-visible
 frame/block identity, report tool results as not recorded, and never infer a
 per-call outcome from the turn-level terminal status.
 
+### Complete structured activity capture
+
+`--activity-output <path>` is a separate explicit opt-in for retrospective
+analysis. It requires exactly one native `--session <id>` and rejects `--all`,
+every `--match` combination, marker discovery, and fallback selection before
+ordinary selector precedence is applied. The exporter reads the selected
+source once, corroborates Claude Code and Codex identity from native records in
+that snapshot (or Cursor identity from its documented native path), and derives
+both the sanitized Markdown and structured artifact from the same capture.
+Codex uses the first `session_meta.payload.id`, or a consistent native
+`token_usage_record.payload.thread_id` when the dedicated header is absent.
+`session_id`, legacy top-level aliases, message/item IDs, and filenames are not
+accepted as native Codex identity proof.
+
+The JSON is labelled `sensitive: not-publish-safe`. It contains the existing
+activity report schema in `complete-capture` mode, with no total-byte or
+invocation eviction and the same 2 KiB cap on each preview. It also carries the
+shared capture timestamp, native identity evidence, source/decoded record
+counts, and message-free narrative entry coordinates matching stable anchors in
+the paired Markdown. Malformed or partial records remain visible through honest
+coverage, diagnostics, and counts. Complete means every supported invocation in
+the captured bytes; it does not prove the session stopped or that the runtime
+recorded every action.
+
+The paired Markdown adds a **Structured Activity Capture Index** with one stable
+invocation key per captured call; this opt-in list can be large, and the
+sensitive JSON remains the source of truth for the captured activity graph.
+
+The activity destination may be absent or an existing ordinary file. An
+existing ordinary file is replaced atomically through an exporter-owned
+temporary sibling. Directories, symlinks, special files, the source transcript,
+the narrative output, and both Observer checkpoint/watch roots — the effective
+`STATE_DIR` root and the fixed default `~/.local/state/session-observer` — are
+rejected before either output is written. External hardlink aliases to ordinary
+files recursively under either root are also rejected; symlinks under those
+roots are not followed. Independently relocated collaboration roots are outside
+this guard. Destination validation precedes both writes, but the pair is
+not a filesystem transaction: a later activity JSON failure leaves the already
+written narrative at the path named in the error. The command still returns a
+nonzero exit and does not print a success claim. The exporter never reads or
+writes Observer checkpoints.
+
 ### Output path resolution
 
 | Input                          | Output                                |
@@ -175,12 +221,12 @@ See `references/transcript-formats.md` for record shapes and cwd-encoding detail
 
 ## Exit code handling
 
-| Exit code | Meaning       | What to do                                                                                                                         |
-| --------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| 0         | Success       | Report the written path.                                                                                                           |
-| 1         | Hard error    | Surface the error message; nothing was written.                                                                                    |
-| 2         | No candidates | No transcript found for this cwd/runtime. Suggest `--cwd <path>` or confirm the runtime ran in this project.                       |
-| 3         | Ambiguous     | Multiple candidates and no `--match`/`--session`. Re-run with a `--match <marker>` or `--session <id>` from the listed candidates. |
+| Exit code | Meaning       | What to do                                                                                                                             |
+| --------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 0         | Success       | Report the written path.                                                                                                               |
+| 1         | Hard error    | Surface the exact error. Validation failures write nothing; an activity JSON failure may leave the paired narrative at the named path. |
+| 2         | No candidates | No transcript found for this cwd/runtime. Suggest `--cwd <path>` or confirm the runtime ran in this project.                           |
+| 3         | Ambiguous     | Multiple candidates and no `--match`/`--session`. Re-run with a `--match <marker>` or `--session <id>` from the listed candidates.     |
 
 ---
 

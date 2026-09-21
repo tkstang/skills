@@ -30,19 +30,20 @@ these files, and they change between client releases.
 
 ## Cross-runtime comparison
 
-| Question                     | Codex                                                                                                | Claude Code                                                                                                                                                           | Cursor                                                               |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Client version in transcript | Yes (`session_meta.payload.cli_version`)                                                             | Yes (`version` on records)                                                                                                                                            | No                                                                   |
-| Timestamps                   | Yes                                                                                                  | Yes                                                                                                                                                                   | No                                                                   |
-| File identity                | First `session_meta` `payload.id`, equal to the filename uuid                                        | `sessionId`; one per file                                                                                                                                             | The file path only                                                   |
-| Native tool-call id          | `call_id`                                                                                            | `tool_use.id` / `tool_result.tool_use_id`                                                                                                                             | None; identity is positional                                         |
-| Tool results recorded        | Yes                                                                                                  | Yes                                                                                                                                                                   | No                                                                   |
-| Structured exit code         | Yes, in the separate `item_completed` stream only                                                    | No                                                                                                                                                                    | No                                                                   |
-| Per-call failure flag        | `item.status` in the `item_completed` stream (attributing it to a specific call is an inferred join) | `is_error: true` on the result block                                                                                                                                  | None; turn-level `turn_ended.status` only                            |
-| Subagent transcripts         | Separate rollout file; `id != session_id`                                                            | Separate file under `<session-id>/subagents/` plus `.meta.json`                                                                                                       | Separate file under `<session-id>/subagents/`                        |
-| Parent names its children    | Yes, via `SubAgentActivity.agent_thread_id`                                                          | Yes for directly spawned subagents, via the `Agent` tool result's agent id and the child's `.meta.json` `toolUseId`; workflow-spawned children join by directory only | Partly; child id appears in the parent in a minority of pairs        |
-| Oversized tool output        | Truncated in place at fixed byte caps, no marker                                                     | Persisted to `<session-id>/tool-results/`; path only in `toolUseResult.persistedOutputPath`                                                                           | Probably spilled to `agent-tools/` files, not attributable to a call |
-| Token usage                  | Cumulative and per-turn records                                                                      | Per message, repeated on every content-block record                                                                                                                   | None                                                                 |
+| Question                     | Codex                                                                                                | Claude Code                                                                                                                                                           | Cursor                                                                |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Client version in transcript | Yes (`session_meta.payload.cli_version`)                                                             | Yes (`version` on records)                                                                                                                                            | No                                                                    |
+| Timestamps                   | Yes                                                                                                  | Yes                                                                                                                                                                   | No                                                                    |
+| File identity                | First `session_meta` `payload.id`, equal to the filename uuid                                        | `sessionId`; one per file                                                                                                                                             | The file path only                                                    |
+| Native tool-call id          | `call_id`                                                                                            | `tool_use.id` / `tool_result.tool_use_id`                                                                                                                             | None; identity is positional                                          |
+| Tool results recorded        | Yes                                                                                                  | Yes                                                                                                                                                                   | No                                                                    |
+| Structured exit code         | Yes, in the separate `item_completed` stream only                                                    | No                                                                                                                                                                    | No                                                                    |
+| Per-call failure flag        | `item.status` in the `item_completed` stream (attributing it to a specific call is an inferred join) | `is_error: true` on the result block                                                                                                                                  | None; turn-level `turn_ended.status` only                             |
+| Subagent transcripts         | Separate rollout file; `id != session_id`                                                            | Separate file under `<session-id>/subagents/` plus `.meta.json`                                                                                                       | Separate file under `<session-id>/subagents/`                         |
+| Parent names its children    | Yes, via `SubAgentActivity.agent_thread_id`                                                          | Yes for directly spawned subagents, via the `Agent` tool result's agent id and the child's `.meta.json` `toolUseId`; workflow-spawned children join by directory only | Partly; child id appears in the parent in a minority of pairs         |
+| Oversized tool output        | Truncated in place at fixed byte caps, no marker                                                     | Persisted to `<session-id>/tool-results/`; path only in `toolUseResult.persistedOutputPath`                                                                           | Probably spilled to `agent-tools/` files, not attributable to a call  |
+| Token usage                  | Cumulative and per-turn records                                                                      | Per message, repeated on every content-block record                                                                                                                   | None                                                                  |
+| Skill evidence               | Historical experimental `read_file.file_path`; removed upstream March 2026 and absent locally        | Top-level `attributionSkill`, structured `Skill` calls, and names-only availability/invocation attachments                                                            | Inferred from structured `Read`/`ReadFile` paths ending in `SKILL.md` |
 
 ## Reader requirements that follow from the evidence
 
@@ -56,6 +57,30 @@ these files, and they change between client releases.
   differ in almost every call.
 - Treat inherited parent history in Codex child files as context, not as the child's
   own activity.
+- Keep native skill attribution, recorded invocation, availability, and inferred
+  direct file reads as separate evidence. Do not parse shell commands, prose, or
+  instruction bodies to manufacture a skill load.
+
+None of the three native transcript formats records a skill version. An
+installed-file or Git revision selected for the transcript timestamp is inferred
+context, may be unknown, and cannot prove the revision that executed.
+
+The activity reader keeps usage as captured-source metadata. It deduplicates
+Claude Code by exact session and `message.id`, keeps Codex cumulative,
+last-turn, and response-joinable records separate, and labels Codex samples by
+native ownership without carrying reset state or model joins across ownership
+boundaries. Response identity uses native `thread_id`; `session_id` remains root
+context. Cursor usage is `not-recorded`. It never treats a missing counter as
+zero or converts tokens to money.
+
+Source-level skill-name coverage uses `source-skill-names`, separate from
+per-event attribution, invocation, or inferred file-read evidence. Claude Code
+empty `skill_listing.names` and `invoked_skills.skills` arrays are available
+with zero captured names, absent carriers are `not-recorded`, available names
+retain the latest locator per name, and invoked names remain per occurrence.
+The captured count includes both sets. Optional captured-source skill and usage
+metadata is reduced before delivered event groups when a report reaches its
+byte budget; omission counts retain the complete captured-source totals.
 
 ## Repository parser support
 

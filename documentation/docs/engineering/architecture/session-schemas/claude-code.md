@@ -305,6 +305,13 @@ than one record and only 6,688 are singletons, while `message.usage` is present 
 50,261 assistant records, so summing usage naively over-counts by roughly 2×.
 **Deduplicate on `(sessionId, message.id)` before aggregating usage.**
 
+The activity reader follows that boundary across content-block records. Equal
+copies collapse; conflicting copies produce a diagnostic and only one copy is
+retained. A usage carrier without `message.id` remains explicitly uncertain and
+is not deduplicated. `message.model` is the only model attached to that sample.
+Only token-valued fields are reported; service tier, geography, speed, and
+server-tool request counts are excluded.
+
 **`message.usage` fields** (n = 50,261): `input_tokens`, `output_tokens`,
 `cache_creation_input_tokens`, `cache_read_input_tokens` and `cache_creation` are present
 on 100%; `service_tier` (50,223 / null 38), `inference_geo` (same split),
@@ -345,6 +352,21 @@ tail carries the structural signals cited elsewhere on this page, including
 type: they appear as `user.message.content` strings containing `<command-name>` (130
 files) and `<local-command-stdout>` (70), and as `system` records with
 `subtype: local_command` (40).
+
+`attributionSkill` is a top-level assistant-record field, not a member of
+`message`. A `tool_use` whose native name is `Skill` is separate structural
+invocation evidence, and its full caller-supplied structured input remains
+ordinary bounded call input. It is distinct from attachment instruction
+content, which is not copied into skill metadata. Names-only
+source metadata also appears in `attachment.type == "skill_listing"` at
+`attachment.names[]` (availability) and `attachment.type == "invoked_skills"`
+at `attachment.skills[].name` (recorded invocation). Attachment content and path
+bodies are not needed for these names. Available names are deduplicated within
+the captured source using the latest recorded locator; invoked names remain per
+occurrence. `source-skill-names` coverage counts both source carriers and
+distinguishes a valid empty `names` or `skills` array from absent carriers. Its
+captured count is the deduplicated available names plus every invoked
+occurrence. None of these carriers records a skill version.
 
 ## 9. Externally persisted output and sizes
 

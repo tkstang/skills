@@ -66,5 +66,5 @@
     - [Session Handoff](user-guide/skills/session-handoff.md) — Prepare concise evidence-grounded continuation context, with optional observer review and sanitized transcript export.
     - [Collaborative Observer](user-guide/skills/session-observer-collab.md) — Coordinate two mutually observing agent sessions with exact pins, bounded wake tiers, explicit authority, and deterministic closeout.
     - [Session Observer](user-guide/skills/session-observer.md) — Review what another coding agent did in this project with tool-free digests, per-session read offsets, and foreground watch mode.
-    - [Session Retro](user-guide/skills/session-retro.md) — Review one skill invocation or bounded session episode and report evidence-backed improvements without applying them.
+    - [Session Retro](user-guide/skills/session-retro.md) — Review one exact frozen session episode and propose evidence-backed improvements without applying them.
   - [Installation](user-guide/installation.md) — Install the consensus or session plugin, choose optional standalone skill forms, and check prerequisites and release evidence.

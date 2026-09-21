@@ -13,6 +13,7 @@
  *   --session <id>        export a specific session id (bypasses --match)
  *   --all                 export every session for the cwd (one file each)
  *   --include-activity    append bounded source-attributed tool activity
+ *   --activity-output <path>  write complete sensitive activity JSON for one exact session
  *   --cwd <path>          project dir to match against (default: process.cwd())
  *   --out <path>          output file or directory (also accepted positionally)
  *   --help
@@ -34,16 +35,21 @@
  */
 
 import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import {
+  lstat,
   readdir,
   stat,
   mkdir,
+  open,
+  rename,
+  unlink,
   writeFile,
   readFile,
   realpath,
 } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { dirname, join, basename } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
 import { promisify } from 'node:util';
 
@@ -66,6 +72,7 @@ import type {
   JsonObject,
   Runtime,
   TranscriptMeta,
+  DetailedTranscriptRead,
 } from '../../../shared/transcript/runtimes.js';
 import {
   discoverPaths,
@@ -83,6 +90,7 @@ const execFileAsync = promisify(execFile);
 const VALID_RUNTIMES = ['claude-code', 'codex', 'cursor'] as const;
 const LOOKBACK_DAYS = 30;
 const MARKER_LINE_RE = /EXPORT_SESSION_MARKER\s*=\s*\S+/;
+const STRUCTURED_ACTIVITY_FORMAT_VERSION = 1 as const;
 
 interface CliOptions {
   runtime: string;
@@ -90,6 +98,7 @@ interface CliOptions {
   session: string | undefined;
   all: boolean;
   includeActivity: boolean;
+  activityOutput: string | undefined;
   cwd: string;
   out: string | undefined;
   help: boolean;
@@ -127,6 +136,63 @@ interface RenderMarkdownOptions {
   branchFromGit: boolean;
   session: Candidate;
   activity?: ActivityReport;
+  completeActivity?: ActivityReport;
+  capturedAt?: string;
+  exactNativeSessionId?: string;
+  narrativeEvidence?: NarrativeEntryEvidence[];
+}
+
+interface NativeNarrativeLocator {
+  indexBase: 'zero-based-decoded-record-index' | 'zero-based-jsonl-frame-index';
+  index: number;
+  physicalLine: number;
+}
+
+interface NarrativeEntryEvidence {
+  entryKey: string;
+  role: DigestEntry['role'];
+  kind: DigestEntry['kind'];
+  origin: DigestEntry['origin'] | 'unknown';
+  displayRole: DigestEntry['displayRole'] | 'unknown';
+  sourceLocator: NativeNarrativeLocator;
+  consumptionLocator: NativeNarrativeLocator;
+}
+
+interface CaptureIdentityEvidence {
+  kind:
+    | 'claude-record-session-id'
+    | 'codex-session-meta-id'
+    | 'codex-token-usage-thread-id'
+    | 'cursor-native-path';
+  locator:
+    | {
+        physicalLine: number;
+        recordIndex: number;
+        jsonPointer: string;
+      }
+    | { canonicalTranscriptPath: string };
+}
+
+interface StructuredActivityCapture {
+  formatVersion: typeof STRUCTURED_ACTIVITY_FORMAT_VERSION;
+  activitySchemaVersion: ActivityReport['activitySchemaVersion'];
+  sensitive: 'not-publish-safe';
+  runtime: Runtime;
+  nativeSessionId: string;
+  capturedAt: string;
+  identityEvidence: CaptureIdentityEvidence;
+  recordCounts: {
+    source: number;
+    decoded: number;
+  };
+  narrativeEntries: NarrativeEntryEvidence[];
+  activity: ActivityReport;
+}
+
+interface DestinationInfo {
+  path: string;
+  canonicalPath: string;
+  inodeKey?: string;
 }
 
 const CODEX_ROLLOUT_FILENAME_PATTERN =
@@ -202,6 +268,7 @@ function parseCliArgs(argv: string[]): CliOptions {
       session: { type: 'string', default: undefined },
       all: { type: 'boolean', default: false },
       'include-activity': { type: 'boolean', default: false },
+      'activity-output': { type: 'string', default: undefined },
       cwd: { type: 'string', default: process.cwd() },
       out: { type: 'string', default: undefined },
       help: { type: 'boolean', default: false },
@@ -213,6 +280,10 @@ function parseCliArgs(argv: string[]): CliOptions {
     session: typeof values.session === 'string' ? values.session : undefined,
     all: values.all === true,
     includeActivity: values['include-activity'] === true,
+    activityOutput:
+      typeof values['activity-output'] === 'string'
+        ? values['activity-output']
+        : undefined,
     cwd: typeof values.cwd === 'string' ? values.cwd : process.cwd(),
     out:
       typeof values.out === 'string'
@@ -233,6 +304,8 @@ Flags:
   --session <id>        export a specific session id
   --all                 export every session for the cwd (one file each)
   --include-activity    append bounded source-attributed tool activity
+  --activity-output <path>
+                        write complete sensitive activity JSON for one exact --session
   --cwd <path>          project dir to match against (default: process.cwd())
   --out <path>          output file or directory (also accepted positionally)
   --help                this message
@@ -645,6 +718,402 @@ async function resolveOutputPath(
   return join(homedir(), 'Downloads', fileName);
 }
 
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && 'code' in error;
+}
+
+async function canonicalPotentialPath(path: string): Promise<string> {
+  let cursor = resolve(path);
+  const suffix: string[] = [];
+  while (true) {
+    try {
+      const canonical = await realpath(cursor);
+      return join(canonical, ...suffix);
+    } catch (error) {
+      if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
+      const parent = dirname(cursor);
+      if (parent === cursor) throw error;
+      suffix.unshift(basename(cursor));
+      cursor = parent;
+    }
+  }
+}
+
+async function inspectDestination(
+  path: string,
+  label: string,
+): Promise<DestinationInfo> {
+  const canonicalPath = await canonicalPotentialPath(path);
+  try {
+    const info = await lstat(path);
+    if (info.isSymbolicLink()) {
+      throw new Error(`${label} must not be a symbolic link: ${path}`);
+    }
+    if (!info.isFile()) {
+      throw new Error(`${label} must be absent or an ordinary file: ${path}`);
+    }
+    return {
+      path,
+      canonicalPath,
+      inodeKey: `${info.dev}:${info.ino}`,
+    };
+  } catch (error) {
+    if (isErrnoException(error) && error.code === 'ENOENT') {
+      return { path, canonicalPath };
+    }
+    throw error;
+  }
+}
+
+function pathIsInside(path: string, root: string): boolean {
+  const child = relative(root, path);
+  return child === '' || (!child.startsWith(`..${sep}`) && child !== '..');
+}
+
+function observerStateRoots(): string[] {
+  const defaultRoot = join(homedir(), '.local', 'state', 'session-observer');
+  return [...new Set([process.env.STATE_DIR ?? defaultRoot, defaultRoot])];
+}
+
+async function inodeKeyIfOrdinaryFile(path: string): Promise<string | null> {
+  try {
+    const info = await lstat(path);
+    return info.isFile() && !info.isSymbolicLink()
+      ? `${info.dev}:${info.ino}`
+      : null;
+  } catch (error) {
+    if (isErrnoException(error) && error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+async function observerStateFileInodes(root: string): Promise<string[]> {
+  let entries;
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch (error) {
+    if (isErrnoException(error) && error.code === 'ENOENT') return [];
+    throw error;
+  }
+
+  return (
+    await Promise.all(
+      entries.map(async (entry) => {
+        const entryPath = join(root, entry.name);
+        if (entry.isDirectory()) return observerStateFileInodes(entryPath);
+        if (!entry.isFile()) return [];
+        const inode = await inodeKeyIfOrdinaryFile(entryPath);
+        return inode === null ? [] : [inode];
+      }),
+    )
+  ).flat();
+}
+
+async function validateStructuredDestinations(
+  narrativePath: string,
+  activityPath: string,
+  transcriptPath: string,
+): Promise<void> {
+  const [narrative, activity, canonicalSource] = await Promise.all([
+    inspectDestination(narrativePath, 'Narrative output'),
+    inspectDestination(activityPath, 'Activity output'),
+    realpath(transcriptPath),
+  ]);
+  const sourceInfo = await stat(canonicalSource);
+  const sourceInode = `${sourceInfo.dev}:${sourceInfo.ino}`;
+
+  if (
+    narrative.canonicalPath === activity.canonicalPath ||
+    (narrative.inodeKey !== undefined &&
+      narrative.inodeKey === activity.inodeKey)
+  ) {
+    throw new Error(
+      'OUTPUT_COLLISION: narrative and activity outputs must be distinct files',
+    );
+  }
+  for (const destination of [narrative, activity]) {
+    if (
+      destination.canonicalPath === canonicalSource ||
+      destination.inodeKey === sourceInode
+    ) {
+      throw new Error(
+        `OUTPUT_COLLISION: ${destination.path} aliases the source transcript`,
+      );
+    }
+  }
+
+  const canonicalStateRoots = await Promise.all(
+    observerStateRoots().map((root) => canonicalPotentialPath(root)),
+  );
+  for (const destination of [narrative, activity]) {
+    if (
+      canonicalStateRoots.some((root) =>
+        pathIsInside(destination.canonicalPath, root),
+      )
+    ) {
+      throw new Error(
+        `OUTPUT_COLLISION: ${destination.path} is inside a Session Observer state root`,
+      );
+    }
+  }
+
+  const stateInodes = new Set(
+    (
+      await Promise.all(observerStateRoots().map(observerStateFileInodes))
+    ).flat(),
+  );
+  for (const destination of [narrative, activity]) {
+    if (
+      destination.inodeKey !== undefined &&
+      stateInodes.has(destination.inodeKey)
+    ) {
+      throw new Error(
+        `OUTPUT_COLLISION: ${destination.path} aliases Session Observer state`,
+      );
+    }
+  }
+}
+
+async function writeAtomicActivityJson(
+  outputPath: string,
+  contents: string,
+): Promise<void> {
+  await mkdir(dirname(outputPath), { recursive: true });
+  const temporaryPath = join(
+    dirname(outputPath),
+    `.${basename(outputPath)}.session-export-${process.pid}-${randomUUID()}.tmp`,
+  );
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    handle = await open(temporaryPath, 'wx', 0o600);
+    await handle.writeFile(contents, 'utf8');
+    await handle.close();
+    handle = undefined;
+    await rename(temporaryPath, outputPath);
+  } catch (error) {
+    if (handle) await handle.close().catch(() => undefined);
+    await unlink(temporaryPath).catch((cleanupError: unknown) => {
+      if (!isErrnoException(cleanupError) || cleanupError.code !== 'ENOENT') {
+        throw cleanupError;
+      }
+    });
+    throw error;
+  }
+}
+
+function stringProperty(record: JsonObject, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function capturedIdentity(
+  runtime: Exclude<Runtime, 'cursor'>,
+  requestedSessionId: string,
+  read: DetailedTranscriptRead,
+  transcriptPath: string,
+): { nativeSessionId: string; evidence: CaptureIdentityEvidence } {
+  const records = read.records.map(({ record }) => record);
+  const meta = extractMetaFromRecords(runtime, records, transcriptPath);
+  if (meta === null) {
+    throw new Error(
+      `SESSION_IDENTITY_INVALID: captured ${runtime} records contain contradictory native identity`,
+    );
+  }
+
+  if (runtime === 'claude-code') {
+    const carriers = read.records.flatMap((detailed) => {
+      if (!Object.hasOwn(detailed.record, 'sessionId')) return [];
+      const value = stringProperty(detailed.record, 'sessionId');
+      if (value === undefined) {
+        throw new Error(
+          'SESSION_IDENTITY_INVALID: captured Claude record has a malformed native sessionId',
+        );
+      }
+      return [{ value, detailed }];
+    });
+    const identities = new Set(carriers.map(({ value }) => value));
+    if (identities.size === 0) {
+      throw new Error(
+        'SESSION_IDENTITY_MISSING: captured Claude records provide no native sessionId',
+      );
+    }
+    if (identities.size !== 1) {
+      throw new Error(
+        'SESSION_IDENTITY_INVALID: captured Claude records contradict one another',
+      );
+    }
+    const nativeSessionId = carriers[0].value;
+    if (nativeSessionId !== requestedSessionId) {
+      throw new Error(
+        `SESSION_IDENTITY_MISMATCH: captured Claude identity ${nativeSessionId} does not match requested ${requestedSessionId}`,
+      );
+    }
+    return {
+      nativeSessionId,
+      evidence: {
+        kind: 'claude-record-session-id',
+        locator: {
+          physicalLine: carriers[0].detailed.physicalLine,
+          recordIndex: carriers[0].detailed.recordIndex,
+          jsonPointer: '/sessionId',
+        },
+      },
+    };
+  }
+
+  const header = read.records.find(
+    ({ record }) => record.type === 'session_meta',
+  );
+  const headerPayload =
+    header &&
+    typeof header.record.payload === 'object' &&
+    header.record.payload !== null &&
+    !Array.isArray(header.record.payload)
+      ? (header.record.payload as JsonObject)
+      : undefined;
+  if (header && headerPayload && Object.hasOwn(headerPayload, 'id')) {
+    const nativeSessionId = stringProperty(headerPayload, 'id');
+    if (
+      nativeSessionId === undefined ||
+      meta.nativeSessionId !== nativeSessionId
+    ) {
+      throw new Error(
+        'SESSION_IDENTITY_INVALID: captured Codex session_meta identity is malformed or contradictory',
+      );
+    }
+    if (nativeSessionId !== requestedSessionId) {
+      throw new Error(
+        `SESSION_IDENTITY_MISMATCH: captured Codex identity ${nativeSessionId} does not match requested ${requestedSessionId}`,
+      );
+    }
+    return {
+      nativeSessionId,
+      evidence: {
+        kind: 'codex-session-meta-id',
+        locator: {
+          physicalLine: header.physicalLine,
+          recordIndex: header.recordIndex,
+          jsonPointer: '/payload/id',
+        },
+      },
+    };
+  }
+
+  const responseUsageCarriers = read.records.flatMap((detailed) => {
+    if (detailed.record.type !== 'token_usage_record') return [];
+    const payload =
+      typeof detailed.record.payload === 'object' &&
+      detailed.record.payload !== null &&
+      !Array.isArray(detailed.record.payload)
+        ? (detailed.record.payload as JsonObject)
+        : undefined;
+    if (!payload || !Object.hasOwn(payload, 'thread_id')) return [];
+    const value = payload.thread_id;
+    if (typeof value !== 'string' || value.length === 0) {
+      throw new Error(
+        'SESSION_IDENTITY_INVALID: captured Codex token usage record has malformed native thread identity',
+      );
+    }
+    return [{ value, detailed }];
+  });
+
+  const responseUsageIdentities = new Set(
+    responseUsageCarriers.map(({ value }) => value),
+  );
+  if (responseUsageIdentities.size === 0) {
+    throw new Error(
+      'SESSION_IDENTITY_MISSING: captured Codex records provide no native session identity',
+    );
+  }
+  if (responseUsageIdentities.size !== 1) {
+    throw new Error(
+      'SESSION_IDENTITY_INVALID: captured Codex records contradict one another',
+    );
+  }
+  const nativeSessionId = responseUsageCarriers[0].value;
+  if (nativeSessionId !== requestedSessionId) {
+    throw new Error(
+      `SESSION_IDENTITY_MISMATCH: captured Codex identity ${nativeSessionId} does not match requested ${requestedSessionId}`,
+    );
+  }
+  return {
+    nativeSessionId,
+    evidence: {
+      kind: 'codex-token-usage-thread-id',
+      locator: {
+        physicalLine: responseUsageCarriers[0].detailed.physicalLine,
+        recordIndex: responseUsageCarriers[0].detailed.recordIndex,
+        jsonPointer: '/payload/thread_id',
+      },
+    },
+  };
+}
+
+async function cursorCapturedIdentity(
+  requestedSessionId: string,
+  transcriptPath: string,
+): Promise<{ nativeSessionId: string; evidence: CaptureIdentityEvidence }> {
+  const canonicalTranscriptPath = await realpath(transcriptPath);
+  const transcriptBase = basename(canonicalTranscriptPath).replace(
+    /\.jsonl$/u,
+    '',
+  );
+  const directorySessionId = basename(dirname(canonicalTranscriptPath));
+  const genericTranscriptName = [
+    'transcript',
+    'conversation',
+    'messages',
+  ].includes(transcriptBase);
+  const nativeSessionId = genericTranscriptName
+    ? directorySessionId
+    : transcriptBase;
+  if (
+    nativeSessionId !== requestedSessionId ||
+    (!genericTranscriptName && directorySessionId !== requestedSessionId)
+  ) {
+    throw new Error(
+      `SESSION_IDENTITY_MISMATCH: Cursor native path does not corroborate requested ${requestedSessionId}`,
+    );
+  }
+  return {
+    nativeSessionId,
+    evidence: {
+      kind: 'cursor-native-path',
+      locator: { canonicalTranscriptPath },
+    },
+  };
+}
+
+function narrativeEvidence(
+  runtime: Runtime,
+  entries: readonly DigestEntry[],
+  nativeLocators: readonly NativeNarrativeLocator[],
+): NarrativeEntryEvidence[] {
+  const ordinals = new Map<string, number>();
+  return entries.map((entry) => {
+    const sourceDenseIndex = entry.sourceRecordIndex ?? entry.recordIndex;
+    const sourceLocator = nativeLocators[sourceDenseIndex];
+    const consumptionLocator = nativeLocators[entry.recordIndex];
+    if (!sourceLocator || !consumptionLocator) {
+      throw new Error(
+        `NARRATIVE_LOCATOR_INVALID: ${runtime} entry references an uncaptured record`,
+      );
+    }
+    const coordinateKey = `${sourceLocator.index}:${consumptionLocator.index}`;
+    const ordinal = (ordinals.get(coordinateKey) ?? 0) + 1;
+    ordinals.set(coordinateKey, ordinal);
+    return {
+      entryKey: `entry-${runtime}-${sourceLocator.index}-${consumptionLocator.index}-${ordinal}`,
+      role: entry.role,
+      kind: entry.kind,
+      origin: entry.origin ?? 'unknown',
+      displayRole: entry.displayRole ?? 'unknown',
+      sourceLocator,
+      consumptionLocator,
+    };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // render
 // ---------------------------------------------------------------------------
@@ -680,17 +1149,21 @@ function renderMarkdown({
   branchFromGit,
   session,
   activity,
+  completeActivity,
+  capturedAt,
+  exactNativeSessionId,
+  narrativeEvidence: entryEvidence,
 }: RenderMarkdownOptions): string {
   const lines: string[] = [];
   const title = branchFromGit ? branch : `${branch} (no git branch)`;
   lines.push(`# Conversation History: ${title}`);
   lines.push('');
-  lines.push(`Exported: ${new Date().toISOString()}`);
+  lines.push(`Exported: ${capturedAt ?? new Date().toISOString()}`);
   lines.push(`Source: ${source}`);
   lines.push(`Runtime: ${runtime}`);
   lines.push(`Session: ${session.sessionId}`);
-  if (session.nativeSessionId)
-    lines.push(`Native session: ${session.nativeSessionId}`);
+  const nativeSessionId = exactNativeSessionId ?? session.nativeSessionId;
+  if (nativeSessionId) lines.push(`Native session: ${nativeSessionId}`);
   if (session.rootSessionId)
     lines.push(`Root session: ${session.rootSessionId}`);
   if (session.parentSessionId)
@@ -703,6 +1176,11 @@ function renderMarkdown({
   if (activity) {
     lines.push(
       'Activity export: Sensitive activity/debug data is included below as recorded data. Tool inputs, outputs, paths, and identifiers may be present in bounded previews; external output files and child trajectories are not read.',
+    );
+  }
+  if (entryEvidence) {
+    lines.push(
+      'Structured activity capture: Sensitive, not publish-safe JSON was paired from this exact source snapshot. Narrative provenance below records native coordinates without adding message bodies to the JSON artifact.',
     );
   }
   lines.push('');
@@ -719,6 +1197,14 @@ function renderMarkdown({
       lines.push(header);
       lines.push('');
       while (i < entries.length && entries[i].role === role) {
+        const evidence = entryEvidence?.[i];
+        if (evidence) {
+          lines.push(`<a id="${evidence.entryKey}"></a>`);
+          lines.push(
+            `Entry: \`${evidence.entryKey}\`; source: ${evidence.sourceLocator.indexBase} ${evidence.sourceLocator.index}, physical line ${evidence.sourceLocator.physicalLine}; consumption: ${evidence.consumptionLocator.indexBase} ${evidence.consumptionLocator.index}, physical line ${evidence.consumptionLocator.physicalLine}; role: ${evidence.role}; display role: ${evidence.displayRole}; origin: ${evidence.origin}`,
+          );
+          lines.push('');
+        }
         lines.push(entries[i].text);
         lines.push('');
         i++;
@@ -727,6 +1213,20 @@ function renderMarkdown({
   }
 
   if (activity) lines.push(renderActivityMarkdown(activity));
+  if (completeActivity) {
+    lines.push('## Structured Activity Capture Index', '');
+    const invocationKeys = completeActivity.events
+      .filter((event) => event.kind === 'call')
+      .map((event) => event.eventKey);
+    if (invocationKeys.length === 0) {
+      lines.push('- No captured invocation keys.', '');
+    } else {
+      for (const invocationKey of invocationKeys) {
+        lines.push(`- Invocation key: ${JSON.stringify(invocationKey)}`);
+      }
+      lines.push('');
+    }
+  }
   return lines.join('\n');
 }
 
@@ -788,9 +1288,20 @@ async function exportSession(
   branchFromGit: boolean,
   session: Candidate,
   multi: boolean,
-): Promise<string> {
+): Promise<{ narrativePath: string; activityPath?: string }> {
+  const outPath = await resolveOutputPath(opts, branch, session, multi);
+  const structuredCapture = opts.activityOutput !== undefined;
+  if (structuredCapture) {
+    await validateStructuredDestinations(
+      outPath,
+      opts.activityOutput!,
+      session.transcriptPath,
+    );
+  }
+
+  const captureActivity = opts.includeActivity || structuredCapture;
   const cursorCapture =
-    opts.includeActivity && runtime === 'cursor'
+    captureActivity && runtime === 'cursor'
       ? await (async () => {
           const capturedAt = new Date().toISOString();
           const accumulator = createCursorTurnAccumulator(
@@ -802,12 +1313,15 @@ async function exportSession(
             },
             0,
           );
-          const records: JsonObject[] = [];
+          const records: Array<{ record: JsonObject; frameIndex: number }> = [];
           const scan = await scanCursorTranscript(session.transcriptPath, {
             onFrame(frame) {
               accumulator.onFrame(frame);
               if (frame.parseState === 'parsed' && frame.record !== null) {
-                records.push(frame.record);
+                records.push({
+                  record: frame.record,
+                  frameIndex: frame.frameIndex,
+                });
               }
             },
           });
@@ -820,94 +1334,168 @@ async function exportSession(
         })()
       : undefined;
   const capturedRead =
-    opts.includeActivity && runtime !== 'cursor'
+    captureActivity && runtime !== 'cursor'
       ? await readRecordsDetailed(session.transcriptPath)
       : undefined;
   const records = cursorCapture
-    ? cursorCapture.records
+    ? cursorCapture.records.map(({ record }) => record)
     : capturedRead
       ? capturedRead.records.map(({ record }) => record)
       : await readRecords(session.transcriptPath);
   const normalized = normalizeEntries(runtime, records, {});
   const sanitized = sanitizeEntries(normalized, { runtime });
   const entries = stripMarkerAndEmpty(sanitized);
+  const nativeLocators: NativeNarrativeLocator[] | undefined = structuredCapture
+    ? cursorCapture
+      ? cursorCapture.records.map(({ frameIndex }) => ({
+          indexBase: 'zero-based-jsonl-frame-index' as const,
+          index: frameIndex,
+          physicalLine: frameIndex + 1,
+        }))
+      : capturedRead?.records.map(({ recordIndex, physicalLine }) => ({
+          indexBase: 'zero-based-decoded-record-index' as const,
+          index: recordIndex,
+          physicalLine,
+        }))
+    : undefined;
+  const entryEvidence = nativeLocators
+    ? narrativeEvidence(runtime, entries, nativeLocators)
+    : undefined;
+
+  let exactIdentity:
+    | { nativeSessionId: string; evidence: CaptureIdentityEvidence }
+    | undefined;
+  if (structuredCapture) {
+    if (!opts.session) {
+      throw new Error(
+        'ACTIVITY_OUTPUT_REQUIRES_EXACT_SESSION: pass exactly one --session <id>',
+      );
+    }
+    exactIdentity =
+      runtime === 'cursor'
+        ? await cursorCapturedIdentity(opts.session, session.transcriptPath)
+        : capturedIdentity(
+            runtime,
+            opts.session,
+            capturedRead!,
+            session.transcriptPath,
+          );
+  }
+
   let activity: ActivityReport | undefined;
-  if (opts.includeActivity && cursorCapture && runtime === 'cursor') {
-    const source: ActivitySource & { runtime: 'cursor' } = {
+  let completeActivity: ActivityReport | undefined;
+  let capturedAt: string | undefined;
+  let sourceBytes: number | undefined;
+  if (captureActivity && cursorCapture && runtime === 'cursor') {
+    const cursorSource: ActivitySource & { runtime: 'cursor' } = {
       runtime: 'cursor',
-      sessionId: session.sessionId,
-      nativeSessionId: session.sessionId,
+      sessionId: exactIdentity?.nativeSessionId ?? session.sessionId,
+      nativeSessionId: exactIdentity?.nativeSessionId ?? session.sessionId,
       transcriptPath: session.transcriptPath,
     };
-    const deliveryRange: ActivityDeliveryRange = {
+    const cursorDeliveryRange: ActivityDeliveryRange = {
       indexBase: 'zero-based-jsonl-frame-index',
       start: 0,
       end: cursorCapture.scan.totalFrames,
     };
+    capturedAt = cursorCapture.capturedAt;
+    sourceBytes = cursorCapture.scan.file.size;
     try {
-      activity = projectActivity(
-        correlateActivity(
-          extractCursorActivity({
-            source,
-            scan: cursorCapture.scan,
-            analysis: cursorCapture.analysis,
-            capturedAt: cursorCapture.capturedAt,
-            mode: 'stateless-snapshot',
-          }),
-        ),
-        {
+      const correlated = correlateActivity(
+        extractCursorActivity({
+          source: cursorSource,
+          scan: cursorCapture.scan,
+          analysis: cursorCapture.analysis,
+          capturedAt: cursorCapture.capturedAt,
+          mode: 'stateless-snapshot',
+        }),
+      );
+      if (opts.includeActivity) {
+        activity = projectActivity(correlated, {
           mode: 'export',
           renderFormat: 'markdown',
-          deliveryRange,
-        },
-      );
-    } catch {
-      activity = unavailableActivityReport(
-        source,
-        cursorCapture.scan.file.size,
-        cursorCapture.capturedAt,
-        deliveryRange,
-      );
+          deliveryRange: cursorDeliveryRange,
+        });
+      }
+      if (structuredCapture) {
+        completeActivity = projectActivity(correlated, {
+          mode: 'complete-capture',
+          renderFormat: 'compact-json',
+          deliveryRange: cursorDeliveryRange,
+        });
+      }
+    } catch (error) {
+      if (structuredCapture) {
+        throw new Error(
+          'ACTIVITY_CAPTURE_FAILED: complete structured activity extraction failed',
+          { cause: error },
+        );
+      }
+      if (opts.includeActivity) {
+        activity = unavailableActivityReport(
+          cursorSource,
+          sourceBytes,
+          capturedAt,
+          cursorDeliveryRange,
+        );
+      }
     }
-  } else if (opts.includeActivity && capturedRead) {
+  } else if (captureActivity && capturedRead) {
     const identity = extractMetaFromRecords(
       runtime,
       records,
       session.transcriptPath,
     );
-    const source: ActivitySource = {
+    const detailedSource: ActivitySource = {
       runtime,
-      sessionId: session.sessionId,
+      sessionId: exactIdentity?.nativeSessionId ?? session.sessionId,
       nativeSessionId:
+        exactIdentity?.nativeSessionId ??
         identity?.nativeSessionId ??
         session.nativeSessionId ??
         session.sessionId,
       transcriptPath: session.transcriptPath,
     };
+    const detailedDeliveryRange: ActivityDeliveryRange = {
+      indexBase: 'zero-based-decoded-record-index',
+      start: 0,
+      end: records.length,
+    };
+    capturedAt = capturedRead.capturedAt;
+    sourceBytes = capturedRead.sourceBytes;
     try {
-      activity = projectActivity(
-        correlateActivity(extractActivity({ source, read: capturedRead })),
-        {
+      const correlated = correlateActivity(
+        extractActivity({ source: detailedSource, read: capturedRead }),
+      );
+      if (opts.includeActivity) {
+        activity = projectActivity(correlated, {
           mode: 'export',
           renderFormat: 'markdown',
-          deliveryRange: {
-            indexBase: 'zero-based-decoded-record-index',
-            start: 0,
-            end: records.length,
-          },
-        },
-      );
-    } catch {
-      activity = unavailableActivityReport(
-        source,
-        capturedRead.sourceBytes,
-        capturedRead.capturedAt,
-        {
-          indexBase: 'zero-based-decoded-record-index',
-          start: 0,
-          end: records.length,
-        },
-      );
+          deliveryRange: detailedDeliveryRange,
+        });
+      }
+      if (structuredCapture) {
+        completeActivity = projectActivity(correlated, {
+          mode: 'complete-capture',
+          renderFormat: 'compact-json',
+          deliveryRange: detailedDeliveryRange,
+        });
+      }
+    } catch (error) {
+      if (structuredCapture) {
+        throw new Error(
+          'ACTIVITY_CAPTURE_FAILED: complete structured activity extraction failed',
+          { cause: error },
+        );
+      }
+      if (opts.includeActivity) {
+        activity = unavailableActivityReport(
+          detailedSource,
+          sourceBytes,
+          capturedAt,
+          detailedDeliveryRange,
+        );
+      }
     }
   }
 
@@ -919,12 +1507,58 @@ async function exportSession(
     session,
     entries,
     activity,
+    completeActivity,
+    ...(structuredCapture
+      ? {
+          capturedAt,
+          exactNativeSessionId: exactIdentity!.nativeSessionId,
+          narrativeEvidence: entryEvidence,
+        }
+      : {}),
   });
 
-  const outPath = await resolveOutputPath(opts, branch, session, multi);
   await mkdir(dirname(outPath), { recursive: true });
   await writeFile(outPath, md, 'utf8');
-  return outPath;
+  if (structuredCapture) {
+    const recordCounts = cursorCapture
+      ? {
+          source: cursorCapture.scan.totalFrames,
+          decoded: cursorCapture.records.length,
+        }
+      : {
+          source:
+            (capturedRead?.records.length ?? 0) +
+            (capturedRead?.diagnostics.length ?? 0),
+          decoded: capturedRead?.records.length ?? 0,
+        };
+    const envelope: StructuredActivityCapture = {
+      formatVersion: STRUCTURED_ACTIVITY_FORMAT_VERSION,
+      activitySchemaVersion: completeActivity!.activitySchemaVersion,
+      sensitive: 'not-publish-safe',
+      runtime,
+      nativeSessionId: exactIdentity!.nativeSessionId,
+      capturedAt: capturedAt!,
+      identityEvidence: exactIdentity!.evidence,
+      recordCounts,
+      narrativeEntries: entryEvidence!,
+      activity: completeActivity!,
+    };
+    try {
+      await writeAtomicActivityJson(
+        opts.activityOutput!,
+        `${JSON.stringify(envelope, null, 2)}\n`,
+      );
+    } catch (error) {
+      throw new Error(
+        `ACTIVITY_OUTPUT_WRITE_FAILED after narrative output was written to ${outPath}: ${errorMessage(error)}`,
+        { cause: error },
+      );
+    }
+  }
+  return {
+    narrativePath: outPath,
+    ...(structuredCapture ? { activityPath: opts.activityOutput } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -937,6 +1571,16 @@ async function main(): Promise<number> {
   if (opts.help) {
     console.log(HELP);
     return 0;
+  }
+
+  if (
+    opts.activityOutput !== undefined &&
+    (!opts.session || opts.all || opts.match !== undefined)
+  ) {
+    console.error(
+      '[session-export-transcript] ACTIVITY_OUTPUT_REQUIRES_EXACT_SESSION: --activity-output requires exactly one --session <id> and cannot be combined with --all or --match.',
+    );
+    return 1;
   }
 
   let runtime: Runtime | null;
@@ -1003,7 +1647,7 @@ async function main(): Promise<number> {
   const branchFromGit = branch !== null;
   const multi = opts.all;
 
-  const written: string[] = [];
+  const written: Array<{ narrativePath: string; activityPath?: string }> = [];
   try {
     for (const session of selection.selected) {
       written.push(
@@ -1024,8 +1668,13 @@ async function main(): Promise<number> {
     return 1;
   }
 
-  for (const p of written) {
-    console.log(`[session-export-transcript] wrote ${p}`);
+  for (const output of written) {
+    console.log(`[session-export-transcript] wrote ${output.narrativePath}`);
+    if (output.activityPath) {
+      console.log(
+        `[session-export-transcript] wrote sensitive activity ${output.activityPath}`,
+      );
+    }
   }
   return 0;
 }

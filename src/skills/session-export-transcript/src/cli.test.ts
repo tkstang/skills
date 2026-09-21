@@ -19,12 +19,15 @@ import {
   readFile,
   readdir,
   utimes,
+  link,
+  symlink,
+  realpath,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { afterAll, assert, beforeAll, describe, test } from 'vitest';
+import { afterAll, assert, beforeAll, describe, expect, test } from 'vitest';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -42,8 +45,9 @@ const CURSOR_SLUG = 'export-test-my-project';
 function spawnCli(
   args: string[],
   env: NodeJS.ProcessEnv = {},
+  nodeArgs: string[] = [],
 ): SpawnSyncReturns<string> {
-  return spawnSync('node', [CLI_PATH, ...args], {
+  return spawnSync('node', [...nodeArgs, CLI_PATH, ...args], {
     encoding: 'utf8',
     timeout: 20000,
     env: { ...process.env, ...env },
@@ -310,6 +314,67 @@ function claudeAdversarialActivityTranscript(
         role: 'assistant',
         content: 'Visible assistant conclusion.',
       },
+    },
+  ];
+  return records.map((record) => JSON.stringify(record)).join('\n') + '\n';
+}
+
+function claudeStructuredCaptureTranscript(
+  sessionId = 'cc-structured',
+): string {
+  const records = [
+    { type: 'summary', sessionId, summary: 'start' },
+    {
+      type: 'user',
+      sessionId,
+      origin: { kind: 'human' },
+      message: { role: 'user', content: 'Human-authenticated request.' },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: { role: 'user', content: 'Unattributed user-role record.' },
+    },
+    {
+      type: 'queue-operation',
+      sessionId,
+      operation: 'enqueue',
+      content: 'Queued human request.',
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'I will inspect it.' },
+          {
+            type: 'tool_use',
+            id: 'structured-read',
+            name: 'Read',
+            input: { file_path: '/fixture/structured.txt' },
+          },
+        ],
+      },
+    },
+    {
+      type: 'user',
+      sessionId,
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'structured-read',
+            content: 'STRUCTURED_TOOL_RESULT_BODY',
+          },
+        ],
+      },
+    },
+    {
+      type: 'assistant',
+      sessionId,
+      message: { role: 'assistant', content: 'Structured capture complete.' },
     },
   ];
   return records.map((record) => JSON.stringify(record)).join('\n') + '\n';
@@ -2074,6 +2139,700 @@ describe('export CLI — ask-user exchanges', () => {
     assert.ok(
       md.includes('(selected option not recorded in Cursor transcripts)'),
       'the Cursor caveat must still appear alongside the notice',
+    );
+    await rm(home, { recursive: true, force: true });
+  });
+});
+
+describe('export CLI — complete structured activity capture', () => {
+  test.each([
+    ['missing --session', ['--activity-output', '/tmp/activity.json']],
+    [
+      '--all',
+      [
+        '--session',
+        'cc-structured',
+        '--all',
+        '--activity-output',
+        '/tmp/activity.json',
+      ],
+    ],
+    [
+      '--match',
+      [
+        '--session',
+        'cc-structured',
+        '--match',
+        'marker',
+        '--activity-output',
+        '/tmp/activity.json',
+      ],
+    ],
+  ])('rejects %s with --activity-output', (_label, args) => {
+    const result = spawnCli(args);
+    assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    assert.match(result.stderr, /ACTIVITY_OUTPUT_REQUIRES_EXACT_SESSION/);
+  });
+
+  test('writes paired capture and keeps its Markdown invocation index consistent with JSON', async () => {
+    const home = await setupHome();
+    const sessionId = 'cc-structured';
+    await writeClaude(
+      home,
+      claudeStructuredCaptureTranscript(sessionId),
+      sessionId,
+    );
+    const narrativePath = join(home, 'structured.md');
+    const activityPath = join(home, 'structured.activity.json');
+    await writeFile(activityPath, 'replace-me', 'utf8');
+    const stateDir = join(home, 'observer-state');
+    await mkdir(stateDir, { recursive: true });
+    await writeFile(join(stateDir, 'sentinel'), 'unchanged', 'utf8');
+
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--session',
+        sessionId,
+        '--include-activity',
+        '--out',
+        narrativePath,
+        '--activity-output',
+        activityPath,
+      ],
+      { HOME: home, STATE_DIR: stateDir },
+    );
+
+    assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    assert.match(result.stdout, /wrote sensitive activity/);
+    const markdown = await readFile(narrativePath, 'utf8');
+    const rawJson = await readFile(activityPath, 'utf8');
+    const capture = JSON.parse(rawJson);
+
+    assert.equal(capture.formatVersion, 1);
+    assert.equal(capture.activitySchemaVersion, 1);
+    assert.equal(capture.sensitive, 'not-publish-safe');
+    assert.equal(capture.runtime, 'claude-code');
+    assert.equal(capture.nativeSessionId, sessionId);
+    assert.equal(capture.identityEvidence.kind, 'claude-record-session-id');
+    assert.equal(capture.activity.mode, 'complete-capture');
+    assert.equal(capture.activity.renderedFormat, 'compact-json');
+    assert.equal(capture.activity.limits.maxBytes, null);
+    assert.equal(capture.activity.limits.maxInvocations, null);
+    assert.equal(capture.activity.limits.previewBytes, 2 * 1024);
+    assert.equal(capture.activity.source.nativeSessionId, sessionId);
+    assert.equal(
+      capture.activity.sourceSnapshot.capturedAt,
+      capture.capturedAt,
+    );
+    assert.equal(capture.recordCounts.decoded, 7);
+    assert.equal(capture.recordCounts.source, 7);
+    assert.match(markdown, new RegExp(`Exported: ${capture.capturedAt}`));
+    assert.match(markdown, new RegExp(`Native session: ${sessionId}`));
+    assert.match(markdown, /origin: human/);
+    assert.match(markdown, /display role: queued-user; origin: unknown/);
+    assert.match(
+      markdown,
+      /role: user; display role: unknown; origin: unknown/,
+    );
+    assert.ok(
+      !rawJson.includes('Human-authenticated request.'),
+      'full narrative message body leaked into activity JSON',
+    );
+    assert.ok(
+      !rawJson.includes('Structured capture complete.'),
+      'assistant narrative body leaked into activity JSON',
+    );
+
+    const markdownEntryKeys = [
+      ...markdown.matchAll(/<a id="([^"]+)"><\/a>/gu),
+    ].map((match) => match[1]);
+    assert.deepEqual(
+      markdownEntryKeys,
+      capture.narrativeEntries.map(
+        (entry: { entryKey: string }) => entry.entryKey,
+      ),
+    );
+    assert.ok(
+      capture.narrativeEntries.every(
+        (entry: Record<string, unknown>) => !Object.hasOwn(entry, 'text'),
+      ),
+    );
+
+    const markdownIndexInvocationKeys = [
+      ...markdown.matchAll(/^- Invocation key: "([^"]+)"$/gmu),
+    ].map((match) => match[1]);
+    const jsonInvocationKeys = capture.activity.events
+      .filter((event: { kind: string }) => event.kind === 'call')
+      .map((event: { eventKey: string }) => event.eventKey);
+    assert.deepEqual(markdownIndexInvocationKeys, jsonInvocationKeys);
+    assert.ok(jsonInvocationKeys.length > 0);
+    assert.equal(
+      await readFile(join(stateDir, 'sentinel'), 'utf8'),
+      'unchanged',
+    );
+    assert.deepEqual(await readdir(stateDir), ['sentinel']);
+    assert.ok(
+      !(await readdir(home)).some((name) => name.includes('.session-export-')),
+      'temporary activity file was not cleaned up',
+    );
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('preserves malformed-source diagnostics and decoded counts instead of rejecting a partial capture', async () => {
+    const home = await setupHome();
+    const sessionId = 'cc-partial-structured';
+    const valid = claudeStructuredCaptureTranscript(sessionId).split('\n');
+    valid.splice(2, 0, '{malformed closed record');
+    await writeClaude(home, valid.join('\n'), sessionId);
+    const narrativePath = join(home, 'partial.md');
+    const activityPath = join(home, 'partial.json');
+
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--session',
+        sessionId,
+        '--out',
+        narrativePath,
+        '--activity-output',
+        activityPath,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    const capture = JSON.parse(await readFile(activityPath, 'utf8'));
+    assert.equal(capture.recordCounts.source, 8);
+    assert.equal(capture.recordCounts.decoded, 7);
+    assert.ok(
+      capture.activity.diagnostics.some(
+        (diagnostic: { code: string }) =>
+          diagnostic.code === 'SOURCE_MALFORMED_RECORD',
+      ),
+    );
+    assert.equal(capture.activity.mode, 'complete-capture');
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('accepts native Codex token-usage thread identity when a dedicated header is absent', async () => {
+    const home = await setupHome();
+    const sessionId = 'codex-record-identity';
+    const records = [
+      { type: 'session_started', sessionId, cwd: CWD },
+      {
+        type: 'response_item',
+        sessionId,
+        session_id: 'connection-context',
+        payload: {
+          type: 'message',
+          role: 'user',
+          content: 'Headerless native identity request.',
+        },
+      },
+      {
+        type: 'token_usage_record',
+        payload: {
+          thread_id: sessionId,
+          session_id: 'root-context',
+          response_id: 'response-identity',
+          usage: { total_tokens: 12 },
+        },
+      },
+    ];
+    await writeCodex(
+      home,
+      `${records.map((record) => JSON.stringify(record)).join('\n')}\n`,
+      sessionId,
+    );
+    const activityPath = join(home, 'codex.json');
+    const result = spawnCli(
+      [
+        '--runtime',
+        'codex',
+        '--cwd',
+        CWD,
+        '--session',
+        sessionId,
+        '--out',
+        join(home, 'codex.md'),
+        '--activity-output',
+        activityPath,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    const capture = JSON.parse(await readFile(activityPath, 'utf8'));
+    assert.equal(capture.nativeSessionId, sessionId);
+    assert.equal(capture.identityEvidence.kind, 'codex-token-usage-thread-id');
+    assert.equal(
+      capture.identityEvidence.locator.jsonPointer,
+      '/payload/thread_id',
+    );
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('rejects Codex response connection session_id as native identity', async () => {
+    const home = await setupHome();
+    const sessionId = 'codex-connection-identity';
+    const records = [
+      {
+        type: 'response_item',
+        session_id: sessionId,
+        payload: {
+          type: 'message',
+          role: 'user',
+          content: 'Connection identity is not thread identity.',
+        },
+      },
+    ];
+    await writeCodex(
+      home,
+      `${records.map((record) => JSON.stringify(record)).join('\n')}\n`,
+      sessionId,
+    );
+    const narrativePath = join(home, 'codex-connection.md');
+    const activityPath = join(home, 'codex-connection.json');
+    const result = spawnCli(
+      [
+        '--runtime',
+        'codex',
+        '--cwd',
+        CWD,
+        '--session',
+        sessionId,
+        '--out',
+        narrativePath,
+        '--activity-output',
+        activityPath,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    assert.match(result.stderr, /SESSION_IDENTITY_MISSING/);
+    await expect(readFile(narrativePath, 'utf8')).rejects.toThrow();
+    await expect(readFile(activityPath, 'utf8')).rejects.toThrow();
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('uses Cursor native-path identity and preserves physical frame coordinates', async () => {
+    const home = await setupHome();
+    const sessionId = 'cursor-native-path';
+    const frames = [
+      '',
+      '{malformed frame',
+      JSON.stringify({
+        role: 'user',
+        message: { content: [{ type: 'text', text: 'Cursor request.' }] },
+      }),
+      JSON.stringify({
+        role: 'assistant',
+        message: { content: [{ type: 'text', text: 'Discarded response.' }] },
+      }),
+      JSON.stringify({ type: 'turn_ended', status: 'error' }),
+    ];
+    const transcriptPath = await writeCursor(
+      home,
+      `${frames.join('\n')}\n`,
+      sessionId,
+    );
+    const narrativePath = join(home, 'cursor.md');
+    const activityPath = join(home, 'cursor.json');
+    const result = spawnCli(
+      [
+        '--runtime',
+        'cursor',
+        '--cwd',
+        CWD,
+        '--session',
+        sessionId,
+        '--out',
+        narrativePath,
+        '--activity-output',
+        activityPath,
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    const capture = JSON.parse(await readFile(activityPath, 'utf8'));
+    const markdown = await readFile(narrativePath, 'utf8');
+    assert.equal(capture.identityEvidence.kind, 'cursor-native-path');
+    assert.equal(
+      capture.identityEvidence.locator.canonicalTranscriptPath,
+      await realpath(transcriptPath),
+    );
+    assert.equal(capture.recordCounts.source, 5);
+    assert.equal(capture.recordCounts.decoded, 3);
+    assert.equal(capture.activity.deliveryRange.end, 5);
+    assert.match(
+      markdown,
+      /source: zero-based-jsonl-frame-index 2, physical line 3; consumption: zero-based-jsonl-frame-index 4, physical line 5; role: user; display role: unknown; origin: unknown/,
+    );
+    assert.match(markdown, /origin: runtime-diagnostic/);
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test.each([
+    ['missing identity', 'cc-missing-identity', ['cc-missing-identity']],
+    [
+      'contradictory identity',
+      'cc-contradictory',
+      ['cc-contradictory', 'different-session'],
+    ],
+  ])(
+    'rejects captured Claude %s before writing',
+    async (_label, sessionId, ids) => {
+      const home = await setupHome();
+      const records = ids.map((id, index) => ({
+        type: index === 0 && ids.length === 1 ? 'response_item' : 'user',
+        ...(ids.length === 1 ? {} : { sessionId: id }),
+        message: { role: 'user', content: `message-${index}` },
+      }));
+      await writeClaude(
+        home,
+        `${records.map((record) => JSON.stringify(record)).join('\n')}\n`,
+        sessionId,
+      );
+      const narrativePath = join(home, 'identity.md');
+      const activityPath = join(home, 'identity.json');
+      const result = spawnCli(
+        [
+          '--runtime',
+          'claude-code',
+          '--cwd',
+          CWD,
+          '--session',
+          sessionId,
+          '--out',
+          narrativePath,
+          '--activity-output',
+          activityPath,
+        ],
+        { HOME: home },
+      );
+
+      assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+      assert.match(result.stderr, /SESSION_IDENTITY_(?:MISSING|INVALID)/);
+      await expect(readFile(narrativePath, 'utf8')).rejects.toThrow();
+      await expect(readFile(activityPath, 'utf8')).rejects.toThrow();
+      await rm(home, { recursive: true, force: true });
+    },
+  );
+
+  test('rejects source, output, state, symlink, directory, special-file, and hardlink aliases before writing', async () => {
+    const home = await setupHome();
+    const sessionId = 'cc-destination-guards';
+    const sourcePath = await writeClaude(
+      home,
+      claudeStructuredCaptureTranscript(sessionId),
+      sessionId,
+    );
+    const originalSource = await readFile(sourcePath, 'utf8');
+    const effectiveState = join(home, 'effective-state');
+    const defaultState = join(home, '.local', 'state', 'session-observer');
+    await mkdir(effectiveState, { recursive: true });
+    await mkdir(defaultState, { recursive: true });
+    const effectiveStateFile = join(effectiveState, 'state.json');
+    const defaultStateFile = join(defaultState, 'state.json.123.tmp');
+    await writeFile(effectiveStateFile, 'effective-state-sentinel', 'utf8');
+    await writeFile(defaultStateFile, 'default-state-sentinel', 'utf8');
+    const nestedEffectiveStateFile = join(
+      effectiveState,
+      'locks',
+      'owners',
+      'watch-owner-token',
+    );
+    const nestedDefaultStateFile = join(
+      defaultState,
+      'locks',
+      'owners',
+      'cursor-owner-token',
+    );
+    await mkdir(dirname(nestedEffectiveStateFile), { recursive: true });
+    await mkdir(dirname(nestedDefaultStateFile), { recursive: true });
+    await writeFile(
+      nestedEffectiveStateFile,
+      'nested-effective-state-sentinel',
+      'utf8',
+    );
+    await writeFile(
+      nestedDefaultStateFile,
+      'nested-default-state-sentinel',
+      'utf8',
+    );
+    const hardlinkPath = join(home, 'source-hardlink.json');
+    await link(sourcePath, hardlinkPath);
+    const stateHardlinkPath = join(home, 'state-hardlink.json');
+    await link(effectiveStateFile, stateHardlinkPath);
+    const nestedEffectiveHardlinkPath = join(
+      home,
+      'nested-effective-state-hardlink.md',
+    );
+    const nestedDefaultHardlinkPath = join(
+      home,
+      'nested-default-state-hardlink.json',
+    );
+    await link(nestedEffectiveStateFile, nestedEffectiveHardlinkPath);
+    await link(nestedDefaultStateFile, nestedDefaultHardlinkPath);
+    const stateRootFixtures = [
+      'watch.json',
+      'watch.json.lock',
+      'watch.control.json',
+      'watch.control.321.json',
+      'watch.json.321.123456.tmp',
+      'watch.control.json.654.123456.tmp',
+      'watch.control.321.json.654.123456.tmp',
+      'cursor-state.json',
+      'cursor-state.json.lock',
+      'cursor-state.json.321.tmp',
+      'cursor-state.json.recovery-123456-321-0.bak',
+      'state.json.recovery.bak.tmp',
+      'future-observer-state.data',
+    ];
+    const stateRootHardlinks = await Promise.all(
+      stateRootFixtures.map(async (name, index) => {
+        const statePath = join(effectiveState, name);
+        const hardlink = join(home, `observer-state-hardlink-${index}.json`);
+        await writeFile(statePath, `observer-state-sentinel-${index}`, 'utf8');
+        await link(statePath, hardlink);
+        return { name, statePath, hardlink, index };
+      }),
+    );
+    const symlinkTarget = join(home, 'symlink-target.json');
+    const symlinkPath = join(home, 'activity-symlink.json');
+    await writeFile(symlinkTarget, 'target', 'utf8');
+    await symlink(symlinkTarget, symlinkPath);
+    const directoryPath = join(home, 'activity-directory');
+    await mkdir(directoryPath);
+    const fifoPath = join(home, 'activity.fifo');
+    const fifo = spawnSync('mkfifo', [fifoPath], { encoding: 'utf8' });
+    assert.equal(fifo.status, 0, fifo.stderr);
+
+    const cases = [
+      {
+        name: 'activity source alias',
+        narrative: join(home, 'guard-source.md'),
+        activity: sourcePath,
+      },
+      {
+        name: 'activity hardlink alias',
+        narrative: join(home, 'guard-hardlink.md'),
+        activity: hardlinkPath,
+      },
+      {
+        name: 'narrative source alias',
+        narrative: sourcePath,
+        activity: join(home, 'guard-narrative-source.json'),
+      },
+      {
+        name: 'same output',
+        narrative: join(home, 'same-output'),
+        activity: join(home, 'same-output'),
+      },
+      {
+        name: 'effective observer state',
+        narrative: join(home, 'guard-effective-state.md'),
+        activity: effectiveStateFile,
+      },
+      {
+        name: 'default observer state under override',
+        narrative: join(home, 'guard-default-state.md'),
+        activity: defaultStateFile,
+      },
+      {
+        name: 'observer state hardlink alias',
+        narrative: join(home, 'guard-state-hardlink.md'),
+        activity: stateHardlinkPath,
+      },
+      {
+        name: 'nested effective observer state narrative hardlink alias',
+        narrative: nestedEffectiveHardlinkPath,
+        activity: join(home, 'guard-nested-effective-state.json'),
+      },
+      {
+        name: 'nested default observer state activity hardlink alias',
+        narrative: join(home, 'guard-nested-default-state.md'),
+        activity: nestedDefaultHardlinkPath,
+      },
+      ...stateRootHardlinks.map(({ name, hardlink, index }) => ({
+        name: `observer ${name} narrative hardlink alias`,
+        narrative: hardlink,
+        activity: join(home, `guard-state-hardlink-${index}.json`),
+      })),
+      {
+        name: 'symlink destination',
+        narrative: join(home, 'guard-symlink.md'),
+        activity: symlinkPath,
+      },
+      {
+        name: 'directory destination',
+        narrative: join(home, 'guard-directory.md'),
+        activity: directoryPath,
+      },
+      {
+        name: 'special-file destination',
+        narrative: join(home, 'guard-special.md'),
+        activity: fifoPath,
+      },
+    ];
+
+    for (const fixture of cases) {
+      const result = spawnCli(
+        [
+          '--runtime',
+          'claude-code',
+          '--cwd',
+          CWD,
+          '--session',
+          sessionId,
+          '--out',
+          fixture.narrative,
+          '--activity-output',
+          fixture.activity,
+        ],
+        { HOME: home, STATE_DIR: effectiveState },
+      );
+      assert.equal(
+        result.status,
+        1,
+        `${fixture.name}: ${result.stderr}\n${result.stdout}`,
+      );
+      assert.equal(await readFile(sourcePath, 'utf8'), originalSource);
+    }
+    assert.equal(
+      await readFile(effectiveStateFile, 'utf8'),
+      'effective-state-sentinel',
+    );
+    assert.equal(
+      await readFile(defaultStateFile, 'utf8'),
+      'default-state-sentinel',
+    );
+    assert.equal(
+      await readFile(nestedEffectiveStateFile, 'utf8'),
+      'nested-effective-state-sentinel',
+    );
+    assert.equal(
+      await readFile(nestedDefaultStateFile, 'utf8'),
+      'nested-default-state-sentinel',
+    );
+    for (const { statePath, index } of stateRootHardlinks) {
+      assert.equal(
+        await readFile(statePath, 'utf8'),
+        `observer-state-sentinel-${index}`,
+      );
+    }
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('returns failure for an invalid activity parent and leaves no temporary artifact or success claim', async () => {
+    const home = await setupHome();
+    const sessionId = 'cc-write-failure';
+    await writeClaude(
+      home,
+      claudeStructuredCaptureTranscript(sessionId),
+      sessionId,
+    );
+    const blocker = join(home, 'blocker');
+    await writeFile(blocker, 'ordinary file', 'utf8');
+    const narrativePath = join(home, 'write-failure.md');
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--session',
+        sessionId,
+        '--out',
+        narrativePath,
+        '--activity-output',
+        join(blocker, 'activity.json'),
+      ],
+      { HOME: home },
+    );
+
+    assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    assert.ok(!result.stdout.includes('[session-export-transcript] wrote'));
+    await expect(readFile(narrativePath, 'utf8')).rejects.toThrow();
+    assert.ok(
+      !(await readdir(home)).some((name) => name.includes('.session-export-')),
+    );
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('cleans its temporary sibling when atomic rename fails after narrative write', async () => {
+    const home = await setupHome();
+    const sessionId = 'cc-atomic-write-failure';
+    await writeClaude(
+      home,
+      claudeStructuredCaptureTranscript(sessionId),
+      sessionId,
+    );
+    const narrativePath = join(home, 'atomic-write-failure.md');
+    const activityDir = join(home, 'activity-output');
+    const activityPath = join(activityDir, 'capture.json');
+    const preloadPath = join(home, 'force-rename-failure.cjs');
+    await mkdir(activityDir);
+    await writeFile(
+      preloadPath,
+      [
+        "const fsPromises = require('node:fs/promises');",
+        "const { syncBuiltinESMExports } = require('node:module');",
+        'const originalRename = fsPromises.rename;',
+        'fsPromises.rename = async (from, to) => {',
+        '  if (to === process.env.SESSION_EXPORT_TEST_RENAME_TARGET) {',
+        "    const error = new Error('forced activity rename failure');",
+        "    error.code = 'EIO';",
+        '    throw error;',
+        '  }',
+        '  return originalRename(from, to);',
+        '};',
+        'syncBuiltinESMExports();',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--session',
+        sessionId,
+        '--out',
+        narrativePath,
+        '--activity-output',
+        activityPath,
+      ],
+      {
+        HOME: home,
+        SESSION_EXPORT_TEST_RENAME_TARGET: activityPath,
+      },
+      ['--require', preloadPath],
+    );
+
+    assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    assert.match(result.stderr, /ACTIVITY_OUTPUT_WRITE_FAILED/);
+    assert.match(result.stderr, /after narrative output was written/);
+    assert.ok(!result.stdout.includes('[session-export-transcript] wrote'));
+    assert.match(await readFile(narrativePath, 'utf8'), /Conversation History/);
+    await expect(readFile(activityPath, 'utf8')).rejects.toThrow();
+    assert.ok(
+      !(await readdir(activityDir)).some((name) =>
+        name.includes('.session-export-'),
+      ),
+      'temporary activity sibling was not cleaned up after rename failure',
     );
     await rm(home, { recursive: true, force: true });
   });

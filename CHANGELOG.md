@@ -2,7 +2,70 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `session-export-transcript` 2.0.35 clarifies that complete structured capture
+  validates its exact-session contract before ordinary selector precedence, so
+  every `--activity-output` and `--match` combination is rejected even when
+  `--session` is also present.
+
+- `session-retro` 1.0.2 reviews exact paired narrative/activity captures from a
+  different session, preserves native identity, origins, usage ownership and
+  all seven coverage states, and separates frozen observations from
+  interpretation and proposed changes. The exact-session workflow requires
+  Session Export Transcript and removes the former optional Session Observer
+  enrichment path; active or unknown-ended targets remain captured-activity
+  reviews.
+
 ### Fixed
+
+- `session-export-transcript` 2.0.36 protects external hardlink aliases to
+  ordinary files recursively nested under both the effective and fixed-default
+  Session Observer state roots without following symlinks.
+  `session-fork-to-destination` 0.2.49 receives the required validation-only
+  exporter source closure; its runtime behavior is unchanged.
+
+- `session-export-transcript` 2.0.34 adds the opt-in Structured Activity Capture
+  Index contract to its canonical instructions: one stable invocation key per
+  captured call, a potentially large list, and the sensitive JSON as graph
+  source of truth. `session-fork-to-destination` 0.2.48 receives the required
+  validation-only exporter source closure; its runtime behavior is unchanged.
+
+- `session-observer` 1.0.81 and `session-export-transcript` 2.0.33 distinguish a
+  source-wide usage extraction failure as `not-read` with a content-free
+  diagnostic instead of reporting runtime capability absence; the exporter now
+  also documents its opt-in narrative invocation-key index.
+  `session-observer-collab` 1.0.69 and `session-fork-to-destination` 0.2.47
+  receive the required shared activity source closure.
+
+- `session-export-transcript` 2.0.32 protects external hardlink aliases to any
+  ordinary file directly inside the effective or default Session Observer state
+  root, including Cursor state, backup-temporary, and future state files.
+  `session-fork-to-destination` 0.2.46 receives validation-only exporter source
+  dependency closure; its runtime behavior is unchanged.
+
+- `session-export-transcript` 2.0.31 strengthens bounded-versus-complete
+  projection evidence and atomic-write cleanup coverage, protects current
+  Observer watch/control state hardlink aliases, and clarifies checkpoint roots
+  and partial paired-output failures. `session-observer` 1.0.80,
+  `session-observer-collab` 1.0.68, and `session-fork-to-destination` 0.2.45
+  receive validation-only shared activity test closure; their runtime behavior
+  is unchanged.
+
+- `session-observer` 1.0.78 and `session-export-transcript` 2.0.29 keep optional
+  source metadata out of the last-resort coverage budget, require ownership
+  evidence at usage extraction, and make `source-skill-names` coverage include
+  both native Claude source carriers. `session-observer-collab` 1.0.66 and
+  `session-fork-to-destination` 0.2.43 receive validation-only shared-runtime
+  version closure.
+
+- `session-observer` 1.0.77 and `session-export-transcript` 2.0.28 preserve
+  delivered activity before optional source metadata under byte pressure,
+  identify Codex response usage by native thread, keep usage ownership and
+  model/reset boundaries honest, retain bounded Claude `Skill` caller input,
+  and make source-name coverage and deduplication explicit.
+  `session-observer-collab` 1.0.65 and `session-fork-to-destination` 0.2.42
+  receive validation-only shared-runtime version closure.
 
 - `panel` 0.1.13 adds matching schema/local-validation response size limits and a stable schema identifier. `consensus-review` 0.1.15 documents exclusive finding locations and confidence semantics, and expresses the existing path restrictions without regex lookaround.
 - `consensus` 0.2.1 packages the Review timeout control and Review/Panel schema compatibility fixes.
@@ -12,6 +75,39 @@
 - `consensus-review` 0.1.15 exposes `--timeout-sec` (1–3,600 seconds, default 900) so callers can budget longer reviews without changing the wall-clock timeout policy.
 
 ### Added
+
+- `session-export-transcript` 2.0.30 adds exact-session complete structured
+  activity captures with one-snapshot native identity evidence, stable
+  narrative anchors and physical provenance, unbounded total report retention
+  with bounded previews, and guarded atomic JSON replacement.
+  `session-observer` 1.0.79, `session-observer-collab` 1.0.67, and
+  `session-fork-to-destination` 0.2.44 receive validation-only shared activity
+  projection closure; their existing defaults remain unchanged.
+
+- `session-observer` 1.0.76 and `session-export-transcript` 2.0.27 add
+  captured-source token metadata with exact Claude Code message deduplication,
+  separate Codex cumulative, last-turn, and response semantics, explicit reset
+  and uncertainty diagnostics, model attribution only from native joins, and
+  Cursor `not-recorded` status. `session-observer-collab` 1.0.64 and
+  `session-fork-to-destination` 0.2.41 receive the shared runtime closure while
+  their default behavior remains unchanged.
+
+- `session-observer` 1.0.75 and `session-export-transcript` 2.0.26 add
+  captured-source skill metadata, native Claude Code attribution and structured
+  Skill invocation evidence, inferred Cursor `Read`/`ReadFile` skill-file
+  loads, and the historical experimental Codex `read_file.file_path` carrier
+  without parsing shell commands or instruction bodies.
+  `session-observer-collab` 1.0.63 and `session-fork-to-destination` 0.2.40
+  receive the shared activity runtime closure while their default behavior
+  remains unchanged.
+
+- `session-observer` 1.0.73 reports metadata-only unsuccessful terminal turns
+  from native Claude Code, Codex, and Cursor lifecycle evidence while preserving
+  exact-range checkpoint deduplication and keeping terminal events visible under
+  `--quiet-empty`. `session-observer-collab` 1.0.61 proves those events do not
+  create peer-message authority; `session-export-transcript` 2.0.24 and
+  `session-fork-to-destination` 0.2.38 receive the shared transcript decoder
+  closure without changing their user-facing behavior.
 
 - `session-observer-collab` 1.0.45 completes the finite Claude Monitor's
   critical-path fixture proof across shared-cap exhaustion, lifecycle changes,
@@ -110,6 +206,14 @@
 
 ### Changed
 
+- `consensus-review` 0.1.17 clarifies background execution and polling versus hard host timeouts while preserving the configurable 900-second default.
+
+- `session-observer` 1.0.72 makes the SIGTERM re-arm regression wait for the
+  exact delivered delta and durable checkpoint before a clean second shutdown,
+  removing its fixed 120 ms subprocess lifetime assumption;
+  `session-observer-collab` 1.0.60 and `session-fork-to-destination` 0.2.37
+  receive the required observer-owner version closure without behavior changes.
+
 - `agent-messaging` 1.0.15 and `session-observer-collab` 1.0.39 share Claude
   hook inventory and automatic-owner assessment from the canonical
   collaboration runtime instead of bundling those read-only primitives from a
@@ -159,6 +263,17 @@
   `session-fork-to-destination` 0.2.6).
 
 ### Fixed
+
+- `session-observer` 1.0.74 preserves meaningful Claude content alongside
+  aborted, truncated, and interruption terminal metadata while omitting and
+  explicitly accounting only provider API-error records. Claude interruption
+  joins now require a prior assistant and fold abort evidence across repeated
+  message blocks, and watch totals are labeled as all emitted events.
+  `session-observer-collab` 1.0.62 receives the corrected observer runtime.
+  `session-export-transcript` 2.0.25 and `session-fork-to-destination` 0.2.39
+  carry validation-required version bumps because their distributions
+  transitively declare the changed shared transcript source; their generated
+  runtime content is unchanged by this fix.
 
 - Installation docs correct the plugin update model. Claude Code and Codex do
   copy the plugin tree into a pinned per-provider cache, so a `git pull` alone

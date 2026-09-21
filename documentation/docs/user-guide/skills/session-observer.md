@@ -71,6 +71,50 @@ what was bounded or unavailable. A result whose call occurred before the
 delivered range can retain a small `outside-delivered-range` call context
 without replaying the call as new activity.
 
+Skill evidence is additive to the native tool name. Claude Code can record a
+top-level skill attribution or a structured `Skill` invocation. The native
+`Skill` call retains its caller-supplied input under the ordinary preview cap;
+instruction content in source attachments is not copied into the report.
+Captured-source attachments separately distinguish available skill names from
+recorded invoked names. Available names are deduplicated by name with the latest
+recorded locator retained, while invoked names remain per occurrence. Coverage
+uses the explicit `source-skill-names` class across both source carriers, so a
+valid empty `skill_listing.names` or `invoked_skills.skills` array is
+`available` with zero names and absent carriers are `not-recorded`. Its captured
+count includes deduplicated available names plus every invoked occurrence;
+event-level skill evidence remains independent. Cursor contributes inferred
+load evidence only when a recorded `Read` or
+`ReadFile` call has a structured `path` ending in `SKILL.md`. Historical Codex
+transcripts can contribute the same inference only through the exact
+experimental `read_file` function's structured `file_path`; upstream removed
+that native tool in March 2026, and it was absent from the recent local sample.
+Current shell reads, aliases, and prose mentions are not parsed. Captured-source
+skill metadata can describe records outside the delivered range and is labelled
+accordingly. Optional source metadata is trimmed before delivered calls and
+results compete for the report byte budget, and exact omission counts preserve
+the captured-source totals.
+
+None of these runtimes records the executed skill version. Looking up an
+installed file or Git revision relevant to the transcript timestamp is an
+inference, may be unavailable, and does not prove which revision executed.
+
+Token usage is also captured-source metadata. Claude Code usage is deduplicated
+by exact native session and `message.id`; conflicting repeats are diagnosed and
+missing IDs remain explicitly uncertain. Codex cumulative totals, last-turn
+usage, and response-joinable usage remain separate samples. Repeated snapshots
+collapse, decreases start a new segment instead of producing negative usage,
+and each sample is labelled `owned`, `inherited`, or `unknown` from the same
+native lineage boundary used for activity. Reset state and model joins do not
+cross that boundary. Response usage is matched to the transcript's native
+`thread_id`; its distinct `session_id` remains root-session context. A model
+appears only when a native turn join with matching ownership supports it.
+Cursor reports usage as `not-recorded`, never zero. Reports contain token fields
+only and do not estimate price or cost. Usage samples and diagnostics
+participate in the activity byte budget with explicit omission counts. A
+source-wide usage extraction failure is `not-read` with a content-free
+`USAGE_EXTRACTION_ERROR` diagnostic, distinct from genuine `not-recorded`
+runtime evidence.
+
 Claude Code and Codex conversation and activity come from one detailed read.
 Cursor uses one physical-frame scan. `review` is a stateless full snapshot and
 does not move the high-water mark unless `--mark-read` is also present.
@@ -93,6 +137,18 @@ surfaces have no dedicated per-reference schema-v1 coverage entry. Extraction
 failures likewise remain visible as `record-activity: not-read` plus
 `ACTIVITY_EXTRACTION_ERROR`. Empty or unread coverage is not proof that the
 session had no activity.
+
+For an uncapped retrospective artifact, use Session Export Transcript with one
+exact native session pin and `--activity-output <path>`. That exporter mode is
+independent from Observer review/catch-up budgets and never reads or advances an
+Observer checkpoint. Its JSON is labelled `sensitive: not-publish-safe`, keeps
+the ordinary per-preview cap while disabling total-byte and invocation
+eviction, and describes only one captured source snapshot rather than proving
+the session stopped. An existing ordinary destination is replaced atomically;
+directories, symlinks, special files, transcript/narrative aliases, and paths in
+both Observer checkpoint/watch roots — the effective `STATE_DIR` root and the
+fixed default `~/.local/state/session-observer` — are rejected before output. Independently
+relocated collaboration roots are outside that exporter guard.
 
 ## Identity and provenance
 
@@ -170,16 +226,52 @@ flags are the base observer's collaboration-facing contract:
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `whoami --json`                                  | Resolve and print this session's runtime, session ID, transcript path, and identity source before a peer is pinned.                                                                                                             |
 | `--session <runtime>:<id>`                       | Pin every stateful read or watch to one exact peer identity.                                                                                                                                                                    |
-| `--quiet-empty`                                  | Consume metadata-only growth and advance the offset without printing an empty delta.                                                                                                                                            |
+| `--quiet-empty`                                  | Consume filtered growth and advance the offset without printing an empty delta; terminal lifecycle events remain visible.                                                                                                       |
 | `--strict-baseline`                              | Refuse a standalone watch that would skip previously unread records; use `catch-up-then-watch` when you need to consume that backlog first.                                                                                     |
 | `--event-log <path>`                             | Write metadata-only watch events under the observer state directory; message content remains on stdout.                                                                                                                         |
 | `--include-tools` / `--include-command-messages` | Expand a digest for bounded debugging; these are opt-in and do not change the default tool-free view. On Claude Code and Codex, `--include-tools` also adds option descriptions to ask-user questions, which render either way. |
 
-Watch output can report `baseline-gap`, `newer-session-candidate`, terminal
-diagnostics, or automatic control input. A newer-session candidate is a warning,
-not permission to switch pins. A filtered or empty digest is not evidence that
-the peer was idle; inspect the digest's declared schema, index base, and
-accounting or run a pinned review.
+Watch output can report `baseline-gap`, `newer-session-candidate`, `terminal`,
+or automatic control input. A newer-session candidate is a warning, not
+permission to switch pins. A filtered or empty digest is not evidence that the
+peer was idle; inspect the digest's declared schema, index base, and accounting
+or run a pinned review.
+
+## Unsuccessful terminal events
+
+A `terminal` watch event reports a natively recorded unsuccessful turn without
+copying the transcript body or provider error message. Its source locator
+belongs to the exact consumed record or frame range. Terminal-only growth still
+advances the checkpoint and is delivered at most once; `--quiet-empty`
+suppresses only an empty `delta`, never the terminal event. Partial assistant
+output from aborted or truncated Claude records and meaningful user content
+remain in the ordinary delta. Claude provider API-error records are omitted to
+avoid body leakage and appear under `accounting.filtered.apiErrorRecords` and
+the rendered `provider API-error records` filter summary. A later successful
+record does not erase an earlier terminal event. Terminal metadata is evidence
+about peer lifecycle, not a peer-authored message or authority to send or
+continue collaboration work. `eventCount` in heartbeat/stopped JSON and the
+final watch result counts emitted `delta` plus `terminal` events; it excludes
+baseline, heartbeat, and control/status events. Markdown stop output labels the
+same total as `events`.
+
+Runtime evidence is intentionally narrow:
+
+- Claude Code accepts explicit assistant API-error, aborted-mid-stream, and
+  truncated flags in that precedence order. A newly consumed user interruption
+  pointer may join an earlier same-session assistant from the captured
+  transcript, including before the checkpoint; it is suppressed when that
+  assistant already has an explicit abort. Tool failures, denial fields, stop
+  reasons, arbitrary error prose, orphan pointers, and cross-session pointers
+  do not qualify.
+- Codex accepts native `task_complete` records with an error object and
+  `turn_aborted` records. A `usage_limit_exceeded` message may contribute only a
+  validated trailing English `try again at ...` clock or calendar fragment
+  with `inferred-from-error-message` provenance. The fragment is not normalized
+  into an absolute instant, and other error text is omitted.
+- Cursor accepts native error, aborted, and cancelled `turn_ended` frames.
+  Cursor does not expose per-call terminal results here, and terminal error
+  bodies are omitted.
 
 ## Re-arm an exact pinned watcher
 

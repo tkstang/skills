@@ -2606,6 +2606,24 @@ async function scanCursorTranscript(transcriptPath, options) {
 // src/skills/session-observer/src/lib/digest.ts
 import { createHash as createHash6 } from "node:crypto";
 
+// src/shared/transcript/terminal-events.ts
+var MONTH_INDEX = new Map(
+  [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  ].map((month, index) => [month.toLowerCase(), index])
+);
+
 // src/shared/transcript/activity/project.ts
 var KIB = 1024;
 var MIB = 1024 * KIB;
@@ -2630,6 +2648,12 @@ var ACTIVITY_PROJECTION_LIMITS = {
   },
   export: {
     maxBytes: 64 * MIB,
+    maxInvocations: null,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
+  },
+  "complete-capture": {
+    maxBytes: null,
     maxInvocations: null,
     previewBytes: 2 * KIB,
     lateContextBytes: 256

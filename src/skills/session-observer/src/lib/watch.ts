@@ -11,6 +11,7 @@ import {
   type Runtime,
   readRecords,
 } from '../../../../shared/transcript/runtimes.js';
+import type { UnsuccessfulTerminalEvent } from '../../../../shared/transcript/terminal-events.js';
 import * as cursorStateLib from './cursor-state.js';
 import { renderMarkdown } from './digest.js';
 import {
@@ -94,6 +95,7 @@ interface WatchEventState {
   pid: number;
   debounceMs: number;
   maxPendingMs: number;
+  /** Delivered delta plus terminal events; excludes heartbeat/control status. */
   eventCount: number;
   lastHeartbeatAt: number;
   heartbeatMs: number | null;
@@ -275,7 +277,9 @@ function activityCoverageSignal(digest: SessionDigest): boolean {
   return Boolean(
     digest.activity?.diagnostics.length ||
     digest.activity?.coverage.some(
-      (entry) => entry.locator !== undefined || entry.status !== 'available',
+      (entry) =>
+        entry.dataClass !== 'source-skill-names' &&
+        (entry.locator !== undefined || entry.status !== 'available'),
     ),
   );
 }
@@ -284,13 +288,43 @@ function activityAccountingSignal(digest: SessionDigest): boolean {
   const activity = digest.activity;
   if (!activity) return false;
   const delivered = activity.counts.deliveredRange;
+  const deliveredSourceSkill = activity.sourceMetadata.skills.some(
+    (skill) =>
+      skill.locator.recordIndex >= activity.deliveryRange.start &&
+      skill.locator.recordIndex < activity.deliveryRange.end,
+  );
+  const deliveredUsage = (activity.sourceMetadata.usage?.samples ?? []).some(
+    (sample) =>
+      sample.locator.recordIndex >= activity.deliveryRange.start &&
+      sample.locator.recordIndex < activity.deliveryRange.end,
+  );
+  const usageExtractionFailure =
+    activity.sourceMetadata.usage?.availability === 'not-read';
+  const deliveredUsageDiagnostic = (
+    activity.sourceMetadata.usage?.diagnostics ?? []
+  ).some(
+    (diagnostic) =>
+      diagnostic.locator === undefined ||
+      (diagnostic.locator.recordIndex >= activity.deliveryRange.start &&
+        diagnostic.locator.recordIndex < activity.deliveryRange.end),
+  );
   return (
     delivered.calls > 0 ||
     delivered.countedInvocations > 0 ||
     delivered.results > 0 ||
     delivered.items > 0 ||
     delivered.failures > 0 ||
-    Object.values(activity.omitted).some((count) => count > 0)
+    deliveredSourceSkill ||
+    deliveredUsage ||
+    usageExtractionFailure ||
+    deliveredUsageDiagnostic ||
+    Object.entries(activity.omitted).some(
+      ([kind, count]) =>
+        kind !== 'sourceSkills' &&
+        kind !== 'usageSamples' &&
+        kind !== 'usageDiagnostics' &&
+        count > 0,
+    )
   );
 }
 
@@ -336,6 +370,7 @@ function eventMetadata(ts: string, digest: SessionDigest, rendered: string) {
 }
 
 function stdoutEvent(ts: string, digest: SessionDigest, rendered: string) {
+  const { terminalEvents: _terminalEvents, ...publicDigest } = digest;
   return {
     type: 'delta',
     ts,
@@ -345,8 +380,39 @@ function stdoutEvent(ts: string, digest: SessionDigest, rendered: string) {
     digestChars: rendered.length,
     ranges: eventRanges(digest),
     ...(digest.activityOnly ? { activityOnly: true } : {}),
-    digest,
+    digest: publicDigest,
   };
+}
+
+function terminalOutputEvent(
+  ts: string,
+  event: UnsuccessfulTerminalEvent,
+): UnsuccessfulTerminalEvent & { ts: string } {
+  return { ...event, ts };
+}
+
+function renderTerminalEvent(event: UnsuccessfulTerminalEvent): string {
+  const coordinate =
+    event.source.frameIndex === undefined
+      ? `record=${event.source.recordIndex}`
+      : `frame=${event.source.frameIndex}`;
+  const retry = event.retryEvidence
+    ? ` retry=${JSON.stringify(event.retryEvidence.fragment)} retryProvenance=${event.retryEvidence.provenance}`
+    : '';
+  return (
+    `[session-observer] terminal runtime=${event.runtime} session=${event.sessionId} ` +
+    `status=${event.status} ${coordinate}${retry}\n`
+  );
+}
+
+function terminalChunk(
+  args: WatchLoopArgs,
+  ts: string,
+  event: UnsuccessfulTerminalEvent,
+): string {
+  return args.json
+    ? `${JSON.stringify(terminalOutputEvent(ts, event))}\n`
+    : renderTerminalEvent(event);
 }
 
 async function writeProcessStdout(chunk: string): Promise<void> {
@@ -539,7 +605,7 @@ function stoppedEvent(ts: string, reason: string, eventState: WatchEventState) {
 }
 
 function stoppedLine(reason: string, eventState: WatchEventState): string {
-  return `[session-observer] watch stopped reason=${reason} deltaEvents=${eventState.eventCount}\n`;
+  return `[session-observer] watch stopped reason=${reason} events=${eventState.eventCount}\n`;
 }
 
 async function emitStopped(
@@ -1098,37 +1164,48 @@ async function emitCursorDelta(
 ): Promise<boolean> {
   const newFrames = result.digest.range.newFrames;
   const activity = prepareActivityDelta(result.digest, target);
-  const shouldRender =
+  const terminalEvents = result.digest.terminalEvents ?? [];
+  const shouldRenderDelta =
     (newFrames > 0 || activity.renderable) &&
     !(
       args.quietEmpty &&
       result.digest.accounting.rendered.count === 0 &&
       !activity.renderable
     );
-  if (shouldRender) {
-    const rendered = renderMarkdown(result.digest);
+  if (shouldRenderDelta || terminalEvents.length > 0) {
+    const rendered = shouldRenderDelta ? renderMarkdown(result.digest) : '';
     const ts = new Date(deps.now()).toISOString();
-    await finalizeCursorOutput(
-      result,
-      args.json
-        ? JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + '\n'
-        : rendered + '\n',
-      deps,
-    );
+    const output = [
+      ...terminalEvents.map((event) => terminalChunk(args, ts, event)),
+      ...(shouldRenderDelta
+        ? [
+            args.json
+              ? `${JSON.stringify(stdoutEvent(ts, result.digest, rendered))}\n`
+              : `${rendered}\n`,
+          ]
+        : []),
+    ].join('');
+    await finalizeCursorOutput(result, output, deps);
     const committedState = await cursorStateLib.getCursorSession(
       result.digest.sessionId,
     );
     if (committedState) {
       await persistCursorTarget(target, eventState.pid, committedState, result);
     }
-    await appendEventLog(
-      args.eventLog,
-      eventMetadata(ts, result.digest, rendered),
-    );
+    for (const event of terminalEvents) {
+      await appendEventLog(args.eventLog, terminalOutputEvent(ts, event));
+    }
+    if (shouldRenderDelta) {
+      await appendEventLog(
+        args.eventLog,
+        eventMetadata(ts, result.digest, rendered),
+      );
+    }
     if (activity.diagnosticSignature) {
       target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
     }
-    eventState.eventCount++;
+    eventState.eventCount +=
+      terminalEvents.length + (shouldRenderDelta ? 1 : 0);
     eventState.lastHeartbeatAt = deps.now();
     await watchStateLib.recordWatcherEvent({
       pid: eventState.pid,
@@ -1150,6 +1227,62 @@ async function emitCursorDelta(
     await persistCursorTarget(target, eventState.pid, current, result);
   }
   return false;
+}
+
+async function emitLegacyWatchEvents(
+  result: ObserveSuccess,
+  target: WatchTarget,
+  args: WatchLoopArgs,
+  deps: ResolvedWatchDeps,
+  eventState: WatchEventState,
+): Promise<boolean> {
+  const newRecords = result.digest.range.newRecords ?? 0;
+  const activity = prepareActivityDelta(result.digest, target);
+  const terminalEvents = result.digest.terminalEvents ?? [];
+  const shouldRenderDelta =
+    (newRecords > 0 || activity.renderable) &&
+    !(
+      args.quietEmpty &&
+      result.digest.accounting.rendered.count === 0 &&
+      !activity.renderable
+    );
+  if (!shouldRenderDelta && terminalEvents.length === 0) return false;
+
+  const rendered = shouldRenderDelta ? renderMarkdown(result.digest) : '';
+  const ts = new Date(deps.now()).toISOString();
+  const output = [
+    ...terminalEvents.map((event) => terminalChunk(args, ts, event)),
+    ...(shouldRenderDelta
+      ? [
+          args.json
+            ? `${JSON.stringify(stdoutEvent(ts, result.digest, rendered))}\n`
+            : `${rendered}\n`,
+        ]
+      : []),
+  ].join('');
+  await writeStdoutChunk(deps, output);
+  for (const event of terminalEvents) {
+    await appendEventLog(args.eventLog, terminalOutputEvent(ts, event));
+  }
+  if (shouldRenderDelta) {
+    await appendEventLog(
+      args.eventLog,
+      eventMetadata(ts, result.digest, rendered),
+    );
+  }
+  if (activity.diagnosticSignature) {
+    target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
+  }
+  eventState.eventCount += terminalEvents.length + (shouldRenderDelta ? 1 : 0);
+  eventState.lastHeartbeatAt = deps.now();
+  await watchStateLib.recordWatcherEvent({
+    pid: eventState.pid,
+    lastEventAt: ts,
+  });
+  await stateLib
+    .setWatchedByPid(result.runtime, result.digest.sessionId, eventState.pid)
+    .catch(() => false);
+  return true;
 }
 
 async function establishCursorBaseline(
@@ -1581,43 +1714,7 @@ async function emitPending(
 
   const target = targets.get(entry.key);
   if (!target) return false;
-  const newRecords = result.digest.range.newRecords ?? 0;
-  const activity = prepareActivityDelta(result.digest, target);
-  if (newRecords <= 0 && !activity.renderable) return false;
-  if (
-    args.quietEmpty &&
-    result.digest.accounting.rendered.count === 0 &&
-    !activity.renderable
-  ) {
-    return false;
-  }
-
-  const rendered = renderMarkdown(result.digest);
-  const ts = new Date(deps.now()).toISOString();
-  const metadata = eventMetadata(ts, result.digest, rendered);
-
-  if (args.json) {
-    await writeStdoutChunk(
-      deps,
-      JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + '\n',
-    );
-  } else {
-    await writeStdoutChunk(deps, rendered + '\n');
-  }
-  await appendEventLog(args.eventLog, metadata);
-  if (activity.diagnosticSignature) {
-    target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
-  }
-  eventState.eventCount++;
-  eventState.lastHeartbeatAt = deps.now();
-  await watchStateLib.recordWatcherEvent({
-    pid: eventState.pid,
-    lastEventAt: ts,
-  });
-  await stateLib
-    .setWatchedByPid(result.runtime, result.digest.sessionId, eventState.pid)
-    .catch(() => false);
-  return true;
+  return emitLegacyWatchEvents(result, target, args, deps, eventState);
 }
 
 async function emitObservedDelta(
@@ -1627,43 +1724,7 @@ async function emitObservedDelta(
   deps: ResolvedWatchDeps,
   eventState: WatchEventState,
 ): Promise<boolean> {
-  const newRecords = result.digest.range.newRecords ?? 0;
-  const activity = prepareActivityDelta(result.digest, target);
-  if (newRecords <= 0 && !activity.renderable) return false;
-  if (
-    args.quietEmpty &&
-    result.digest.accounting.rendered.count === 0 &&
-    !activity.renderable
-  ) {
-    return false;
-  }
-
-  const rendered = renderMarkdown(result.digest);
-  const ts = new Date(deps.now()).toISOString();
-  const metadata = eventMetadata(ts, result.digest, rendered);
-
-  if (args.json) {
-    await writeStdoutChunk(
-      deps,
-      JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + '\n',
-    );
-  } else {
-    await writeStdoutChunk(deps, rendered + '\n');
-  }
-  await appendEventLog(args.eventLog, metadata);
-  if (activity.diagnosticSignature) {
-    target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
-  }
-  eventState.eventCount++;
-  eventState.lastHeartbeatAt = deps.now();
-  await watchStateLib.recordWatcherEvent({
-    pid: eventState.pid,
-    lastEventAt: ts,
-  });
-  await stateLib
-    .setWatchedByPid(result.runtime, result.digest.sessionId, eventState.pid)
-    .catch(() => false);
-  return true;
+  return emitLegacyWatchEvents(result, target, args, deps, eventState);
 }
 
 async function emitReadyPending(
@@ -1776,6 +1837,7 @@ export async function runWatchLoop(
     runtime,
     cwd,
     eventLog,
+    includeTerminalEvents: true,
     maxPendingSec: resolvedMaxPendingMs / 1000,
     heartbeatSec: resolvedHeartbeatMs === null ? 0 : resolvedHeartbeatMs / 1000,
   };

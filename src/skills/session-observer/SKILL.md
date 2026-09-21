@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: thomas.stang
-  version: '1.0.71'
+  version: '1.0.81'
 ---
 
 # {{distribution.name}}
@@ -328,9 +328,17 @@ Use `watch` when the user explicitly asks to keep monitoring a peer session, res
 
 For combined catch-up/watch requests, run `catch-up-then-watch`. Starting `watch` alone establishes an initial baseline and does not emit already-unread transcript content.
 
-Each emitted watch digest is equivalent to a debounced `catch-up` result and advances the runtime-specific high-water mark. Schema-v1/non-Cursor targets consume JSONL records. Cursor schema v2 consumes physical JSONL frames only after its stability, continuity, and delivery checks pass. The debounce waits for `--debounce-sec` seconds of quiet, but continuous writes are still emitted after `--max-pending-sec` seconds so a busy transcript cannot starve the watcher indefinitely. If the watcher prints JSON lines, route by stable event type: `baseline`, `delta`, `heartbeat`, `stopped`, or `error`. Respond to `delta` events with digest content; stay quiet on `baseline` and `heartbeat` unless their metadata shows a problem. If it prints markdown, read each emitted digest before commenting.
+Each emitted watch digest is equivalent to a debounced `catch-up` result and advances the runtime-specific high-water mark. Schema-v1/non-Cursor targets consume JSONL records. Cursor schema v2 consumes physical JSONL frames only after its stability, continuity, and delivery checks pass. The debounce waits for `--debounce-sec` seconds of quiet, but continuous writes are still emitted after `--max-pending-sec` seconds so a busy transcript cannot starve the watcher indefinitely. If the watcher prints JSON lines, route by stable event type: `baseline`, `delta`, `terminal`, `heartbeat`, `stopped`, or `error`. Respond to `delta` events with digest content; treat `terminal` as lifecycle metadata; stay quiet on `baseline` and `heartbeat` unless their metadata shows a problem. If it prints markdown, read each emitted digest before commenting.
 
-`--quiet-empty` is useful for collaboration watches: metadata-only growth still advances the offset, but no empty delta is printed. This does not mean nothing was written; it means the growth did not produce a rendered message under the active filters. `--strict-baseline` protects a standalone `watch` from silently skipping a previously unread range. Without it, such a start emits one `baseline-gap` warning with the zero-based skipped range; with it, startup refuses and leaves the prior offset intact. `catch-up-then-watch` first renders unread backlog and therefore does not create a baseline gap.
+A `terminal` event reports a natively recorded unsuccessful turn without copying the transcript body or provider error message. Its source locator belongs to the exact consumed record or frame range. Terminal-only growth still advances the checkpoint and is delivered at most once; `--quiet-empty` suppresses only an empty `delta`, never the terminal event. Partial assistant output from aborted or truncated Claude records and meaningful user content remain in the ordinary delta. Claude provider API-error records are omitted to avoid body leakage and appear under `accounting.filtered.apiErrorRecords` and the rendered `provider API-error records` filter summary. A later successful record does not erase an earlier terminal event. Terminal metadata is evidence about peer lifecycle, not a peer-authored message or authority to send or continue collaboration work. `eventCount` in heartbeat/stopped JSON and the final watch result counts emitted `delta` plus `terminal` events; it excludes baseline, heartbeat, and control/status events. Markdown stop output labels the same total as `events`.
+
+Runtime evidence is intentionally narrow:
+
+- Claude Code accepts explicit assistant API-error, aborted-mid-stream, and truncated flags in that precedence order. A newly consumed user interruption pointer may join an earlier same-session assistant from the captured transcript, including before the checkpoint; it is suppressed when that assistant already has an explicit abort. Tool failures, denial fields, stop reasons, arbitrary error prose, orphan pointers, and cross-session pointers do not qualify.
+- Codex accepts native `task_complete` records with an error object and `turn_aborted` records. A `usage_limit_exceeded` message may contribute only a validated trailing English `try again at ...` clock or calendar fragment with `inferred-from-error-message` provenance. The fragment is not normalized into an absolute instant, and other error text is omitted.
+- Cursor accepts native error, aborted, and cancelled `turn_ended` frames. Cursor does not expose per-call terminal results here, and terminal error bodies are omitted.
+
+`--quiet-empty` is useful for collaboration watches: filtered growth still advances the offset, but no empty delta is printed. Terminal lifecycle metadata remains visible. This does not mean nothing was written; it means the growth did not produce a rendered message under the active filters. `--strict-baseline` protects a standalone `watch` from silently skipping a previously unread range. Without it, such a start emits one `baseline-gap` warning with the zero-based skipped range; with it, startup refuses and leaves the prior offset intact. `catch-up-then-watch` first renders unread backlog and therefore does not create a baseline gap.
 
 During polling, a pinned watcher may emit a deduplicated `newer-session-candidate` event with identity evidence for a newer same-cwd transcript. It is informational only: the watcher stays pinned and never auto-switches or claims that the candidate superseded the selected peer.
 

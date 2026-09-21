@@ -21,6 +21,7 @@ import type {
   TranscriptMeta,
   DetailedTranscriptRead,
 } from '../../../../shared/transcript/runtimes.js';
+import type { UnsuccessfulTerminalEvent } from '../../../../shared/transcript/terminal-events.js';
 
 export type {
   AutomaticControlProvenance,
@@ -431,6 +432,8 @@ export interface DigestAccounting {
     commandMessages: number;
     bootstrapRecords: number;
     bootstrapMessages: number;
+    /** Claude provider API-error records omitted to avoid error-body leakage. */
+    apiErrorRecords?: number;
     metadataRecords: number;
     tailSliceEntries: number;
   };
@@ -459,6 +462,7 @@ export interface BuildDigestOptions {
   includeToolResults?: boolean;
   includeCommandMessages?: boolean;
   includeActivity?: boolean;
+  includeTerminalEvents?: boolean;
   activityRenderFormat?: ActivityRenderFormat;
   capturedRead?: DetailedTranscriptRead;
   maxTurns?: number;
@@ -493,6 +497,8 @@ export interface Digest {
   accounting: DigestAccounting;
   entries: DigestEntry[];
   activity?: ActivityReport;
+  /** Watch-only metadata for unsuccessful native terminal records. */
+  terminalEvents?: UnsuccessfulTerminalEvent[];
   /** Watch-only marker for a delta containing activity but no conversation. */
   activityOnly?: true;
   filters: DigestFilters;
@@ -745,6 +751,8 @@ export interface WatchLoopArgs {
   includeToolResults?: boolean;
   includeCommandMessages?: boolean;
   includeActivity?: boolean;
+  /** Internal watch pipeline switch; not a public CLI option. */
+  includeTerminalEvents?: boolean;
   activityRenderFormat?: ActivityRenderFormat;
   maxTurns?: number;
   maxBytes?: number;

@@ -142,6 +142,12 @@ describe('activity projection budgets', () => {
         previewBytes: 2 * 1024,
         lateContextBytes: 256,
       },
+      'complete-capture': {
+        maxBytes: null,
+        maxInvocations: null,
+        previewBytes: 2 * 1024,
+        lateContextBytes: 256,
+      },
     });
   });
 
@@ -170,7 +176,7 @@ describe('activity projection budgets', () => {
 
     expect(renderActivityReport(second)).toBe(serialized);
     expect(first.renderedBytes).toBe(Buffer.byteLength(serialized, 'utf8'));
-    expect(first.renderedBytes).toBeLessThanOrEqual(first.limits.maxBytes);
+    expect(first.renderedBytes).toBeLessThanOrEqual(first.limits.maxBytes!);
     expect(preview).toBeDefined();
     expect(preview?.truncated).toBe(true);
     expect(preview?.displayedBytes).toBe(
@@ -552,7 +558,7 @@ describe('activity projection budgets', () => {
       { ...GENEROUS_LIMITS, maxBytes: empty.renderedBytes + 256 },
     );
 
-    expect(report.renderedBytes).toBeLessThanOrEqual(report.limits.maxBytes);
+    expect(report.renderedBytes).toBeLessThanOrEqual(report.limits.maxBytes!);
     expect(report.events).toEqual([]);
     expect(report.omitted).toMatchObject({
       calls: 1,
@@ -577,6 +583,48 @@ describe('activity projection budgets', () => {
         source: { ...SOURCE, transcriptPath },
         read,
       });
+      extracted.sourceMetadata = {
+        scope: 'captured-source',
+        skills: [
+          {
+            scope: 'captured-source',
+            evidence: 'available',
+            name: 'optional-source-skill',
+            locator: {
+              recordIndex: 2_000,
+              physicalLine: 2_001,
+              jsonPointer: '/attachment/names/0',
+            },
+          },
+        ],
+        usage: {
+          scope: 'captured-source',
+          availability: 'recorded',
+          samples: [
+            {
+              semantics: 'claude-message',
+              ownership: 'owned',
+              messageId: 'optional-message',
+              tokens: { input_tokens: 1 },
+              locator: {
+                recordIndex: 2_001,
+                physicalLine: 2_002,
+                jsonPointer: '/message/usage',
+              },
+            },
+          ],
+          diagnostics: [
+            {
+              code: 'USAGE_DEDUP_UNCERTAIN',
+              locator: {
+                recordIndex: 2_002,
+                physicalLine: 2_003,
+                jsonPointer: '/message/usage',
+              },
+            },
+          ],
+        },
+      };
       const correlated = correlateActivity(extracted);
       const options = {
         mode: 'watch' as const,
@@ -594,11 +642,17 @@ describe('activity projection budgets', () => {
 
       expect(first.events).toEqual([]);
       expect(first.renderedBytes).toBe(Buffer.byteLength(serialized, 'utf8'));
-      expect(first.renderedBytes).toBeLessThanOrEqual(first.limits.maxBytes);
+      expect(first.renderedBytes).toBeLessThanOrEqual(first.limits.maxBytes!);
       expect(first.omitted.diagnostics).toBeGreaterThan(0);
       expect(first.omitted.coverageEntries).toBeGreaterThan(0);
       expect(first.diagnostics.length + first.omitted.diagnostics).toBe(1_000);
-      expect(first.coverage.length + first.omitted.coverageEntries).toBe(1_004);
+      expect(first.coverage.length + first.omitted.coverageEntries).toBe(1_005);
+      expect(first.sourceMetadata.skills).toEqual([]);
+      expect(first.sourceMetadata.usage?.samples).toEqual([]);
+      expect(first.sourceMetadata.usage?.diagnostics).toEqual([]);
+      expect(first.omitted.sourceSkills).toBe(1);
+      expect(first.omitted.usageSamples).toBe(1);
+      expect(first.omitted.usageDiagnostics).toBe(1);
       expect(second.diagnostics).toEqual(first.diagnostics);
       expect(second.coverage).toEqual(first.coverage);
       expect(second.omitted).toEqual(first.omitted);
@@ -607,6 +661,241 @@ describe('activity projection budgets', () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
+  });
+
+  it('labels captured-source skill metadata and budgets it independently of delivery range', () => {
+    const extracted = activity([]);
+    extracted.sourceMetadata = {
+      scope: 'captured-source',
+      skills: Array.from({ length: 1_000 }, (_, index) => ({
+        scope: 'captured-source' as const,
+        evidence:
+          index % 2 === 0 ? ('available' as const) : ('invoked' as const),
+        name: `fixture-skill-${index}-${'x'.repeat(32)}`,
+        locator: {
+          recordIndex: index,
+          physicalLine: index + 1,
+          jsonPointer: `/attachment/names/${index}`,
+        },
+      })),
+      usage: {
+        scope: 'captured-source',
+        availability: 'recorded',
+        samples: Array.from({ length: 1_000 }, (_, index) => ({
+          semantics: 'claude-message' as const,
+          ownership: 'owned' as const,
+          messageId: `message-${index}`,
+          tokens: { input_tokens: index, output_tokens: index + 1 },
+          locator: {
+            recordIndex: index + 1_000,
+            physicalLine: index + 1_001,
+            jsonPointer: '/message/usage',
+          },
+        })),
+        diagnostics: Array.from({ length: 40 }, (_, index) => ({
+          code: 'USAGE_DEDUP_UNCERTAIN' as const,
+          locator: {
+            recordIndex: index + 2_000,
+            physicalLine: index + 2_001,
+            jsonPointer: '/message/usage',
+          },
+        })),
+      },
+    };
+    const report = projectActivity(extracted, {
+      mode: 'watch',
+      renderFormat: 'compact-json',
+      deliveryRange: {
+        indexBase: 'zero-based-decoded-record-index',
+        start: 0,
+        end: 0,
+      },
+    });
+
+    expect(report.sourceMetadata.scope).toBe('captured-source');
+    expect(
+      report.sourceMetadata.skills.length + report.omitted.sourceSkills,
+    ).toBe(1_000);
+    expect(report.omitted.sourceSkills).toBeGreaterThan(0);
+    expect(
+      (report.sourceMetadata.usage?.samples.length ?? 0) +
+        report.omitted.usageSamples,
+    ).toBe(1_000);
+    expect(
+      (report.sourceMetadata.usage?.diagnostics.length ?? 0) +
+        report.omitted.usageDiagnostics,
+    ).toBe(40);
+    expect(report.omitted.usageSamples).toBeGreaterThan(0);
+    expect(report.renderedBytes).toBeLessThanOrEqual(report.limits.maxBytes!);
+  });
+
+  it('trims oversized optional source metadata before delivered event evidence', () => {
+    const events = [
+      event('call-one', 'call', 0, {
+        nativeCallId: 'native-call-one',
+        arguments: { task: 'delivered call one' },
+      }),
+      event('result-one', 'result', 1, {
+        nativeCallId: 'native-call-one',
+        relatedCallKey: 'call-one',
+        result: { value: 'delivered result one' },
+      }),
+      event('call-two', 'call', 2, {
+        nativeCallId: 'native-call-two',
+        arguments: { task: 'delivered call two' },
+      }),
+      event('result-two', 'result', 3, {
+        nativeCallId: 'native-call-two',
+        relatedCallKey: 'call-two',
+        result: { value: 'delivered result two' },
+      }),
+    ];
+    const extracted = activity(events);
+    extracted.sourceMetadata = {
+      scope: 'captured-source',
+      skills: Array.from({ length: 400 }, (_, index) => ({
+        scope: 'captured-source' as const,
+        evidence: 'available' as const,
+        name: `source-skill-${index}-${'x'.repeat(32)}`,
+        locator: {
+          recordIndex: index + 100,
+          physicalLine: index + 101,
+          jsonPointer: `/attachment/names/${index}`,
+        },
+      })),
+      usage: {
+        scope: 'captured-source',
+        availability: 'recorded',
+        samples: Array.from({ length: 400 }, (_, index) => ({
+          semantics: 'claude-message' as const,
+          ownership: 'owned' as const,
+          messageId: `message-${index}`,
+          tokens: { input_tokens: index, output_tokens: index + 1 },
+          locator: {
+            recordIndex: index + 500,
+            physicalLine: index + 501,
+            jsonPointer: '/message/usage',
+          },
+        })),
+        diagnostics: [],
+      },
+    };
+
+    const report = projectActivity(extracted, {
+      mode: 'watch',
+      renderFormat: 'compact-json',
+      deliveryRange: wholeRange(events),
+    });
+
+    expect(report.limits.maxBytes).toBe(32 * 1024);
+    expect(report.events.map(({ eventKey }) => eventKey)).toEqual([
+      'call-one',
+      'result-one',
+      'call-two',
+      'result-two',
+    ]);
+    expect(report.omitted.byteLimitGroups).toBe(0);
+    expect(report.omitted.sourceSkills).toBeGreaterThan(0);
+    expect(report.omitted.usageSamples).toBeGreaterThan(0);
+    expect(
+      report.sourceMetadata.skills.length + report.omitted.sourceSkills,
+    ).toBe(400);
+    expect(
+      (report.sourceMetadata.usage?.samples.length ?? 0) +
+        report.omitted.usageSamples,
+    ).toBe(400);
+    expect(report.renderedBytes).toBeLessThanOrEqual(32 * 1024);
+  });
+
+  it('reconciles optional metadata when the byte limit must evict event groups', () => {
+    const events = Array.from({ length: 6 }, (_, index) =>
+      event(`large-call-${index}`, 'call', index, {
+        nativeCallId: `native-large-call-${index}`,
+        arguments: { payload: `${index}-${'x'.repeat(1_200)}` },
+      }),
+    );
+    const extracted = activity(events);
+    extracted.coverage = [
+      { dataClass: 'calls', status: 'available', captured: events.length },
+    ];
+    extracted.diagnostics = [
+      {
+        code: 'POSSIBLE_SOURCE_TRUNCATION',
+        locator: {
+          recordIndex: 0,
+          physicalLine: 1,
+          jsonPointer: '/fixture',
+        },
+      },
+    ];
+    extracted.sourceMetadata = {
+      scope: 'captured-source',
+      skills: Array.from({ length: 3 }, (_, index) => ({
+        scope: 'captured-source' as const,
+        evidence: 'available' as const,
+        name: `optional-skill-${index}`,
+        locator: {
+          recordIndex: index + 20,
+          physicalLine: index + 21,
+          jsonPointer: `/attachment/names/${index}`,
+        },
+      })),
+      usage: {
+        scope: 'captured-source',
+        availability: 'recorded',
+        samples: Array.from({ length: 3 }, (_, index) => ({
+          semantics: 'claude-message' as const,
+          ownership: 'owned' as const,
+          messageId: `optional-message-${index}`,
+          tokens: { input_tokens: index + 1 },
+          locator: {
+            recordIndex: index + 30,
+            physicalLine: index + 31,
+            jsonPointer: '/message/usage',
+          },
+        })),
+        diagnostics: Array.from({ length: 2 }, (_, index) => ({
+          code: 'USAGE_DEDUP_UNCERTAIN' as const,
+          locator: {
+            recordIndex: index + 40,
+            physicalLine: index + 41,
+            jsonPointer: '/message/usage',
+          },
+        })),
+      },
+    };
+
+    const report = projectActivityWithLimits(
+      extracted,
+      {
+        mode: 'watch',
+        renderFormat: 'compact-json',
+        deliveryRange: wholeRange(events),
+      },
+      {
+        maxBytes: 4 * 1024,
+        maxInvocations: null,
+        previewBytes: 2 * 1024,
+        lateContextBytes: 256,
+      },
+    );
+
+    expect(report.omitted.byteLimitGroups).toBeGreaterThan(0);
+    expect(report.events.length).toBeGreaterThan(0);
+    expect(report.coverage).toEqual(extracted.coverage);
+    expect(report.diagnostics).toEqual(extracted.diagnostics);
+    expect(
+      report.sourceMetadata.skills.length + report.omitted.sourceSkills,
+    ).toBe(3);
+    expect(
+      (report.sourceMetadata.usage?.samples.length ?? 0) +
+        report.omitted.usageSamples,
+    ).toBe(3);
+    expect(
+      (report.sourceMetadata.usage?.diagnostics.length ?? 0) +
+        report.omitted.usageDiagnostics,
+    ).toBe(2);
+    expect(report.renderedBytes).toBeLessThanOrEqual(4 * 1024);
   });
 
   it('keeps the activity budget independent from conversation content', () => {
@@ -695,7 +984,7 @@ describe('activity projection budgets', () => {
       expect(markdown.renderedFormat).toBe('markdown');
       expect(markdown.renderedBytes).toBe(Buffer.byteLength(finalText, 'utf8'));
       expect(markdown.renderedBytes).toBeLessThanOrEqual(
-        markdown.limits.maxBytes,
+        markdown.limits.maxBytes!,
       );
       expect(markdown.omitted.byteLimitGroups).toBeGreaterThan(0);
       expect(markdown.omitted.calls).toBe(
@@ -709,7 +998,7 @@ describe('activity projection budgets', () => {
         Buffer.byteLength(renderActivityReport(compactJson), 'utf8'),
       );
       expect(compactJson.renderedBytes).toBeLessThanOrEqual(
-        compactJson.limits.maxBytes,
+        compactJson.limits.maxBytes!,
       );
       expect(compactJson.events.length).toBeGreaterThan(markdown.events.length);
     },
@@ -772,5 +1061,69 @@ describe('activity projection budgets', () => {
     );
     expect(markdown).toContain('record-activity: truncated; captured 1100');
     expect(markdown).toContain('POSSIBLE_SOURCE_TRUNCATION');
+  });
+
+  it('keeps every bounded-export invocation key in complete capture when byte pressure evicts groups', () => {
+    const events = Array.from({ length: 1_100 }, (_, index) =>
+      event(`complete-call-${index}`, 'call', index, {
+        nativeName: 'custom_tool',
+        arguments: { index, value: 'x'.repeat(4 * 1024) },
+      }),
+    );
+    const correlated = activity(events);
+    const boundedOptions = {
+      mode: 'export' as const,
+      renderFormat: 'markdown' as const,
+      deliveryRange: wholeRange(events),
+    };
+    const completeOptions = {
+      mode: 'complete-capture' as const,
+      renderFormat: 'compact-json' as const,
+      deliveryRange: wholeRange(events),
+    };
+
+    const bounded = projectActivityWithLimits(correlated, boundedOptions, {
+      maxBytes: 64 * 1024,
+      maxInvocations: null,
+      previewBytes: 2 * 1024,
+      lateContextBytes: 256,
+    });
+    const complete = projectActivityWithLimits(
+      correlated,
+      completeOptions,
+      ACTIVITY_PROJECTION_LIMITS['complete-capture'],
+    );
+
+    const boundedCallKeys = bounded.events
+      .filter((candidate) => candidate.kind === 'call')
+      .map((candidate) => candidate.eventKey);
+    const completeCallKeys = new Set(
+      complete.events
+        .filter((candidate) => candidate.kind === 'call')
+        .map((candidate) => candidate.eventKey),
+    );
+    expect(boundedCallKeys.length).toBeGreaterThan(0);
+    expect(boundedCallKeys.length).toBeLessThan(1_100);
+    expect(
+      boundedCallKeys.every((eventKey) => completeCallKeys.has(eventKey)),
+    ).toBe(true);
+    expect(bounded.omitted.byteLimitGroups).toBeGreaterThan(0);
+    expect(complete.limits).toMatchObject({
+      maxBytes: null,
+      maxInvocations: null,
+      previewBytes: 2 * 1024,
+    });
+    expect(complete.events).toHaveLength(1_100);
+    expect(complete.omitted).toMatchObject({
+      calls: 0,
+      invocationLimitGroups: 0,
+      byteLimitGroups: 0,
+    });
+    expect(
+      complete.events.every(
+        (candidate) =>
+          (candidate.inputPreview?.displayedBytes ?? 0) <= 2 * 1024,
+      ),
+    ).toBe(true);
   });
 });

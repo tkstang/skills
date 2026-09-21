@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Read
 argument-hint: base_branch=<ref> | --files <paths...> | --document <path> --host <runtime>
 metadata:
   author: thomas.stang
-  version: '0.1.16'
+  version: '0.1.17'
 ---
 
 # Consensus Review
@@ -56,6 +56,9 @@ The provider invocation has a 900-second wall-clock limit by default. Use
 covers total elapsed time and ongoing provider activity does not reset it.
 Give the host terminal or process tool at least the selected timeout, plus
 margin for shutdown and artifact persistence.
+If the host supports background execution, start Review there and poll for
+completion. A polling or observation yield controls when the host checks
+again; a hard timeout terminates Review and can prevent artifact completion.
 
 Pass the actual host runtime with `--host`. An inherited known
 `CONSENSUS_PARENT_HOST` is authoritative only when it matches that value;

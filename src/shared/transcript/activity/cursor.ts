@@ -3,6 +3,7 @@ import type {
   CursorTurnAnalysis,
 } from '../cursor-analysis.js';
 import type { CursorTranscriptScan } from '../cursor-frames.js';
+import { structuredSkillFileReadEvidence } from './skill-evidence.js';
 import { ACTIVITY_SCHEMA_VERSION } from './types.js';
 import type {
   ActivityCoverageEntry,
@@ -11,6 +12,7 @@ import type {
   ExtractedActivity,
   ExtractedActivityEvent,
 } from './types.js';
+import { notRecordedUsage } from './usage.js';
 
 export type CursorActivityExtractionMode =
   | 'stateful-delivery'
@@ -99,8 +101,13 @@ function callEvents(
     const settled = isSettled(turn);
     if (input.mode === 'stateful-delivery' && !settled) return [];
 
-    return (turn.toolRecords ?? []).map(
-      (tool): ExtractedActivityEvent => ({
+    return (turn.toolRecords ?? []).map((tool): ExtractedActivityEvent => {
+      const skillEvidence = structuredSkillFileReadEvidence(
+        'cursor',
+        tool.nativeName,
+        tool.arguments,
+      );
+      return {
         eventKey: eventKey(
           turn,
           tool.sourceFrameIndex,
@@ -126,8 +133,11 @@ function callEvents(
         ...(Object.hasOwn(tool, 'arguments')
           ? { arguments: tool.arguments }
           : {}),
-      }),
-    );
+        ...(skillEvidence === undefined
+          ? {}
+          : { skillEvidence: [skillEvidence] }),
+      };
+    });
   });
 }
 
@@ -163,6 +173,11 @@ function coverage(
       dataClass: 'calls',
       status: 'available',
       captured: events.length,
+    },
+    {
+      dataClass: 'source-skill-names',
+      status: 'not-recorded',
+      captured: 0,
     },
     ...(events.length > 0 || mode === 'stateless-snapshot'
       ? [
@@ -221,6 +236,11 @@ export function extractCursorActivity(
           },
         ]
       : [],
+    sourceMetadata: {
+      scope: 'captured-source',
+      skills: [],
+      usage: notRecordedUsage(),
+    },
     cursor: {
       indexBase: input.scan.indexBase,
       mode: input.mode,

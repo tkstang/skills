@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 
 import { expect, afterEach, describe, test, vi } from 'vitest';
 
+import { renderMarkdown } from './lib/digest.js';
 import { observeCatchUp } from './lib/observe.js';
 import * as watchState from './lib/watch-state.js';
 import { runWatchLoop } from './lib/watch.js';
@@ -958,8 +959,10 @@ describe('runWatchLoop', () => {
 
       const rearmMessage = 'renderable message after SIGTERM';
       await appendCodexMessage(transcriptPath, sessionId, rearmMessage);
-      const second = await runCli(
+      const secondChild = spawn(
+        'node',
         [
+          CLI_PATH,
           'catch-up-then-watch',
           '--runtime',
           'codex',
@@ -972,18 +975,43 @@ describe('runWatchLoop', () => {
           '--debounce-sec',
           '0.02',
           '--max-runtime-min',
-          '0.002',
+          '0',
           '--json',
         ],
-        env,
+        { env, stdio: ['ignore', 'pipe', 'pipe'] },
       );
-      expect(
-        second.status,
-        `re-arm failed\nstdout: ${second.stdout}\nstderr: ${second.stderr}`,
-      ).toBe(0);
-      const deltas = parseJsonLines(second.stdout).filter(
-        (event) => event.type === 'delta',
-      );
+      let secondStdout = '';
+      let secondStderr = '';
+      secondChild.stdout.setEncoding('utf8');
+      secondChild.stderr.setEncoding('utf8');
+      secondChild.stdout.on('data', (chunk) => {
+        secondStdout += chunk;
+      });
+      secondChild.stderr.on('data', (chunk) => {
+        secondStderr += chunk;
+      });
+
+      try {
+        await waitFor(async () => {
+          if (!secondStdout.endsWith('\n')) return false;
+          const deltas = parseJsonLines(secondStdout).filter(
+            (event) => event.type === 'delta',
+          );
+          const checkpoint = await legacySessionState(stateDir, sessionId);
+          return deltas.length === 1 && checkpoint?.lastRecordIndex === 3;
+        });
+        secondChild.kill('SIGTERM');
+        const [code, signal] = await once(secondChild, 'exit');
+        expect(signal, secondStderr).toBe(null);
+        expect(code, secondStderr).toBe(0);
+      } finally {
+        if (secondChild.exitCode === null && secondChild.signalCode === null) {
+          secondChild.kill('SIGKILL');
+        }
+      }
+
+      const secondEvents = parseJsonLines(secondStdout);
+      const deltas = secondEvents.filter((event) => event.type === 'delta');
       expect(deltas).toHaveLength(1);
       expect(deltas[0]).toMatchObject({
         ranges: {
@@ -998,6 +1026,378 @@ describe('runWatchLoop', () => {
       });
       expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
         lastRecordIndex: 3,
+        lastTotalRecords: 3,
+      });
+      expect(secondEvents.filter((event) => event.type === 'stopped')).toEqual([
+        expect.objectContaining({ reason: 'signal' }),
+      ]);
+    });
+  });
+
+  test('emits a metadata-only Codex terminal event under quiet-empty and does not replay it', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-codex-terminal-only';
+      const sessionId = 'watch-codex-terminal-only';
+      const transcriptPath = await writeCodexTranscript(home, cwd, sessionId, [
+        { role: 'assistant', content: 'terminal baseline' },
+      ]);
+
+      let baselineNow = Date.UTC(2026, 8, 20, 12, 0, 0);
+      await runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          now: () => baselineNow,
+          sleep: async (ms: number) => {
+            baselineNow += ms;
+          },
+          writeStdout: () => {},
+        },
+      );
+
+      const privateErrorBody = 'private Codex provider failure body';
+      await appendFile(
+        transcriptPath,
+        `${JSON.stringify({
+          type: 'event_msg',
+          payload: {
+            type: 'task_complete',
+            error: {
+              codex_error_info: 'usage_limit_exceeded',
+              message: `${privateErrorBody}; try again at Sep 19th, 2026 5:01 AM.`,
+            },
+          },
+        })}\n`,
+        'utf8',
+      );
+
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 8, 20, 12, 5, 0);
+      const result = await runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          catchUpFirst: true,
+          quietEmpty: true,
+          json: true,
+          eventLog: 'terminal-events.jsonl',
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.004,
+        },
+        {
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+          },
+          writeStdout: (chunk: string) => stdout.push(chunk),
+        },
+      );
+
+      const events = parseJsonLines(stdout.join(''));
+      const terminals = events.filter((event) => event.type === 'terminal');
+      expect(result.eventCount).toBe(1);
+      expect(terminals).toEqual([
+        expect.objectContaining({
+          runtime: 'codex',
+          sessionId,
+          nativeSessionId: sessionId,
+          nativeType: 'task_complete',
+          status: 'error',
+          nativeErrorCode: 'usage_limit_exceeded',
+          source: {
+            indexBase: 'zero-based-jsonl-record-index',
+            recordIndex: 2,
+            physicalLine: 3,
+            jsonPointer: '/payload',
+          },
+          retryEvidence: {
+            fragment: 'Sep 19th, 2026 5:01 AM',
+            provenance: 'inferred-from-error-message',
+            source: expect.objectContaining({
+              recordIndex: 2,
+              jsonPointer: '/payload/error/message',
+            }),
+          },
+        }),
+      ]);
+      expect(events.some((event) => event.type === 'delta')).toBe(false);
+      expect(stdout.join('')).not.toContain(privateErrorBody);
+      expect(await legacySessionState(stateDir, sessionId)).toMatchObject({
+        lastRecordIndex: 3,
+        lastTotalRecords: 3,
+      });
+
+      const eventLog = await readFile(
+        join(stateDir, 'terminal-events.jsonl'),
+        'utf8',
+      );
+      expect(parseJsonLines(eventLog)).toEqual([
+        expect.objectContaining({
+          type: 'terminal',
+          runtime: 'codex',
+          status: 'error',
+        }),
+      ]);
+      expect(eventLog).not.toContain(privateErrorBody);
+      expect(eventLog).not.toContain('"digest"');
+
+      const replayStdout: string[] = [];
+      let replayNow = Date.UTC(2026, 8, 20, 12, 10, 0);
+      const replay = await runWatchLoop(
+        {
+          runtime: 'codex',
+          cwd,
+          session: `codex:${sessionId}`,
+          catchUpFirst: true,
+          quietEmpty: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          now: () => replayNow,
+          sleep: async (ms: number) => {
+            replayNow += ms;
+          },
+          writeStdout: (chunk: string) => replayStdout.push(chunk),
+        },
+      );
+      expect(replay.eventCount).toBe(0);
+      expect(
+        parseJsonLines(replayStdout.join('')).some(
+          (event) => event.type === 'terminal',
+        ),
+      ).toBe(false);
+    });
+  });
+
+  test('joins Claude interruption pointers across the checkpoint and suppresses explicit-abort duplicates', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-claude-interruption-terminal';
+      const sessionId = 'watch-claude-interruption-terminal';
+      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
+        { content: 'interruption baseline' },
+      ]);
+      await appendFile(
+        transcriptPath,
+        [
+          {
+            type: 'assistant',
+            sessionId,
+            isAbortedMidStream: true,
+            apiBlockIndex: 0,
+            message: {
+              id: 'assistant-explicit-abort',
+              role: 'assistant',
+              content: [],
+            },
+          },
+          {
+            type: 'assistant',
+            sessionId,
+            apiBlockIndex: 1,
+            message: {
+              id: 'assistant-explicit-abort',
+              role: 'assistant',
+              content: [],
+            },
+          },
+          {
+            type: 'assistant',
+            sessionId,
+            message: {
+              id: 'assistant-interruption-target',
+              role: 'assistant',
+              content: [],
+            },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+        'utf8',
+      );
+
+      let baselineNow = Date.UTC(2026, 8, 20, 12, 0, 0);
+      await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          session: `claude-code:${sessionId}`,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          now: () => baselineNow,
+          sleep: async (ms: number) => {
+            baselineNow += ms;
+          },
+          writeStdout: () => {},
+        },
+      );
+      let savedState = await readJsonIfExists(join(stateDir, 'state.json'));
+      expect(savedState?.sessions?.[`claude-code:${sessionId}`]).toMatchObject({
+        lastRecordIndex: 4,
+      });
+
+      await appendFile(
+        transcriptPath,
+        [
+          {
+            type: 'user',
+            sessionId,
+            interruptedMessageId: 'assistant-explicit-abort',
+            message: { role: 'user', content: [] },
+          },
+          {
+            type: 'user',
+            sessionId,
+            interruptedMessageId: 'assistant-interruption-target',
+            message: {
+              role: 'user',
+              content: 'operator interruption note survives',
+            },
+          },
+          {
+            type: 'assistant',
+            sessionId,
+            isApiErrorMessage: true,
+            apiErrorStatus: 503,
+            message: {
+              id: 'assistant-private-api-error',
+              role: 'assistant',
+              content: [
+                {
+                  type: 'text',
+                  text: 'private Claude provider failure body',
+                },
+              ],
+            },
+          },
+          {
+            type: 'assistant',
+            sessionId,
+            isAbortedMidStream: true,
+            message: {
+              id: 'assistant-partial-output',
+              role: 'assistant',
+              content: 'partial assistant output survives',
+            },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+        'utf8',
+      );
+
+      const stdout: string[] = [];
+      let nowMs = Date.UTC(2026, 8, 20, 12, 5, 0);
+      const result = await runWatchLoop(
+        {
+          runtime: 'claude-code',
+          cwd,
+          session: `claude-code:${sessionId}`,
+          catchUpFirst: true,
+          quietEmpty: true,
+          json: true,
+          pollSec: 0.02,
+          debounceSec: 0.02,
+          maxRuntimeMin: 0.002,
+        },
+        {
+          now: () => nowMs,
+          sleep: async (ms: number) => {
+            nowMs += ms;
+          },
+          writeStdout: (chunk: string) => stdout.push(chunk),
+        },
+      );
+
+      const events = parseJsonLines(stdout.join(''));
+      expect(result.eventCount).toBe(4);
+      expect(events.filter((event) => event.type === 'terminal')).toEqual([
+        expect.objectContaining({
+          runtime: 'claude-code',
+          sessionId,
+          nativeType: 'user-interruption',
+          status: 'interrupted',
+          source: {
+            indexBase: 'zero-based-jsonl-record-index',
+            recordIndex: 5,
+            physicalLine: 6,
+            jsonPointer: '/interruptedMessageId',
+          },
+        }),
+        expect.objectContaining({
+          runtime: 'claude-code',
+          sessionId,
+          nativeType: 'assistant',
+          status: 'api-error',
+          nativeErrorCode: 503,
+          source: {
+            indexBase: 'zero-based-jsonl-record-index',
+            recordIndex: 6,
+            physicalLine: 7,
+            jsonPointer: '',
+          },
+        }),
+        expect.objectContaining({
+          runtime: 'claude-code',
+          sessionId,
+          nativeType: 'assistant',
+          status: 'aborted-mid-stream',
+          source: {
+            indexBase: 'zero-based-jsonl-record-index',
+            recordIndex: 7,
+            physicalLine: 8,
+            jsonPointer: '',
+          },
+        }),
+      ]);
+      const deltas = events.filter((event) => event.type === 'delta');
+      expect(deltas).toHaveLength(1);
+      expect(deltas[0]).toMatchObject({
+        ranges: {
+          fromIndex: 4,
+          nextIndex: 8,
+          renderedFromIndex: 5,
+          renderedToIndex: 7,
+        },
+        digest: {
+          accounting: {
+            raw: { count: 4 },
+            rendered: { count: 2 },
+            filtered: { apiErrorRecords: 1, metadataRecords: 1 },
+          },
+          entries: [
+            expect.objectContaining({
+              text: 'operator interruption note survives',
+            }),
+            expect.objectContaining({
+              text: 'partial assistant output survives',
+            }),
+          ],
+        },
+      });
+      expect(renderMarkdown(deltas[0].digest)).toContain(
+        'provider API-error records: 1',
+      );
+      expect(stdout.join('')).not.toContain('private Claude provider failure');
+      savedState = await readJsonIfExists(join(stateDir, 'state.json'));
+      expect(savedState?.sessions?.[`claude-code:${sessionId}`]).toMatchObject({
+        lastRecordIndex: 8,
+        lastTotalRecords: 8,
       });
     });
   });
@@ -1685,6 +2085,7 @@ describe('runWatchLoop', () => {
             await appendCursorFrame(transcriptPath, {
               type: 'turn_ended',
               status: 'error',
+              error: 'private Cursor terminal body',
             });
           },
         },
@@ -1692,10 +2093,27 @@ describe('runWatchLoop', () => {
 
       expect(appendedTerminal).toBe(true);
       expect(result.reason).toBe('max-runtime');
-      expect(result.eventCount).toBe(1);
-      const deltas = parseJsonLines(stdout.join('')).filter(
-        (event) => event.type === 'delta',
+      expect(result.eventCount).toBe(2);
+      const outputEvents = parseJsonLines(stdout.join(''));
+      expect(outputEvents.filter((event) => event.type === 'terminal')).toEqual(
+        [
+          expect.objectContaining({
+            runtime: 'cursor',
+            sessionId,
+            nativeSessionId: sessionId,
+            nativeType: 'turn_ended',
+            status: 'error',
+            source: {
+              indexBase: 'zero-based-jsonl-frame-index',
+              frameIndex: 2,
+              physicalLine: 3,
+              jsonPointer: '/status',
+            },
+          }),
+        ],
       );
+      expect(stdout.join('')).not.toContain('private Cursor terminal body');
+      const deltas = outputEvents.filter((event) => event.type === 'delta');
       expect(deltas).toHaveLength(1);
       expect(deltas[0]).toMatchObject({
         activityOnly: true,
@@ -4529,6 +4947,8 @@ describe('runWatchLoop', () => {
       expect(
         stdout.join('').includes('watch stopped reason=control-stop'),
       ).toBeTruthy();
+      expect(stdout.join('')).toContain('events=0');
+      expect(stdout.join('')).not.toContain('deltaEvents=');
 
       const watchJson = JSON.parse(
         await readFile(join(stateDir, 'watch.json'), 'utf8'),

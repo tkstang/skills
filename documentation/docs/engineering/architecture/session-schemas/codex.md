@@ -316,10 +316,32 @@ rather than merging them, or the same bytes will appear twice.
 | Compaction                 | `compacted`, carrying a window chain: `first_window_id` → `previous_window_id` → `window_id`, plus `window_number`, `retained_context`, `guardian_history`.                     |
 | Reasoning                  | `encrypted_content` on 99.4% of reasoning records. A plaintext `summary` is non-empty on 45%.                                                                                   |
 
+Codex has no native skill-invocation or skill-version field in the observed
+transcripts. Historical Codex builds did expose an experimental native
+`read_file` function with JSON arguments containing required `file_path` and
+optional `offset`, `limit`, `mode`, and `indentation`; upstream removed it on
+2026-03-25 in commit
+[`14c35a16`](https://github.com/openai/codex/commit/14c35a16a8a41cc16c5e36c2c4287b7b2db6e975).
+The reader recognizes only that exact native name and path key. The carrier is
+absent from the recent local sample. Current shell reads, aliases, and prose
+mentions are not equivalent evidence.
+
 The cumulative counter is not strictly monotonic: it rose in 46,450 of 46,523
 comparisons, and all 73 decreases sit at compaction boundaries. A reader that assumes
 monotonicity will compute negative deltas at exactly those points; treat a decrease as a
 compaction signal, not as corrupt data.
+
+The activity reader preserves `total_token_usage`, `last_token_usage`, and
+`token_usage_record` as separate semantics. Identical token-count snapshots are
+collapsed; a cumulative decrease starts a numbered segment and emits a reset
+diagnostic rather than a negative delta. Cumulative and last-turn samples use
+the native subagent history boundary to remain `owned`, `inherited`, or
+`unknown`; reset state never crosses between those ownership classes. Response
+usage matches `thread_id` to the selected native transcript identity, while its
+distinct `session_id` is root-session context. A response can inherit a model
+only when its recorded `turn_id` joins a `turn_context` with the same ownership;
+totals and last-turn records remain model-unknown when no native join exists. No
+counter is converted to price or cost.
 
 ## Output size limits
 

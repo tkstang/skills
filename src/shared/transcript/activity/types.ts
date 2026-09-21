@@ -88,6 +88,71 @@ export interface ActivityChildReference {
   trajectoryAvailability: 'not-read';
 }
 
+export type ActivitySkillEvidenceKind =
+  | 'native-attribution'
+  | 'native-invocation'
+  | 'inferred-file-read';
+
+export interface ActivitySkillEvidence {
+  kind: ActivitySkillEvidenceKind;
+  /** Recorded native skill name when the carrier provides one. */
+  name?: string;
+  /** Structured read-tool path. Never populated from shell commands or prose. */
+  path?: string;
+}
+
+export interface ActivitySourceSkill {
+  scope: 'captured-source';
+  evidence: 'available' | 'invoked';
+  name: string;
+  locator: ActivityEventLocator;
+}
+
+export type ActivityUsageSemantics =
+  | 'claude-message'
+  | 'codex-cumulative'
+  | 'codex-last-turn'
+  | 'codex-response';
+
+export interface ActivityTokenUsageSample {
+  semantics: ActivityUsageSemantics;
+  ownership: ActivityOwnership;
+  locator: ActivityEventLocator;
+  tokens: JsonObject;
+  model?: string;
+  messageId?: string;
+  turnId?: string;
+  responseId?: string;
+  segment?: number;
+  uncertainty?: 'missing-message-id';
+}
+
+export type ActivityUsageDiagnosticCode =
+  | 'USAGE_CONFLICT'
+  | 'USAGE_COUNTER_RESET'
+  | 'USAGE_DEDUP_UNCERTAIN'
+  | 'USAGE_EXTRACTION_ERROR'
+  | 'USAGE_SESSION_MISMATCH';
+
+export interface ActivityUsageDiagnostic {
+  code: ActivityUsageDiagnosticCode;
+  locator?: ActivityEventLocator;
+  messageId?: string;
+}
+
+export interface ActivityUsageMetadata {
+  scope: 'captured-source';
+  availability: 'recorded' | 'not-recorded' | 'not-read';
+  samples: ActivityTokenUsageSample[];
+  diagnostics: ActivityUsageDiagnostic[];
+}
+
+export interface ActivitySourceMetadata {
+  scope: 'captured-source';
+  skills: ActivitySourceSkill[];
+  usage?: ActivityUsageMetadata;
+}
+
 export interface ExtractedActivityEvent {
   eventKey: string;
   kind: ActivityEventKind;
@@ -122,6 +187,7 @@ export interface ExtractedActivityEvent {
   metadata?: JsonObject;
   externalReference?: ActivityExternalReference;
   childReference?: ActivityChildReference;
+  skillEvidence?: ActivitySkillEvidence[];
 }
 
 export type ActivityDiagnosticCode =
@@ -148,6 +214,7 @@ export type ActivityDataClass =
   | 'metadata'
   | 'persisted-output'
   | 'child-trajectory'
+  | 'source-skill-names'
   | 'record-activity';
 
 export interface ActivityCoverageEntry {
@@ -169,6 +236,7 @@ export interface ExtractedActivity {
   events: ExtractedActivityEvent[];
   coverage: ActivityCoverageEntry[];
   diagnostics: ActivityDiagnostic[];
+  sourceMetadata?: ActivitySourceMetadata;
 }
 
 export interface CorrelatedActivityEvent extends ExtractedActivityEvent {
@@ -200,7 +268,12 @@ export interface CorrelatedActivity extends Omit<ExtractedActivity, 'events'> {
   correlationCounts: ActivityCorrelationCounts;
 }
 
-export type ActivityProjectionMode = 'watch' | 'catch-up' | 'review' | 'export';
+export type ActivityProjectionMode =
+  | 'watch'
+  | 'catch-up'
+  | 'review'
+  | 'export'
+  | 'complete-capture';
 export type ActivityRenderFormat = 'compact-json' | 'markdown';
 
 export interface ActivityDeliveryRange {
@@ -210,7 +283,7 @@ export interface ActivityDeliveryRange {
 }
 
 export interface ActivityProjectionLimits {
-  maxBytes: number;
+  maxBytes: number | null;
   maxInvocations: number | null;
   previewBytes: number;
   lateContextBytes: number;
@@ -259,6 +332,7 @@ export interface ProjectedActivityEvent {
   outputPreviewOmitted?: 'exact-linked-duplicate-carrier';
   externalReference?: ActivityExternalReference;
   childReference?: ActivityChildReference;
+  skillEvidence?: ActivitySkillEvidence[];
 }
 
 export interface ActivityCallContext {
@@ -290,6 +364,9 @@ export interface ActivityOmissionCounts {
   byteLimitGroups: number;
   coverageEntries: number;
   diagnostics: number;
+  sourceSkills: number;
+  usageSamples: number;
+  usageDiagnostics: number;
 }
 
 export interface ActivityReport {
@@ -311,12 +388,15 @@ export interface ActivityReport {
   callContexts: ActivityCallContext[];
   coverage: ActivityCoverageEntry[];
   diagnostics: ActivityDiagnostic[];
+  sourceMetadata: ActivitySourceMetadata;
 }
 
 export interface ExtractedRecordActivity {
   events: ExtractedActivityEvent[];
   coverage: ActivityCoverageEntry[];
   diagnostics: ActivityDiagnostic[];
+  sourceSkills?: ActivitySourceSkill[];
+  sourceSkillNamesRecorded?: boolean;
 }
 
 export function isJsonObject(value: unknown): value is JsonObject {

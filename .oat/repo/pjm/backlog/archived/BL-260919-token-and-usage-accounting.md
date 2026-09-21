@@ -1,7 +1,7 @@
 ---
 id: BL-260919-token-and-usage-accounting
 title: Token and usage accounting for session activity
-status: open
+status: closed
 priority: medium
 scope: feature
 scope_estimate: S
@@ -12,7 +12,7 @@ labels:
   - metadata
 assignee: null
 created: 2026-09-19T19:23:59.518Z
-updated: 2026-09-19T19:23:59.518Z
+updated: '2026-09-21T02:31:13Z'
 associated_issues: []
 external_plans: []
 ---

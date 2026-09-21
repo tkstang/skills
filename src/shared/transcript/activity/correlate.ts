@@ -13,7 +13,7 @@ import type {
 
 type CallLookup = ReadonlyMap<string, readonly ExtractedActivityEvent[]>;
 
-interface OwnershipContext {
+export interface ActivityOwnershipContext {
   kind: 'root' | 'bounded-child' | 'unknown';
   boundary?: number;
 }
@@ -74,15 +74,16 @@ function headerOwnershipEvidence(
   return { kind: 'bounded-child', boundary, parentThreadId };
 }
 
-function ownershipContext(activity: ExtractedActivity): OwnershipContext {
-  if (activity.source.runtime !== 'codex') return { kind: 'root' };
-  const headers = activity.events.filter((event) => {
+export function activityOwnershipContext(
+  source: ExtractedActivity['source'],
+  events: readonly ExtractedActivityEvent[],
+): ActivityOwnershipContext {
+  if (source.runtime !== 'codex') return { kind: 'root' };
+  const headers = events.filter((event) => {
     if (event.kind !== 'metadata' || event.nativeType !== 'session_meta') {
       return false;
     }
-    return (
-      metadataObject(event)?.nativeSessionId === activity.source.nativeSessionId
-    );
+    return metadataObject(event)?.nativeSessionId === source.nativeSessionId;
   });
   if (headers.length === 0) return { kind: 'unknown' };
 
@@ -104,21 +105,19 @@ function ownershipContext(activity: ExtractedActivity): OwnershipContext {
   };
 }
 
-function ownershipFor(
-  event: ExtractedActivityEvent,
-  context: OwnershipContext,
+export function ownershipForLocator(
+  locator: ExtractedActivityEvent['locator'],
+  context: ActivityOwnershipContext,
 ): ActivityOwnership {
   if (context.kind === 'root') return 'owned';
   if (
     context.kind === 'unknown' ||
-    typeof event.locator.ordinal !== 'number' ||
-    !Number.isSafeInteger(event.locator.ordinal)
+    typeof locator.ordinal !== 'number' ||
+    !Number.isSafeInteger(locator.ordinal)
   ) {
     return 'unknown';
   }
-  return event.locator.ordinal < (context.boundary as number)
-    ? 'inherited'
-    : 'owned';
+  return locator.ordinal < (context.boundary as number) ? 'inherited' : 'owned';
 }
 
 function callsBy(
@@ -245,7 +244,7 @@ function correlationCounts(
 export function correlateActivity(
   activity: ExtractedActivity,
 ): CorrelatedActivity {
-  const context = ownershipContext(activity);
+  const context = activityOwnershipContext(activity.source, activity.events);
   const calls = activity.events.filter((event) => event.kind === 'call');
   const byCallId = callsBy(calls, 'nativeCallId');
   const byNativeId = callsBy(calls, 'nativeId');
@@ -254,7 +253,7 @@ export function correlateActivity(
     const category = categoryFor(event, related);
     return {
       ...event,
-      ownership: ownershipFor(event, context),
+      ownership: ownershipForLocator(event.locator, context),
       ...(category === undefined ? {} : { category }),
       ...(related === undefined ? {} : { relatedCallKey: related.eventKey }),
     };

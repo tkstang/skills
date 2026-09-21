@@ -1274,9 +1274,17 @@ process.stdout.write(JSON.stringify(result));
       ).toEqual(['SKILL.md']);
     }
 
-    for (const [installedRetro, expectedName] of [
-      ['skills/session-retro', 'session-retro'],
-      ['plugins/session/skills/retro', 'retro'],
+    for (const [installedRetro, expectedName, expectedExporterIdentities] of [
+      [
+        'skills/session-retro',
+        'session-retro',
+        '`session-export-transcript` or `export-transcript` or `session:export-transcript`',
+      ],
+      [
+        'plugins/session/skills/retro',
+        'retro',
+        '`export-transcript` or `session:export-transcript` or `session-export-transcript`',
+      ],
     ] as const) {
       const retroFiles = await inventoryTree(path.join(root, installedRetro));
       expect(retroFiles.map((entry) => entry.path)).toEqual([
@@ -1290,8 +1298,9 @@ process.stdout.write(JSON.stringify(result));
       expect(retroInstruction).toMatch(
         new RegExp(`^name: ${expectedName}$`, 'm'),
       );
+      expect(retroInstruction).toContain(expectedExporterIdentities);
       expect(retroInstruction).toContain(
-        'An optional transcript reader such as `session-observer`',
+        'https://github.com/tkstang/skills/tree/main/skills/session-export-transcript',
       );
       expect(retroInstruction).not.toContain('{{');
     }

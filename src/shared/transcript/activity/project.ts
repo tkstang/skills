@@ -13,6 +13,8 @@ import type {
   ActivityProjectionMode,
   ActivityReport,
   ActivityScopedCounts,
+  ActivitySourceSkill,
+  ActivityUsageMetadata,
   CorrelatedActivity,
   CorrelatedActivityEvent,
   ProjectActivityOptions,
@@ -49,6 +51,12 @@ export const ACTIVITY_PROJECTION_LIMITS: Readonly<
     previewBytes: 2 * KIB,
     lateContextBytes: 256,
   },
+  'complete-capture': {
+    maxBytes: null,
+    maxInvocations: null,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256,
+  },
 };
 
 interface EvidenceGroup {
@@ -65,15 +73,25 @@ interface OmissionReasons {
   byteLimitGroups: number;
   coverageEntries: number;
   diagnostics: number;
+  sourceSkills: number;
+  usageSamples: number;
+  usageDiagnostics: number;
 }
 
 interface ReportMetadata {
   coverage: ActivityCoverageEntry[];
   diagnostics: ActivityDiagnostic[];
+  sourceSkills: ActivitySourceSkill[];
+  usage: ActivityUsageMetadata;
 }
 
 interface MetadataCandidate {
-  kind: keyof ReportMetadata;
+  kind:
+    | 'coverage'
+    | 'diagnostics'
+    | 'sourceSkills'
+    | 'usageSamples'
+    | 'usageDiagnostics';
   index: number;
   locator: ActivityCoverageEntry['locator'];
 }
@@ -101,8 +119,8 @@ function validateRange(range: ActivityDeliveryRange): void {
 
 function validateLimits(limits: ActivityProjectionLimits): void {
   if (
-    !Number.isSafeInteger(limits.maxBytes) ||
-    limits.maxBytes <= 0 ||
+    (limits.maxBytes !== null &&
+      (!Number.isSafeInteger(limits.maxBytes) || limits.maxBytes <= 0)) ||
     (limits.maxInvocations !== null &&
       (!Number.isSafeInteger(limits.maxInvocations) ||
         limits.maxInvocations < 0)) ||
@@ -245,6 +263,13 @@ function deliveredMetadata(
     diagnostics: activity.diagnostics.filter((entry) =>
       locatorInRange(entry.locator),
     ),
+    sourceSkills: activity.sourceMetadata?.skills ?? [],
+    usage: activity.sourceMetadata?.usage ?? {
+      scope: 'captured-source',
+      availability: 'not-recorded',
+      samples: [],
+      diagnostics: [],
+    },
   };
 }
 
@@ -280,14 +305,53 @@ function retainMetadata(
         locator: entry.locator,
       }),
     ),
+    ...metadata.sourceSkills.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'sourceSkills',
+        index,
+        locator: entry.locator,
+      }),
+    ),
+    ...metadata.usage.samples.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'usageSamples',
+        index,
+        locator: entry.locator,
+      }),
+    ),
+    ...metadata.usage.diagnostics.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'usageDiagnostics',
+        index,
+        locator: entry.locator,
+      }),
+    ),
   ].toSorted(compareMetadataPriority);
   const retainedCoverage = new Set<number>();
   const retainedDiagnostics = new Set<number>();
+  const retainedSourceSkills = new Set<number>();
+  const retainedUsageSamples = new Set<number>();
+  const retainedUsageDiagnostics = new Set<number>();
   for (const candidate of priority.slice(0, retainedCount)) {
-    (candidate.kind === 'coverage'
-      ? retainedCoverage
-      : retainedDiagnostics
-    ).add(candidate.index);
+    let target = retainedUsageDiagnostics;
+    switch (candidate.kind) {
+      case 'coverage':
+        target = retainedCoverage;
+        break;
+      case 'diagnostics':
+        target = retainedDiagnostics;
+        break;
+      case 'sourceSkills':
+        target = retainedSourceSkills;
+        break;
+      case 'usageSamples':
+        target = retainedUsageSamples;
+        break;
+      case 'usageDiagnostics':
+        target = retainedUsageDiagnostics;
+        break;
+    }
+    target.add(candidate.index);
   }
   return {
     coverage: metadata.coverage.filter((_, index) =>
@@ -296,6 +360,75 @@ function retainMetadata(
     diagnostics: metadata.diagnostics.filter((_, index) =>
       retainedDiagnostics.has(index),
     ),
+    sourceSkills: metadata.sourceSkills.filter((_, index) =>
+      retainedSourceSkills.has(index),
+    ),
+    usage: {
+      ...metadata.usage,
+      samples: metadata.usage.samples.filter((_, index) =>
+        retainedUsageSamples.has(index),
+      ),
+      diagnostics: metadata.usage.diagnostics.filter((_, index) =>
+        retainedUsageDiagnostics.has(index),
+      ),
+    },
+  };
+}
+
+function retainOptionalSourceMetadata(
+  metadata: ReportMetadata,
+  retainedCount: number,
+): ReportMetadata {
+  const priority = [
+    ...metadata.sourceSkills.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'sourceSkills',
+        index,
+        locator: entry.locator,
+      }),
+    ),
+    ...metadata.usage.samples.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'usageSamples',
+        index,
+        locator: entry.locator,
+      }),
+    ),
+    ...metadata.usage.diagnostics.map(
+      (entry, index): MetadataCandidate => ({
+        kind: 'usageDiagnostics',
+        index,
+        locator: entry.locator,
+      }),
+    ),
+  ].toSorted(compareMetadataPriority);
+  const retainedSourceSkills = new Set<number>();
+  const retainedUsageSamples = new Set<number>();
+  const retainedUsageDiagnostics = new Set<number>();
+  for (const candidate of priority.slice(0, retainedCount)) {
+    const target =
+      candidate.kind === 'sourceSkills'
+        ? retainedSourceSkills
+        : candidate.kind === 'usageSamples'
+          ? retainedUsageSamples
+          : retainedUsageDiagnostics;
+    target.add(candidate.index);
+  }
+  return {
+    coverage: metadata.coverage,
+    diagnostics: metadata.diagnostics,
+    sourceSkills: metadata.sourceSkills.filter((_, index) =>
+      retainedSourceSkills.has(index),
+    ),
+    usage: {
+      ...metadata.usage,
+      samples: metadata.usage.samples.filter((_, index) =>
+        retainedUsageSamples.has(index),
+      ),
+      diagnostics: metadata.usage.diagnostics.filter((_, index) =>
+        retainedUsageDiagnostics.has(index),
+      ),
+    },
   };
 }
 
@@ -361,6 +494,9 @@ function projectEvent(
     ...(event.childReference === undefined
       ? {}
       : { childReference: event.childReference }),
+    ...(event.skillEvidence === undefined
+      ? {}
+      : { skillEvidence: event.skillEvidence }),
   };
 }
 
@@ -506,6 +642,11 @@ function buildReport(
     callContexts,
     coverage: metadata.coverage,
     diagnostics: metadata.diagnostics,
+    sourceMetadata: {
+      scope: 'captured-source',
+      skills: metadata.sourceSkills,
+      usage: metadata.usage,
+    },
   };
   return finalizeRenderedBytes(report);
 }
@@ -533,6 +674,9 @@ export function projectActivityWithLimits(
     byteLimitGroups: 0,
     coverageEntries: 0,
     diagnostics: 0,
+    sourceSkills: 0,
+    usageSamples: 0,
+    usageDiagnostics: 0,
   };
   const initial = buildReport(
     activity,
@@ -543,14 +687,66 @@ export function projectActivityWithLimits(
     metadata,
     initialReasons,
   );
-  if (initial.renderedBytes <= limits.maxBytes) return initial;
+  if (limits.maxBytes === null || initial.renderedBytes <= limits.maxBytes) {
+    return initial;
+  }
+
+  const maxBytes = limits.maxBytes;
+
+  const optionalMetadataCount =
+    metadata.sourceSkills.length +
+    metadata.usage.samples.length +
+    metadata.usage.diagnostics.length;
+  let optionalLow = 0;
+  let optionalHigh = optionalMetadataCount;
+  let best: ActivityReport | undefined;
+  while (optionalLow <= optionalHigh) {
+    const retainedCount = Math.floor((optionalLow + optionalHigh) / 2);
+    const retainedMetadata = retainOptionalSourceMetadata(
+      metadata,
+      retainedCount,
+    );
+    const candidate = buildReport(
+      activity,
+      options,
+      limits,
+      groups,
+      retained,
+      retainedMetadata,
+      {
+        ...initialReasons,
+        sourceSkills:
+          metadata.sourceSkills.length - retainedMetadata.sourceSkills.length,
+        usageSamples:
+          metadata.usage.samples.length - retainedMetadata.usage.samples.length,
+        usageDiagnostics:
+          metadata.usage.diagnostics.length -
+          retainedMetadata.usage.diagnostics.length,
+      },
+    );
+    if (candidate.renderedBytes <= maxBytes) {
+      best = candidate;
+      optionalLow = retainedCount + 1;
+    } else {
+      optionalHigh = retainedCount - 1;
+    }
+  }
+  if (best) return best;
+
+  const boundedMetadata = retainOptionalSourceMetadata(metadata, 0);
+  const boundedReasons: OmissionReasons = {
+    ...initialReasons,
+    sourceSkills: metadata.sourceSkills.length,
+    usageSamples: metadata.usage.samples.length,
+    usageDiagnostics: metadata.usage.diagnostics.length,
+  };
 
   const removable = groups
     .filter((group) => retained.has(group.key))
     .toSorted(compareLowPriority);
   let low = 1;
   let high = removable.length;
-  let best: ActivityReport | undefined;
+  best = undefined;
   while (low <= high) {
     const removedCount = Math.floor((low + high) / 2);
     const candidateKeys = new Set(retained);
@@ -563,13 +759,13 @@ export function projectActivityWithLimits(
       limits,
       groups,
       candidateKeys,
-      metadata,
+      boundedMetadata,
       {
-        ...initialReasons,
+        ...boundedReasons,
         byteLimitGroups: removedCount,
       },
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       high = removedCount - 1;
     } else {
@@ -578,12 +774,13 @@ export function projectActivityWithLimits(
   }
   if (best) return best;
 
-  const metadataCount = metadata.coverage.length + metadata.diagnostics.length;
+  const metadataCount =
+    boundedMetadata.coverage.length + boundedMetadata.diagnostics.length;
   let metadataLow = 0;
   let metadataHigh = metadataCount;
   while (metadataLow <= metadataHigh) {
     const retainedCount = Math.floor((metadataLow + metadataHigh) / 2);
-    const retainedMetadata = retainMetadata(metadata, retainedCount);
+    const retainedMetadata = retainMetadata(boundedMetadata, retainedCount);
     const candidate = buildReport(
       activity,
       options,
@@ -592,15 +789,16 @@ export function projectActivityWithLimits(
       new Set(),
       retainedMetadata,
       {
-        ...initialReasons,
+        ...boundedReasons,
         byteLimitGroups: removable.length,
         coverageEntries:
-          metadata.coverage.length - retainedMetadata.coverage.length,
+          boundedMetadata.coverage.length - retainedMetadata.coverage.length,
         diagnostics:
-          metadata.diagnostics.length - retainedMetadata.diagnostics.length,
+          boundedMetadata.diagnostics.length -
+          retainedMetadata.diagnostics.length,
       },
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       metadataLow = retainedCount + 1;
     } else {

@@ -57,6 +57,9 @@ This is the provider invocation’s total wall-clock limit; ongoing output does
 not reset it. A timeout produces an incomplete diagnostic, not a verdict.
 Give the host terminal or process tool at least this timeout plus shutdown
 and artifact-persistence margin.
+If the host supports background execution, start Review there and poll for
+completion. A polling or observation yield controls when the host checks
+again; a hard timeout terminates Review and can prevent artifact completion.
 
 `--host` names the runtime executing Review. A known inherited
 `CONSENSUS_PARENT_HOST` is authoritative when it matches `--host`, even if the

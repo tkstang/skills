@@ -6,11 +6,13 @@ import type {
   ActivityDataClass,
   ActivityDiagnosticCode,
   ActivityLocator,
+  ActivitySourceSkill,
   ExtractActivityInput,
   ExtractedActivity,
   ExtractedActivityEvent,
   ExtractedRecordActivity,
 } from './types.js';
+import { extractUsageMetadata, notRecordedUsage } from './usage.js';
 
 function validateInput(input: ExtractActivityInput): void {
   const { source } = input;
@@ -86,6 +88,9 @@ export function extractActivity(
   const events: ExtractedActivity['events'] = [];
   const coverage: ExtractedActivity['coverage'] = [];
   const diagnostics: ExtractedActivity['diagnostics'] = [];
+  const sourceSkills: ActivitySourceSkill[] = [];
+  let sourceSkillNamesRecorded = false;
+  let usage = notRecordedUsage();
 
   for (const sourceDiagnostic of input.read.diagnostics) {
     const locator: ActivityLocator = {
@@ -121,6 +126,30 @@ export function extractActivity(
     events.push(...extracted.events);
     coverage.push(...extracted.coverage);
     diagnostics.push(...extracted.diagnostics);
+    sourceSkills.push(...(extracted.sourceSkills ?? []));
+    sourceSkillNamesRecorded ||= extracted.sourceSkillNamesRecorded === true;
+  }
+
+  const latestAvailableSkill = new Map<string, ActivitySourceSkill>();
+  for (const skill of sourceSkills) {
+    if (skill.evidence === 'available')
+      latestAvailableSkill.set(skill.name, skill);
+  }
+  const deduplicatedSourceSkills = sourceSkills.filter(
+    (skill) =>
+      skill.evidence === 'invoked' ||
+      latestAvailableSkill.get(skill.name) === skill,
+  );
+
+  try {
+    usage = extractUsageMetadata(input.source, input.read.records, events);
+  } catch {
+    usage = {
+      scope: 'captured-source',
+      availability: 'not-read',
+      samples: [],
+      diagnostics: [{ code: 'USAGE_EXTRACTION_ERROR' }],
+    };
   }
 
   return {
@@ -131,7 +160,20 @@ export function extractActivity(
       sourceBytes: input.read.sourceBytes,
     },
     events,
-    coverage: [...baseCoverage(events), ...coverage],
     diagnostics,
+    sourceMetadata: {
+      scope: 'captured-source',
+      skills: deduplicatedSourceSkills,
+      usage,
+    },
+    coverage: [
+      ...baseCoverage(events),
+      ...coverage,
+      {
+        dataClass: 'source-skill-names',
+        status: sourceSkillNamesRecorded ? 'available' : 'not-recorded',
+        captured: deduplicatedSourceSkills.length,
+      },
+    ],
   };
 }

@@ -95,6 +95,56 @@ afterEach(async () => {
 });
 
 describe('extractCursorActivity', () => {
+  it('infers skill loads from direct read tools without parsing shell commands', async () => {
+    const transcriptPath = await temporaryTranscript(
+      [
+        JSON.stringify({
+          role: 'assistant',
+          message: {
+            content: [
+              {
+                type: 'tool_use',
+                name: 'ReadFile',
+                input: { path: '/fixture/skills/one/SKILL.md' },
+              },
+              {
+                type: 'tool_use',
+                name: 'Shell',
+                input: { command: 'cat /fixture/skills/two/SKILL.md' },
+              },
+            ],
+          },
+        }),
+        JSON.stringify({ type: 'turn_ended', status: 'success' }),
+        '',
+      ].join('\n'),
+    );
+    const activity = await extract(transcriptPath, 'stateful-delivery');
+
+    expect(activity.events[0]).toMatchObject({
+      nativeName: 'ReadFile',
+      skillEvidence: [
+        {
+          kind: 'inferred-file-read',
+          name: 'one',
+          path: '/fixture/skills/one/SKILL.md',
+        },
+      ],
+    });
+    expect(activity.events[1]).not.toHaveProperty('skillEvidence');
+    expect(activity.coverage).toContainEqual({
+      dataClass: 'source-skill-names',
+      status: 'not-recorded',
+      captured: 0,
+    });
+    expect(activity.sourceMetadata?.usage).toEqual({
+      scope: 'captured-source',
+      availability: 'not-recorded',
+      samples: [],
+      diagnostics: [],
+    });
+  });
+
   it('extracts recorded calls with settled positional identity and no invented evidence', async () => {
     const activity = await extract(CAPTURED_FIXTURE, 'stateful-delivery');
 

@@ -4,7 +4,10 @@ import { describe, expect, it } from 'vitest';
 
 import type { DetailedTranscriptRecord, JsonObject } from '../runtimes.js';
 import { readRecordsDetailed } from '../runtimes.js';
+import { correlateActivity } from './correlate.js';
 import { extractActivity } from './extract.js';
+import { projectActivity, projectActivityWithLimits } from './project.js';
+import { renderActivityMarkdown, renderActivityReport } from './render.js';
 import type { ActivitySource } from './types.js';
 
 const FIXTURE_ROOT = fileURLToPath(
@@ -43,6 +46,222 @@ function detailed(
 }
 
 describe('Claude Code activity extraction', () => {
+  it('keeps native skill attribution and names-only source attachments without bodies', () => {
+    const records = [
+      detailed(
+        {
+          type: 'assistant',
+          attributionSkill: 'session-observer',
+          message: {
+            content: [
+              {
+                type: 'tool_use',
+                id: 'skill-call',
+                name: 'Skill',
+                input: {
+                  skill: 'session-observer',
+                  args: 'caller invocation input',
+                },
+              },
+              { type: 'tool_use', id: 'read-call', name: 'Read', input: {} },
+            ],
+          },
+        },
+        0,
+      ),
+      detailed(
+        {
+          type: 'attachment',
+          attachment: {
+            type: 'skill_listing',
+            names: ['available-one', '', 42, 'available-two'],
+            content: 'private listing sentinel',
+            path: '/private/listing/path',
+          },
+        },
+        1,
+      ),
+      detailed(
+        {
+          type: 'attachment',
+          attachment: {
+            type: 'invoked_skills',
+            skills: [
+              { name: 'invoked-one', content: 'private invoked sentinel' },
+              { name: 42 },
+            ],
+          },
+        },
+        2,
+      ),
+      detailed(
+        {
+          type: 'attachment',
+          attachment: {
+            type: 'skill_listing',
+            names: ['available-one'],
+          },
+        },
+        3,
+      ),
+      detailed(
+        {
+          type: 'attachment',
+          attachment: {
+            type: 'invoked_skills',
+            skills: [{ name: 'invoked-one' }],
+          },
+        },
+        4,
+      ),
+    ];
+
+    const extracted = extractActivity({
+      source: CLAUDE_SOURCE,
+      read: { ...TEST_SNAPSHOT, records, diagnostics: [] },
+    });
+
+    expect(extracted.events[0]).toMatchObject({
+      nativeName: 'Skill',
+      arguments: {
+        skill: 'session-observer',
+        args: 'caller invocation input',
+      },
+      skillEvidence: [
+        { kind: 'native-attribution', name: 'session-observer' },
+        { kind: 'native-invocation', name: 'session-observer' },
+      ],
+    });
+    expect(extracted.events[1]).toMatchObject({
+      nativeName: 'Read',
+      skillEvidence: [{ kind: 'native-attribution', name: 'session-observer' }],
+    });
+    expect(extracted.sourceMetadata).toMatchObject({
+      scope: 'captured-source',
+      skills: [
+        expect.objectContaining({
+          evidence: 'available',
+          name: 'available-two',
+          locator: expect.objectContaining({
+            jsonPointer: '/attachment/names/3',
+          }),
+        }),
+        expect.objectContaining({
+          evidence: 'invoked',
+          name: 'invoked-one',
+          locator: expect.objectContaining({
+            jsonPointer: '/attachment/skills/0/name',
+          }),
+        }),
+        expect.objectContaining({
+          evidence: 'available',
+          name: 'available-one',
+          locator: expect.objectContaining({
+            jsonPointer: '/attachment/names/0',
+            recordIndex: 3,
+          }),
+        }),
+        expect.objectContaining({
+          evidence: 'invoked',
+          name: 'invoked-one',
+          locator: expect.objectContaining({ recordIndex: 4 }),
+        }),
+      ],
+    });
+    const serialized = JSON.stringify(extracted.sourceMetadata);
+    expect(serialized).not.toContain('private');
+    expect(serialized).not.toContain('/private/listing/path');
+    expect(JSON.stringify(extracted)).not.toContain('private listing sentinel');
+    expect(JSON.stringify(extracted)).not.toContain('private invoked sentinel');
+    expect(extracted.coverage).toContainEqual({
+      dataClass: 'source-skill-names',
+      status: 'available',
+      captured: 4,
+    });
+  });
+
+  it('distinguishes an empty native skill listing from no source listing', () => {
+    const extracted = extractActivity({
+      source: CLAUDE_SOURCE,
+      read: {
+        ...TEST_SNAPSHOT,
+        records: [
+          detailed(
+            {
+              type: 'attachment',
+              attachment: { type: 'skill_listing', names: [] },
+            },
+            0,
+          ),
+        ],
+        diagnostics: [],
+      },
+    });
+
+    expect(extracted.sourceMetadata?.skills).toEqual([]);
+    expect(extracted.coverage).toContainEqual({
+      dataClass: 'source-skill-names',
+      status: 'available',
+      captured: 0,
+    });
+  });
+
+  it('counts invoked-only source names and recognizes an empty invoked carrier', () => {
+    const invoked = extractActivity({
+      source: CLAUDE_SOURCE,
+      read: {
+        ...TEST_SNAPSHOT,
+        records: [
+          detailed(
+            {
+              type: 'attachment',
+              attachment: {
+                type: 'invoked_skills',
+                skills: [{ name: 'invoked-only' }],
+              },
+            },
+            0,
+          ),
+        ],
+        diagnostics: [],
+      },
+    });
+    const empty = extractActivity({
+      source: CLAUDE_SOURCE,
+      read: {
+        ...TEST_SNAPSHOT,
+        records: [
+          detailed(
+            {
+              type: 'attachment',
+              attachment: { type: 'invoked_skills', skills: [] },
+            },
+            0,
+          ),
+        ],
+        diagnostics: [],
+      },
+    });
+
+    expect(invoked.sourceMetadata?.skills).toEqual([
+      expect.objectContaining({
+        evidence: 'invoked',
+        name: 'invoked-only',
+      }),
+    ]);
+    expect(invoked.coverage).toContainEqual({
+      dataClass: 'source-skill-names',
+      status: 'available',
+      captured: 1,
+    });
+    expect(empty.sourceMetadata?.skills).toEqual([]);
+    expect(empty.coverage).toContainEqual({
+      dataClass: 'source-skill-names',
+      status: 'available',
+      captured: 0,
+    });
+  });
+
   it('extracts multiblock calls, result carriers, persisted output, and notifications', async () => {
     const read = await readRecordsDetailed(CLAUDE_SOURCE.transcriptPath);
     const extracted = extractActivity({
@@ -57,6 +276,11 @@ describe('Claude Code activity extraction', () => {
       sourceBytes: read.sourceBytes,
     });
     expect(extracted.diagnostics).toEqual([]);
+    expect(extracted.coverage).toContainEqual({
+      dataClass: 'source-skill-names',
+      status: 'not-recorded',
+      captured: 0,
+    });
 
     const calls = extracted.events.filter((event) => event.kind === 'call');
     expect(calls.map((event) => event.nativeName)).toEqual([
@@ -340,6 +564,102 @@ describe('Claude Code activity extraction', () => {
 });
 
 describe('Codex activity extraction', () => {
+  it('recognizes only the historical structured read_file carrier for Codex skill loads', () => {
+    const records = [
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'direct-read',
+            name: 'read_file',
+            arguments: JSON.stringify({
+              file_path: '/fixture/skills/session-observer/SKILL.md',
+            }),
+          },
+        },
+        0,
+      ),
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'shell-read',
+            name: 'exec_command',
+            arguments: JSON.stringify({
+              cmd: 'cat /fixture/skills/private-shell/SKILL.md',
+            }),
+          },
+        },
+        1,
+      ),
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'wrong-key',
+            name: 'read_file',
+            arguments: JSON.stringify({
+              path: '/fixture/skills/private-wrong-key/SKILL.md',
+            }),
+          },
+        },
+        2,
+      ),
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'unknown-name',
+            name: 'functions.read_file',
+            arguments: JSON.stringify({
+              file_path: '/fixture/skills/private-unknown/SKILL.md',
+            }),
+          },
+        },
+        3,
+      ),
+      detailed(
+        {
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'assistant',
+            content: 'Mention /fixture/skills/private-prose/SKILL.md',
+          },
+        },
+        4,
+      ),
+    ];
+    const extracted = extractActivity({
+      source: CODEX_SOURCE,
+      read: { ...TEST_SNAPSHOT, records, diagnostics: [] },
+    });
+
+    expect(extracted.events[0]).toMatchObject({
+      nativeName: 'read_file',
+      skillEvidence: [
+        {
+          kind: 'inferred-file-read',
+          name: 'session-observer',
+          path: '/fixture/skills/session-observer/SKILL.md',
+        },
+      ],
+    });
+    expect(extracted.events[1]).not.toHaveProperty('skillEvidence');
+    expect(extracted.events[2]).not.toHaveProperty('skillEvidence');
+    expect(extracted.events[3]).not.toHaveProperty('skillEvidence');
+    expect(JSON.stringify(extracted)).not.toContain('private-prose');
+    expect(extracted.coverage).toContainEqual({
+      dataClass: 'source-skill-names',
+      status: 'not-recorded',
+      captured: 0,
+    });
+  });
+
   it('extracts native response carriers, standalone items, child ids, and metadata', async () => {
     const read = await readRecordsDetailed(CODEX_SOURCE.transcriptPath);
     const extracted = extractActivity({
@@ -777,6 +1097,119 @@ describe('activity extraction failure boundaries', () => {
         read: { ...TEST_SNAPSHOT, records: [], diagnostics: [] },
       }),
     ).toThrow('Activity extraction requires an exact selected source');
+  });
+
+  it('distinguishes a source-wide usage extraction failure from absent usage', () => {
+    const message: JsonObject = { id: 'usage-failure-message', content: [] };
+    Object.defineProperty(message, 'usage', {
+      enumerable: true,
+      get() {
+        throw new Error('private usage extraction detail');
+      },
+    });
+    const extracted = extractActivity({
+      source: CLAUDE_SOURCE,
+      read: {
+        ...TEST_SNAPSHOT,
+        records: [
+          detailed(
+            {
+              type: 'assistant',
+              sessionId: CLAUDE_SOURCE.nativeSessionId,
+              message,
+            },
+            0,
+          ),
+        ],
+        diagnostics: [],
+      },
+    });
+
+    expect(extracted.sourceMetadata?.usage).toEqual({
+      scope: 'captured-source',
+      availability: 'not-read',
+      samples: [],
+      diagnostics: [{ code: 'USAGE_EXTRACTION_ERROR' }],
+    });
+    expect(JSON.stringify(extracted)).not.toContain(
+      'private usage extraction detail',
+    );
+
+    const correlated = correlateActivity(extracted);
+    for (const mode of ['watch', 'complete-capture'] as const) {
+      const report = projectActivity(correlated, {
+        mode,
+        renderFormat: 'compact-json',
+        deliveryRange: {
+          indexBase: 'zero-based-decoded-record-index',
+          start: 0,
+          end: 1,
+        },
+      });
+      expect(report.sourceMetadata.usage).toEqual({
+        scope: 'captured-source',
+        availability: 'not-read',
+        samples: [],
+        diagnostics: [{ code: 'USAGE_EXTRACTION_ERROR' }],
+      });
+      expect(renderActivityReport(report)).not.toContain(
+        'private usage extraction detail',
+      );
+    }
+
+    const markdown = renderActivityMarkdown(
+      projectActivity(correlated, {
+        mode: 'watch',
+        renderFormat: 'markdown',
+        deliveryRange: {
+          indexBase: 'zero-based-decoded-record-index',
+          start: 0,
+          end: 1,
+        },
+      }),
+    );
+    expect(markdown).toContain('Token usage: not-read');
+    expect(markdown).toContain('USAGE_EXTRACTION_ERROR; source-wide');
+    expect(markdown).not.toContain('private usage extraction detail');
+
+    if (!correlated.sourceMetadata?.usage) {
+      throw new Error('expected captured-source usage metadata');
+    }
+    const compactOptions = {
+      mode: 'watch' as const,
+      renderFormat: 'compact-json' as const,
+      deliveryRange: {
+        indexBase: 'zero-based-decoded-record-index' as const,
+        start: 0,
+        end: 1,
+      },
+    };
+    const withoutDiagnostic = {
+      ...correlated,
+      sourceMetadata: {
+        ...correlated.sourceMetadata,
+        usage: { ...correlated.sourceMetadata.usage, diagnostics: [] },
+      },
+    };
+    const baseline = projectActivityWithLimits(
+      withoutDiagnostic,
+      compactOptions,
+      {
+        maxBytes: null,
+        maxInvocations: null,
+        previewBytes: 2 * 1024,
+        lateContextBytes: 256,
+      },
+    );
+    const bounded = projectActivityWithLimits(correlated, compactOptions, {
+      maxBytes: baseline.renderedBytes,
+      maxInvocations: null,
+      previewBytes: 2 * 1024,
+      lateContextBytes: 256,
+    });
+    expect(bounded.sourceMetadata.usage?.availability).toBe('not-read');
+    expect(bounded.sourceMetadata.usage?.diagnostics).toEqual([]);
+    expect(bounded.omitted.usageDiagnostics).toBe(1);
   });
 
   it('carries stable detailed-reader diagnostics without engine error text', () => {

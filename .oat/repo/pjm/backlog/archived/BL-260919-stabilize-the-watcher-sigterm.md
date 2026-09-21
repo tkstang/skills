@@ -1,7 +1,7 @@
 ---
 id: BL-260919-stabilize-the-watcher-sigterm
 title: Stabilize the watcher SIGTERM re-arm test
-status: open
+status: closed
 priority: medium
 scope: task
 scope_estimate: S
@@ -11,7 +11,7 @@ labels:
   - ci
 assignee: null
 created: 2026-09-19T19:07:12.403Z
-updated: 2026-09-19T19:07:12.403Z
+updated: '2026-09-21T02:31:12Z'
 associated_issues: []
 external_plans: []
 ---

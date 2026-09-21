@@ -1739,13 +1739,13 @@ function headerOwnershipEvidence(event) {
   }
   return { kind: "bounded-child", boundary, parentThreadId };
 }
-function ownershipContext(activity) {
-  if (activity.source.runtime !== "codex") return { kind: "root" };
-  const headers = activity.events.filter((event) => {
+function activityOwnershipContext(source, events) {
+  if (source.runtime !== "codex") return { kind: "root" };
+  const headers = events.filter((event) => {
     if (event.kind !== "metadata" || event.nativeType !== "session_meta") {
       return false;
     }
-    return metadataObject(event)?.nativeSessionId === activity.source.nativeSessionId;
+    return metadataObject(event)?.nativeSessionId === source.nativeSessionId;
   });
   if (headers.length === 0) return { kind: "unknown" };
   const evidence = headers.map(headerOwnershipEvidence);
@@ -1765,12 +1765,12 @@ function ownershipContext(activity) {
     boundary: evidence[0].boundary
   };
 }
-function ownershipFor(event, context) {
+function ownershipForLocator(locator, context) {
   if (context.kind === "root") return "owned";
-  if (context.kind === "unknown" || typeof event.locator.ordinal !== "number" || !Number.isSafeInteger(event.locator.ordinal)) {
+  if (context.kind === "unknown" || typeof locator.ordinal !== "number" || !Number.isSafeInteger(locator.ordinal)) {
     return "unknown";
   }
-  return event.locator.ordinal < context.boundary ? "inherited" : "owned";
+  return locator.ordinal < context.boundary ? "inherited" : "owned";
 }
 function callsBy(calls, field) {
   const lookup = /* @__PURE__ */ new Map();
@@ -1859,7 +1859,7 @@ function correlationCounts(events) {
   };
 }
 function correlateActivity(activity) {
-  const context = ownershipContext(activity);
+  const context = activityOwnershipContext(activity.source, activity.events);
   const calls = activity.events.filter((event) => event.kind === "call");
   const byCallId = callsBy(calls, "nativeCallId");
   const byNativeId = callsBy(calls, "nativeId");
@@ -1868,7 +1868,7 @@ function correlateActivity(activity) {
     const category = categoryFor(event, related);
     return {
       ...event,
-      ownership: ownershipFor(event, context),
+      ownership: ownershipForLocator(event.locator, context),
       ...category === void 0 ? {} : { category },
       ...related === void 0 ? {} : { relatedCallKey: related.eventKey }
     };
@@ -1936,6 +1936,64 @@ function outcomeFromStatus(status) {
 }
 
 // src/shared/transcript/activity/claude-code.ts
+function nonEmptyString(value) {
+  const text = stringValue2(value)?.trim();
+  return text ? text : void 0;
+}
+function claudeSkillEvidence(record, nativeName, input) {
+  const evidence = [];
+  const attributed = nonEmptyString(record.attributionSkill);
+  if (attributed) {
+    evidence.push({ kind: "native-attribution", name: attributed });
+  }
+  if (nativeName === "Skill") {
+    const structured = isJsonObject3(input) ? input : void 0;
+    const name = structured ? nonEmptyString(structured.skill) ?? nonEmptyString(structured.name) : void 0;
+    evidence.push({
+      kind: "native-invocation",
+      ...name === void 0 ? {} : { name }
+    });
+  }
+  return evidence.length === 0 ? void 0 : evidence;
+}
+function claudeSourceSkills(detailed) {
+  const { record } = detailed;
+  if (record.type !== "attachment" || !isJsonObject3(record.attachment)) {
+    return [];
+  }
+  const attachment = record.attachment;
+  const type = stringValue2(attachment.type);
+  if (type === "skill_listing" && Array.isArray(attachment.names)) {
+    return attachment.names.flatMap((candidate, index) => {
+      const name = nonEmptyString(candidate);
+      return name ? [
+        {
+          scope: "captured-source",
+          evidence: "available",
+          name,
+          locator: recordLocator(detailed, `/attachment/names/${index}`)
+        }
+      ] : [];
+    });
+  }
+  if (type === "invoked_skills" && Array.isArray(attachment.skills)) {
+    return attachment.skills.flatMap((candidate, index) => {
+      const name = isJsonObject3(candidate) ? nonEmptyString(candidate.name) : void 0;
+      return name ? [
+        {
+          scope: "captured-source",
+          evidence: "invoked",
+          name,
+          locator: recordLocator(
+            detailed,
+            `/attachment/skills/${index}/name`
+          )
+        }
+      ] : [];
+    });
+  }
+  return [];
+}
 function claudeResultOutcome(block) {
   if (block.is_error === true) return "error";
   if (block.is_error === false) return "success";
@@ -2084,6 +2142,8 @@ function extractClaudeRecord(source, detailed) {
   const content = message?.content;
   const provenance = claudeUserRecordProvenance(record);
   const systemActivity = claudeSystemActivity(source, detailed);
+  const sourceSkills = claudeSourceSkills(detailed);
+  const sourceSkillNamesRecorded = record.type === "attachment" && isJsonObject3(record.attachment) && (record.attachment.type === "skill_listing" && Array.isArray(record.attachment.names) || record.attachment.type === "invoked_skills" && Array.isArray(record.attachment.skills));
   if (systemActivity) events.push(systemActivity);
   if (record.type === "assistant") {
     const metadata = selectedClaudeMetadata(record);
@@ -2095,7 +2155,8 @@ function extractClaudeRecord(source, detailed) {
         nativeType: "assistant-metadata",
         locator,
         outcome: "unknown",
-        metadata
+        metadata,
+        ...claudeSkillEvidence(record) === void 0 ? {} : { skillEvidence: claudeSkillEvidence(record) }
       });
     }
   }
@@ -2107,6 +2168,8 @@ function extractClaudeRecord(source, detailed) {
       if (blockType === "tool_use") {
         const nativeCallId = stringValue2(candidate.id);
         const nativeName = stringValue2(candidate.name);
+        const input = Object.hasOwn(candidate, "input") ? candidate.input : void 0;
+        const skillEvidence = claudeSkillEvidence(record, nativeName, input);
         events.push({
           eventKey: eventKey(source, locator),
           kind: "call",
@@ -2115,7 +2178,8 @@ function extractClaudeRecord(source, detailed) {
           outcome: "pending",
           ...nativeCallId === void 0 ? {} : { nativeCallId },
           ...nativeName === void 0 ? {} : { nativeName },
-          ...Object.hasOwn(candidate, "input") ? { arguments: candidate.input } : {}
+          ...input === void 0 ? {} : { arguments: input },
+          ...skillEvidence === void 0 ? {} : { skillEvidence }
         });
         return;
       }
@@ -2162,7 +2226,246 @@ function extractClaudeRecord(source, detailed) {
       origin: provenance
     });
   }
-  return { events, coverage: coverage2, diagnostics: [] };
+  return {
+    events,
+    coverage: coverage2,
+    diagnostics: [],
+    sourceSkills,
+    ...sourceSkillNamesRecorded ? { sourceSkillNamesRecorded: true } : {}
+  };
+}
+
+// src/shared/transcript/terminal-events.ts
+var MONTH_INDEX = new Map(
+  [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  ].map((month, index) => [month.toLowerCase(), index])
+);
+var RETRY_SUFFIX = /try again at ((?:([A-Z][a-z]{2}) (\d{1,2})(st|nd|rd|th)?, (\d{4}) )?(\d{1,2}):(\d{2}) (AM|PM))\.$/iu;
+function isJsonObject4(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function stringValue3(value) {
+  return typeof value === "string" ? value : void 0;
+}
+function expectedOrdinal(day) {
+  if (day % 100 >= 11 && day % 100 <= 13) return "th";
+  switch (day % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
+function validCalendarDate(month, dayText, ordinal, yearText) {
+  const monthIndex = MONTH_INDEX.get(month.toLowerCase());
+  const day = Number(dayText);
+  const year = Number(yearText);
+  if (monthIndex === void 0 || !Number.isInteger(day) || day < 1) {
+    return false;
+  }
+  if (ordinal && ordinal.toLowerCase() !== expectedOrdinal(day)) return false;
+  const date = new Date(Date.UTC(year, monthIndex, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === monthIndex && date.getUTCDate() === day;
+}
+function codexRetryEvidenceFragment(message) {
+  const match = RETRY_SUFFIX.exec(message);
+  if (!match) return;
+  const hour = Number(match[6]);
+  const minute = Number(match[7]);
+  if (hour < 1 || hour > 12 || minute < 0 || minute > 59) return;
+  if (match[2] !== void 0 && !validCalendarDate(match[2], match[3], match[4], match[5])) {
+    return;
+  }
+  return match[1];
+}
+function decodeCodexLifecycleRecord(detailed) {
+  const { record } = detailed;
+  if (record.type !== "event_msg" || !isJsonObject4(record.payload)) return null;
+  const payload = record.payload;
+  const nativeType = stringValue3(payload.type);
+  if (nativeType !== "task_started" && nativeType !== "task_complete" && nativeType !== "turn_aborted") {
+    return null;
+  }
+  const error = isJsonObject4(payload.error) ? payload.error : void 0;
+  const outcome = nativeType === "task_started" ? "pending" : nativeType === "turn_aborted" ? "cancelled" : error ? "error" : "success";
+  return {
+    nativeType,
+    outcome,
+    ...stringValue3(payload.turn_id) === void 0 ? {} : { turnId: stringValue3(payload.turn_id) },
+    ...stringValue3(payload.status) === void 0 ? {} : { nativeStatus: stringValue3(payload.status) },
+    ...error && stringValue3(error.codex_error_info) !== void 0 ? { errorInfo: stringValue3(error.codex_error_info) } : {},
+    ...error && stringValue3(error.message) !== void 0 ? { errorMessage: stringValue3(error.message) } : {}
+  };
+}
+function recordLocator2(detailed, jsonPointer) {
+  return {
+    indexBase: "zero-based-jsonl-record-index",
+    recordIndex: detailed.recordIndex,
+    physicalLine: detailed.physicalLine,
+    jsonPointer
+  };
+}
+function codexTerminalEvent(source, detailed) {
+  const lifecycle = decodeCodexLifecycleRecord(detailed);
+  if (lifecycle === null || lifecycle.nativeType === "task_complete" && lifecycle.outcome !== "error" || lifecycle.nativeType === "task_started") {
+    return null;
+  }
+  const event = {
+    type: "terminal",
+    runtime: "codex",
+    sessionId: source.sessionId,
+    nativeSessionId: source.nativeSessionId,
+    nativeType: lifecycle.nativeType,
+    status: lifecycle.nativeType === "turn_aborted" ? "aborted" : "error",
+    source: recordLocator2(detailed, "/payload"),
+    ...lifecycle.errorInfo === void 0 ? {} : { nativeErrorCode: lifecycle.errorInfo }
+  };
+  if (lifecycle.nativeType === "task_complete" && lifecycle.errorInfo === "usage_limit_exceeded" && lifecycle.errorMessage !== void 0) {
+    const fragment = codexRetryEvidenceFragment(lifecycle.errorMessage);
+    if (fragment !== void 0) {
+      event.retryEvidence = {
+        fragment,
+        provenance: "inferred-from-error-message",
+        source: recordLocator2(detailed, "/payload/error/message")
+      };
+    }
+  }
+  return event;
+}
+function claudeAssistantStatus(record) {
+  if (record.isApiErrorMessage === true) return "api-error";
+  if (record.isAbortedMidStream === true) return "aborted-mid-stream";
+  if (record.truncatedAfterOutput === true) return "truncated-after-output";
+  return null;
+}
+function claudeSessionId(record) {
+  return stringValue3(record.sessionId);
+}
+function claudeTerminalEvents(source) {
+  const assistants = /* @__PURE__ */ new Map();
+  const events = [];
+  for (const detailed of source.read.records) {
+    const { record } = detailed;
+    if (claudeSessionId(record) !== source.sessionId) continue;
+    const message = isJsonObject4(record.message) ? record.message : void 0;
+    if (message?.role === "assistant") {
+      const messageId = stringValue3(message.id);
+      if (messageId) {
+        const prior = assistants.get(messageId);
+        assistants.set(messageId, {
+          hasExplicitAbort: (prior?.hasExplicitAbort ?? false) || record.isAbortedMidStream === true
+        });
+      }
+    }
+    if (detailed.recordIndex < source.fromIndex || detailed.recordIndex >= source.nextIndex) {
+      continue;
+    }
+    const status = claudeAssistantStatus(record);
+    if (message?.role === "assistant" && status !== null) {
+      const apiErrorStatus = record.apiErrorStatus;
+      events.push({
+        type: "terminal",
+        runtime: "claude-code",
+        sessionId: source.sessionId,
+        nativeSessionId: source.nativeSessionId,
+        nativeType: "assistant",
+        status,
+        source: recordLocator2(detailed, ""),
+        ...status === "api-error" && typeof apiErrorStatus === "number" && Number.isFinite(apiErrorStatus) ? { nativeErrorCode: apiErrorStatus } : {}
+      });
+      continue;
+    }
+    if (message?.role !== "user") continue;
+    const interruptedMessageId = stringValue3(record.interruptedMessageId);
+    if (!interruptedMessageId) continue;
+    const target = assistants.get(interruptedMessageId);
+    if (!target || target.hasExplicitAbort) continue;
+    events.push({
+      type: "terminal",
+      runtime: "claude-code",
+      sessionId: source.sessionId,
+      nativeSessionId: source.nativeSessionId,
+      nativeType: "user-interruption",
+      status: "interrupted",
+      source: recordLocator2(detailed, "/interruptedMessageId")
+    });
+  }
+  return events;
+}
+function extractRecordedTerminalEvents(source) {
+  if (source.runtime === "claude-code") return claudeTerminalEvents(source);
+  return source.read.records.flatMap((detailed) => {
+    if (detailed.recordIndex < source.fromIndex || detailed.recordIndex >= source.nextIndex) {
+      return [];
+    }
+    const event = codexTerminalEvent(source, detailed);
+    return event ? [event] : [];
+  });
+}
+function extractCursorTerminalEvents(source) {
+  return source.analysis.turns.flatMap((turn) => {
+    const frameIndex = turn.terminalFrameIndex;
+    if (frameIndex === null || frameIndex < source.fromIndex || frameIndex >= source.nextIndex || !["error", "aborted", "cancelled"].includes(turn.lifecycle)) {
+      return [];
+    }
+    return [
+      {
+        type: "terminal",
+        runtime: "cursor",
+        sessionId: source.sessionId,
+        nativeSessionId: source.nativeSessionId,
+        nativeType: "turn_ended",
+        status: turn.lifecycle,
+        source: {
+          indexBase: "zero-based-jsonl-frame-index",
+          frameIndex,
+          physicalLine: frameIndex + 1,
+          jsonPointer: "/status"
+        }
+      }
+    ];
+  });
+}
+
+// src/shared/transcript/activity/skill-evidence.ts
+var CURSOR_DIRECT_READ_NAMES = /* @__PURE__ */ new Set(["Read", "ReadFile"]);
+function skillNameFromPath(path) {
+  const segments = path.split(/[\\/]/u);
+  if (segments.at(-1) !== "SKILL.md") return void 0;
+  const parent = segments.at(-2)?.trim();
+  return parent ? parent : void 0;
+}
+function structuredSkillFileReadEvidence(runtime, nativeName, input) {
+  const eligible = runtime === "codex" ? nativeName === "read_file" : nativeName !== void 0 && CURSOR_DIRECT_READ_NAMES.has(nativeName);
+  if (!eligible) {
+    return void 0;
+  }
+  if (!isJsonObject3(input)) return void 0;
+  const path = stringValue2(
+    runtime === "codex" ? input.file_path : input.path
+  )?.trim();
+  if (!path || !skillNameFromPath(path)) return void 0;
+  return {
+    kind: "inferred-file-read",
+    name: skillNameFromPath(path),
+    path
+  };
 }
 
 // src/shared/transcript/activity/codex.ts
@@ -2293,16 +2596,10 @@ function selectedLifecycleMetadata(payload) {
   );
 }
 function codexLifecycleActivity(source, detailed, payload) {
-  const nativeType = stringValue2(payload.type);
-  if (nativeType !== "task_started" && nativeType !== "task_complete" && nativeType !== "turn_aborted") {
-    return void 0;
-  }
+  const lifecycle = decodeCodexLifecycleRecord(detailed);
+  if (!lifecycle) return void 0;
+  const { nativeType, outcome, turnId, nativeStatus, errorInfo } = lifecycle;
   const locator = recordLocator(detailed, "/payload");
-  const turnId = stringValue2(payload.turn_id);
-  const nativeStatus = stringValue2(payload.status);
-  const error = isJsonObject3(payload.error) ? payload.error : void 0;
-  const outcome = nativeType === "task_started" ? "pending" : nativeType === "turn_aborted" ? "cancelled" : error ? "error" : "success";
-  const errorInfo = error ? stringValue2(error.codex_error_info) : void 0;
   const metadata = selectedLifecycleMetadata(payload);
   if (errorInfo !== void 0) metadata.errorInfo = errorInfo;
   return {
@@ -2347,6 +2644,11 @@ function responseItemActivity(source, detailed, payload) {
     const nativeName = stringValue2(payload.name);
     const nativeStatus = stringValue2(payload.status);
     const argumentEvidence = codexCallArguments(nativeType, payload, locator);
+    const skillEvidence = structuredSkillFileReadEvidence(
+      "codex",
+      nativeName,
+      argumentEvidence.fields.arguments
+    );
     return {
       events: [
         {
@@ -2361,7 +2663,8 @@ function responseItemActivity(source, detailed, payload) {
           ...nativeName === void 0 ? {} : { nativeName },
           ...nativeStatus === void 0 ? {} : { nativeStatus },
           ...Object.hasOwn(payload, "namespace") ? { metadata: { namespace: payload.namespace } } : {},
-          ...argumentEvidence.fields
+          ...argumentEvidence.fields,
+          ...skillEvidence === void 0 ? {} : { skillEvidence: [skillEvidence] }
         }
       ],
       coverage: [],
@@ -2596,6 +2899,212 @@ function extractCodexRecord(source, detailed) {
   return { events: [], coverage: [], diagnostics: [] };
 }
 
+// src/shared/transcript/activity/usage.ts
+function stableValue(value) {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (!isJsonObject3(value)) return value;
+  return Object.fromEntries(
+    Object.entries(value).toSorted(([left], [right]) => left.localeCompare(right)).map(([key, item]) => [key, stableValue(item)])
+  );
+}
+function signature(value) {
+  return JSON.stringify(stableValue(value));
+}
+function tokenFields(value) {
+  if (!isJsonObject3(value)) return void 0;
+  const entries = [];
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item === "number" && Number.isFinite(item) && /token/iu.test(key)) {
+      entries.push([key, item]);
+      continue;
+    }
+    const nested = tokenFields(item);
+    if (nested && Object.keys(nested).length > 0) entries.push([key, nested]);
+  }
+  return entries.length > 0 ? Object.fromEntries(entries) : void 0;
+}
+function claudeRecordSessionId(record) {
+  const message = isJsonObject3(record.message) ? record.message : void 0;
+  return stringValue2(record.sessionId) ?? stringValue2(record.session_id) ?? stringValue2(record.sessionID) ?? (message ? stringValue2(message.sessionId) : void 0) ?? (message ? stringValue2(message.session_id) : void 0);
+}
+function claudeUsage(source, records) {
+  const samples = [];
+  const diagnostics = [];
+  const byMessage = /* @__PURE__ */ new Map();
+  for (const detailed of records) {
+    const { record } = detailed;
+    if (record.type !== "assistant" || !isJsonObject3(record.message)) continue;
+    const message = record.message;
+    const tokens = tokenFields(message.usage);
+    if (!tokens) continue;
+    const locator = recordLocator(detailed, "/message/usage");
+    const recordedSessionId = claudeRecordSessionId(record);
+    if (recordedSessionId !== void 0 && recordedSessionId !== source.nativeSessionId) {
+      diagnostics.push({ code: "USAGE_SESSION_MISMATCH", locator });
+      continue;
+    }
+    const messageId = stringValue2(message.id)?.trim() || void 0;
+    const model = stringValue2(message.model)?.trim() || void 0;
+    const sample = {
+      semantics: "claude-message",
+      ownership: "owned",
+      locator,
+      tokens,
+      ...model === void 0 ? {} : { model },
+      ...messageId === void 0 ? { uncertainty: "missing-message-id" } : { messageId }
+    };
+    if (messageId === void 0) {
+      samples.push(sample);
+      diagnostics.push({ code: "USAGE_DEDUP_UNCERTAIN", locator });
+      continue;
+    }
+    const key = `${source.nativeSessionId}:${messageId}`;
+    const sampleSignature = signature({ tokens, model });
+    const prior = byMessage.get(key);
+    if (!prior) {
+      byMessage.set(key, { signature: sampleSignature, sample });
+      samples.push(sample);
+      continue;
+    }
+    if (prior.signature !== sampleSignature) {
+      diagnostics.push({ code: "USAGE_CONFLICT", locator, messageId });
+    }
+  }
+  return {
+    scope: "captured-source",
+    availability: samples.length > 0 ? "recorded" : "not-recorded",
+    samples,
+    diagnostics
+  };
+}
+function codexUsage(source, records, events) {
+  const samples = [];
+  const diagnostics = [];
+  const ownershipContext = activityOwnershipContext(source, events);
+  const turnModels = /* @__PURE__ */ new Map();
+  for (const detailed of records) {
+    const { record } = detailed;
+    if (record.type !== "turn_context" || !isJsonObject3(record.payload))
+      continue;
+    const turnId = stringValue2(record.payload.turn_id);
+    const model = stringValue2(record.payload.model);
+    if (turnId && model) {
+      const ownership = ownershipForLocator(
+        recordLocator(detailed, "/payload"),
+        ownershipContext
+      );
+      turnModels.set(`${ownership}:${turnId}`, model);
+    }
+  }
+  const counterStates = /* @__PURE__ */ new Map();
+  const responses = /* @__PURE__ */ new Map();
+  for (const detailed of records) {
+    const { record } = detailed;
+    const payload = isJsonObject3(record.payload) ? record.payload : void 0;
+    if (record.type === "event_msg" && payload?.type === "token_count") {
+      const info = isJsonObject3(payload.info) ? payload.info : void 0;
+      if (!info) continue;
+      const total = tokenFields(info.total_token_usage);
+      const last = tokenFields(info.last_token_usage);
+      if (!total && !last) continue;
+      const totalLocator = recordLocator(
+        detailed,
+        "/payload/info/total_token_usage"
+      );
+      const ownership2 = ownershipForLocator(totalLocator, ownershipContext);
+      const state = counterStates.get(ownership2) ?? { segment: 0 };
+      const snapshot = signature({ total, last });
+      if (snapshot === state.previousSnapshot) continue;
+      state.previousSnapshot = snapshot;
+      const totalTokens = total ? numberValue(total.total_tokens) : void 0;
+      if (totalTokens !== void 0 && state.previousTotal !== void 0 && totalTokens < state.previousTotal) {
+        state.segment += 1;
+        diagnostics.push({
+          code: "USAGE_COUNTER_RESET",
+          locator: totalLocator
+        });
+      }
+      if (totalTokens !== void 0) state.previousTotal = totalTokens;
+      counterStates.set(ownership2, state);
+      if (total) {
+        samples.push({
+          semantics: "codex-cumulative",
+          ownership: ownership2,
+          locator: totalLocator,
+          tokens: total,
+          segment: state.segment
+        });
+      }
+      if (last) {
+        samples.push({
+          semantics: "codex-last-turn",
+          ownership: ownership2,
+          locator: recordLocator(detailed, "/payload/info/last_token_usage"),
+          tokens: last,
+          segment: state.segment
+        });
+      }
+      continue;
+    }
+    if (record.type !== "token_usage_record" || !payload) continue;
+    const recordedThreadId = stringValue2(payload.thread_id);
+    const locator = recordLocator(detailed, "/payload");
+    if (recordedThreadId !== void 0 && recordedThreadId !== source.nativeSessionId) {
+      diagnostics.push({ code: "USAGE_SESSION_MISMATCH", locator });
+      continue;
+    }
+    const usage = tokenFields(payload.usage);
+    const turnUsage = tokenFields(payload.turn_token_usage);
+    const threadUsage = tokenFields(payload.thread_token_usage);
+    if (!usage && !turnUsage && !threadUsage) continue;
+    const tokens = {
+      ...usage === void 0 ? {} : { usage },
+      ...turnUsage === void 0 ? {} : { turn_token_usage: turnUsage },
+      ...threadUsage === void 0 ? {} : { thread_token_usage: threadUsage }
+    };
+    const responseId = stringValue2(payload.response_id)?.trim() || void 0;
+    const turnId = stringValue2(payload.turn_id)?.trim() || void 0;
+    const sampleSignature = signature(tokens);
+    if (responseId !== void 0) {
+      const prior = responses.get(responseId);
+      if (prior === sampleSignature) continue;
+      if (prior !== void 0) {
+        diagnostics.push({ code: "USAGE_CONFLICT", locator });
+        continue;
+      }
+      responses.set(responseId, sampleSignature);
+    }
+    const ownership = ownershipForLocator(locator, ownershipContext);
+    const model = turnId ? turnModels.get(`${ownership}:${turnId}`) : void 0;
+    samples.push({
+      semantics: "codex-response",
+      ownership,
+      locator,
+      tokens,
+      ...model === void 0 ? {} : { model },
+      ...turnId === void 0 ? {} : { turnId },
+      ...responseId === void 0 ? {} : { responseId }
+    });
+  }
+  return {
+    scope: "captured-source",
+    availability: samples.length > 0 ? "recorded" : "not-recorded",
+    samples,
+    diagnostics
+  };
+}
+function extractUsageMetadata(source, records, events) {
+  return source.runtime === "claude-code" ? claudeUsage(source, records) : codexUsage(source, records, events);
+}
+function notRecordedUsage() {
+  return {
+    scope: "captured-source",
+    availability: "not-recorded",
+    samples: [],
+    diagnostics: []
+  };
+}
+
 // src/shared/transcript/activity/extract.ts
 function validateInput(input) {
   const { source } = input;
@@ -2662,6 +3171,9 @@ function extractActivity(input) {
   const events = [];
   const coverage2 = [];
   const diagnostics = [];
+  const sourceSkills = [];
+  let sourceSkillNamesRecorded = false;
+  let usage = notRecordedUsage();
   for (const sourceDiagnostic of input.read.diagnostics) {
     const locator = {
       physicalLine: sourceDiagnostic.physicalLine,
@@ -2692,6 +3204,26 @@ function extractActivity(input) {
     events.push(...extracted.events);
     coverage2.push(...extracted.coverage);
     diagnostics.push(...extracted.diagnostics);
+    sourceSkills.push(...extracted.sourceSkills ?? []);
+    sourceSkillNamesRecorded ||= extracted.sourceSkillNamesRecorded === true;
+  }
+  const latestAvailableSkill = /* @__PURE__ */ new Map();
+  for (const skill of sourceSkills) {
+    if (skill.evidence === "available")
+      latestAvailableSkill.set(skill.name, skill);
+  }
+  const deduplicatedSourceSkills = sourceSkills.filter(
+    (skill) => skill.evidence === "invoked" || latestAvailableSkill.get(skill.name) === skill
+  );
+  try {
+    usage = extractUsageMetadata(input.source, input.read.records, events);
+  } catch {
+    usage = {
+      scope: "captured-source",
+      availability: "not-read",
+      samples: [],
+      diagnostics: [{ code: "USAGE_EXTRACTION_ERROR" }]
+    };
   }
   return {
     activitySchemaVersion: ACTIVITY_SCHEMA_VERSION,
@@ -2701,8 +3233,21 @@ function extractActivity(input) {
       sourceBytes: input.read.sourceBytes
     },
     events,
-    coverage: [...baseCoverage(events), ...coverage2],
-    diagnostics
+    diagnostics,
+    sourceMetadata: {
+      scope: "captured-source",
+      skills: deduplicatedSourceSkills,
+      usage
+    },
+    coverage: [
+      ...baseCoverage(events),
+      ...coverage2,
+      {
+        dataClass: "source-skill-names",
+        status: sourceSkillNamesRecorded ? "available" : "not-recorded",
+        captured: deduplicatedSourceSkills.length
+      }
+    ]
   };
 }
 
@@ -2760,7 +3305,8 @@ function eventLines(event) {
       lifecycleAvailability: event.lifecycleAvailability,
       turnOutcome: event.turnOutcome,
       externalReference: event.externalReference,
-      childReference: event.childReference
+      childReference: event.childReference,
+      skillEvidence: event.skillEvidence
     }).filter(([, value]) => value !== void 0)
   );
   return [
@@ -2788,13 +3334,15 @@ function renderActivityMarkdown(report) {
     `- Source: ${markdownData(report.source.transcriptPath)}`,
     `- Source snapshot: ${report.sourceSnapshot.sourceBytes} bytes captured at ${report.sourceSnapshot.capturedAt}`,
     `- Delivery range: [${report.deliveryRange.start}, ${report.deliveryRange.end}) ${report.deliveryRange.indexBase}`,
-    `- Activity bytes: ${report.renderedBytes}/${report.limits.maxBytes}; preview cap: ${report.limits.previewBytes}; late context cap: ${report.limits.lateContextBytes}`,
+    `- Activity bytes: ${report.renderedBytes}/${report.limits.maxBytes ?? "unbounded"}; preview cap: ${report.limits.previewBytes}; late context cap: ${report.limits.lateContextBytes}`,
     countLine(report.counts.capturedSource),
     countLine(report.counts.deliveredRange),
     countLine(report.counts.displayed),
     `- Omitted evidence: calls ${report.omitted.calls}; results ${report.omitted.results}; failures ${report.omitted.failures}`,
     `- Omitted groups: invocation limit ${report.omitted.invocationLimitGroups}; byte limit ${report.omitted.byteLimitGroups}`,
     `- Omitted metadata: coverage ${report.omitted.coverageEntries}; diagnostics ${report.omitted.diagnostics}`,
+    `- Source metadata: ${report.sourceMetadata.scope}; skills ${report.sourceMetadata.skills.length}; omitted skills ${report.omitted.sourceSkills}`,
+    `- Token usage: ${report.sourceMetadata.usage?.availability ?? "not-recorded"}; samples ${report.sourceMetadata.usage?.samples.length ?? 0}; diagnostics ${report.sourceMetadata.usage?.diagnostics.length ?? 0}; omitted samples ${report.omitted.usageSamples}; omitted diagnostics ${report.omitted.usageDiagnostics}`,
     "",
     "### Events",
     "",
@@ -2833,6 +3381,43 @@ function renderActivityMarkdown(report) {
       );
     }
   }
+  if (report.sourceMetadata.skills.length > 0) {
+    lines.push("", "### Captured-source skills", "");
+    for (const skill of report.sourceMetadata.skills) {
+      lines.push(
+        `- ${skill.evidence}: ${markdownData(skill.name)}; ${locatorText(skill.locator)}`
+      );
+    }
+  }
+  const usage = report.sourceMetadata.usage;
+  if (usage && usage.samples.length > 0) {
+    lines.push("", "### Captured-source token usage", "");
+    for (const sample of usage.samples) {
+      const identity = Object.fromEntries(
+        Object.entries({
+          ownership: sample.ownership,
+          model: sample.model,
+          messageId: sample.messageId,
+          turnId: sample.turnId,
+          responseId: sample.responseId,
+          segment: sample.segment,
+          uncertainty: sample.uncertainty
+        }).filter(([, value]) => value !== void 0)
+      );
+      lines.push(
+        `- ${sample.semantics}; ${locatorText(sample.locator)}${Object.keys(identity).length === 0 ? "" : `; ${markdownData(identity)}`}`,
+        `  - tokens: ${markdownData(sample.tokens)}`
+      );
+    }
+  }
+  if (usage && usage.diagnostics.length > 0) {
+    lines.push("", "### Token usage diagnostics", "");
+    for (const diagnostic of usage.diagnostics) {
+      lines.push(
+        `- ${diagnostic.code}; ${locatorText(diagnostic.locator)}${diagnostic.messageId === void 0 ? "" : `; message ${markdownData(diagnostic.messageId)}`}`
+      );
+    }
+  }
   return `${lines.join("\n")}
 `;
 }
@@ -2864,6 +3449,12 @@ var ACTIVITY_PROJECTION_LIMITS = {
     maxInvocations: null,
     previewBytes: 2 * KIB,
     lateContextBytes: 256
+  },
+  "complete-capture": {
+    maxBytes: null,
+    maxInvocations: null,
+    previewBytes: 2 * KIB,
+    lateContextBytes: 256
   }
 };
 function inRange(event, range) {
@@ -2875,7 +3466,7 @@ function validateRange(range) {
   }
 }
 function validateLimits(limits) {
-  if (!Number.isSafeInteger(limits.maxBytes) || limits.maxBytes <= 0 || limits.maxInvocations !== null && (!Number.isSafeInteger(limits.maxInvocations) || limits.maxInvocations < 0) || !Number.isSafeInteger(limits.previewBytes) || limits.previewBytes <= 0 || !Number.isSafeInteger(limits.lateContextBytes) || limits.lateContextBytes <= 0) {
+  if (limits.maxBytes !== null && (!Number.isSafeInteger(limits.maxBytes) || limits.maxBytes <= 0) || limits.maxInvocations !== null && (!Number.isSafeInteger(limits.maxInvocations) || limits.maxInvocations < 0) || !Number.isSafeInteger(limits.previewBytes) || limits.previewBytes <= 0 || !Number.isSafeInteger(limits.lateContextBytes) || limits.lateContextBytes <= 0) {
     throw new Error("Activity projection limits must be positive integers");
   }
 }
@@ -2970,7 +3561,14 @@ function deliveredMetadata(activity, range) {
     ),
     diagnostics: activity.diagnostics.filter(
       (entry) => locatorInRange(entry.locator)
-    )
+    ),
+    sourceSkills: activity.sourceMetadata?.skills ?? [],
+    usage: activity.sourceMetadata?.usage ?? {
+      scope: "captured-source",
+      availability: "not-recorded",
+      samples: [],
+      diagnostics: []
+    }
   };
 }
 function compareMetadataPriority(left, right) {
@@ -2991,12 +3589,54 @@ function retainMetadata(metadata, retainedCount) {
         index,
         locator: entry.locator
       })
+    ),
+    ...metadata.sourceSkills.map(
+      (entry, index) => ({
+        kind: "sourceSkills",
+        index,
+        locator: entry.locator
+      })
+    ),
+    ...metadata.usage.samples.map(
+      (entry, index) => ({
+        kind: "usageSamples",
+        index,
+        locator: entry.locator
+      })
+    ),
+    ...metadata.usage.diagnostics.map(
+      (entry, index) => ({
+        kind: "usageDiagnostics",
+        index,
+        locator: entry.locator
+      })
     )
   ].toSorted(compareMetadataPriority);
   const retainedCoverage = /* @__PURE__ */ new Set();
   const retainedDiagnostics = /* @__PURE__ */ new Set();
+  const retainedSourceSkills = /* @__PURE__ */ new Set();
+  const retainedUsageSamples = /* @__PURE__ */ new Set();
+  const retainedUsageDiagnostics = /* @__PURE__ */ new Set();
   for (const candidate of priority.slice(0, retainedCount)) {
-    (candidate.kind === "coverage" ? retainedCoverage : retainedDiagnostics).add(candidate.index);
+    let target = retainedUsageDiagnostics;
+    switch (candidate.kind) {
+      case "coverage":
+        target = retainedCoverage;
+        break;
+      case "diagnostics":
+        target = retainedDiagnostics;
+        break;
+      case "sourceSkills":
+        target = retainedSourceSkills;
+        break;
+      case "usageSamples":
+        target = retainedUsageSamples;
+        break;
+      case "usageDiagnostics":
+        target = retainedUsageDiagnostics;
+        break;
+    }
+    target.add(candidate.index);
   }
   return {
     coverage: metadata.coverage.filter(
@@ -3004,7 +3644,67 @@ function retainMetadata(metadata, retainedCount) {
     ),
     diagnostics: metadata.diagnostics.filter(
       (_, index) => retainedDiagnostics.has(index)
+    ),
+    sourceSkills: metadata.sourceSkills.filter(
+      (_, index) => retainedSourceSkills.has(index)
+    ),
+    usage: {
+      ...metadata.usage,
+      samples: metadata.usage.samples.filter(
+        (_, index) => retainedUsageSamples.has(index)
+      ),
+      diagnostics: metadata.usage.diagnostics.filter(
+        (_, index) => retainedUsageDiagnostics.has(index)
+      )
+    }
+  };
+}
+function retainOptionalSourceMetadata(metadata, retainedCount) {
+  const priority = [
+    ...metadata.sourceSkills.map(
+      (entry, index) => ({
+        kind: "sourceSkills",
+        index,
+        locator: entry.locator
+      })
+    ),
+    ...metadata.usage.samples.map(
+      (entry, index) => ({
+        kind: "usageSamples",
+        index,
+        locator: entry.locator
+      })
+    ),
+    ...metadata.usage.diagnostics.map(
+      (entry, index) => ({
+        kind: "usageDiagnostics",
+        index,
+        locator: entry.locator
+      })
     )
+  ].toSorted(compareMetadataPriority);
+  const retainedSourceSkills = /* @__PURE__ */ new Set();
+  const retainedUsageSamples = /* @__PURE__ */ new Set();
+  const retainedUsageDiagnostics = /* @__PURE__ */ new Set();
+  for (const candidate of priority.slice(0, retainedCount)) {
+    const target = candidate.kind === "sourceSkills" ? retainedSourceSkills : candidate.kind === "usageSamples" ? retainedUsageSamples : retainedUsageDiagnostics;
+    target.add(candidate.index);
+  }
+  return {
+    coverage: metadata.coverage,
+    diagnostics: metadata.diagnostics,
+    sourceSkills: metadata.sourceSkills.filter(
+      (_, index) => retainedSourceSkills.has(index)
+    ),
+    usage: {
+      ...metadata.usage,
+      samples: metadata.usage.samples.filter(
+        (_, index) => retainedUsageSamples.has(index)
+      ),
+      diagnostics: metadata.usage.diagnostics.filter(
+        (_, index) => retainedUsageDiagnostics.has(index)
+      )
+    }
   };
 }
 function projectEvent(event, limits, suppressLinkedItemOutput) {
@@ -3036,7 +3736,8 @@ function projectEvent(event, limits, suppressLinkedItemOutput) {
     ...event.kind === "item" && suppressLinkedItemOutput ? { outputPreviewOmitted: "exact-linked-duplicate-carrier" } : event.kind === "item" && Object.hasOwn(event, "nativeValue") ? { outputPreview: preview(event.nativeValue, limits.previewBytes) } : event.kind === "item" && Object.hasOwn(event, "result") ? { outputPreview: preview(event.result, limits.previewBytes) } : {},
     ...event.metadata === void 0 ? {} : { metadataPreview: preview(event.metadata, limits.previewBytes) },
     ...event.externalReference === void 0 ? {} : { externalReference: event.externalReference },
-    ...event.childReference === void 0 ? {} : { childReference: event.childReference }
+    ...event.childReference === void 0 ? {} : { childReference: event.childReference },
+    ...event.skillEvidence === void 0 ? {} : { skillEvidence: event.skillEvidence }
   };
 }
 function countEvents(scope, events) {
@@ -3142,7 +3843,12 @@ function buildReport(activity, options, limits, groups, retainedKeys, metadata, 
     events,
     callContexts,
     coverage: metadata.coverage,
-    diagnostics: metadata.diagnostics
+    diagnostics: metadata.diagnostics,
+    sourceMetadata: {
+      scope: "captured-source",
+      skills: metadata.sourceSkills,
+      usage: metadata.usage
+    }
   };
   return finalizeRenderedBytes(report);
 }
@@ -3159,7 +3865,10 @@ function projectActivityWithLimits(activity, options, limits) {
     invocationLimitGroups: invocationOmitted.length,
     byteLimitGroups: 0,
     coverageEntries: 0,
-    diagnostics: 0
+    diagnostics: 0,
+    sourceSkills: 0,
+    usageSamples: 0,
+    usageDiagnostics: 0
   };
   const initial = buildReport(
     activity,
@@ -3170,11 +3879,53 @@ function projectActivityWithLimits(activity, options, limits) {
     metadata,
     initialReasons
   );
-  if (initial.renderedBytes <= limits.maxBytes) return initial;
+  if (limits.maxBytes === null || initial.renderedBytes <= limits.maxBytes) {
+    return initial;
+  }
+  const maxBytes = limits.maxBytes;
+  const optionalMetadataCount = metadata.sourceSkills.length + metadata.usage.samples.length + metadata.usage.diagnostics.length;
+  let optionalLow = 0;
+  let optionalHigh = optionalMetadataCount;
+  let best;
+  while (optionalLow <= optionalHigh) {
+    const retainedCount = Math.floor((optionalLow + optionalHigh) / 2);
+    const retainedMetadata = retainOptionalSourceMetadata(
+      metadata,
+      retainedCount
+    );
+    const candidate = buildReport(
+      activity,
+      options,
+      limits,
+      groups,
+      retained,
+      retainedMetadata,
+      {
+        ...initialReasons,
+        sourceSkills: metadata.sourceSkills.length - retainedMetadata.sourceSkills.length,
+        usageSamples: metadata.usage.samples.length - retainedMetadata.usage.samples.length,
+        usageDiagnostics: metadata.usage.diagnostics.length - retainedMetadata.usage.diagnostics.length
+      }
+    );
+    if (candidate.renderedBytes <= maxBytes) {
+      best = candidate;
+      optionalLow = retainedCount + 1;
+    } else {
+      optionalHigh = retainedCount - 1;
+    }
+  }
+  if (best) return best;
+  const boundedMetadata = retainOptionalSourceMetadata(metadata, 0);
+  const boundedReasons = {
+    ...initialReasons,
+    sourceSkills: metadata.sourceSkills.length,
+    usageSamples: metadata.usage.samples.length,
+    usageDiagnostics: metadata.usage.diagnostics.length
+  };
   const removable = groups.filter((group) => retained.has(group.key)).toSorted(compareLowPriority);
   let low = 1;
   let high = removable.length;
-  let best;
+  best = void 0;
   while (low <= high) {
     const removedCount = Math.floor((low + high) / 2);
     const candidateKeys = new Set(retained);
@@ -3187,13 +3938,13 @@ function projectActivityWithLimits(activity, options, limits) {
       limits,
       groups,
       candidateKeys,
-      metadata,
+      boundedMetadata,
       {
-        ...initialReasons,
+        ...boundedReasons,
         byteLimitGroups: removedCount
       }
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       high = removedCount - 1;
     } else {
@@ -3201,12 +3952,12 @@ function projectActivityWithLimits(activity, options, limits) {
     }
   }
   if (best) return best;
-  const metadataCount = metadata.coverage.length + metadata.diagnostics.length;
+  const metadataCount = boundedMetadata.coverage.length + boundedMetadata.diagnostics.length;
   let metadataLow = 0;
   let metadataHigh = metadataCount;
   while (metadataLow <= metadataHigh) {
     const retainedCount = Math.floor((metadataLow + metadataHigh) / 2);
-    const retainedMetadata = retainMetadata(metadata, retainedCount);
+    const retainedMetadata = retainMetadata(boundedMetadata, retainedCount);
     const candidate = buildReport(
       activity,
       options,
@@ -3215,13 +3966,13 @@ function projectActivityWithLimits(activity, options, limits) {
       /* @__PURE__ */ new Set(),
       retainedMetadata,
       {
-        ...initialReasons,
+        ...boundedReasons,
         byteLimitGroups: removable.length,
-        coverageEntries: metadata.coverage.length - retainedMetadata.coverage.length,
-        diagnostics: metadata.diagnostics.length - retainedMetadata.diagnostics.length
+        coverageEntries: boundedMetadata.coverage.length - retainedMetadata.coverage.length,
+        diagnostics: boundedMetadata.diagnostics.length - retainedMetadata.diagnostics.length
       }
     );
-    if (candidate.renderedBytes <= limits.maxBytes) {
+    if (candidate.renderedBytes <= maxBytes) {
       best = candidate;
       metadataLow = retainedCount + 1;
     } else {
@@ -3274,8 +4025,13 @@ function callEvents(input) {
   return input.analysis.turns.flatMap((turn) => {
     const settled = isSettled(turn);
     if (input.mode === "stateful-delivery" && !settled) return [];
-    return (turn.toolRecords ?? []).map(
-      (tool) => ({
+    return (turn.toolRecords ?? []).map((tool) => {
+      const skillEvidence = structuredSkillFileReadEvidence(
+        "cursor",
+        tool.nativeName,
+        tool.arguments
+      );
+      return {
         eventKey: eventKey2(
           turn,
           tool.sourceFrameIndex,
@@ -3296,9 +4052,10 @@ function callEvents(input) {
         lifecycleAvailability: settled ? "settled" : "pending-lifecycle",
         turnOutcome: turn.lifecycle,
         ...tool.nativeName === void 0 ? {} : { nativeName: tool.nativeName },
-        ...Object.hasOwn(tool, "arguments") ? { arguments: tool.arguments } : {}
-      })
-    );
+        ...Object.hasOwn(tool, "arguments") ? { arguments: tool.arguments } : {},
+        ...skillEvidence === void 0 ? {} : { skillEvidence: [skillEvidence] }
+      };
+    });
   });
 }
 function lifecycleCounts(analysis, emittedCalls, mode) {
@@ -3323,6 +4080,11 @@ function coverage(events, scan, mode) {
       dataClass: "calls",
       status: "available",
       captured: events.length
+    },
+    {
+      dataClass: "source-skill-names",
+      status: "not-recorded",
+      captured: 0
     },
     ...events.length > 0 || mode === "stateless-snapshot" ? [
       {
@@ -3371,6 +4133,11 @@ function extractCursorActivity(input) {
         }
       }
     ] : [],
+    sourceMetadata: {
+      scope: "captured-source",
+      skills: [],
+      usage: notRecordedUsage()
+    },
     cursor: {
       indexBase: input.scan.indexBase,
       mode: input.mode,
@@ -3647,6 +4414,10 @@ function formatHeader(digest) {
       filterParts2.push(`command messages: ${filtered.commandMessages}`);
     if (filtered.bootstrapRecords > 0)
       filterParts2.push(`bootstrap records: ${filtered.bootstrapRecords}`);
+    if ("apiErrorRecords" in filtered && filtered.apiErrorRecords !== void 0 && filtered.apiErrorRecords > 0)
+      filterParts2.push(
+        `provider API-error records: ${filtered.apiErrorRecords}`
+      );
     if (filtered.metadataRecords > 0)
       filterParts2.push(
         `metadata/non-message records: ${filtered.metadataRecords}`
@@ -4245,6 +5016,14 @@ function buildCursorDigest(transcriptPath, opts) {
       );
     }
   }
+  const terminalEvents = opts.includeTerminalEvents ? extractCursorTerminalEvents({
+    runtime: "cursor",
+    sessionId: opts.sessionId ?? opts.cursorIdentity.sessionId,
+    nativeSessionId: opts.cursorIdentity.sessionId,
+    analysis,
+    fromIndex,
+    nextIndex
+  }) : void 0;
   return {
     schemaVersion: 2,
     runtime: "cursor",
@@ -4269,6 +5048,7 @@ function buildCursorDigest(transcriptPath, opts) {
     accounting,
     entries,
     ...activity ? { activity } : {},
+    ...terminalEvents && terminalEvents.length > 0 ? { terminalEvents } : {},
     filters,
     warnings,
     fallbacks: opts.fallbacks ?? [],
@@ -4293,6 +5073,7 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     includeToolResults = false,
     includeCommandMessages = false,
     includeActivity = false,
+    includeTerminalEvents = false,
     activityRenderFormat = "compact-json",
     maxTurns,
     maxBytes,
@@ -4301,7 +5082,7 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
   const warnings = [...opts.warnings ?? []];
   const effectiveIncludeToolCalls = includeActivity ? false : includeToolCalls;
   const effectiveIncludeToolResults = includeActivity ? false : includeToolResults;
-  const capturedRead = includeActivity ? opts.capturedRead ?? await readRecordsDetailed(transcriptPath) : void 0;
+  const capturedRead = includeActivity || includeTerminalEvents ? opts.capturedRead ?? await readRecordsDetailed(transcriptPath) : void 0;
   const records = capturedRead ? capturedRead.records.map(({ record }) => record) : await readRecords(transcriptPath);
   const totalRecords = records.length;
   const engagement = classifyTranscriptRecords(runtime, records);
@@ -4324,6 +5105,19 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
   const rawFromIndex = effectiveFromIndex;
   const rawToIndex = totalRecords > rawFromIndex ? totalRecords - 1 : rawFromIndex;
   const rawCount = Math.max(0, totalRecords - rawFromIndex);
+  const terminalEvents = includeTerminalEvents && capturedRead && runtime !== "cursor" ? extractRecordedTerminalEvents({
+    runtime,
+    sessionId,
+    nativeSessionId: identity?.nativeSessionId ?? sessionId,
+    read: capturedRead,
+    fromIndex: rawFromIndex,
+    nextIndex: totalRecords
+  }) : void 0;
+  const apiErrorRecordIndexes = new Set(
+    terminalEvents?.flatMap(
+      (event) => event.status === "api-error" && event.source.recordIndex !== void 0 ? [event.source.recordIndex] : []
+    ) ?? []
+  );
   const allEntriesWithToolsBeforeBootstrap = normalizeEntries(
     runtime,
     records,
@@ -4341,10 +5135,10 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     includeCommandMessages
   });
   const allEntriesWithTools = allEntriesWithToolsBeforeBootstrap.filter(
-    (e) => !bootstrapRecordIndexes.has(e.recordIndex)
+    (e) => !bootstrapRecordIndexes.has(e.recordIndex) && !apiErrorRecordIndexes.has(e.recordIndex)
   );
   const allEntries = allEntriesBeforeBootstrap.filter(
-    (e) => !bootstrapRecordIndexes.has(e.recordIndex)
+    (e) => !bootstrapRecordIndexes.has(e.recordIndex) && !apiErrorRecordIndexes.has(e.recordIndex)
   );
   const entriesBeforeTailSlice = allEntries.filter(
     (e) => e.recordIndex >= effectiveFromIndex
@@ -4427,8 +5221,13 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
       bootstrapMessages: fullEntriesInRawRangeBeforeBootstrap.filter(
         (e) => bootstrapRecordIndexes.has(e.recordIndex)
       ).length,
+      ...includeTerminalEvents ? {
+        apiErrorRecords: [...apiErrorRecordIndexes].filter(
+          (index) => index >= rawFromIndex && index < totalRecords
+        ).length
+      } : {},
       metadataRecords: [...rawRecordIndexes].filter(
-        (index) => !rawRecordIndexesWithAnyEntry.has(index)
+        (index) => !rawRecordIndexesWithAnyEntry.has(index) && !apiErrorRecordIndexes.has(index)
       ).length,
       tailSliceEntries: Math.max(
         0,
@@ -4535,6 +5334,7 @@ async function buildDigest(runtime, transcriptPath, opts = {}) {
     accounting,
     entries: filteredEntries,
     ...activity ? { activity } : {},
+    ...terminalEvents && terminalEvents.length > 0 ? { terminalEvents } : {},
     filters,
     warnings,
     fallbacks
@@ -4784,8 +5584,8 @@ function compactClassificationForCache(classification) {
   if (classification.bootstrapRecordIndexes.length === 0) return classification;
   return { ...classification, bootstrapRecordIndexes: [] };
 }
-async function candidateDerivedFields(runtime, transcriptPath, signature, cache) {
-  const cached = cache.get(transcriptPath, signature.mtimeMs, signature.size);
+async function candidateDerivedFields(runtime, transcriptPath, signature2, cache) {
+  const cached = cache.get(transcriptPath, signature2.mtimeMs, signature2.size);
   if (cached) return cached;
   try {
     const records = await readRecords(transcriptPath);
@@ -4794,18 +5594,18 @@ async function candidateDerivedFields(runtime, transcriptPath, signature, cache)
     );
     const meta = extractMetaFromRecords(runtime, records, transcriptPath);
     const result = { meta, classification };
-    cache.set(transcriptPath, signature.mtimeMs, signature.size, result);
+    cache.set(transcriptPath, signature2.mtimeMs, signature2.size, result);
     return result;
   } catch {
     return { meta: null, classification: UNKNOWN_CLASSIFICATION };
   }
 }
-async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature, cache, budget, diagnostic, unattributablePolicy = "fail", unattributable) {
+async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature2, cache, budget, diagnostic, unattributablePolicy = "fail", unattributable) {
   const derivation = `bounded-prefix:${budget.limits.maxMetadataBytesPerEntry}:${EXACT_ALL_METADATA_MAX_RECORDS}:${unattributablePolicy}`;
   const cached = cache.get(
     transcriptPath,
-    signature.mtimeMs,
-    signature.size,
+    signature2.mtimeMs,
+    signature2.size,
     derivation
   );
   if (cached) return cached;
@@ -4876,18 +5676,18 @@ async function candidateDerivedFieldsBounded(runtime, transcriptPath, signature,
   const result = { meta, classification };
   cache.set(
     transcriptPath,
-    signature.mtimeMs,
-    signature.size,
+    signature2.mtimeMs,
+    signature2.size,
     result,
     derivation
   );
   return result;
 }
-async function candidateEngagementFields(runtime, transcriptPath, signature, cache) {
+async function candidateEngagementFields(runtime, transcriptPath, signature2, cache) {
   const { classification } = await candidateDerivedFields(
     runtime,
     transcriptPath,
-    signature,
+    signature2,
     cache
   );
   return engagementCandidateFields(classification);
@@ -8167,6 +8967,7 @@ async function buildCatchUpDigest(runtime, candidate, {
   includeToolResults,
   includeCommandMessages,
   includeActivity,
+  includeTerminalEvents,
   activityRenderFormat,
   maxTurns,
   maxBytes,
@@ -8182,6 +8983,7 @@ async function buildCatchUpDigest(runtime, candidate, {
     includeToolResults,
     includeCommandMessages,
     includeActivity,
+    includeTerminalEvents,
     activityRenderFormat,
     maxTurns,
     maxBytes,
@@ -9903,7 +10705,7 @@ function activitySourceSignature(target) {
 function activityCoverageSignal(digest) {
   return Boolean(
     digest.activity?.diagnostics.length || digest.activity?.coverage.some(
-      (entry) => entry.locator !== void 0 || entry.status !== "available"
+      (entry) => entry.dataClass !== "source-skill-names" && (entry.locator !== void 0 || entry.status !== "available")
     )
   );
 }
@@ -9911,13 +10713,25 @@ function activityAccountingSignal(digest) {
   const activity = digest.activity;
   if (!activity) return false;
   const delivered = activity.counts.deliveredRange;
-  return delivered.calls > 0 || delivered.countedInvocations > 0 || delivered.results > 0 || delivered.items > 0 || delivered.failures > 0 || Object.values(activity.omitted).some((count) => count > 0);
+  const deliveredSourceSkill = activity.sourceMetadata.skills.some(
+    (skill) => skill.locator.recordIndex >= activity.deliveryRange.start && skill.locator.recordIndex < activity.deliveryRange.end
+  );
+  const deliveredUsage = (activity.sourceMetadata.usage?.samples ?? []).some(
+    (sample) => sample.locator.recordIndex >= activity.deliveryRange.start && sample.locator.recordIndex < activity.deliveryRange.end
+  );
+  const usageExtractionFailure = activity.sourceMetadata.usage?.availability === "not-read";
+  const deliveredUsageDiagnostic = (activity.sourceMetadata.usage?.diagnostics ?? []).some(
+    (diagnostic) => diagnostic.locator === void 0 || diagnostic.locator.recordIndex >= activity.deliveryRange.start && diagnostic.locator.recordIndex < activity.deliveryRange.end
+  );
+  return delivered.calls > 0 || delivered.countedInvocations > 0 || delivered.results > 0 || delivered.items > 0 || delivered.failures > 0 || deliveredSourceSkill || deliveredUsage || usageExtractionFailure || deliveredUsageDiagnostic || Object.entries(activity.omitted).some(
+    ([kind, count]) => kind !== "sourceSkills" && kind !== "usageSamples" && kind !== "usageDiagnostics" && count > 0
+  );
 }
 function prepareActivityDelta(digest, target) {
   if (!digest.activity) return { renderable: false, activityOnly: false };
   const hasEvents = digest.activity.events.length > 0 || digest.activity.callContexts.length > 0;
-  const signature = activitySourceSignature(target);
-  const hasNewCoverage = activityCoverageSignal(digest) && target.lastActivityDiagnosticSignature !== signature;
+  const signature2 = activitySourceSignature(target);
+  const hasNewCoverage = activityCoverageSignal(digest) && target.lastActivityDiagnosticSignature !== signature2;
   const renderable = hasEvents || hasNewCoverage || activityAccountingSignal(digest);
   const activityOnly = renderable && digest.accounting.rendered.count === 0;
   if (activityOnly) digest.activityOnly = true;
@@ -9925,7 +10739,7 @@ function prepareActivityDelta(digest, target) {
   return {
     renderable,
     activityOnly,
-    ...hasNewCoverage ? { diagnosticSignature: signature } : {}
+    ...hasNewCoverage ? { diagnosticSignature: signature2 } : {}
   };
 }
 function eventMetadata(ts, digest, rendered) {
@@ -9941,6 +10755,7 @@ function eventMetadata(ts, digest, rendered) {
   };
 }
 function stdoutEvent(ts, digest, rendered) {
+  const { terminalEvents: _terminalEvents, ...publicDigest } = digest;
   return {
     type: "delta",
     ts,
@@ -9950,8 +10765,21 @@ function stdoutEvent(ts, digest, rendered) {
     digestChars: rendered.length,
     ranges: eventRanges(digest),
     ...digest.activityOnly ? { activityOnly: true } : {},
-    digest
+    digest: publicDigest
   };
+}
+function terminalOutputEvent(ts, event) {
+  return { ...event, ts };
+}
+function renderTerminalEvent(event) {
+  const coordinate = event.source.frameIndex === void 0 ? `record=${event.source.recordIndex}` : `frame=${event.source.frameIndex}`;
+  const retry = event.retryEvidence ? ` retry=${JSON.stringify(event.retryEvidence.fragment)} retryProvenance=${event.retryEvidence.provenance}` : "";
+  return `[session-observer] terminal runtime=${event.runtime} session=${event.sessionId} status=${event.status} ${coordinate}${retry}
+`;
+}
+function terminalChunk(args, ts, event) {
+  return args.json ? `${JSON.stringify(terminalOutputEvent(ts, event))}
+` : renderTerminalEvent(event);
 }
 async function writeProcessStdout(chunk) {
   await new Promise((fulfill, reject) => {
@@ -10087,7 +10915,7 @@ function stoppedEvent(ts, reason, eventState) {
   };
 }
 function stoppedLine(reason, eventState) {
-  return `[session-observer] watch stopped reason=${reason} deltaEvents=${eventState.eventCount}
+  return `[session-observer] watch stopped reason=${reason} events=${eventState.eventCount}
 `;
 }
 async function emitStopped(args, deps, reason, eventState) {
@@ -10490,29 +11318,39 @@ async function finalizeCursorOutput(result, chunk, deps) {
 async function emitCursorDelta(result, target, args, deps, eventState) {
   const newFrames = result.digest.range.newFrames;
   const activity = prepareActivityDelta(result.digest, target);
-  const shouldRender = (newFrames > 0 || activity.renderable) && !(args.quietEmpty && result.digest.accounting.rendered.count === 0 && !activity.renderable);
-  if (shouldRender) {
-    const rendered = renderMarkdown(result.digest);
+  const terminalEvents = result.digest.terminalEvents ?? [];
+  const shouldRenderDelta = (newFrames > 0 || activity.renderable) && !(args.quietEmpty && result.digest.accounting.rendered.count === 0 && !activity.renderable);
+  if (shouldRenderDelta || terminalEvents.length > 0) {
+    const rendered = shouldRenderDelta ? renderMarkdown(result.digest) : "";
     const ts = new Date(deps.now()).toISOString();
-    await finalizeCursorOutput(
-      result,
-      args.json ? JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + "\n" : rendered + "\n",
-      deps
-    );
+    const output = [
+      ...terminalEvents.map((event) => terminalChunk(args, ts, event)),
+      ...shouldRenderDelta ? [
+        args.json ? `${JSON.stringify(stdoutEvent(ts, result.digest, rendered))}
+` : `${rendered}
+`
+      ] : []
+    ].join("");
+    await finalizeCursorOutput(result, output, deps);
     const committedState = await getCursorSession(
       result.digest.sessionId
     );
     if (committedState) {
       await persistCursorTarget(target, eventState.pid, committedState, result);
     }
-    await appendEventLog(
-      args.eventLog,
-      eventMetadata(ts, result.digest, rendered)
-    );
+    for (const event of terminalEvents) {
+      await appendEventLog(args.eventLog, terminalOutputEvent(ts, event));
+    }
+    if (shouldRenderDelta) {
+      await appendEventLog(
+        args.eventLog,
+        eventMetadata(ts, result.digest, rendered)
+      );
+    }
     if (activity.diagnosticSignature) {
       target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
     }
-    eventState.eventCount++;
+    eventState.eventCount += terminalEvents.length + (shouldRenderDelta ? 1 : 0);
     eventState.lastHeartbeatAt = deps.now();
     await recordWatcherEvent({
       pid: eventState.pid,
@@ -10533,6 +11371,44 @@ async function emitCursorDelta(result, target, args, deps, eventState) {
     await persistCursorTarget(target, eventState.pid, current, result);
   }
   return false;
+}
+async function emitLegacyWatchEvents(result, target, args, deps, eventState) {
+  const newRecords = result.digest.range.newRecords ?? 0;
+  const activity = prepareActivityDelta(result.digest, target);
+  const terminalEvents = result.digest.terminalEvents ?? [];
+  const shouldRenderDelta = (newRecords > 0 || activity.renderable) && !(args.quietEmpty && result.digest.accounting.rendered.count === 0 && !activity.renderable);
+  if (!shouldRenderDelta && terminalEvents.length === 0) return false;
+  const rendered = shouldRenderDelta ? renderMarkdown(result.digest) : "";
+  const ts = new Date(deps.now()).toISOString();
+  const output = [
+    ...terminalEvents.map((event) => terminalChunk(args, ts, event)),
+    ...shouldRenderDelta ? [
+      args.json ? `${JSON.stringify(stdoutEvent(ts, result.digest, rendered))}
+` : `${rendered}
+`
+    ] : []
+  ].join("");
+  await writeStdoutChunk(deps, output);
+  for (const event of terminalEvents) {
+    await appendEventLog(args.eventLog, terminalOutputEvent(ts, event));
+  }
+  if (shouldRenderDelta) {
+    await appendEventLog(
+      args.eventLog,
+      eventMetadata(ts, result.digest, rendered)
+    );
+  }
+  if (activity.diagnosticSignature) {
+    target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
+  }
+  eventState.eventCount += terminalEvents.length + (shouldRenderDelta ? 1 : 0);
+  eventState.lastHeartbeatAt = deps.now();
+  await recordWatcherEvent({
+    pid: eventState.pid,
+    lastEventAt: ts
+  });
+  await setWatchedByPid(result.runtime, result.digest.sessionId, eventState.pid).catch(() => false);
+  return true;
 }
 async function establishCursorBaseline(args, targets, deps, eventState) {
   const target = await cursorBaselineTarget(args, targets, deps, eventState);
@@ -10628,7 +11504,7 @@ async function establishBaseline(runtime, args, targets, deps, eventState) {
     await restoreConsumedBaseline(result);
     throw duplicateTargetError(conflict.pid, key);
   }
-  const signature = await fileSignature(
+  const signature2 = await fileSignature(
     result.digest.transcriptPath,
     deps.stat
   );
@@ -10638,7 +11514,7 @@ async function establishBaseline(runtime, args, targets, deps, eventState) {
     sessionId: result.digest.sessionId,
     transcriptPath: result.digest.transcriptPath,
     recordedCwd: result.digest.recordedCwd,
-    signature,
+    signature: signature2,
     recordCount: result.digest.range.totalRecords,
     baselineRecordIndex: result.digest.range.nextIndex,
     candidateMtime: result.candidate.mtime,
@@ -10748,9 +11624,9 @@ async function establishBaselines(args, targets, pending, deps, eventState) {
 }
 async function pollTargets(targets, pending, nowMs, statFn, watcherPid) {
   for (const target of targets.values()) {
-    let signature;
+    let signature2;
     try {
-      signature = await fileSignature(target.transcriptPath, statFn);
+      signature2 = await fileSignature(target.transcriptPath, statFn);
     } catch (error) {
       if (target.runtime === "cursor") {
         const state = await getCursorSession(target.sessionId);
@@ -10778,9 +11654,9 @@ async function pollTargets(targets, pending, nowMs, statFn, watcherPid) {
     }
     const deadlineReady = target.runtime === "cursor" && target.pendingCandidateDeadline !== null && target.pendingCandidateDeadline !== void 0 && nowMs >= target.pendingCandidateDeadline;
     const recoveryVerificationNeeded = target.runtime === "cursor" && (target.lastStatus?.health === "error" || target.lastStatus?.health === "stale");
-    if (!signatureChanged(target.signature, signature) && !deadlineReady && !recoveryVerificationNeeded)
+    if (!signatureChanged(target.signature, signature2) && !deadlineReady && !recoveryVerificationNeeded)
       continue;
-    target.signature = signature;
+    target.signature = signature2;
     const existing = pending.get(target.key);
     pending.set(target.key, {
       key: target.key,
@@ -10867,66 +11743,10 @@ async function emitPending(entry, targets, args, deps, eventState) {
   }
   const target = targets.get(entry.key);
   if (!target) return false;
-  const newRecords = result.digest.range.newRecords ?? 0;
-  const activity = prepareActivityDelta(result.digest, target);
-  if (newRecords <= 0 && !activity.renderable) return false;
-  if (args.quietEmpty && result.digest.accounting.rendered.count === 0 && !activity.renderable) {
-    return false;
-  }
-  const rendered = renderMarkdown(result.digest);
-  const ts = new Date(deps.now()).toISOString();
-  const metadata = eventMetadata(ts, result.digest, rendered);
-  if (args.json) {
-    await writeStdoutChunk(
-      deps,
-      JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + "\n"
-    );
-  } else {
-    await writeStdoutChunk(deps, rendered + "\n");
-  }
-  await appendEventLog(args.eventLog, metadata);
-  if (activity.diagnosticSignature) {
-    target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
-  }
-  eventState.eventCount++;
-  eventState.lastHeartbeatAt = deps.now();
-  await recordWatcherEvent({
-    pid: eventState.pid,
-    lastEventAt: ts
-  });
-  await setWatchedByPid(result.runtime, result.digest.sessionId, eventState.pid).catch(() => false);
-  return true;
+  return emitLegacyWatchEvents(result, target, args, deps, eventState);
 }
 async function emitObservedDelta(result, target, args, deps, eventState) {
-  const newRecords = result.digest.range.newRecords ?? 0;
-  const activity = prepareActivityDelta(result.digest, target);
-  if (newRecords <= 0 && !activity.renderable) return false;
-  if (args.quietEmpty && result.digest.accounting.rendered.count === 0 && !activity.renderable) {
-    return false;
-  }
-  const rendered = renderMarkdown(result.digest);
-  const ts = new Date(deps.now()).toISOString();
-  const metadata = eventMetadata(ts, result.digest, rendered);
-  if (args.json) {
-    await writeStdoutChunk(
-      deps,
-      JSON.stringify(stdoutEvent(ts, result.digest, rendered)) + "\n"
-    );
-  } else {
-    await writeStdoutChunk(deps, rendered + "\n");
-  }
-  await appendEventLog(args.eventLog, metadata);
-  if (activity.diagnosticSignature) {
-    target.lastActivityDiagnosticSignature = activity.diagnosticSignature;
-  }
-  eventState.eventCount++;
-  eventState.lastHeartbeatAt = deps.now();
-  await recordWatcherEvent({
-    pid: eventState.pid,
-    lastEventAt: ts
-  });
-  await setWatchedByPid(result.runtime, result.digest.sessionId, eventState.pid).catch(() => false);
-  return true;
+  return emitLegacyWatchEvents(result, target, args, deps, eventState);
 }
 async function emitReadyPending(args, targets, pending, deps, eventState, { force = false } = {}) {
   const nowMs = deps.now();
@@ -10996,6 +11816,7 @@ async function runWatchLoop(args, deps = {}) {
     runtime,
     cwd,
     eventLog,
+    includeTerminalEvents: true,
     maxPendingSec: resolvedMaxPendingMs / 1e3,
     heartbeatSec: resolvedHeartbeatMs === null ? 0 : resolvedHeartbeatMs / 1e3
   };

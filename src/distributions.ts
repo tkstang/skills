@@ -194,11 +194,11 @@ export const distributions: readonly DistributionDeclaration[] = [
   {
     owner: 'session-retro',
     source: 'src/skills/session-retro',
-    optionalSkills: [
+    requiredSkills: [
       {
-        name: 'session-observer',
+        name: 'session-export-transcript',
         installUrl:
-          'https://github.com/tkstang/skills/tree/main/skills/session-observer',
+          'https://github.com/tkstang/skills/tree/main/skills/session-export-transcript',
       },
     ],
     targets: [
