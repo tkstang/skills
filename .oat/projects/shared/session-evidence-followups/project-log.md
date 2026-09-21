@@ -72,6 +72,10 @@ evidence-main-integration-20260921: merged main4150cfe2 in14b7bd1e retaining PR1
 
 evidence-p03-final-outcome-20260921: p03 Opus pass and all Low follow-ups implemented in fad824d7;135 focused tests and phase gates pass;fixround1,recovery0; p04 review includes narrow follow-up delta.
 
+### 2026-09-21 · structural · oat-project-implement · p04
+
+evidence-p04-implementation-outcome-20260921: Sol/medium completed p04-t01 in c97f65db; frozen fixture acceptance and phase gates pass, recovery0; independent review and final integration pending.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

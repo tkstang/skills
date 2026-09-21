@@ -1,0 +1,428 @@
+{
+  "formatVersion": 1,
+  "activitySchemaVersion": 1,
+  "sensitive": "not-publish-safe",
+  "runtime": "claude-code",
+  "nativeSessionId": "11111111-1111-4111-8111-111111111111",
+  "capturedAt": "2026-09-21T00:05:38.437Z",
+  "identityEvidence": {
+    "kind": "claude-record-session-id",
+    "locator": {
+      "physicalLine": 1,
+      "recordIndex": 0,
+      "jsonPointer": "/sessionId"
+    }
+  },
+  "recordCounts": {
+    "source": 10,
+    "decoded": 10
+  },
+  "narrativeEntries": [
+    {
+      "entryKey": "entry-claude-code-0-0-1",
+      "role": "user",
+      "kind": "message",
+      "origin": "human",
+      "displayRole": "unknown",
+      "sourceLocator": {
+        "indexBase": "zero-based-decoded-record-index",
+        "index": 0,
+        "physicalLine": 1
+      },
+      "consumptionLocator": {
+        "indexBase": "zero-based-decoded-record-index",
+        "index": 0,
+        "physicalLine": 1
+      }
+    },
+    {
+      "entryKey": "entry-claude-code-1-1-1",
+      "role": "assistant",
+      "kind": "message",
+      "origin": "unknown",
+      "displayRole": "unknown",
+      "sourceLocator": {
+        "indexBase": "zero-based-decoded-record-index",
+        "index": 1,
+        "physicalLine": 2
+      },
+      "consumptionLocator": {
+        "indexBase": "zero-based-decoded-record-index",
+        "index": 1,
+        "physicalLine": 2
+      }
+    },
+    {
+      "entryKey": "entry-claude-code-8-8-1",
+      "role": "user",
+      "kind": "message",
+      "origin": "human",
+      "displayRole": "unknown",
+      "sourceLocator": {
+        "indexBase": "zero-based-decoded-record-index",
+        "index": 8,
+        "physicalLine": 9
+      },
+      "consumptionLocator": {
+        "indexBase": "zero-based-decoded-record-index",
+        "index": 8,
+        "physicalLine": 9
+      }
+    },
+    {
+      "entryKey": "entry-claude-code-9-9-1",
+      "role": "assistant",
+      "kind": "message",
+      "origin": "unknown",
+      "displayRole": "unknown",
+      "sourceLocator": {
+        "indexBase": "zero-based-decoded-record-index",
+        "index": 9,
+        "physicalLine": 10
+      },
+      "consumptionLocator": {
+        "indexBase": "zero-based-decoded-record-index",
+        "index": 9,
+        "physicalLine": 10
+      }
+    }
+  ],
+  "activity": {
+    "activitySchemaVersion": 1,
+    "mode": "complete-capture",
+    "renderedFormat": "compact-json",
+    "source": {
+      "runtime": "claude-code",
+      "sessionId": "11111111-1111-4111-8111-111111111111",
+      "nativeSessionId": "11111111-1111-4111-8111-111111111111",
+      "transcriptPath": "/private/tmp/evidence-p04-fixtures/native-home/.claude/projects/-fixture-project/11111111-1111-4111-8111-111111111111.jsonl"
+    },
+    "sourceSnapshot": {
+      "capturedAt": "2026-09-21T00:05:38.437Z",
+      "sourceBytes": 3884
+    },
+    "deliveryRange": {
+      "indexBase": "zero-based-decoded-record-index",
+      "start": 0,
+      "end": 10
+    },
+    "limits": {
+      "maxBytes": null,
+      "maxInvocations": null,
+      "previewBytes": 2048,
+      "lateContextBytes": 256
+    },
+    "renderedBytes": 6245,
+    "counts": {
+      "capturedSource": {
+        "scope": "captured-source",
+        "calls": 2,
+        "countedInvocations": 2,
+        "pendingLifecycleCalls": 0,
+        "results": 2,
+        "items": 0,
+        "failures": 0
+      },
+      "deliveredRange": {
+        "scope": "delivered-range",
+        "calls": 2,
+        "countedInvocations": 2,
+        "pendingLifecycleCalls": 0,
+        "results": 2,
+        "items": 0,
+        "failures": 0
+      },
+      "displayed": {
+        "scope": "displayed",
+        "calls": 2,
+        "countedInvocations": 2,
+        "pendingLifecycleCalls": 0,
+        "results": 2,
+        "items": 0,
+        "failures": 0
+      }
+    },
+    "omitted": {
+      "calls": 0,
+      "results": 0,
+      "failures": 0,
+      "invocationLimitGroups": 0,
+      "byteLimitGroups": 0,
+      "coverageEntries": 0,
+      "diagnostics": 0,
+      "sourceSkills": 0,
+      "usageSamples": 0,
+      "usageDiagnostics": 0
+    },
+    "events": [
+      {
+        "eventKey": "claude-code:11111111-1111-4111-8111-111111111111:1:/message",
+        "kind": "metadata",
+        "nativeType": "assistant-metadata",
+        "locator": {
+          "recordIndex": 1,
+          "physicalLine": 2,
+          "jsonPointer": "/message"
+        },
+        "outcome": "unknown",
+        "ownership": "owned",
+        "metadataPreview": {
+          "text": "{\"model\":\"claude-fixture\",\"timestamp\":\"2026-09-20T15:00:01.000Z\"}",
+          "sourceBytes": 65,
+          "displayedBytes": 65,
+          "truncated": false
+        },
+        "skillEvidence": [
+          {
+            "kind": "native-attribution",
+            "name": "fixture-review"
+          }
+        ]
+      },
+      {
+        "eventKey": "claude-code:11111111-1111-4111-8111-111111111111:1:/message/content/1",
+        "kind": "call",
+        "nativeType": "tool_use",
+        "locator": {
+          "recordIndex": 1,
+          "physicalLine": 2,
+          "jsonPointer": "/message/content/1"
+        },
+        "outcome": "pending",
+        "ownership": "owned",
+        "category": "other",
+        "nativeCallId": "fixture-skill-call",
+        "nativeName": "Skill",
+        "inputPreview": {
+          "text": "{\"args\":\"SYNTHETIC_CALLER_ARGS_MUST_REMAIN_VISIBLE\",\"skill\":\"fixture-review\"}",
+          "sourceBytes": 77,
+          "displayedBytes": 77,
+          "truncated": false
+        },
+        "skillEvidence": [
+          {
+            "kind": "native-attribution",
+            "name": "fixture-review"
+          },
+          {
+            "kind": "native-invocation",
+            "name": "fixture-review"
+          }
+        ]
+      },
+      {
+        "eventKey": "claude-code:11111111-1111-4111-8111-111111111111:2:/message/content/0",
+        "kind": "result",
+        "nativeType": "tool_result",
+        "locator": {
+          "recordIndex": 2,
+          "physicalLine": 3,
+          "jsonPointer": "/message/content/0"
+        },
+        "outcome": "success",
+        "ownership": "owned",
+        "category": "other",
+        "relatedCallKey": "claude-code:11111111-1111-4111-8111-111111111111:1:/message/content/1",
+        "nativeCallId": "fixture-skill-call",
+        "outputPreview": {
+          "text": "{\"content\":\"Synthetic skill loaded.\"}",
+          "sourceBytes": 37,
+          "displayedBytes": 37,
+          "truncated": false
+        }
+      },
+      {
+        "eventKey": "claude-code:11111111-1111-4111-8111-111111111111:3:/message",
+        "kind": "metadata",
+        "nativeType": "assistant-metadata",
+        "locator": {
+          "recordIndex": 3,
+          "physicalLine": 4,
+          "jsonPointer": "/message"
+        },
+        "outcome": "unknown",
+        "ownership": "owned",
+        "metadataPreview": {
+          "text": "{\"model\":\"claude-fixture\",\"timestamp\":\"2026-09-20T15:00:03.000Z\"}",
+          "sourceBytes": 65,
+          "displayedBytes": 65,
+          "truncated": false
+        },
+        "skillEvidence": [
+          {
+            "kind": "native-attribution",
+            "name": "fixture-review"
+          }
+        ]
+      },
+      {
+        "eventKey": "claude-code:11111111-1111-4111-8111-111111111111:3:/message/content/0",
+        "kind": "call",
+        "nativeType": "tool_use",
+        "locator": {
+          "recordIndex": 3,
+          "physicalLine": 4,
+          "jsonPointer": "/message/content/0"
+        },
+        "outcome": "pending",
+        "ownership": "owned",
+        "category": "read",
+        "nativeCallId": "fixture-read-call",
+        "nativeName": "Read",
+        "inputPreview": {
+          "text": "{\"file_path\":\"/fixture/project/input.txt\"}",
+          "sourceBytes": 42,
+          "displayedBytes": 42,
+          "truncated": false
+        },
+        "skillEvidence": [
+          {
+            "kind": "native-attribution",
+            "name": "fixture-review"
+          }
+        ]
+      },
+      {
+        "eventKey": "claude-code:11111111-1111-4111-8111-111111111111:4:/message/content/0",
+        "kind": "result",
+        "nativeType": "tool_result",
+        "locator": {
+          "recordIndex": 4,
+          "physicalLine": 5,
+          "jsonPointer": "/message/content/0"
+        },
+        "outcome": "success",
+        "ownership": "owned",
+        "category": "read",
+        "relatedCallKey": "claude-code:11111111-1111-4111-8111-111111111111:3:/message/content/0",
+        "nativeCallId": "fixture-read-call",
+        "outputPreview": {
+          "text": "{\"content\":\"Synthetic file contents.\"}",
+          "sourceBytes": 38,
+          "displayedBytes": 38,
+          "truncated": false
+        }
+      },
+      {
+        "eventKey": "claude-code:11111111-1111-4111-8111-111111111111:7:/origin/kind",
+        "kind": "notification",
+        "nativeType": "task-notification",
+        "locator": {
+          "recordIndex": 7,
+          "physicalLine": 8,
+          "jsonPointer": "/origin/kind"
+        },
+        "outcome": "unknown",
+        "ownership": "owned",
+        "origin": "runtime-notification"
+      },
+      {
+        "eventKey": "claude-code:11111111-1111-4111-8111-111111111111:9:/message",
+        "kind": "metadata",
+        "nativeType": "assistant-metadata",
+        "locator": {
+          "recordIndex": 9,
+          "physicalLine": 10,
+          "jsonPointer": "/message"
+        },
+        "outcome": "unknown",
+        "ownership": "owned",
+        "metadataPreview": {
+          "text": "{\"timestamp\":\"2026-09-20T15:00:09.000Z\"}",
+          "sourceBytes": 40,
+          "displayedBytes": 40,
+          "truncated": false
+        }
+      }
+    ],
+    "callContexts": [],
+    "coverage": [
+      {
+        "dataClass": "calls",
+        "status": "available",
+        "captured": 2
+      },
+      {
+        "dataClass": "results",
+        "status": "available",
+        "captured": 2
+      },
+      {
+        "dataClass": "items",
+        "status": "available",
+        "captured": 0
+      },
+      {
+        "dataClass": "metadata",
+        "status": "available",
+        "captured": 4
+      },
+      {
+        "dataClass": "source-skill-names",
+        "status": "available",
+        "captured": 3
+      }
+    ],
+    "diagnostics": [],
+    "sourceMetadata": {
+      "scope": "captured-source",
+      "skills": [
+        {
+          "scope": "captured-source",
+          "evidence": "available",
+          "name": "fixture-review",
+          "locator": {
+            "recordIndex": 5,
+            "physicalLine": 6,
+            "jsonPointer": "/attachment/names/0"
+          }
+        },
+        {
+          "scope": "captured-source",
+          "evidence": "available",
+          "name": "fixture-helper",
+          "locator": {
+            "recordIndex": 5,
+            "physicalLine": 6,
+            "jsonPointer": "/attachment/names/1"
+          }
+        },
+        {
+          "scope": "captured-source",
+          "evidence": "invoked",
+          "name": "fixture-review",
+          "locator": {
+            "recordIndex": 6,
+            "physicalLine": 7,
+            "jsonPointer": "/attachment/skills/0/name"
+          }
+        }
+      ],
+      "usage": {
+        "scope": "captured-source",
+        "availability": "recorded",
+        "samples": [
+          {
+            "semantics": "claude-message",
+            "ownership": "owned",
+            "locator": {
+              "recordIndex": 1,
+              "physicalLine": 2,
+              "jsonPointer": "/message/usage"
+            },
+            "tokens": {
+              "input_tokens": 12,
+              "output_tokens": 4,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 2
+              }
+            },
+            "model": "claude-fixture",
+            "messageId": "fixture-api-message-1"
+          }
+        ],
+        "diagnostics": []
+      }
+    }
+  }
+}

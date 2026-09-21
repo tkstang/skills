@@ -17,9 +17,9 @@ oat_generated: false
 | p01   | complete | 2     | 2/2       |
 | p02   | complete | 2     | 2/2       |
 | p03   | complete | 1     | 1/1       |
-| p04   | pending | 1     | 0/1       |
+| p04   | review pending | 1     | 1/1       |
 
-**Total:** 6/7 tasks completed.
+**Total:** 7/7 tasks completed.
 
 ## Orchestration Runs
 
@@ -125,6 +125,13 @@ Task2 `92b688f9fa95cd5bd8bc9d4d6267c995134ecdfa`: native Claude exact-session/me
 **Outcome:** Exact-session paired narrative and complete sensitive activity JSON share one read/scan, timestamp, native identity and provenance. Complete projection has no invocation or total-byte eviction; preview caps remain. Output guards protect source, paired files and both observer state roots; JSON replacement is atomic.
 **Verification:** Focused capture/activity134/134; runtime/observer202/202; full suite2499 passed, one expected skip; types, validate, build freshness, baseline skill versions, scoped lint/format and docs58 pages passed. Self-review complete; independent phase review pending.
 
+### Task p04-t01: Review frozen activity with provenance
+
+**Status:** completed
+**Commit:** c97f65db49a08af556f14a8a151e54a23d4f86bf
+**Outcome:** Session Retro1.0.1 requires distinct exact reviewing/target identities and complete paired frozen exports, preserves coverage/origin/usage limitations, separates observed evidence from interpretation/proposal, and declares the required exporter workflow. Template, guide and generated forms updated.
+**Verification:** [Manual two-fixture acceptance](evidence/p04-acceptance.md), unchanged [frozen captures](evidence/p04-fixtures/README.md), seven-state type comparison; build/freshness, structure, types, phase-base versions, scoped lint/format and docs production passed. No new runtime or prose-equality tests. Independent phase review pending.
+
 ## Implementation Log
 
 - Plan committed and reviewed; initial response-format failures preserved as diagnostics, not passes. Valid review found one High native retry-grammar issue; bounded fix verification passed with zero findings.
@@ -146,7 +153,7 @@ Task2 `92b688f9fa95cd5bd8bc9d4d6267c995134ecdfa`: native Claude exact-session/me
 
 ## Final Summary (for PR/docs)
 
-Six of seven tasks are implemented. Consensus Review uses a900-second default; watcher stability and terminal evidence, skill/usage metadata, and complete paired capture are implemented. p00–p02 independent reviews passed; p03 independent review and p04 frozen-evidence retro remain. No tickets closed. Draft PR[#99](https://github.com/tkstang/skills/pull/99) is open. Upstream PR101 overlaps the timeout work and will be reconciled before further review.
+All seven tasks are implemented. The wave supplies reliable terminal watch evidence, native/inferred skill attribution, honest usage accounting, complete paired activity captures and frozen-evidence retros. Consensus Review retains the15-minute default and configurable timeout from merged main. p00–p03 independent reviews passed and all findings are addressed; p04 review includes p03 follow-up validation. Final integration checks/review, ticket closeout and ready PR remain. Draft PR[#99](https://github.com/tkstang/skills/pull/99) includes merged main PR100/101; no merge or global installation is claimed.
 
 ## References
 
@@ -235,3 +242,15 @@ Parallel read-only preparation by Sol/medium exercised the generated CLI on synt
 Same Sol/high handle completed `evidence-p03-fix1-20260921` in sole commit `fad824d7aa3c0ab754a970da66fe4f4a0594f525` from50404fa3. Root inspected the complete runtime/test delta and confirmed clean released tree. All five Low dispositions and overlapping Medium exit1-table correction are addressed. Actual bounded export call keys form a nonempty subset of complete keys under eviction; deterministic rename failure reaches temporary creation and proves cleanup plus surviving narrative/nonzero/no success output; watch/control/temporary state names receive inode protection; docs name STATE_DIR checkpoint/watch roots and partial-write behavior. No broader collaboration filesystem scope added.
 
 Focused7-file exporter/activity135/135, types, build/freshness, validate, skill versions against merged main4150cfe2, scoped lint/format and docs58 pages passed. Post-commit focused/freshness passed; full suite reserved for final integration. Successful capture serialization unchanged; all four synthetic frozen artifact hashes retained. Versions export2.0.31, observer1.0.80, collab1.0.68, fork0.2.45. One bounded review-fix round, no recovery or unresolved findings. p04 review will include this delta from base50404fa3 and final integration review remains mandatory. p03 complete; p04 may proceed.
+
+## p04 implementation outcome — independent review pending
+
+Request `evidence-p04-20260921`, native `/root/p00_timeout`, exact role `oat-phase-implementer-gpt-5-6-sol-medium`; default-implementation/medium under High policy. Reused the same Sol handle that prepared the draft and frozen fixtures. Base `f1c2a7a5b3ee2f8e1bba25c645c905f5168e954c`; sole task commit `c97f65db49a08af556f14a8a151e54a23d4f86bf`. Root verified one commit,10 owned files and clean released tree. Configured invocation identity only, no nested workers/recovery or unresolved issues.
+
+`Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-medium`
+
+Session Retro1.0.1, canonical template, user guide, generated standalone/plugin forms and generated docs inventory updated. Root authorized the required exporter workflow declaration in the existing distribution catalog entry; this replaces optional Observer enrichment with the approved complete-capture dependency, not a new runtime. Root pre-commit inspection corrected a malformed template table and made unknown reviewing identity fail closed. The manual report removes unsupported fixture intentionality and records reviewing identity from CODEX_THREAD_ID metadata.
+
+[Manual acceptance](evidence/p04-acceptance.md) SHA256 `e120ea1528e50f2e47dfb4d85fe27d923deb3b99ea0f54a1dadb168751a30c27` applies the final instructions/template to unchanged synthetic Claude/Cursor frozen pairs. [Capture preflight](evidence/p04-capture-preflight.md) and [retained examples](evidence/p04-fixtures/README.md) preserve exact hashes/commands. All seven states match the type union; only available/not-recorded are observed in these two fixtures. Codex human-origin limits are checked against native normalization, not claimed exercised by a Codex fixture. Captured examples support no completed-session or proven recovery claim. No raw source reads were mixed into findings.
+
+Build/freshness, validate, types, skill versions against phase base, scoped lint/format, generated target-name/seven-state assertions,58-page docs production and diffcheck passed before/after commit. No new test harness/runtime/prose-equality tests, no providers/global installs/pushes/PJM edits by child. p04 independent review will include p03's bounded fix from50404fa3.

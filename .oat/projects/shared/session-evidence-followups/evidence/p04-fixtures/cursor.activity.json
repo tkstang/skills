@@ -1,0 +1,210 @@
+{
+  "formatVersion": 1,
+  "activitySchemaVersion": 1,
+  "sensitive": "not-publish-safe",
+  "runtime": "cursor",
+  "nativeSessionId": "22222222-2222-4222-8222-222222222222",
+  "capturedAt": "2026-09-21T00:05:38.507Z",
+  "identityEvidence": {
+    "kind": "cursor-native-path",
+    "locator": {
+      "canonicalTranscriptPath": "/private/tmp/evidence-p04-fixtures/native-home/.cursor/projects/fixture-project/agent-transcripts/22222222-2222-4222-8222-222222222222/22222222-2222-4222-8222-222222222222.jsonl"
+    }
+  },
+  "recordCounts": {
+    "source": 3,
+    "decoded": 3
+  },
+  "narrativeEntries": [
+    {
+      "entryKey": "entry-cursor-0-2-1",
+      "role": "user",
+      "kind": "message",
+      "origin": "unknown",
+      "displayRole": "unknown",
+      "sourceLocator": {
+        "indexBase": "zero-based-jsonl-frame-index",
+        "index": 0,
+        "physicalLine": 1
+      },
+      "consumptionLocator": {
+        "indexBase": "zero-based-jsonl-frame-index",
+        "index": 2,
+        "physicalLine": 3
+      }
+    },
+    {
+      "entryKey": "entry-cursor-1-2-1",
+      "role": "assistant",
+      "kind": "message",
+      "origin": "unknown",
+      "displayRole": "unknown",
+      "sourceLocator": {
+        "indexBase": "zero-based-jsonl-frame-index",
+        "index": 1,
+        "physicalLine": 2
+      },
+      "consumptionLocator": {
+        "indexBase": "zero-based-jsonl-frame-index",
+        "index": 2,
+        "physicalLine": 3
+      }
+    }
+  ],
+  "activity": {
+    "activitySchemaVersion": 1,
+    "mode": "complete-capture",
+    "renderedFormat": "compact-json",
+    "source": {
+      "runtime": "cursor",
+      "sessionId": "22222222-2222-4222-8222-222222222222",
+      "nativeSessionId": "22222222-2222-4222-8222-222222222222",
+      "transcriptPath": "/private/tmp/evidence-p04-fixtures/native-home/.cursor/projects/fixture-project/agent-transcripts/22222222-2222-4222-8222-222222222222/22222222-2222-4222-8222-222222222222.jsonl"
+    },
+    "sourceSnapshot": {
+      "capturedAt": "2026-09-21T00:05:38.507Z",
+      "sourceBytes": 416
+    },
+    "deliveryRange": {
+      "indexBase": "zero-based-jsonl-frame-index",
+      "start": 0,
+      "end": 3
+    },
+    "limits": {
+      "maxBytes": null,
+      "maxInvocations": null,
+      "previewBytes": 2048,
+      "lateContextBytes": 256
+    },
+    "renderedBytes": 3065,
+    "counts": {
+      "capturedSource": {
+        "scope": "captured-source",
+        "calls": 2,
+        "countedInvocations": 2,
+        "pendingLifecycleCalls": 0,
+        "results": 0,
+        "items": 0,
+        "failures": 0
+      },
+      "deliveredRange": {
+        "scope": "delivered-range",
+        "calls": 2,
+        "countedInvocations": 2,
+        "pendingLifecycleCalls": 0,
+        "results": 0,
+        "items": 0,
+        "failures": 0
+      },
+      "displayed": {
+        "scope": "displayed",
+        "calls": 2,
+        "countedInvocations": 2,
+        "pendingLifecycleCalls": 0,
+        "results": 0,
+        "items": 0,
+        "failures": 0
+      }
+    },
+    "omitted": {
+      "calls": 0,
+      "results": 0,
+      "failures": 0,
+      "invocationLimitGroups": 0,
+      "byteLimitGroups": 0,
+      "coverageEntries": 0,
+      "diagnostics": 0,
+      "sourceSkills": 0,
+      "usageSamples": 0,
+      "usageDiagnostics": 0
+    },
+    "events": [
+      {
+        "eventKey": "cursor:f1ffe7e551188fe18f4154402b053a052cf2a2194d9b493546398a98da11d211:turn:0:frame:1:block:1",
+        "kind": "call",
+        "nativeType": "tool_use",
+        "locator": {
+          "physicalLine": 2,
+          "recordIndex": 2,
+          "sourceFrameIndex": 1,
+          "deliveryFrameIndex": 2,
+          "jsonPointer": "/message/content/1"
+        },
+        "outcome": "unknown",
+        "ownership": "owned",
+        "category": "other",
+        "nativeName": "ReadFile",
+        "turnId": "cursor:f1ffe7e551188fe18f4154402b053a052cf2a2194d9b493546398a98da11d211:turn:0",
+        "lifecycleAvailability": "settled",
+        "turnOutcome": "success",
+        "inputPreview": {
+          "text": "{\"path\":\"/fixture/skills/fixture-review/SKILL.md\"}",
+          "sourceBytes": 50,
+          "displayedBytes": 50,
+          "truncated": false
+        },
+        "skillEvidence": [
+          {
+            "kind": "inferred-file-read",
+            "name": "fixture-review",
+            "path": "/fixture/skills/fixture-review/SKILL.md"
+          }
+        ]
+      },
+      {
+        "eventKey": "cursor:f1ffe7e551188fe18f4154402b053a052cf2a2194d9b493546398a98da11d211:turn:0:frame:1:block:2",
+        "kind": "call",
+        "nativeType": "tool_use",
+        "locator": {
+          "physicalLine": 2,
+          "recordIndex": 2,
+          "sourceFrameIndex": 1,
+          "deliveryFrameIndex": 2,
+          "jsonPointer": "/message/content/2"
+        },
+        "outcome": "unknown",
+        "ownership": "owned",
+        "category": "shell",
+        "nativeName": "Shell",
+        "turnId": "cursor:f1ffe7e551188fe18f4154402b053a052cf2a2194d9b493546398a98da11d211:turn:0",
+        "lifecycleAvailability": "settled",
+        "turnOutcome": "success",
+        "inputPreview": {
+          "text": "{\"command\":\"printf fixture\"}",
+          "sourceBytes": 28,
+          "displayedBytes": 28,
+          "truncated": false
+        }
+      }
+    ],
+    "callContexts": [],
+    "coverage": [
+      {
+        "dataClass": "calls",
+        "status": "available",
+        "captured": 2
+      },
+      {
+        "dataClass": "source-skill-names",
+        "status": "not-recorded",
+        "captured": 0
+      },
+      {
+        "dataClass": "results",
+        "status": "not-recorded",
+        "captured": 0
+      }
+    ],
+    "diagnostics": [],
+    "sourceMetadata": {
+      "scope": "captured-source",
+      "skills": [],
+      "usage": {
+        "scope": "captured-source",
+        "availability": "not-recorded",
+        "samples": [],
+        "diagnostics": []
+      }
+    }
+  }
+}

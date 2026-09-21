@@ -173,7 +173,7 @@ Spec/design rows are retained template history; quick mode uses discovery and th
 
 ## Implementation Complete
 
-Phases 0–1 implemented and independently reviewed. Phase2 implemented and independently reviewed, with all findings addressed; final Low follow-ups will also be checked in p03 review. Phase 0: 1 task; Phase 1: 2 tasks; Phase 2: 2 tasks; Phase 3: 1 task; Phase 4: 1 task. **Total: 7 tasks, 6 complete.** p03 implementation and independent review are complete; p04 review also covers its bounded follow-up. p04 remains. Final acceptance/delivery remains mandatory after product phases.
+Phases 0–1 implemented and independently reviewed. Phase2 implemented and independently reviewed, with all findings addressed; final Low follow-ups will also be checked in p03 review. Phase 0: 1 task; Phase 1: 2 tasks; Phase 2: 2 tasks; Phase 3: 1 task; Phase 4: 1 task. **Total: 7 tasks, 7 complete.** p03 implementation and independent review are complete; p04 review also covers its bounded follow-up. p04 implementation is complete and awaits independent review. Final acceptance/delivery remains mandatory after product phases.
 
 ## References
 

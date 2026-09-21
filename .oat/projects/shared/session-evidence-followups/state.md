@@ -1,6 +1,6 @@
 ---
 oat_current_task: p04-t01
-oat_last_commit: fad824d7aa3c0ab754a970da66fe4f4a0594f525
+oat_last_commit: c97f65db49a08af556f14a8a151e54a23d4f86bf
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -85,7 +85,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/skills/pull/99
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-21T00:26:10.127357+00:00'
+oat_project_state_updated: '2026-09-21T00:38:58.910851+00:00'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -104,7 +104,7 @@ oat_generated: false
 
 ## Current Phase
 
-p00–p02 complete. Independent p02 verification passed and all Low follow-ups are implemented; p03 review will include their narrow delta. p03 independent review passed and all bounded follow-ups are implemented. p04 frozen-evidence retro is next. User authorized continuation through one mergeable PR.
+p00–p02 complete. Independent p02 verification passed and all Low follow-ups are implemented; p03 review will include their narrow delta. p03 independent review passed and all bounded follow-ups are implemented. p04 is implemented; independent phase review and final acceptance remain. User authorized continuation through one mergeable PR.
 
 ## Artifacts
 
@@ -112,7 +112,7 @@ p00–p02 complete. Independent p02 verification passed and all Low follow-ups a
 - **Spec:** N/A (quick mode)
 - **Design:** N/A (quick mode unless lightweight design is needed)
 - **Plan:** `plan.md` (complete and reviewed)
-- **Implementation:** `implementation.md` (6/7 tasks complete)
+- **Implementation:** `implementation.md` (7/7 tasks complete)
 
 ## Progress
 
@@ -127,7 +127,8 @@ p00–p02 complete. Independent p02 verification passed and all Low follow-ups a
 - ✓ Merged origin/main including PR100 and PR101
 - ✓ p03 independent review passed
 - ✓ All p03 follow-ups addressed
-- ⧗ Implement p04 frozen-evidence retro
+- ✓ p04 frozen-evidence retro implemented
+- ⧗ p04 independent review and final integration
 
 ## Blockers
 
@@ -135,7 +136,7 @@ None
 
 ## Next Milestone
 
-Implement and independently review p04 frozen-evidence retro
+Review p04 and complete final integration, ticket closeout and ready PR
 
 ## Review routing for this authorized run
 
