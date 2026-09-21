@@ -141,7 +141,7 @@ oat_implement_exit_gate:
   failure: null
   updated_at: '2026-09-21T02:47:16.550992+00:00'
 oat_post_implement_sequence:
-  status: awaiting_approval
+  status: post_approval
   source: configured
   final_phase: p04
   pre_approval:
@@ -152,8 +152,8 @@ oat_post_implement_sequence:
   - summary
   - document
   - pr
-  approval: pending
-  approval_source: null
+  approval: approved
+  approval_source: oat-autonomous
   post_approval: []
   post_approval_completed: []
   failure: null
