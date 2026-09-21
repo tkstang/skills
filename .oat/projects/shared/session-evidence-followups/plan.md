@@ -157,7 +157,6 @@ Close each fully satisfied item via repo Backlog Lifecycle: status/updated, comp
 | Scope  | Type     | Status          | Date       | Artifact                      | Reviewed Head | Invocation | Gate Target |
 | ------ | -------- | --------------- | ---------- | ----------------------------- | ------------- | ---------- | ----------- |
 | p01 | code | fixes_completed | 2026-09-20 | reviews/archived/p01-opus-review.md | - | manual | - |
-| p02    | code     | pending         | -          | -                             | -             | -          | -           |
 | final  | code     | pending         | -          | -                             | -             | -          | -           |
 | spec   | artifact | pending         | -          | -                             | -             | -          | -           |
 | design | artifact | pending         | -          | -                             | -             | -          | -           |
@@ -166,18 +165,15 @@ Close each fully satisfied item via repo Backlog Lifecycle: status/updated, comp
 | p04    | code     | pending         | -          | -                             | -             | -          | -           |
 | plan | artifact | passed | 2026-09-20 | reviews/archived/plan-opus-h1-verification.md | 6863c882 | manual | claude:opus |
 | p00 | code | passed | 2026-09-20 | reviews/archived/p00-opus-review.md | - | manual | - |
-
 | p01 | code | passed | 2026-09-20 | reviews/p01-opus-fix-verification.md | - | manual | - |
+| p02 | code | fixes_completed | 2026-09-20 | reviews/p02-opus-review.md | 8094b2df | consensus | claude:opus |
+| p02 | code | passed | 2026-09-20 | reviews/p02-opus-fix-verification.md | 9a74ed1d | consensus | claude:opus |
 
 Spec/design rows are retained template history; quick mode uses discovery and this plan only. Full reviewed plan plus the clean bounded H1 verification establish readiness. [Complexity review](reviews/archived/complexity-review.md) retains the minimum sufficient approach. The subsequently user-requested 600→900 timeout task is a narrow operational addition; its requirements are explicit above and it receives self-review and independent Opus code review, without repeating the unchanged six-ticket plan review.
 
-| p02 | code | fixes_completed | 2026-09-20 | reviews/p02-opus-review.md | 8094b2df | consensus | claude:opus |
-
-| p02 | code | passed | 2026-09-20 | reviews/p02-opus-fix-verification.md | 9a74ed1d | consensus | claude:opus |
-
 ## Implementation Complete
 
-Phases 0–1 implemented and independently reviewed. Phase2 implemented and independently reviewed, with all findings addressed; final Low follow-ups will also be checked in p03 review. Phase 0: 1 task; Phase 1: 2 tasks; Phase 2: 2 tasks; Phase 3: 1 task; Phase 4: 1 task. **Total: 7 tasks, 5 complete.** Final acceptance/delivery remains mandatory after product phases.
+Phases 0–1 implemented and independently reviewed. Phase2 implemented and independently reviewed, with all findings addressed; final Low follow-ups will also be checked in p03 review. Phase 0: 1 task; Phase 1: 2 tasks; Phase 2: 2 tasks; Phase 3: 1 task; Phase 4: 1 task. **Total: 7 tasks, 6 complete.** p03 implementation is complete; independent review and p04 remain. Final acceptance/delivery remains mandatory after product phases.
 
 ## References
 

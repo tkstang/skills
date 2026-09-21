@@ -1,6 +1,6 @@
 ---
 oat_current_task: p03-t01
-oat_last_commit: 9a3c11fc45fd374ab37202f980fdec50af312176
+oat_last_commit: 190e5a51f20b5560be458655dd8dfda2284747f0
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -85,7 +85,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/skills/pull/99
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-20T23:29:19.413843+00:00'
+oat_project_state_updated: '2026-09-21T00:00:23.170402+00:00'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -104,7 +104,7 @@ oat_generated: false
 
 ## Current Phase
 
-p00–p02 complete. Independent p02 verification passed and all Low follow-ups are implemented; p03 review will include their narrow delta. p03 complete structured capture is next. User authorized continuation through one mergeable PR.
+p00–p02 complete. Independent p02 verification passed and all Low follow-ups are implemented; p03 review will include their narrow delta. p03 is implemented and awaits independent review after main reconciliation. User authorized continuation through one mergeable PR.
 
 ## Artifacts
 
@@ -112,7 +112,7 @@ p00–p02 complete. Independent p02 verification passed and all Low follow-ups a
 - **Spec:** N/A (quick mode)
 - **Design:** N/A (quick mode unless lightweight design is needed)
 - **Plan:** `plan.md` (complete and reviewed)
-- **Implementation:** `implementation.md` (5/7 tasks complete)
+- **Implementation:** `implementation.md` (6/7 tasks complete)
 
 ## Progress
 
@@ -123,7 +123,8 @@ p00–p02 complete. Independent p02 verification passed and all Low follow-ups a
 - ✓ p01 watcher implemented and independently reviewed
 - ✓ p02 skill and usage implementation complete
 - ✓ p02 independent review passed and all findings addressed
-- ⧗ p03 complete structured capture next
+- ✓ p03 complete structured capture implemented
+- ⧗ Reconcile main and independently review p03
 
 ## Blockers
 
@@ -131,7 +132,7 @@ None
 
 ## Next Milestone
 
-Implement p03 complete structured capture
+Reconcile main, review p03, then implement p04 frozen-evidence retro
 
 ## Review routing for this authorized run
 

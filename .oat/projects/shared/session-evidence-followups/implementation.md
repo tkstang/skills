@@ -16,10 +16,10 @@ oat_generated: false
 | p00   | complete | 1     | 1/1       |
 | p01   | complete | 2     | 2/2       |
 | p02   | complete | 2     | 2/2       |
-| p03   | pending | 1     | 0/1       |
+| p03   | review pending | 1     | 1/1       |
 | p04   | pending | 1     | 0/1       |
 
-**Total:** 5/7 tasks completed.
+**Total:** 6/7 tasks completed.
 
 ## Orchestration Runs
 
@@ -118,6 +118,13 @@ Task2 `92b688f9fa95cd5bd8bc9d4d6267c995134ecdfa`: native Claude exact-session/me
 **Outcome:** Captured-source native usage samples retain separate semantics, model evidence and diagnostics without invented totals or pricing.
 **Verification:** Activity80/80, relevant consumers866/866 and generated/version/docs gates; self-review passed, independent phase review pending.
 
+### Task p03-t01: Export complete sensitive JSON from one snapshot
+
+**Status:** completed
+**Commit:** 190e5a51f20b5560be458655dd8dfda2284747f0
+**Outcome:** Exact-session paired narrative and complete sensitive activity JSON share one read/scan, timestamp, native identity and provenance. Complete projection has no invocation or total-byte eviction; preview caps remain. Output guards protect source, paired files and both observer state roots; JSON replacement is atomic.
+**Verification:** Focused capture/activity134/134; runtime/observer202/202; full suite2499 passed, one expected skip; types, validate, build freshness, baseline skill versions, scoped lint/format and docs58 pages passed. Self-review complete; independent phase review pending.
+
 ## Implementation Log
 
 - Plan committed and reviewed; initial response-format failures preserved as diagnostics, not passes. Valid review found one High native retry-grammar issue; bounded fix verification passed with zero findings.
@@ -139,7 +146,7 @@ Task2 `92b688f9fa95cd5bd8bc9d4d6267c995134ecdfa`: native Claude exact-session/me
 
 ## Final Summary (for PR/docs)
 
-p00 completed: Consensus Review defaults to 900 seconds with explicit internal overrides preserved. p01 implements reliable rearm testing and metadata-only unsuccessful terminal signals across Claude, Codex and Cursor. Two backlog tasks remain; p02 skill and usage implementation is complete pending independent review. No tickets closed. Draft PR [#99](https://github.com/tkstang/skills/pull/99) is open; implementation and acceptance continue.
+Six of seven tasks are implemented. Consensus Review uses a900-second default; watcher stability and terminal evidence, skill/usage metadata, and complete paired capture are implemented. p00–p02 independent reviews passed; p03 independent review and p04 frozen-evidence retro remain. No tickets closed. Draft PR[#99](https://github.com/tkstang/skills/pull/99) is open. Upstream PR101 overlaps the timeout work and will be reconciled before further review.
 
 ## References
 
@@ -189,3 +196,15 @@ Reviewer's statement that64MiB export is a complete uncapped capture is not adop
 ### p02 terminal outcome
 
 Low follow-up `evidence-p02-fix2-20260920` completed in exactly one commit `9a3c11fc45fd374ab37202f980fdec50af312176` from `5ebc608671445c2f16aa5266a9cbd45ba5ceeb8b`. Root inspected the complete narrow runtime diff and verified clean tree. All five Low findings addressed: already-bounded metadata remains bounded through final fallback; real whole-extraction body sentinels; forced4KiB group-eviction omission reconciliation; required ownership input; both source-name carriers count correctly including valid empty arrays. Activity85/85 and affected consumers871/871, types, build/freshness, validate, baseline version closure, scoped lint/format, diffcheck and docs production58 pages pass. Versions observer1.0.78, export2.0.29, collab1.0.66, fork0.2.43. Self-review passed, no unresolved findings. Two bounded review-fix rounds used; no implementation recovery. p03 review will include the final Low follow-up starting at base5ebc608, as well as its own phase diff. p02 is complete; p03 may proceed.
+
+## p03 implementation outcome — independent review pending
+
+Request `evidence-p03-20260920`, native `/root/p03_full_capture`, exact role `oat-phase-implementer-gpt-5-6-sol-high`; base `e753522e9d5bd51fe8b2611595ef29ad9a8af49c`, sole task commit `190e5a51f20b5560be458655dd8dfda2284747f0`. Root verified one commit,43 owned files and a clean released checkout. High policy, hard-reasoning/high selected for capture identity, provenance and destination semantics. Configured invocation identity only; no observed-runtime claim. No nested dispatches or recovery attempts (0/10).
+
+`Dispatch: scope=p03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-5-6-sol-high`
+
+Root's pre-commit review rejected generic Codex sessionId/session_id aliases as native identity proof. Sol narrowed the headerless route to consistent token_usage_record.payload.thread_id, grounded in the maintained Codex schema and p02 native usage fixtures. Response connection/root session_id alone is rejected; a valid native header still permits inherited parent usage. This is an in-scope correctness correction, not a compatibility feature. Claude requires captured record sessionId; Cursor uses canonical native path evidence. Partial captures retain diagnostics, not a false session-complete claim.
+
+Verification: capture/activity7 files134 tests; runtime/observer2 files202 tests; full169-file suite2499 passed with one expected opt-in skip. Type-check, validate, build:check, baseline version closure, scoped lint/format and58-page docs build passed. Post-commit focused suite and build:check passed. Versions: export2.0.30, observer1.0.79, collab1.0.67, fork0.2.44. Independent p03 review will include p02's final Low follow-up from base5ebc608671445c2f16aa5266a9cbd45ba5ceeb8b.
+
+Main advanced to1d63bc19759dacb76661fead3ad1f390bdb2333c (PR101) while Sol owned the checkout. Read-only Sol/medium reconciliation report `/tmp/evidence-main-reconcile.md`, SHA2564fdee4bfdfd3372554da2b5be33b2000b6aa8cfe09addd1e0f0bfc18c064a2c7, identifies overlap with p00. Root owns integration: retain upstream Draft-07/schema fixes, timeout CLI,900 default and newer versions, while preserving accepted host polling guidance. No global installation or release is authorized by this reconciliation.
