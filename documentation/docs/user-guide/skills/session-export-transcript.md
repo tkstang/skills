@@ -64,9 +64,12 @@ wrong session.
 - `--out <path>` overrides the output file or directory (also accepted
   positionally).
 
-Selection is evaluated with precedence `--all` > `--session` > `--match` > no
-selector. The highest-precedence flag present wins and lower-precedence flags are
-ignored. With no selector, exactly one cwd candidate is selected; multiple
+For ordinary exports, selection is evaluated with precedence `--all` >
+`--session` > `--match` > no selector. The highest-precedence flag present wins
+and lower-precedence flags are ignored. Complete structured capture validates
+its exact-session contract first: when `--activity-output` is present, any
+`--all` or `--match` flag is rejected, including `--session <id> --match
+<marker>`. With no selector, exactly one cwd candidate is selected; multiple
 candidates exit with an ambiguity message that asks for `--match`, `--session`,
 or `--all`.
 
@@ -150,8 +153,9 @@ node skills/session-export-transcript/scripts/session-export-transcript.mjs \
 ```
 
 This mode is explicit and independent from `--include-activity`. It requires one
-exact native session pin, reads the selected source once, and derives both files
-from that snapshot. Claude Code and Codex must corroborate the requested identity
+exact native session pin and rejects every `--match` combination before ordinary
+selector precedence is applied. It reads the selected source once and derives
+both files from that snapshot. Claude Code and Codex must corroborate the requested identity
 from native records captured in that read; Cursor uses its documented native
 session directory/file path. The paired Markdown header and JSON carry the same
 capture timestamp and native identity. Each Markdown narrative entry gains a

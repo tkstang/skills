@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: thomas.stang
-  version: '2.0.34'
+  version: '2.0.35'
 ---
 
 # {{distribution.name}}
@@ -111,12 +111,15 @@ The CLI prints the written path. By default it is `~/Downloads/<branch>.md` (wit
 | `--out <path>`             | —               | Output file or directory (also accepted positionally).                                                                    |
 | `--help`                   | —               | Usage.                                                                                                                    |
 
-**Selection-mode precedence:** the selection modes are mutually exclusive, with
-precedence `--all` > `--session` > `--match` > default (current session). The
+**Selection-mode precedence:** for ordinary exports, selection uses precedence
+`--all` > `--session` > `--match` > default (current session). The
 highest-precedence flag present wins and the lower ones are ignored — e.g.
 `--match` is ignored when `--all` is set, and `--session` is ignored when `--all`
-is set. With no selection flag, the CLI exports the current session (single
-candidate auto-selected; multiple candidates exit `3` as ambiguous).
+is set. Complete structured capture validates its exact-session contract first:
+when `--activity-output` is present, any `--all` or `--match` flag is rejected,
+including `--session <id> --match <marker>`. With no selection flag, the CLI
+exports the current session (single candidate auto-selected; multiple candidates
+exit `3` as ambiguous).
 
 ### Optional activity appendix
 
@@ -154,7 +157,8 @@ per-call outcome from the turn-level terminal status.
 
 `--activity-output <path>` is a separate explicit opt-in for retrospective
 analysis. It requires exactly one native `--session <id>` and rejects `--all`,
-marker discovery, and fallback selection. The exporter reads the selected
+every `--match` combination, marker discovery, and fallback selection before
+ordinary selector precedence is applied. The exporter reads the selected
 source once, corroborates Claude Code and Codex identity from native records in
 that snapshot (or Cursor identity from its documented native path), and derives
 both the sanitized Markdown and structured artifact from the same capture.

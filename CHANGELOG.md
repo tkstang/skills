@@ -4,6 +4,11 @@
 
 ### Changed
 
+- `session-export-transcript` 2.0.35 clarifies that complete structured capture
+  validates its exact-session contract before ordinary selector precedence, so
+  every `--activity-output` and `--match` combination is rejected even when
+  `--session` is also present.
+
 - `session-retro` 1.0.2 reviews exact paired narrative/activity captures from a
   different session, preserves native identity, origins, usage ownership and
   all seven coverage states, and separates frozen observations from
