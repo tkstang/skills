@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "explainer-kit.manifest/v2",
+  "runId": "e86be07a-1eaf-40f7-91de-005e26697e8b",
+  "slug": "project-recap",
+  "recipe": {
+    "id": "project-recap",
+    "version": "2"
+  },
+  "createdAt": "2026-09-21T15:38:27.411Z",
+  "mode": "unattended",
+  "source": {
+    "factBasePath": "source/fact-base.json",
+    "factBaseHash": "sha256:845514d8c1fe4cd676df596e5f1f77882c034039eaaf4ce2e65b8b2007c98705",
+    "inputHashes": {
+      "discovery.md": "sha256:0f4b89024f075644374d5a80c479f9ed34642a386f7d5013b7491ca67f2b9aca",
+      "implementation.md": "sha256:f2a09bc76eafd2e633a0167f0173659119f9beadd70529897ebfa0a5a71ea111",
+      "plan.md": "sha256:dcc130f8c7b2e6bbb33de0851151d2763bc135d96598538db9b7604d2f877654",
+      "project-log.md": "sha256:62caa0f35deb2aa626399d806c246688fe046167d03c326586506c065a1a5f86",
+      "summary.md": "sha256:1df8c97a0c49071e7197245f508b3345d44aec98e75d78bd387bf721e45a280a"
+    }
+  },
+  "theme": {
+    "path": "theme.resolved.json",
+    "hash": "sha256:82c4bf82ac817bb8c04c83bb971d2c2b22aa621384689fb4e0d0fa3a62498f27"
+  },
+  "artifacts": [
+    {
+      "id": "project-recap",
+      "type": "hub",
+      "contentPath": "site/index.html",
+      "hash": "sha256:4a2ccd94689c016a95a6ad9120237e1d115975fdd98379fddf40c791a4e35926",
+      "status": "built"
+    }
+  ],
+  "immutableHashes": {
+    "qa/result.json": "sha256:fcd5579463b9ebb3ad4e8f593979830c6c24c6fb7ced9b2a14ade1eaae22b782",
+    "site/index.html": "sha256:4a2ccd94689c016a95a6ad9120237e1d115975fdd98379fddf40c791a4e35926",
+    "source/fact-base.json": "sha256:845514d8c1fe4cd676df596e5f1f77882c034039eaaf4ce2e65b8b2007c98705",
+    "source/fact-base.md": "sha256:fbd932d4dc0ab5d2ddb2db2488d56522cd14ba60906d7c1d1ba7677d9e2c9c3f",
+    "source/ledger.json": "sha256:2d9823ae71215983b5a6db85318f42b1617457e8f86c41d64d6ec80a2b11f1a6",
+    "theme.resolved.json": "sha256:82c4bf82ac817bb8c04c83bb971d2c2b22aa621384689fb4e0d0fa3a62498f27"
+  },
+  "outcome": "built-needs-review",
+  "warnings": ["record-needs-review:browser-driver-not-installed"]
+}
