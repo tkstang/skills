@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p05-t01
 oat_last_commit: 890187075ddb9143e61baaca8e70d095c3d95287
 oat_blockers: []
 associated_issues:
@@ -19,7 +19,7 @@ oat_hill_completed:
 - p04
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: pr_open
+oat_phase_status: in_progress
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -86,7 +86,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/skills/pull/99
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-21T02:48:33.834407+00:00'
+oat_project_state_updated: '2026-09-21T14:38:58Z'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -166,13 +166,13 @@ oat_project_recap:
 
 # Project State: session-evidence-followups
 
-**Status:** Implementation complete — PR open
+**Status:** Implementation — remote review fixes in progress
 **Started:** 2026-09-20
 **Last Updated:** 2026-09-20
 
 ## Current Phase
 
-Implementation complete — PR99 is ready for review. All seven tasks, final independent reviews, configured closeout steps and final checkpoint are complete. Recap outcome is built. The PR remains unmerged.
+Remote review reopened implementation for two valid CodeRabbit findings. Original implementation, reviews, closeout and recap remain retained; p05 corrects selector guidance and nested Observer-state hardlink protection before PR99 can return to ready status.
 
 ## Artifacts
 
@@ -198,9 +198,9 @@ Implementation complete — PR99 is ready for review. All seven tasks, final ind
 - ✓ p04 frozen-evidence retro implemented
 - ✓ p04 independent review and all follow-ups complete
 - ✓ Final integration checks passed
-- ✓ Final review and lifecycle closeout complete
-- ✓ PR ready for review
-- ⧗ Awaiting human review
+- ✓ Final review and lifecycle closeout complete at the prior reviewed head
+- ⧗ p05 remote-review corrections
+- ⧗ Revalidate, reply and resolve PR threads
 
 ## Blockers
 
@@ -208,7 +208,7 @@ None
 
 ## Next Milestone
 
-PR99 is open for review. Use `oat-project-revise` for feedback. `oat-project-complete` may archive the project before or after merge; merge remains a separate user action.
+Implement and verify p05, reply to both CodeRabbit threads, then restore PR99 to a clean mergeable review state. Merge remains a separate user action.
 
 ## Review routing for this authorized run
 

@@ -144,6 +144,30 @@ Output template: outcome, what worked, friction, improvement candidates with evi
 **Verify:** inspect two representative frozen fixtures (result-bearing Claude/Codex and limited Cursor) against every checklist requirement. Validate command examples against generated CLI/help and the p03 round-trip fixture. Explicitly compare the seven documented states to `ActivityCoverageStatus` during this acceptance inspection and verify the consumer preserves each rather than renaming or collapsing it. Use source/manifest/build validation, not a prose-equality CI test, snapshot suite or a new evaluator. `pnpm run build:check` and `pnpm run validate`.
 **Commit:** `feat(session-retro): analyze frozen activity evidence`.
 
+## Phase 5: PR review corrections
+
+### Task p05-t01: (review) Clarify structured-capture selector validation
+
+**Finding:** CodeRabbit comment `4059008112` — the guide's general selector-precedence rule can imply that `--match` is ignored when `--session` is present, but `--activity-output` rejects every `--match` combination before selector precedence applies.
+
+1. Confirm the validation order and current CLI error contract.
+2. Clarify the canonical exporter guide and owned instructions without changing runtime behavior.
+3. Verify the documented rule against the existing exact-session CLI tests.
+4. Run the exporter checks, generated freshness, documentation validation, version closure and scoped formatting required by this plan.
+
+**Commit:** `docs(session-export-transcript): clarify exact selector validation`.
+
+### Task p05-t02: (review) Protect nested Observer state hardlinks
+
+**Finding:** CodeRabbit comment `4059008119` — destination validation enumerates only immediate files under each Observer state root. A narrative destination outside the root can hardlink a nested lock-owner or owner-token file and mutate its protected inode through the non-atomic Markdown write.
+
+1. Reproduce the nested-state hardlink collision using the established destination-guard fixture.
+2. Recursively enumerate ordinary state files under both effective and fixed-default Observer roots while preserving missing-root, symlink and filesystem-error behavior.
+3. Add focused regressions for nested narrative/activity aliases and verify protected sentinels remain unchanged.
+4. Run the exporter suite, type-check, generated build/freshness, repository validation, version closure and scoped lint/format.
+
+**Commit:** `fix(session-export-transcript): protect nested state hardlinks`.
+
 ## Final Acceptance and Delivery
 
 Root integrates and checks `pnpm run test`, `pnpm run type-check`, `pnpm run build:check`, `pnpm run validate`, `pnpm run smoke`, changed-file lint/format, version validation and `git diff --check`. Resolve failures with bounded Sol fixes and meaningful rechecks. Independent Opus final review covers complete tracked delta from baseline plus acceptance mapping. Retain receipts; no claims based only on exit code.
@@ -170,12 +194,13 @@ Close each fully satisfied item via repo Backlog Lifecycle: status/updated, comp
 | p02 | code | passed | 2026-09-20 | reviews/archived/p02-opus-fix-verification.md | 9a74ed1d | consensus | claude:opus |
 | final | code | passed | 2026-09-20 | reviews/archived/final-opus-review.md | 39aeee12 | consensus | claude:opus |
 | final | code | passed | 2026-09-20 | reviews/archived/final-followup-opus-review.md | 8c65be6c | consensus | claude:opus |
+| pr-99 | code | fixes_added | 2026-09-21 | reviews/archived/remote-pr-99-review-2026-09-21T143858Z.md | 6cb8f58846b83b68b90e320a90c40effa127ae4b | github-pr | - |
 
 Spec/design rows are retained template history; quick mode uses discovery and this plan only. Full reviewed plan plus the clean bounded H1 verification establish readiness. [Complexity review](reviews/archived/complexity-review.md) retains the minimum sufficient approach. The subsequently user-requested 600→900 timeout task is a narrow operational addition; its requirements are explicit above and it receives self-review and independent Opus code review, without repeating the unchanged six-ticket plan review.
 
 ## Implementation Complete
 
-All five phases and seven tasks are complete. Independent plan, phase, full final integration and narrow final follow-up reviews passed; all accepted findings are implemented. Local integration checks pass. The configured exit gate is allowed/project_disabled, all six tickets are archived, and summary/document/PR closeout is complete. PR99 is ready for human review. No merge is authorized.
+Five phases and seven original tasks are complete. PR review reopened implementation with two p05 correction tasks; 7/9 tasks are complete. The configured exit gate remains historical evidence for the reviewed implementation and must be refreshed after these product corrections. PR99 remains open and unmerged.
 
 ## References
 

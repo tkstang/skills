@@ -1,9 +1,9 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-20
-oat_current_task_id: null
+oat_current_task_id: p05-t01
 oat_generated: false
 ---
 
@@ -390,3 +390,17 @@ IMPLEMENT-16 recorded policy approval under the user's explicit instruction to c
 ## Implementation complete
 
 All five phases and seven tasks are complete, final independent review and accepted corrections passed, all six tickets are archived, and summary/document/PR closeout finished in its configured order. The user-authorized final checkpoint is complete. PR99 is ready for human review; current-head CI and mergeability are verified at delivery. Recap outcome is built at explainers/project-recap. No merge or release occurred.
+
+## Remote Review Received — PR #99
+
+**Date:** 2026-09-21
+
+**Source review head:** `6cb8f58846b83b68b90e320a90c40effa127ae4b`
+
+**Findings:** 0 critical, 0 important, 0 medium, 2 minor
+**Disposition:** both converted; none deferred or dismissed.
+
+- `p05-t01` tracks comment `4059008112`: clarify that structured capture requires `--session` and rejects `--match` before general precedence.
+- `p05-t02` tracks comment `4059008119`: recursively include nested Observer state files in hardlink collision protection.
+
+The generic CodeRabbit docstring threshold and incomplete LanguageTool run are informational tool output, not concrete repository findings. Implementation is reopened at `p05-t01`; replies will be posted after verified fixes are pushed.
