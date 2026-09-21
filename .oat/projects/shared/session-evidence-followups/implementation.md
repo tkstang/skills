@@ -281,3 +281,17 @@ Parallel read-only Sol/high [acceptance audit](evidence/final-acceptance-audit.m
 - Reason: Replaced the stale optional Observer assertion with bounded standalone `session-export-transcript` and plugin-local `export-transcript` rendering assertions plus required-capability stop behavior.
 
 Root verified the exact two-file commit, immutable original task ancestry, clean returned checkout and matching committed completed marker. Cleared pending marker only after reconciliation, preserving used_attempts1. No product source or generated output changed. Same accepted handle, exact Sol/medium target, mechanically derived test boundary; no provider fallback or review-fix budget consumption. Full-suite rerun and valid corrected-scope review follow.
+
+
+## p04 independent review — valid pass; accepted follow-ups
+
+Run `18554a9f-ef54-4394-91f0-0f08a00d8d16` completed with valid pass, zero Critical/High, two Medium and three Low. [Canonical review](reviews/p04-opus-review.md) retained unchanged; [corrected packet](evidence/p04-corrected-review-packet.md), SHA256 `f2c01a5b5bbf2cfe08abdeb29f84b728881eb77cefae6797742c36dfd6a53c78`, reviewed HEAD `c8d5572399d0ac98b1eb268101f23821c3cd80dd`, base50404fa3. Requested Opus/high via the same configured route; actual model/effort remain wrapper-unobserved despite self-reported provider identity. One invocation, stable drift, no test execution claimed. The earlier defective result is not a pass. This valid corrected-scope round independently verifies p03's prior follow-ups, p04 frozen-evidence semantics and recovery assertions.
+
+Root accepts all five findings:
+- M1: recognize every declared exporter install identity through the existing skill-identities renderer; link canonical install guidance when no supported form exists. This reuses current distribution forms, not compatibility machinery or implicit installation.
+- M2: update the engineering dependency diagram to show Retro requires the installed exporter.
+- L1: update both skills-index references to the required capture workflow.
+- L2: root verified Cursor state and backup-temporary files in the same protected roots are omitted from the filename list. Replace the brittle list with ordinary-file inode inspection of existing direct entries in each already-resolved Observer state root. No recursive filesystem/framework expansion or relocated collaboration-root promise. Add Cursor/backup/temp/unknown-ordinary-file hardlink regressions. This p03 guard correction returns to its original Sol/high handle, review-fix round2/2, not implementation recovery.
+- L3: explicitly name removal of optional Observer enrichment in the Changed changelog entry.
+
+Product fixes remain sequential: p03 guard first; p04 dependency/docs second, through their original exact Sol handles. Root owns dispositions and tracking. Final integration review will verify these bounded nonblocking follow-ups; no redundant phase-only round is required after their passing checks. [Final local check receipt](evidence/final-checks.json) records2520 tests passing/1 opt-in skip; [current CI receipt](evidence/p04-ci-proof.json) records Validate35549545686 passing atc8d55723, with Docs35549545620 also successful. New guard/code changes require relevant rechecks before final review.

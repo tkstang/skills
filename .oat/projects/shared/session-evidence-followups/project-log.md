@@ -84,6 +84,10 @@ evidence-p04-invalid-20260921: Consensus reply defective, no pass; stable diagno
 
 evidence-p04-recovered-20260921: same-target recovery f3dea62b verified, attempt1/10 preserved and pending marker settled; packaging41/41, freshness/types/lint pass. Corrected-scope review remains pending.
 
+### 2026-09-21 · structural · oat-project-implement · p04
+
+evidence-p04-pass-20260921: valid Opus pass0Critical/High,2Medium/3Low accepted; canonical reviews/p04-opus-review.md. Sequential original-target p03 guard and p04 docs follow-ups precede final integration review.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

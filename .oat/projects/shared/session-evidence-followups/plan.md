@@ -162,7 +162,7 @@ Close each fully satisfied item via repo Backlog Lifecycle: status/updated, comp
 | design | artifact | pending         | -          | -                             | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-20 | reviews/archived/plan-opus-review-1.md | fd106e85      | manual     | claude:opus |
 | p03 | code | fixes_completed | 2026-09-21 | reviews/p03-opus-review.md | 72bbc1c6 | consensus | claude:opus |
-| p04    | code     | pending         | -          | -                             | -             | -          | -           |
+| p04 | code | fixes_added | 2026-09-20 | reviews/p04-opus-review.md | - | consensus | - |
 | plan | artifact | passed | 2026-09-20 | reviews/archived/plan-opus-h1-verification.md | 6863c882 | manual | claude:opus |
 | p00 | code | passed | 2026-09-20 | reviews/archived/p00-opus-review.md | - | manual | - |
 | p01 | code | passed | 2026-09-20 | reviews/p01-opus-fix-verification.md | - | manual | - |

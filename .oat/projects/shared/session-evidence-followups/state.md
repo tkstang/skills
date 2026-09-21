@@ -141,7 +141,7 @@ None
 
 ## Next Milestone
 
-Obtain valid p04 review, then final integration and ready PR
+Apply accepted p03/p04 review follow-ups, then final integration and ready PR
 
 ## Review routing for this authorized run
 
