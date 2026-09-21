@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Read
 argument-hint: base_branch=<ref> | --files <paths...> | --document <path> --host <runtime>
 metadata:
   author: thomas.stang
-  version: '0.1.14'
+  version: '0.1.17'
 ---
 
 # Consensus Review
@@ -42,6 +42,7 @@ standalone and Consensus plugin forms contain the same skill-owned executable:
 node ./scripts/review.mjs base_branch=origin/main --host codex
 node ./scripts/review.mjs --files src/example.ts docs/example.md --host codex
 node ./scripts/review.mjs --document docs/design.md --host codex
+node ./scripts/review.mjs --files src/example.ts --host codex --timeout-sec 1200
 ```
 
 Use `--request` or `--request-file` for an exact review question. A pinned
@@ -49,6 +50,15 @@ Use `--request` or `--request-file` for an exact review question. A pinned
 Same-provider review requires actual user consent and both `--reviewer` and
 `--allow-same-provider`. `--output <path>` exports completed Markdown only
 after drift checking and refuses existing destinations.
+
+The provider invocation has a 900-second wall-clock limit by default. Use
+`--timeout-sec <seconds>` to choose an integer from 1 through 3600. The timer
+covers total elapsed time and ongoing provider activity does not reset it.
+Give the host terminal or process tool at least the selected timeout, plus
+margin for shutdown and artifact persistence.
+If the host supports background execution, start Review there and poll for
+completion. A polling or observation yield controls when the host checks
+again; a hard timeout terminates Review and can prevent artifact completion.
 
 Pass the actual host runtime with `--host`. An inherited known
 `CONSENSUS_PARENT_HOST` is authoritative only when it matches that value;
@@ -62,13 +72,6 @@ returns usage exit 2, lists the three selectors, and invokes no provider; never
 pipe a menu answer to stdin. Exit 0 means a completed valid review (including
 findings) or an explicitly labeled empty-scope no-op. Exit 1 means incomplete,
 defective, or output failure. Parse the returned status, not only the exit code.
-Each provider invocation has a 15-minute wall-clock runtime by default. The CLI
-does not expose a timeout override. Set the host command's hard timeout above
-15 minutes, with additional margin for shutdown and artifact persistence. If
-the host supports background execution, start Review there and poll for
-completion instead. A polling or observation yield controls when the host
-checks again; a hard timeout terminates Review and can prevent artifact
-completion.
 
 ## Present the handoff
 

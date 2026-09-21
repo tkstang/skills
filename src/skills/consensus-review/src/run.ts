@@ -289,6 +289,7 @@ export interface ExecuteReviewInput {
   reviewer?: string;
   model?: string;
   effort?: string;
+  maxRuntimeSec?: number;
   allowSameProvider?: boolean;
   runId?: string;
   authoredBy?: AuthorEvidence[];
@@ -557,6 +558,9 @@ export async function executeBoundedReview(
       allowSameProvider: selected.allowSameProvider,
       ...(selected.reviewer.model ? { model: selected.reviewer.model } : {}),
       ...(selected.reviewer.effort ? { effort: selected.reviewer.effort } : {}),
+      ...(input.maxRuntimeSec !== undefined
+        ? { maxRuntimeSec: input.maxRuntimeSec }
+        : {}),
       ...(selected.reviewer.provider === 'codex'
         ? {
             codexCapturePath: path.join(

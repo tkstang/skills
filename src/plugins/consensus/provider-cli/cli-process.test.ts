@@ -18,6 +18,14 @@ const consensusCli = path.join(
   repoRoot,
   'plugins/consensus/scripts/consensus.mjs',
 );
+const shippedReviewSchema = path.join(
+  repoRoot,
+  'plugins/consensus/skills/review/schemas/review.schema.json',
+);
+const shippedPanelSchema = path.join(
+  repoRoot,
+  'plugins/consensus/skills/panel/schemas/panel-response.schema.json',
+);
 
 describe('generated consensus provider CLI process contract', () => {
   it('writes a single parseable JSON document for provider inventory', async () => {
@@ -151,6 +159,123 @@ describe('generated consensus provider CLI process contract', () => {
         ok: true,
         provider: 'codex',
         json: { verdict: 'accept' },
+      });
+    } finally {
+      await rm(binDir, { recursive: true, force: true });
+      await rm(path.dirname(schemaPath), { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    {
+      name: 'Review',
+      schemaPath: shippedReviewSchema,
+      response: {
+        schema_version: 'v1',
+        scope_token: 'review-scope',
+        verdict: 'pass',
+        summary: 'No findings.',
+        findings: [],
+        questions: [],
+        limitations: [],
+        coverage: ['provider CLI process contract'],
+        inspected_context: [],
+        checks: [],
+        reviewer_identity: { provider: 'claude' },
+      },
+    },
+    {
+      name: 'Panel',
+      schemaPath: shippedPanelSchema,
+      response: {
+        schema_version: 'v1',
+        understood_question: 'Does the shipped schema work?',
+        response: 'Yes.',
+        key_points: ['The provider accepted the schema.'],
+        risks: [],
+        assumptions: [],
+        confidence: 'high',
+      },
+    },
+  ])(
+    'runs the generated Claude provider-validated path with the shipped $name schema',
+    async ({ schemaPath, response }) => {
+      const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-bin-'));
+      const env = { ...process.env, PATH: binDir };
+      await writeExecutableFixture(
+        binDir,
+        'claude',
+        strictClaudeFixture(response),
+      );
+
+      try {
+        const result = await runConsensusCli(
+          [
+            'run',
+            '--provider',
+            'claude',
+            '--schema',
+            schemaPath,
+            '--json',
+            '--prompt',
+            'Return valid JSON.',
+          ],
+          { env },
+        );
+
+        expect(result.code).toBe(0);
+        expect(parseSingleJsonDocument(result.stdout)).toMatchObject({
+          ok: true,
+          provider: 'claude',
+          json: response,
+          diagnostics: {
+            strategy_used: 'provider_validated',
+            redacted_command: expect.arrayContaining([
+              '--json-schema',
+              '<inline-json-schema>',
+            ]),
+          },
+        });
+      } finally {
+        await rm(binDir, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it('surfaces a provider exit when Claude rejects a Draft 2020-12 schema', async () => {
+    const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-bin-'));
+    const schemaPath = await writeSchemaFixture({
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+    });
+    const env = { ...process.env, PATH: binDir };
+    await writeExecutableFixture(binDir, 'claude', strictClaudeFixture());
+
+    try {
+      const result = await runConsensusCli(
+        [
+          'run',
+          '--provider',
+          'claude',
+          '--schema',
+          schemaPath,
+          '--json',
+          '--prompt',
+          'Return valid JSON.',
+        ],
+        { env },
+      );
+
+      expect(result.code).toBe(0);
+      expect(parseSingleJsonDocument(result.stdout)).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_EXIT',
+        provider: 'claude',
+        stderr: expect.stringContaining(
+          'unsupported JSON schema dialect: Draft 2020-12',
+        ),
+        diagnostics: {
+          strategy_used: 'provider_validated',
+        },
       });
     } finally {
       await rm(binDir, { recursive: true, force: true });
@@ -428,12 +553,13 @@ function parseSingleJsonDocument(stdout: string) {
   return JSON.parse(lines[0]);
 }
 
-async function writeSchemaFixture() {
+async function writeSchemaFixture(schema: Record<string, unknown> = {}) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'consensus-schema-'));
   const schemaPath = path.join(dir, 'schema.json');
   await writeFile(
     schemaPath,
     JSON.stringify({
+      ...schema,
       type: 'object',
       required: ['verdict'],
       properties: {
@@ -455,7 +581,13 @@ async function writeExecutableFixture(
   return executablePath;
 }
 
-function strictClaudeFixture() {
+function strictClaudeFixture(response: unknown = { verdict: 'accept' }) {
+  const providerEnvelope = JSON.stringify({
+    type: 'result',
+    subtype: 'success',
+    is_error: false,
+    result: JSON.stringify(response),
+  });
   return `#!/bin/sh
 seen_schema=0
 prompt=''
@@ -481,14 +613,22 @@ while [ "$#" -gt 0 ]; do
           ;;
       esac
       case "$2" in
-        *'"verdict"'*)
-          seen_schema=1
-          ;;
-        *)
-          printf 'schema argument missing verdict property\\n' >&2
-          exit 64
+        *'"$schema"'*)
+          case "$2" in
+            *'http://json-schema.org/draft-07/schema#'*)
+              ;;
+            *'https://json-schema.org/draft/2020-12/schema'*)
+              printf 'unsupported JSON schema dialect: Draft 2020-12\\n' >&2
+              exit 64
+              ;;
+            *)
+              printf 'unsupported declared JSON schema dialect\\n' >&2
+              exit 64
+              ;;
+          esac
           ;;
       esac
+      seen_schema=1
       shift 2
       ;;
     --permission-mode)
@@ -520,7 +660,7 @@ if [ -z "$prompt" ]; then
   printf 'missing prompt argument\\n' >&2
   exit 64
 fi
-printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"{\\"verdict\\":\\"accept\\"}"}'
+printf '%s\\n' '${providerEnvelope}'
 `;
 }
 

@@ -19,6 +19,13 @@
   `session-observer-collab` 1.0.65 and `session-fork-to-destination` 0.2.42
   receive validation-only shared-runtime version closure.
 
+- `panel` 0.1.13 adds matching schema/local-validation response size limits and a stable schema identifier. `consensus-review` 0.1.15 documents exclusive finding locations and confidence semantics, and expresses the existing path restrictions without regex lookaround.
+- `consensus` 0.2.1 packages the Review timeout control and Review/Panel schema compatibility fixes.
+- `create` 0.1.16, `decide` 0.1.16, `evaluate` 0.1.20, `phone-a-friend` 0.1.12, `plan` 0.1.16, `refine` 0.1.19 receive the required version bumps for shared Claude provider schema regression coverage; their runtime behavior is unchanged.
+- `consensus-review` 0.1.16 accepts nonempty POSIX filenames beginning with line terminators while preserving absolute-path and parent-traversal restrictions.
+- `consensus-review` 0.1.15 and `panel` 0.1.13 ship Draft-07 response schemas accepted by Claude Code 2.1.278, preserving response constraints and provider validation. The strict Claude fixture now rejects unsupported schema dialects.
+- `consensus-review` 0.1.15 exposes `--timeout-sec` (1–3,600 seconds, default 900) so callers can budget longer reviews without changing the wall-clock timeout policy.
+
 ### Added
 
 - `session-export-transcript` 2.0.30 adds exact-session complete structured
@@ -151,15 +158,13 @@
 
 ### Changed
 
+- `consensus-review` 0.1.17 clarifies background execution and polling versus hard host timeouts while preserving the configurable 900-second default.
+
 - `session-observer` 1.0.72 makes the SIGTERM re-arm regression wait for the
   exact delivered delta and durable checkpoint before a clean second shutdown,
   removing its fixed 120 ms subprocess lifetime assumption;
   `session-observer-collab` 1.0.60 and `session-fork-to-destination` 0.2.37
   receive the required observer-owner version closure without behavior changes.
-
-- `consensus-review` 0.1.14 gives each review provider invocation a 15-minute
-  wall-clock runtime by default while preserving internal caller overrides and
-  documenting host execution budgets.
 
 - `agent-messaging` 1.0.15 and `session-observer-collab` 1.0.39 share Claude
   hook inventory and automatic-owner assessment from the canonical
@@ -221,6 +226,21 @@
   carry validation-required version bumps because their distributions
   transitively declare the changed shared transcript source; their generated
   runtime content is unchanged by this fix.
+
+- Installation docs correct the plugin update model. Claude Code and Codex do
+  copy the plugin tree into a pinned per-provider cache, so a `git pull` alone
+  does not refresh an install; `claude plugin update` is keyed on the plugin
+  manifest version and reports `already at the latest version` when only skill
+  versions changed. Records an observed cursor-agent 2026.09.18 case where
+  `plugin marketplace update` left a git-URL marketplace on a stale clone and
+  under-reported its plugins, with remove/re-add as the recovery step. Adds a
+  standalone-skill update procedure
+  and an installed-version audit snippet, and points `AGENTS.md` and the README
+  at the per-provider refresh commands. Also re-verifies the Install matrix
+  Cursor claims on cursor-agent 2026.09.18: Claude Code plugin discovery is
+  confirmed and re-stamped, and `--plugin-dir` "nothing is written under
+  `~/.cursor/`" is corrected to `~/.cursor/plugins/`, since the run still writes
+  ordinary session state.
 
 - `session-observer` 1.0.71, `session-observer-collab` 1.0.59, `session-export-transcript` 2.0.23, and `session-fork-to-destination` 0.2.36 reconcile the merged Session Fidelity runtime closure with Agent Messaging's portable Codex and Cursor Stop-hook stdin handling, preserving activity-aware observer/export behavior and Linux socket-backed hook execution.
 - `session-observer-collab` 1.0.48 reads Codex and Cursor Stop-hook payloads

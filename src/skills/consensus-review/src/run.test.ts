@@ -62,12 +62,12 @@ describe('review transport runner', () => {
         },
         async runTurn(request, dependencies) {
           seen.push(request.host);
-          expect(request.max_runtime_sec).toBe(900);
           expect(request.runtime_policy).toEqual({
             permission_mode: 'non-interactive',
             sandbox: 'read-only',
             approval_policy: 'never',
           });
+          expect(request.max_runtime_sec).toBe(900);
           expect(dependencies.transport).toEqual({
             submitCaptureEnabled: false,
             strategy: 'prompt_only',
@@ -100,33 +100,6 @@ describe('review transport runner', () => {
     expect(seen[1]).toEqual(seen[0]);
     expect((await lstat(fixture.capture)).isFile()).toBe(true);
     expect((await lstat(fixture.capture)).mode & 0o777).toBe(0o600);
-  });
-
-  it('preserves an explicit internal review timeout at provider dispatch', async () => {
-    await expect(
-      runReview(
-        {
-          provider: 'claude',
-          prompt: 'Review.',
-          schemaPath: '/external/review.schema.json',
-          cwd: '/workspace/repo',
-          host: 'codex',
-          maxRuntimeSec: 321,
-        },
-        {
-          env: { CONSENSUS_PARENT_HOST: 'codex' },
-          preflight: async () => readyProvider('claude'),
-          async runTurn(request) {
-            expect(request.max_runtime_sec).toBe(321);
-            return successEnvelope({ verdict: 'pass' });
-          },
-        },
-      ),
-    ).resolves.toMatchObject({
-      ok: true,
-      status: 'completed',
-      invocation_count: 1,
-    });
   });
 
   it('accepts matching parent identity despite unrelated live host markers', async () => {
@@ -458,10 +431,12 @@ describe('one bounded review transaction', () => {
         request: 'Review the selected file for correctness.',
         hostSummary: 'No author identity evidence is available.',
         schemaPath: fixture.schema,
+        maxRuntimeSec: 1200,
         runId: 'complete-run',
       },
       reviewExecutionDependencies(fixture, async (request) => {
         invocations += 1;
+        expect(request.max_runtime_sec).toBe(1200);
         return successEnvelope(validPassReply(scopeToken(request.prompt)));
       }),
     );

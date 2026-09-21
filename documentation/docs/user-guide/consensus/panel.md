@@ -97,6 +97,13 @@ The artifact includes:
 - shortfalls and diagnostics
 - canonical JSON blocks for the panelist responses and panel artifact
 
+Panel responses are bounded in both the provider schema and local validation:
+`understood_question` accepts 1–4,096 characters and `response` accepts
+1–16,384. Each of `key_points`, `risks`, and `assumptions` allows up to 50
+items of 1–4,096 characters each. Empty arrays are allowed; empty strings are
+rejected. Character limits count Unicode code points. Oversized or malformed
+responses are reported as panelist errors.
+
 ## Context approval
 
 Panelists run through provider CLIs. Ask for explicit approval before sending
