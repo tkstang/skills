@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 931f81dbb299dc777fd128584267a3298a9028c5
+oat_last_commit: 890187075ddb9143e61baaca8e70d095c3d95287
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -15,7 +15,8 @@ oat_siblings: [] # optional child-only sibling slugs
 oat_depends_on: [] # optional child-only sibling dependencies
 oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
-oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
+oat_hill_completed:
+- p04
 oat_parallel_execution: false
 oat_phase: implement
 oat_phase_status: pr_open
@@ -85,7 +86,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/skills/pull/99
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-21T02:46:48.392259+00:00'
+oat_project_state_updated: '2026-09-21T02:48:33.834407+00:00'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -165,13 +166,13 @@ oat_project_recap:
 
 # Project State: session-evidence-followups
 
-**Status:** Implementation
+**Status:** Implementation complete — PR open
 **Started:** 2026-09-20
 **Last Updated:** 2026-09-20
 
 ## Current Phase
 
-All seven implementation tasks and p00–p04 phases are complete. Phase reviews passed and every accepted follow-up is implemented. Final diagnostic corrections and integration verification passed; the valid final review and lifecycle closeout remain in progress. User authorized continuation through one mergeable ready PR.
+Implementation complete — PR99 is ready for review. All seven tasks, final independent reviews, configured closeout steps and final checkpoint are complete. Recap outcome is built. The PR remains unmerged.
 
 ## Artifacts
 
@@ -197,7 +198,9 @@ All seven implementation tasks and p00–p04 phases are complete. Phase reviews 
 - ✓ p04 frozen-evidence retro implemented
 - ✓ p04 independent review and all follow-ups complete
 - ✓ Final integration checks passed
-- ⧗ Final review and lifecycle closeout
+- ✓ Final review and lifecycle closeout complete
+- ✓ PR ready for review
+- ⧗ Awaiting human review
 
 ## Blockers
 
@@ -205,7 +208,7 @@ None
 
 ## Next Milestone
 
-Final integration review and closeout
+PR99 is open for review. Use `oat-project-revise` for feedback. `oat-project-complete` may archive the project before or after merge; merge remains a separate user action.
 
 ## Review routing for this authorized run
 
