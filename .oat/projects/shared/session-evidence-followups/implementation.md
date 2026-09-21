@@ -352,3 +352,13 @@ Consensus run `a0d67b6b-d460-42c9-b1a6-5d7c6da06367` returned a validated pass w
 - L3 accepted as an evidence erratum: the immutable packet's helper-generated acceptance paragraph under-reports one test. The canonical receipt and root execution both show **2521 passed, 1 skipped, 2522 total across 171 files (170 passed files and one skipped)**. The packet remains byte-for-byte preserved; this correction supersedes its narrative count and is not a changed test result.
 
 [Current product CI](evidence/final-product-ci.json) records Validate `35552803128` and Docs CI `35552803118` both successful at the reviewed HEAD. Push hooks also passed type-check, build freshness, validate, six-owner versions and internal flags on that head. Final closeout waits for the narrow accepted instruction follow-up; no duplicate configured gate or merge is authorized.
+
+## Final instruction follow-up — verified
+
+Sol/high completed the accepted L2 instruction follow-up in `8c65be6c1b6c4b819c9da4b93551c03d2a175192`: canonical exporter instructions now explain the invocation index, size and JSON authority. Exporter is 2.0.34 and its mechanically required Fork closure is 0.2.48. Exactly seven instruction/version/changelog/generated files changed; no runtime or tests changed. Build, freshness, validation, exact-base two-owner version validation, scoped formatting and self-review passed.
+
+Consensus run `a701868f-1450-498a-9c95-fc6fbdd4c23c` returned a validated pass with zero findings at that head. [Canonical narrow review](reviews/archived/final-followup-opus-review.md) and [immutable packet](evidence/final-followup-review-packet.md), SHA256 `5e13ecdde14b66a42d668718937bd8b16da1eb9c4e6669063a26be5b4d931622`, are preserved. One invocation, stable drift; requested Opus/high, actual model/effort wrapper-unobserved. This verifies the bounded L2 delta alongside the retained full integration pass at 39aeee12, rather than claiming another full audit. All final observations are dispositioned. The authoritative full suite remains 2521 passed and one opt-in skipped at the unchanged runtime basis 931f81db.
+
+`Dispatch: scope=final action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:opus effort_axis=not-applicable dispatch_policy=high dispatch_ceiling=opus target=opus`
+
+Configured summary, document and single-PR delivery now proceed under the existing user authorization. The independently reviewed implementation is complete; project-disabled configured gate is recorded as allowed, never as an executed passing gate.
