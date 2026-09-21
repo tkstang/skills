@@ -1,7 +1,7 @@
 # Skills Repo Current State
 
 **Last updated:** 2026-09-20
-**Verified baseline:** `origin/main` at `4150cfe2` on 2026-09-20. PR #100 corrected and live-checked installation documentation, and PR #101 merged Consensus `0.2.1` with Draft-07 Review/Panel schemas plus Review's 900-second default and explicit CLI override. PR #99 is an open draft whose six-ticket session-evidence implementation has completed acceptance on its branch; it is not yet merged. Merged source does not establish release, global installation, marketplace discovery, or general live-provider acceptance.
+**Verified baseline:** `origin/main` at `4150cfe2` on 2026-09-20. PR #100 corrected and live-checked installation documentation, and PR #101 merged Consensus `0.2.1` with Draft-07 Review/Panel schemas plus Review's 900-second default and explicit CLI override. PR #99 is open for review whose six-ticket session-evidence implementation has completed acceptance on its branch; it is not yet merged. Merged source does not establish release, global installation, marketplace discovery, or general live-provider acceptance.
 
 ## What is available in the verified source tree
 
@@ -58,7 +58,7 @@ Branch versions are `session-observer` 1.0.81, `session-observer-collab` 1.0.69,
 
 ## Release and verification posture
 
-- PRs #90, #93, #96, #98, #100 and #101 are merged. PR #99 remains an open draft. Committed manifest versions do not establish a published release.
+- PRs #90, #93, #96, #98, #100 and #101 are merged. PR #99 remains open for review. Committed manifest versions do not establish a published release.
 - PR #100 verified its named Cursor documentation claims; it did not prove the full standalone installer matrix. PR #99 establishes no fresh marketplace, global-install, hosted-search, live-messaging, or general provider acceptance.
 - Follow [RELEASING.md](../../../RELEASING.md) per plugin. Normal deterministic gates remain required; paid or credentialed live E2E remains opt-in and separately authorized.
 - **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills**, live-submit diagnosis, and live Agent Messaging host acceptance remain open.

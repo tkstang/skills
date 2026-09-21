@@ -18,7 +18,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -85,7 +85,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/skills/pull/99
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-21T02:32:27.596048+00:00'
+oat_project_state_updated: '2026-09-21T02:46:48.392259+00:00'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -151,6 +151,7 @@ oat_post_implement_sequence:
   pre_approval_completed:
   - summary
   - document
+  - pr
   approval: pending
   approval_source: null
   post_approval: []

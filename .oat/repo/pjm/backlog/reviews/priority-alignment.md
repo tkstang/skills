@@ -1,7 +1,7 @@
 # Backlog Priority Alignment
 
 **Date:** 2026-09-20
-**Status:** The approved six-ticket wave is accepted and closed in draft PR #99; PR #99 still awaits merge, and no next wave is selected.
+**Status:** The approved six-ticket wave is accepted and closed in PR #99; PR #99 still awaits merge, and no next wave is selected.
 
 The September 20 batch used one canonical plan, task-sized implementation commits, Sol implementation and independent Opus reviews. Final acceptance closes the six records in the same PR because their criteria are satisfied. This records accepted branch delivery only: PR #99 is not merged, released, globally installed or live-provider certified.
 
@@ -20,7 +20,7 @@ Project: [session-evidence-followups](../../../../projects/shared/session-eviden
 
 ## Delivery boundary
 
-PR #99 is the single delivery PR for the six-ticket wave and remains an open draft pending merge. Its final accepted branch implements metadata-only unsuccessful terminal events, watcher re-arm stability, skill attribution, usage accounting, complete structured activity capture and frozen-evidence Session Retro. Closing these tickets does not claim the code is on main.
+PR #99 is the single delivery PR for the six-ticket wave and remains open for review pending merge. Its final accepted branch implements metadata-only unsuccessful terminal events, watcher re-arm stability, skill attribution, usage accounting, complete structured activity capture and frozen-evidence Session Retro. Closing these tickets does not claim the code is on main.
 
 The separately requested Review timeout/schema work is already merged on main through PR #101 as Consensus `0.2.1`: Draft-07 response schemas, a 900-second default and an explicit `--timeout-sec` override. Accepted Opus reviews establish the bounded CLI route used for these packets; they do not certify a provider matrix, external install, marketplace discovery or native continuation.
 
@@ -30,7 +30,7 @@ The 23 remaining active items retain their previous relative proposals. Installe
 
 ## History
 
-- 2026-09-20: Final acceptance completed the six-ticket wave and closed its records in draft PR #99; merge remains pending and no next wave was selected.
+- 2026-09-20: Final acceptance completed the six-ticket wave and closed its records in PR #99; merge remains pending and no next wave was selected.
 - 2026-09-20: PR #101 merged the Consensus `0.2.1` Draft-07 schema and Review timeout path already used by the accepted bounded reviews.
 - 2026-09-20: User approved the six-ticket wave and subsequently added the 15-minute Review timeout requirement.
 - 2026-09-16: Prior kickoff and proposed ordering retained in Git history. Installer live acceptance remains open.

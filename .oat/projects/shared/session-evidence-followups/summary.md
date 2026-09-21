@@ -13,9 +13,9 @@ oat_summary_includes_revisions: []
 
 ## Overview
 
-This quick project delivered six approved session-evidence backlog items plus the user-requested 15-minute Consensus Review default in draft PR #99. It strengthens watcher reliability, native activity provenance, complete exact-session export, and evidence-backed retrospectives while preserving the ordinary compact observation and export defaults.
+This quick project delivered six approved session-evidence backlog items plus the user-requested 15-minute Consensus Review default in PR #99. It strengthens watcher reliability, native activity provenance, complete exact-session export, and evidence-backed retrospectives while preserving the ordinary compact observation and export defaults.
 
-All seven tasks and 29 mapped ticket criteria are complete. The full independent integration review passed with zero Critical, High, or Medium findings; its three Low observations were dispositioned, and the accepted instruction follow-up passed a focused review with zero findings. PR #99 remains draft and unmerged.
+All seven tasks and 29 mapped ticket criteria are complete. The full independent integration review passed with zero Critical, High, or Medium findings; its three Low observations were dispositioned, and the accepted instruction follow-up passed a focused review with zero findings. PR #99 is ready for review and unmerged.
 
 ## What Was Implemented
 
@@ -56,7 +56,7 @@ All seven tasks and 29 mapped ticket criteria are complete. The full independent
 
 - The authoritative suite passed 2,521 tests with one expected opt-in live-provider test skipped across 171 files. Type-check, build freshness, validation, smoke, version validation, scoped lint/format, documentation production, and diagram inspection also passed.
 - Full final Consensus review `a0d67b6b-d460-42c9-b1a6-5d7c6da06367` passed with zero Critical, High, or Medium findings and three Low observations. L1 was declined after source inspection, L2 was implemented, and L3 corrected an immutable-packet prose count. Focused review `a701868f-1450-498a-9c95-fc6fbdd4c23c` passed the L2 closure with zero findings at `8c65be6c`.
-- PR #99 is the single delivery PR. It remains draft and unmerged; no release, global install, provider-cache refresh, or broad live-provider acceptance occurred.
+- PR #99 is the single delivery PR. It is ready for review and unmerged; no release, global install, provider-cache refresh, or broad live-provider acceptance occurred.
 - Existing repository decisions continue to govern observation authority, identity, sanitization, generated targets, explicit installation, and capability claims: [metadata-only watch events](../../../repo/reference/decisions/DR-260603-watch-event-logs-are-metadata.md), [exact identity for stateful work](../../../repo/reference/decisions/DR-260724-stateful-work-requires-exact.md), [separate observation authority](../../../repo/reference/decisions/DR-260724-separate-observation.md), [two-layer export sanitization](../../../repo/reference/decisions/DR-260605-export-sanitization-is-two.md), [canonical TypeScript generation](../../../repo/reference/decisions/DR-260615-canonical-typescript-sources.md), [declared skill distributions](../../../repo/reference/decisions/DR-260914-declared-skill-distributions.md), and [evidence-gated capability claims](../../../repo/reference/decisions/DR-260724-gate-capability-claims.md). Required workflow identities are declared through those generated targets and are never installed implicitly.
 
 ## Autonomous Execution Learnings

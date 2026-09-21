@@ -1,7 +1,7 @@
 # Skills Repo Roadmap
 
 **Last updated:** 2026-09-20
-**Status:** PRs #100 and #101 are merged on `origin/main` at `4150cfe2`. The six-ticket session-evidence wave is accepted and closed in draft PR #99, which still awaits merge. Installer and messaging live acceptance remain open; no next product wave is selected.
+**Status:** PRs #100 and #101 are merged on `origin/main` at `4150cfe2`. The six-ticket session-evidence wave is accepted and closed in PR #99, which still awaits merge. Installer and messaging live acceptance remain open; no next product wave is selected.
 
 ## Planning model
 
