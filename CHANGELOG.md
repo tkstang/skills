@@ -4,6 +4,12 @@
 
 ### Fixed
 
+- `session-export-transcript` 2.0.32 protects external hardlink aliases to any
+  ordinary file directly inside the effective or default Session Observer state
+  root, including Cursor state, backup-temporary, and future state files.
+  `session-fork-to-destination` 0.2.46 receives validation-only exporter source
+  dependency closure; its runtime behavior is unchanged.
+
 - `session-export-transcript` 2.0.31 strengthens bounded-versus-complete
   projection evidence and atomic-write cleanup coverage, protects current
   Observer watch/control state hardlink aliases, and clarifies checkpoint roots

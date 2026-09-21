@@ -787,32 +787,13 @@ async function inodeKeyIfOrdinaryFile(path: string): Promise<string | null> {
   }
 }
 
-async function observerStateFileNames(root: string): Promise<string[]> {
-  const names = [
-    'state.json',
-    'state.json.lock',
-    'cursor-state-transition.lock',
-    'watch.json',
-    'watch.json.lock',
-    'watch.control.json',
-  ];
+async function observerStateEntries(root: string): Promise<string[]> {
   try {
-    const entries = await readdir(root);
-    for (const entry of entries) {
-      if (
-        /^state\.json\.\d+\.tmp$/u.test(entry) ||
-        /^state\.json\..+\.bak$/u.test(entry) ||
-        /^watch\.control\.\d+\.json$/u.test(entry) ||
-        /^watch\.json\.\d+\.\d+\.tmp$/u.test(entry) ||
-        /^watch\.control(?:\.\d+)?\.json\.\d+\.\d+\.tmp$/u.test(entry)
-      ) {
-        names.push(entry);
-      }
-    }
+    return await readdir(root);
   } catch (error) {
-    if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
+    if (isErrnoException(error) && error.code === 'ENOENT') return [];
+    throw error;
   }
-  return [...new Set(names)];
 }
 
 async function validateStructuredDestinations(
@@ -863,17 +844,17 @@ async function validateStructuredDestinations(
     }
   }
 
-  const rootsWithStateFiles = await Promise.all(
+  const rootsWithStateEntries = await Promise.all(
     observerStateRoots().map(async (root) => ({
       root,
-      names: await observerStateFileNames(root),
+      entries: await observerStateEntries(root),
     })),
   );
   const stateInodes = new Set(
     (
       await Promise.all(
-        rootsWithStateFiles.flatMap(({ root, names }) =>
-          names.map((name) => inodeKeyIfOrdinaryFile(join(root, name))),
+        rootsWithStateEntries.flatMap(({ root, entries }) =>
+          entries.map((entry) => inodeKeyIfOrdinaryFile(join(root, entry))),
         ),
       )
     ).filter((value): value is string => value !== null),

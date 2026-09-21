@@ -2549,7 +2549,7 @@ describe('export CLI — complete structured activity capture', () => {
     await link(sourcePath, hardlinkPath);
     const stateHardlinkPath = join(home, 'state-hardlink.json');
     await link(effectiveStateFile, stateHardlinkPath);
-    const watchStateFixtures = [
+    const stateRootFixtures = [
       'watch.json',
       'watch.json.lock',
       'watch.control.json',
@@ -2557,12 +2557,18 @@ describe('export CLI — complete structured activity capture', () => {
       'watch.json.321.123456.tmp',
       'watch.control.json.654.123456.tmp',
       'watch.control.321.json.654.123456.tmp',
+      'cursor-state.json',
+      'cursor-state.json.lock',
+      'cursor-state.json.321.tmp',
+      'cursor-state.json.recovery-123456-321-0.bak',
+      'state.json.recovery.bak.tmp',
+      'future-observer-state.data',
     ];
-    const watchHardlinks = await Promise.all(
-      watchStateFixtures.map(async (name, index) => {
+    const stateRootHardlinks = await Promise.all(
+      stateRootFixtures.map(async (name, index) => {
         const statePath = join(effectiveState, name);
-        const hardlink = join(home, `watch-state-hardlink-${index}.json`);
-        await writeFile(statePath, `watch-state-sentinel-${index}`, 'utf8');
+        const hardlink = join(home, `observer-state-hardlink-${index}.json`);
+        await writeFile(statePath, `observer-state-sentinel-${index}`, 'utf8');
         await link(statePath, hardlink);
         return { name, statePath, hardlink, index };
       }),
@@ -2613,10 +2619,10 @@ describe('export CLI — complete structured activity capture', () => {
         narrative: join(home, 'guard-state-hardlink.md'),
         activity: stateHardlinkPath,
       },
-      ...watchHardlinks.map(({ name, hardlink, index }) => ({
+      ...stateRootHardlinks.map(({ name, hardlink, index }) => ({
         name: `observer ${name} narrative hardlink alias`,
         narrative: hardlink,
-        activity: join(home, `guard-watch-hardlink-${index}.json`),
+        activity: join(home, `guard-state-hardlink-${index}.json`),
       })),
       {
         name: 'symlink destination',
@@ -2666,10 +2672,10 @@ describe('export CLI — complete structured activity capture', () => {
       await readFile(defaultStateFile, 'utf8'),
       'default-state-sentinel',
     );
-    for (const { statePath, index } of watchHardlinks) {
+    for (const { statePath, index } of stateRootHardlinks) {
       assert.equal(
         await readFile(statePath, 'utf8'),
-        `watch-state-sentinel-${index}`,
+        `observer-state-sentinel-${index}`,
       );
     }
     await rm(home, { recursive: true, force: true });
