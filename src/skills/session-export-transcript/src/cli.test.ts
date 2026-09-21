@@ -45,8 +45,9 @@ const CURSOR_SLUG = 'export-test-my-project';
 function spawnCli(
   args: string[],
   env: NodeJS.ProcessEnv = {},
+  nodeArgs: string[] = [],
 ): SpawnSyncReturns<string> {
-  return spawnSync('node', [CLI_PATH, ...args], {
+  return spawnSync('node', [...nodeArgs, CLI_PATH, ...args], {
     encoding: 'utf8',
     timeout: 20000,
     env: { ...process.env, ...env },
@@ -2173,7 +2174,7 @@ describe('export CLI — complete structured activity capture', () => {
     assert.match(result.stderr, /ACTIVITY_OUTPUT_REQUIRES_EXACT_SESSION/);
   });
 
-  test('writes paired narrative provenance and complete sensitive JSON from one snapshot', async () => {
+  test('writes paired capture and keeps its Markdown invocation index consistent with JSON', async () => {
     const home = await setupHome();
     const sessionId = 'cc-structured';
     await writeClaude(
@@ -2261,13 +2262,13 @@ describe('export CLI — complete structured activity capture', () => {
       ),
     );
 
-    const markdownInvocationKeys = [
+    const markdownIndexInvocationKeys = [
       ...markdown.matchAll(/^- Invocation key: "([^"]+)"$/gmu),
     ].map((match) => match[1]);
     const jsonInvocationKeys = capture.activity.events
       .filter((event: { kind: string }) => event.kind === 'call')
       .map((event: { eventKey: string }) => event.eventKey);
-    assert.deepEqual(markdownInvocationKeys, jsonInvocationKeys);
+    assert.deepEqual(markdownIndexInvocationKeys, jsonInvocationKeys);
     assert.ok(jsonInvocationKeys.length > 0);
     assert.equal(
       await readFile(join(stateDir, 'sentinel'), 'utf8'),
@@ -2548,6 +2549,24 @@ describe('export CLI — complete structured activity capture', () => {
     await link(sourcePath, hardlinkPath);
     const stateHardlinkPath = join(home, 'state-hardlink.json');
     await link(effectiveStateFile, stateHardlinkPath);
+    const watchStateFixtures = [
+      'watch.json',
+      'watch.json.lock',
+      'watch.control.json',
+      'watch.control.321.json',
+      'watch.json.321.123456.tmp',
+      'watch.control.json.654.123456.tmp',
+      'watch.control.321.json.654.123456.tmp',
+    ];
+    const watchHardlinks = await Promise.all(
+      watchStateFixtures.map(async (name, index) => {
+        const statePath = join(effectiveState, name);
+        const hardlink = join(home, `watch-state-hardlink-${index}.json`);
+        await writeFile(statePath, `watch-state-sentinel-${index}`, 'utf8');
+        await link(statePath, hardlink);
+        return { name, statePath, hardlink, index };
+      }),
+    );
     const symlinkTarget = join(home, 'symlink-target.json');
     const symlinkPath = join(home, 'activity-symlink.json');
     await writeFile(symlinkTarget, 'target', 'utf8');
@@ -2594,6 +2613,11 @@ describe('export CLI — complete structured activity capture', () => {
         narrative: join(home, 'guard-state-hardlink.md'),
         activity: stateHardlinkPath,
       },
+      ...watchHardlinks.map(({ name, hardlink, index }) => ({
+        name: `observer ${name} narrative hardlink alias`,
+        narrative: hardlink,
+        activity: join(home, `guard-watch-hardlink-${index}.json`),
+      })),
       {
         name: 'symlink destination',
         narrative: join(home, 'guard-symlink.md'),
@@ -2642,6 +2666,12 @@ describe('export CLI — complete structured activity capture', () => {
       await readFile(defaultStateFile, 'utf8'),
       'default-state-sentinel',
     );
+    for (const { statePath, index } of watchHardlinks) {
+      assert.equal(
+        await readFile(statePath, 'utf8'),
+        `watch-state-sentinel-${index}`,
+      );
+    }
     await rm(home, { recursive: true, force: true });
   });
 
@@ -2677,6 +2707,74 @@ describe('export CLI — complete structured activity capture', () => {
     await expect(readFile(narrativePath, 'utf8')).rejects.toThrow();
     assert.ok(
       !(await readdir(home)).some((name) => name.includes('.session-export-')),
+    );
+    await rm(home, { recursive: true, force: true });
+  });
+
+  test('cleans its temporary sibling when atomic rename fails after narrative write', async () => {
+    const home = await setupHome();
+    const sessionId = 'cc-atomic-write-failure';
+    await writeClaude(
+      home,
+      claudeStructuredCaptureTranscript(sessionId),
+      sessionId,
+    );
+    const narrativePath = join(home, 'atomic-write-failure.md');
+    const activityDir = join(home, 'activity-output');
+    const activityPath = join(activityDir, 'capture.json');
+    const preloadPath = join(home, 'force-rename-failure.cjs');
+    await mkdir(activityDir);
+    await writeFile(
+      preloadPath,
+      [
+        "const fsPromises = require('node:fs/promises');",
+        "const { syncBuiltinESMExports } = require('node:module');",
+        'const originalRename = fsPromises.rename;',
+        'fsPromises.rename = async (from, to) => {',
+        '  if (to === process.env.SESSION_EXPORT_TEST_RENAME_TARGET) {',
+        "    const error = new Error('forced activity rename failure');",
+        "    error.code = 'EIO';",
+        '    throw error;',
+        '  }',
+        '  return originalRename(from, to);',
+        '};',
+        'syncBuiltinESMExports();',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const result = spawnCli(
+      [
+        '--runtime',
+        'claude-code',
+        '--cwd',
+        CWD,
+        '--session',
+        sessionId,
+        '--out',
+        narrativePath,
+        '--activity-output',
+        activityPath,
+      ],
+      {
+        HOME: home,
+        SESSION_EXPORT_TEST_RENAME_TARGET: activityPath,
+      },
+      ['--require', preloadPath],
+    );
+
+    assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    assert.match(result.stderr, /ACTIVITY_OUTPUT_WRITE_FAILED/);
+    assert.match(result.stderr, /after narrative output was written/);
+    assert.ok(!result.stdout.includes('[session-export-transcript] wrote'));
+    assert.match(await readFile(narrativePath, 'utf8'), /Conversation History/);
+    await expect(readFile(activityPath, 'utf8')).rejects.toThrow();
+    assert.ok(
+      !(await readdir(activityDir)).some((name) =>
+        name.includes('.session-export-'),
+      ),
+      'temporary activity sibling was not cleaned up after rename failure',
     );
     await rm(home, { recursive: true, force: true });
   });

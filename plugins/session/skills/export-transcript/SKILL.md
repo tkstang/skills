@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: thomas.stang
-  version: '2.0.30'
+  version: '2.0.31'
 ---
 
 # export-transcript
@@ -176,8 +176,12 @@ recorded every action.
 The activity destination may be absent or an existing ordinary file. An
 existing ordinary file is replaced atomically through an exporter-owned
 temporary sibling. Directories, symlinks, special files, the source transcript,
-the narrative output, and either the effective or default Session Observer
-state root are rejected before either output is written. Any failure returns a
+the narrative output, and both Observer checkpoint/watch roots — the effective
+`STATE_DIR` root and the fixed default `~/.local/state/session-observer` — are
+rejected before either output is written. Independently relocated collaboration roots are
+outside this guard. Destination validation precedes both writes, but the pair is
+not a filesystem transaction: a later activity JSON failure leaves the already
+written narrative at the path named in the error. The command still returns a
 nonzero exit and does not print a success claim. The exporter never reads or
 writes Observer checkpoints.
 
@@ -207,12 +211,12 @@ See `references/transcript-formats.md` for record shapes and cwd-encoding detail
 
 ## Exit code handling
 
-| Exit code | Meaning       | What to do                                                                                                                         |
-| --------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| 0         | Success       | Report the written path.                                                                                                           |
-| 1         | Hard error    | Surface the error message; nothing was written.                                                                                    |
-| 2         | No candidates | No transcript found for this cwd/runtime. Suggest `--cwd <path>` or confirm the runtime ran in this project.                       |
-| 3         | Ambiguous     | Multiple candidates and no `--match`/`--session`. Re-run with a `--match <marker>` or `--session <id>` from the listed candidates. |
+| Exit code | Meaning       | What to do                                                                                                                             |
+| --------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 0         | Success       | Report the written path.                                                                                                               |
+| 1         | Hard error    | Surface the exact error. Validation failures write nothing; an activity JSON failure may leave the paired narrative at the named path. |
+| 2         | No candidates | No transcript found for this cwd/runtime. Suggest `--cwd <path>` or confirm the runtime ran in this project.                           |
+| 3         | Ambiguous     | Multiple candidates and no `--match`/`--session`. Re-run with a `--match <marker>` or `--session <id>` from the listed candidates.     |
 
 ---
 

@@ -143,7 +143,9 @@ the ordinary per-preview cap while disabling total-byte and invocation
 eviction, and describes only one captured source snapshot rather than proving
 the session stopped. An existing ordinary destination is replaced atomically;
 directories, symlinks, special files, transcript/narrative aliases, and paths in
-the effective or default Observer state root are rejected before output.
+both Observer checkpoint/watch roots — the effective `STATE_DIR` root and the
+fixed default `~/.local/state/session-observer` — are rejected before output. Independently
+relocated collaboration roots are outside that exporter guard.
 
 ## Identity and provenance
 

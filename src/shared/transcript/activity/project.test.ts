@@ -1063,7 +1063,7 @@ describe('activity projection budgets', () => {
     expect(markdown).toContain('POSSIBLE_SOURCE_TRUNCATION');
   });
 
-  it('keeps every invocation and preview under complete-capture limits when a byte budget would evict groups', () => {
+  it('keeps every bounded-export invocation key in complete capture when byte pressure evicts groups', () => {
     const events = Array.from({ length: 1_100 }, (_, index) =>
       event(`complete-call-${index}`, 'call', index, {
         nativeName: 'custom_tool',
@@ -1071,13 +1071,18 @@ describe('activity projection budgets', () => {
       }),
     );
     const correlated = activity(events);
-    const options = {
+    const boundedOptions = {
+      mode: 'export' as const,
+      renderFormat: 'markdown' as const,
+      deliveryRange: wholeRange(events),
+    };
+    const completeOptions = {
       mode: 'complete-capture' as const,
       renderFormat: 'compact-json' as const,
       deliveryRange: wholeRange(events),
     };
 
-    const bounded = projectActivityWithLimits(correlated, options, {
+    const bounded = projectActivityWithLimits(correlated, boundedOptions, {
       maxBytes: 64 * 1024,
       maxInvocations: null,
       previewBytes: 2 * 1024,
@@ -1085,11 +1090,23 @@ describe('activity projection budgets', () => {
     });
     const complete = projectActivityWithLimits(
       correlated,
-      options,
+      completeOptions,
       ACTIVITY_PROJECTION_LIMITS['complete-capture'],
     );
 
-    expect(bounded.events.length).toBeLessThan(1_100);
+    const boundedCallKeys = bounded.events
+      .filter((candidate) => candidate.kind === 'call')
+      .map((candidate) => candidate.eventKey);
+    const completeCallKeys = new Set(
+      complete.events
+        .filter((candidate) => candidate.kind === 'call')
+        .map((candidate) => candidate.eventKey),
+    );
+    expect(boundedCallKeys.length).toBeGreaterThan(0);
+    expect(boundedCallKeys.length).toBeLessThan(1_100);
+    expect(
+      boundedCallKeys.every((eventKey) => completeCallKeys.has(eventKey)),
+    ).toBe(true);
     expect(bounded.omitted.byteLimitGroups).toBeGreaterThan(0);
     expect(complete.limits).toMatchObject({
       maxBytes: null,

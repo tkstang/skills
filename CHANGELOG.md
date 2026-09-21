@@ -4,6 +4,14 @@
 
 ### Fixed
 
+- `session-export-transcript` 2.0.31 strengthens bounded-versus-complete
+  projection evidence and atomic-write cleanup coverage, protects current
+  Observer watch/control state hardlink aliases, and clarifies checkpoint roots
+  and partial paired-output failures. `session-observer` 1.0.80,
+  `session-observer-collab` 1.0.68, and `session-fork-to-destination` 0.2.45
+  receive validation-only shared activity test closure; their runtime behavior
+  is unchanged.
+
 - `session-observer` 1.0.78 and `session-export-transcript` 2.0.29 keep optional
   source metadata out of the last-resort coverage budget, require ownership
   evidence at usage extraction, and make `source-skill-names` coverage include

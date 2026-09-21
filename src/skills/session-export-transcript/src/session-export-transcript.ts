@@ -792,13 +792,19 @@ async function observerStateFileNames(root: string): Promise<string[]> {
     'state.json',
     'state.json.lock',
     'cursor-state-transition.lock',
+    'watch.json',
+    'watch.json.lock',
+    'watch.control.json',
   ];
   try {
     const entries = await readdir(root);
     for (const entry of entries) {
       if (
         /^state\.json\.\d+\.tmp$/u.test(entry) ||
-        /^state\.json\..+\.bak$/u.test(entry)
+        /^state\.json\..+\.bak$/u.test(entry) ||
+        /^watch\.control\.\d+\.json$/u.test(entry) ||
+        /^watch\.json\.\d+\.\d+\.tmp$/u.test(entry) ||
+        /^watch\.control(?:\.\d+)?\.json\.\d+\.\d+\.tmp$/u.test(entry)
       ) {
         names.push(entry);
       }

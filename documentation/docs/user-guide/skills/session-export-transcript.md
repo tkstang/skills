@@ -176,11 +176,14 @@ stopped or that the provider recorded every runtime action.
 
 An absent activity destination is created, and an existing ordinary file is
 replaced atomically through a temporary sibling. Directories, symlinks, special
-files, aliases to the transcript or narrative output, and paths in either the
-effective or default Session Observer state root are rejected before either
-output is written. The command returns failure without a success claim when a
-file operation fails; the two files are not presented as a filesystem
-transaction. No Observer checkpoint or marker is read or written.
+files, aliases to the transcript or narrative output, and paths in both Observer
+checkpoint/watch roots — the effective `STATE_DIR` root and the fixed default
+`~/.local/state/session-observer` — are rejected before either output is written.
+Independently relocated collaboration roots are outside this guard. The command
+returns failure without a success claim when a file operation fails; the two
+files are not presented as a filesystem transaction, so an activity JSON
+failure can leave the narrative at the path named in the error. No Observer
+checkpoint or marker is read or written.
 
 ## Selection and sanitization flow
 
