@@ -80,12 +80,12 @@ oat_workflow_origin: native # native | imported
 #   receive_completed: false
 #   failure: null
 #   updated_at: '2026-07-18T00:00:00Z'
-oat_docs_updated: null # null | skipped | complete — documentation sync status
+oat_docs_updated: complete
 oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/skills/pull/99
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-21T01:29:19.400546+00:00'
+oat_project_state_updated: '2026-09-21T02:32:27.596048+00:00'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -118,8 +118,8 @@ oat_implement_exit_gate:
   reviewed_head: 8c65be6c1b6c4b819c9da4b93551c03d2a175192
   implementation_base_ref: origin/main
   implementation_fingerprint: sha256:effective-delta-v1:c2b0e3124e4a4b84338529a5d09f380fdf04ee299346dc53a656ce2ba63df1f6
-  freshness_head: a1696b0db265c656ab9ec753018e388b3dc292cb
-  freshness_fingerprint: sha256:effective-delta-v1:bd8a5b5f0c008191cf81f24c97e5dc0a922a6915fc78666e052a762c05e4bac7
+  freshness_head: HEAD
+  freshness_fingerprint: sha256:effective-delta-v1:98e219b577452e6f608b2f929464f3b12f269d912b924b676905288d5ad4e269
   launch_state: not_started
   launch_attempt_id: null
   launch_started_at: null
@@ -139,7 +139,7 @@ oat_implement_exit_gate:
   receive_eligible: false
   receive_completed: false
   failure: null
-  updated_at: '2026-09-21T02:31:00.633871+00:00'
+  updated_at: '2026-09-21T02:32:27.445782+00:00'
 oat_post_implement_sequence:
   status: pre_approval
   source: configured
@@ -150,6 +150,7 @@ oat_post_implement_sequence:
   - pr
   pre_approval_completed:
   - summary
+  - document
   approval: pending
   approval_source: null
   post_approval: []
