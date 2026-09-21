@@ -1,0 +1,89 @@
+{
+  "head": "0fdf33d6d017b0b90ed843186f58efa6b85233ae",
+  "testDisposition": "failed: stale packaging assertion; recovery required",
+  "otherChecks": "passed",
+  "logs": {
+    "test": {
+      "sha256": "fe56613878e606b214118173d5847221a688875de5656756c94b85b5352c5ca2",
+      "bytes": 13003,
+      "lastLines": [
+        "      Tests  1 failed | 2519 passed | 1 skipped (2521)",
+        "   Start at  19:44:35",
+        "   Duration  48.86s (transform 6.65s, setup 0ms, import 13.00s, tests 398.36s, environment 14ms)",
+        "",
+        "\u2009ELIFECYCLE\u2009 Command failed with exit code 1.",
+        "\u2009ELIFECYCLE\u2009 Test failed. See above for more details."
+      ]
+    },
+    "types": {
+      "sha256": "f9b2954d9d2fe1f3ac96b119b54f471bf4afeb1f26bf9594bc87192828c6e5de",
+      "bytes": 97,
+      "lastLines": [
+        "",
+        "> skills@0.1.0 type-check /Users/tstang/orca/workspaces/skills/session-fidelity",
+        "> tsc --noEmit",
+        ""
+      ]
+    },
+    "freshness": {
+      "sha256": "f07269dbc51868251908bb552e0e7ba0f858d3df2e55f09f9f15612da8ceafc2",
+      "bytes": 180,
+      "lastLines": [
+        "",
+        "> skills@0.1.0 build:check /Users/tstang/orca/workspaces/skills/session-fidelity",
+        "> tsx scripts/build-generated.ts --check",
+        "",
+        "consensus-loop: in sync",
+        "consensus-provider-cli: in sync"
+      ]
+    },
+    "validate": {
+      "sha256": "695189f3ec0db2df31bc31b26dbcb496c928fc4f0c7a729b127b397bd85dc54d",
+      "bytes": 124,
+      "lastLines": [
+        "",
+        "> skills@0.1.0 validate /Users/tstang/orca/workspaces/skills/session-fidelity",
+        "> tsx scripts/validate.ts",
+        "",
+        "validation passed"
+      ]
+    },
+    "smoke": {
+      "sha256": "baa6c1ce7e607f498b1b9f34ba81c74b7123dfe0d9b7fedd9a442449e1c30143",
+      "bytes": 120,
+      "lastLines": [
+        "",
+        "> skills@0.1.0 smoke /Users/tstang/orca/workspaces/skills/session-fidelity",
+        "> node scripts/smoke-test.mjs",
+        "",
+        "smoke passed"
+      ]
+    },
+    "format": {
+      "sha256": "7f8fff29ab5fe144735ffbb19d2634aa9ba83a637408a052c93e0b4cf160e1af",
+      "bytes": 114,
+      "lastLines": [
+        "Checking formatting...",
+        "",
+        "All matched files use the correct format.",
+        "Finished in 556ms on 44 files using 10 threads."
+      ]
+    },
+    "lint": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "lastLines": []
+    },
+    "versions": {
+      "sha256": "c08f6286500e0a346e5a1be1af178245d6a542847311848f8cab68d1f455d907",
+      "bytes": 236,
+      "lastLines": [
+        "",
+        "> skills@0.1.0 validate:skill-versions /Users/tstang/orca/workspaces/skills/session-fidelity",
+        "> tsx scripts/validate-skill-versions.ts -- --base-ref origin/main",
+        "",
+        "skill-version validation: 6 changed skill(s) verified against origin/main"
+      ]
+    }
+  }
+}

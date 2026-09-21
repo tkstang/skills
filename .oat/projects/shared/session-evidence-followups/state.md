@@ -136,7 +136,7 @@ None
 
 ## Next Milestone
 
-Review p04 and complete final integration, ticket closeout and ready PR
+Recover stale packaging assertion, obtain valid p04 review, then final integration and ready PR
 
 ## Review routing for this authorized run
 

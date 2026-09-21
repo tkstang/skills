@@ -76,6 +76,10 @@ evidence-p03-final-outcome-20260921: p03 Opus pass and all Low follow-ups implem
 
 evidence-p04-implementation-outcome-20260921: Sol/medium completed p04-t01 in c97f65db; frozen fixture acceptance and phase gates pass, recovery0; independent review and final integration pending.
 
+### 2026-09-21 · structural · oat-project-implement · p04
+
+evidence-p04-invalid-20260921: Consensus reply defective, no pass; stable diagnostic evidence/p04-review-diagnostic.json retained. Independent final suite found stale packaging assertion; same-target p04 recovery and valid corrected-scope review remain required.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
