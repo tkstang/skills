@@ -118,8 +118,8 @@ oat_implement_exit_gate:
   reviewed_head: 8c65be6c1b6c4b819c9da4b93551c03d2a175192
   implementation_base_ref: origin/main
   implementation_fingerprint: sha256:effective-delta-v1:c2b0e3124e4a4b84338529a5d09f380fdf04ee299346dc53a656ce2ba63df1f6
-  freshness_head: c76818af
-  freshness_fingerprint: sha256:effective-delta-v1:fa6898a3d3e448492a8f5b204ce0ec72c8690037a4e5ddfa9bbd418a5ceedd73
+  freshness_head: a1696b0db265c656ab9ec753018e388b3dc292cb
+  freshness_fingerprint: sha256:effective-delta-v1:bd8a5b5f0c008191cf81f24c97e5dc0a922a6915fc78666e052a762c05e4bac7
   launch_state: not_started
   launch_attempt_id: null
   launch_started_at: null
@@ -139,7 +139,7 @@ oat_implement_exit_gate:
   receive_eligible: false
   receive_completed: false
   failure: null
-  updated_at: '2026-09-21T02:24:02.776323+00:00'
+  updated_at: '2026-09-21T02:31:00.633871+00:00'
 oat_post_implement_sequence:
   status: pre_approval
   source: configured
@@ -148,7 +148,8 @@ oat_post_implement_sequence:
   - summary
   - document
   - pr
-  pre_approval_completed: []
+  pre_approval_completed:
+  - summary
   approval: pending
   approval_source: null
   post_approval: []
