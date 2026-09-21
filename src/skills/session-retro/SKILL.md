@@ -6,7 +6,7 @@ compatibility: Agent Skills baseline; instruction-only. Complete review requires
 user-invocable: true
 metadata:
   author: thomas.stang
-  version: '1.0.1'
+  version: '1.0.2'
 ---
 
 # {{distribution.name}}
@@ -27,13 +27,21 @@ saved or substantial inline report. Resolve it relative to this loaded skill.
    newest, auto-ranked, matched, or peer session. If either identity is unknown,
    the target is ambiguous, or the identities match, stop and request the
    missing identity, a different exact target, or a different reviewing session.
-2. Read the installed `{{skill:session-export-transcript}}` contract and its
-   generated CLI help before invoking it. Confirm that workflow is available in
-   the current host inventory; if it is missing, stop and report the required
-   capability rather than installing or fetching it. Use one exact `--session`
-   with `--runtime`, `--cwd`, `--out`, and `--activity-output`. Do not use
-   `--all`, marker matching, capped Observer output, catch-up, watch, or
+2. Inspect the current host's effective skill inventory for any documented
+   exporter identity: {{skill-identities:session-export-transcript}}. These
+   names represent the same required workflow in its standalone and Session
+   plugin-local forms. Continue when any form is present. Only when none is
+   available, stop and report that the required canonical skill is
+   `session-export-transcript`, with its install source:
+
+   <https://github.com/tkstang/skills/tree/main/skills/session-export-transcript>
+
+   Do not fetch the URL or install the skill. Read the installed workflow's
+   contract and generated CLI help before invoking it. Use one exact
+   `--session` with `--runtime`, `--cwd`, `--out`, and `--activity-output`. Do
+   not use `--all`, marker matching, capped Observer output, catch-up, watch, or
    state-changing modes.
+
 3. Write the full sanitized narrative and complete sensitive activity JSON to
    separate files before analysis. Confirm that the narrative `Exported` value
    and native session match the JSON `capturedAt` and `nativeSessionId`, and

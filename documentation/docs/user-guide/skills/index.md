@@ -34,7 +34,8 @@ and standalone choices.
 - **must-we** — evaluate whether a blocker, requirement, or proposed action is
   necessary and identify a smaller path when warranted.
 - **session-retro** (session-local `retro`) — review a bounded episode and
-  report evidence-backed findings; observer integration is optional.
+  report evidence-backed findings; the complete workflow requires
+  **session-export-transcript** (session-local `export-transcript`).
 - **session-handoff** (session-local `handoff`) — prepare a concise,
   evidence-grounded continuation brief; observer and transcript export are
   optional integrations.
@@ -73,7 +74,7 @@ and standalone choices.
 
 - [Consensus Review](../consensus/review.md) - Review a branch diff, selected files, or one document through one independent provider invocation.
 - [Complexity Review](complexity-review.md) - Decide whether each piece of machinery in a plan or implementation is justified by the contract, and get the minimum sufficient version.
-- [Session Retro](session-retro.md) - Review one invocation or bounded episode without applying findings; available standalone or as Session `retro`.
+- [Session Retro](session-retro.md) - Review one invocation or bounded episode without applying findings; requires Session Export Transcript and is available standalone or as Session `retro`.
 
 ### Preserve and continue
 

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `session-retro` 1.0.2 reviews exact paired narrative/activity captures from a
+  different session, preserves native identity, origins, usage ownership and
+  all seven coverage states, and separates frozen observations from
+  interpretation and proposed changes. The exact-session workflow requires
+  Session Export Transcript and removes the former optional Session Observer
+  enrichment path; active or unknown-ended targets remain captured-activity
+  reviews.
+
 ### Fixed
 
 - `session-export-transcript` 2.0.32 protects external hardlink aliases to any
@@ -41,13 +51,6 @@
 - `consensus-review` 0.1.15 exposes `--timeout-sec` (1–3,600 seconds, default 900) so callers can budget longer reviews without changing the wall-clock timeout policy.
 
 ### Added
-
-- `session-retro` 1.0.1 reviews exact paired narrative/activity captures from a
-  different session, preserves native identity, origins, usage ownership and
-  all seven coverage states, and separates frozen observations from
-  interpretation and proposed changes. Complete review now requires Session
-  Export Transcript; active or unknown-ended targets remain captured-activity
-  reviews.
 
 - `session-export-transcript` 2.0.30 adds exact-session complete structured
   activity captures with one-snapshot native identity evidence, stable
