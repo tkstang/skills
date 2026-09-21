@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: thomas.stang
-  version: '2.0.33'
+  version: '2.0.34'
 ---
 
 # {{distribution.name}}
@@ -172,6 +172,10 @@ the paired Markdown. Malformed or partial records remain visible through honest
 coverage, diagnostics, and counts. Complete means every supported invocation in
 the captured bytes; it does not prove the session stopped or that the runtime
 recorded every action.
+
+The paired Markdown adds a **Structured Activity Capture Index** with one stable
+invocation key per captured call; this opt-in list can be large, and the
+sensitive JSON remains the source of truth for the captured activity graph.
 
 The activity destination may be absent or an existing ordinary file. An
 existing ordinary file is replaced atomically through an exporter-owned

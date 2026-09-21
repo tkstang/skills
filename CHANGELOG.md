@@ -14,6 +14,12 @@
 
 ### Fixed
 
+- `session-export-transcript` 2.0.34 adds the opt-in Structured Activity Capture
+  Index contract to its canonical instructions: one stable invocation key per
+  captured call, a potentially large list, and the sensitive JSON as graph
+  source of truth. `session-fork-to-destination` 0.2.48 receives the required
+  validation-only exporter source closure; its runtime behavior is unchanged.
+
 - `session-observer` 1.0.81 and `session-export-transcript` 2.0.33 distinguish a
   source-wide usage extraction failure as `not-read` with a content-free
   diagnostic instead of reporting runtime capability absence; the exporter now
