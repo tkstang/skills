@@ -298,12 +298,15 @@ function activityAccountingSignal(digest: SessionDigest): boolean {
       sample.locator.recordIndex >= activity.deliveryRange.start &&
       sample.locator.recordIndex < activity.deliveryRange.end,
   );
+  const usageExtractionFailure =
+    activity.sourceMetadata.usage?.availability === 'not-read';
   const deliveredUsageDiagnostic = (
     activity.sourceMetadata.usage?.diagnostics ?? []
   ).some(
     (diagnostic) =>
-      diagnostic.locator.recordIndex >= activity.deliveryRange.start &&
-      diagnostic.locator.recordIndex < activity.deliveryRange.end,
+      diagnostic.locator === undefined ||
+      (diagnostic.locator.recordIndex >= activity.deliveryRange.start &&
+        diagnostic.locator.recordIndex < activity.deliveryRange.end),
   );
   return (
     delivered.calls > 0 ||
@@ -313,6 +316,7 @@ function activityAccountingSignal(digest: SessionDigest): boolean {
     delivered.failures > 0 ||
     deliveredSourceSkill ||
     deliveredUsage ||
+    usageExtractionFailure ||
     deliveredUsageDiagnostic ||
     Object.entries(activity.omitted).some(
       ([kind, count]) =>

@@ -2444,7 +2444,12 @@ function extractActivity(input) {
   try {
     usage = extractUsageMetadata(input.source, input.read.records, events);
   } catch {
-    usage = notRecordedUsage();
+    usage = {
+      scope: "captured-source",
+      availability: "not-read",
+      samples: [],
+      diagnostics: [{ code: "USAGE_EXTRACTION_ERROR" }]
+    };
   }
   return {
     activitySchemaVersion: ACTIVITY_SCHEMA_VERSION,

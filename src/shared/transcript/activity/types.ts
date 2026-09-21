@@ -131,17 +131,18 @@ export type ActivityUsageDiagnosticCode =
   | 'USAGE_CONFLICT'
   | 'USAGE_COUNTER_RESET'
   | 'USAGE_DEDUP_UNCERTAIN'
+  | 'USAGE_EXTRACTION_ERROR'
   | 'USAGE_SESSION_MISMATCH';
 
 export interface ActivityUsageDiagnostic {
   code: ActivityUsageDiagnosticCode;
-  locator: ActivityEventLocator;
+  locator?: ActivityEventLocator;
   messageId?: string;
 }
 
 export interface ActivityUsageMetadata {
   scope: 'captured-source';
-  availability: 'recorded' | 'not-recorded';
+  availability: 'recorded' | 'not-recorded' | 'not-read';
   samples: ActivityTokenUsageSample[];
   diagnostics: ActivityUsageDiagnostic[];
 }

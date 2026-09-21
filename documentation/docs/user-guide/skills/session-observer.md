@@ -110,7 +110,10 @@ cross that boundary. Response usage is matched to the transcript's native
 appears only when a native turn join with matching ownership supports it.
 Cursor reports usage as `not-recorded`, never zero. Reports contain token fields
 only and do not estimate price or cost. Usage samples and diagnostics
-participate in the activity byte budget with explicit omission counts.
+participate in the activity byte budget with explicit omission counts. A
+source-wide usage extraction failure is `not-read` with a content-free
+`USAGE_EXTRACTION_ERROR` diagnostic, distinct from genuine `not-recorded`
+runtime evidence.
 
 Claude Code and Codex conversation and activity come from one detailed read.
 Cursor uses one physical-frame scan. `review` is a stateless full snapshot and

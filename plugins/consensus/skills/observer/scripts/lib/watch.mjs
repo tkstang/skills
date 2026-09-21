@@ -3761,7 +3761,12 @@ function extractActivity(input) {
   try {
     usage = extractUsageMetadata(input.source, input.read.records, events);
   } catch {
-    usage = notRecordedUsage();
+    usage = {
+      scope: "captured-source",
+      availability: "not-read",
+      samples: [],
+      diagnostics: [{ code: "USAGE_EXTRACTION_ERROR" }]
+    };
   }
   return {
     activitySchemaVersion: ACTIVITY_SCHEMA_VERSION,
@@ -10396,10 +10401,11 @@ function activityAccountingSignal(digest) {
   const deliveredUsage = (activity.sourceMetadata.usage?.samples ?? []).some(
     (sample) => sample.locator.recordIndex >= activity.deliveryRange.start && sample.locator.recordIndex < activity.deliveryRange.end
   );
+  const usageExtractionFailure = activity.sourceMetadata.usage?.availability === "not-read";
   const deliveredUsageDiagnostic = (activity.sourceMetadata.usage?.diagnostics ?? []).some(
-    (diagnostic) => diagnostic.locator.recordIndex >= activity.deliveryRange.start && diagnostic.locator.recordIndex < activity.deliveryRange.end
+    (diagnostic) => diagnostic.locator === void 0 || diagnostic.locator.recordIndex >= activity.deliveryRange.start && diagnostic.locator.recordIndex < activity.deliveryRange.end
   );
-  return delivered.calls > 0 || delivered.countedInvocations > 0 || delivered.results > 0 || delivered.items > 0 || delivered.failures > 0 || deliveredSourceSkill || deliveredUsage || deliveredUsageDiagnostic || Object.entries(activity.omitted).some(
+  return delivered.calls > 0 || delivered.countedInvocations > 0 || delivered.results > 0 || delivered.items > 0 || delivered.failures > 0 || deliveredSourceSkill || deliveredUsage || usageExtractionFailure || deliveredUsageDiagnostic || Object.entries(activity.omitted).some(
     ([kind, count]) => kind !== "sourceSkills" && kind !== "usageSamples" && kind !== "usageDiagnostics" && count > 0
   );
 }

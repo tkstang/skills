@@ -118,7 +118,9 @@ native thread through `thread_id`, while their separate `session_id` remains
 root-session context. Models are attached only through recorded turn evidence
 with matching ownership. Cursor usage is `not-recorded`, not zero. The report
 emits token fields without pricing or cost estimates and explicitly counts
-usage metadata omitted by its byte budget.
+usage metadata omitted by its byte budget. A source-wide usage extraction
+failure is `not-read` with a content-free `USAGE_EXTRACTION_ERROR` diagnostic,
+distinct from genuine `not-recorded` runtime evidence.
 
 Activity previews can contain commands, paths, identifiers, tool inputs, and
 tool outputs even though the conversation section remains sanitized. The
@@ -173,6 +175,11 @@ copying full message bodies. Malformed or partial source reads preserve honest
 coverage, diagnostics, and source/decoded counts. “Complete” means every
 supported invocation in the captured bytes; it does not prove the session was
 stopped or that the provider recorded every runtime action.
+
+The paired Markdown adds a **Structured Activity Capture Index** with one stable
+invocation key for each captured call. This index appears only in the opt-in
+`--activity-output` workflow and can be large; the sensitive JSON remains the
+source of truth for the captured activity graph.
 
 An absent activity destination is created, and an existing ordinary file is
 replaced atomically through a temporary sibling. Directories, symlinks, special

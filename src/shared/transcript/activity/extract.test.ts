@@ -4,7 +4,10 @@ import { describe, expect, it } from 'vitest';
 
 import type { DetailedTranscriptRecord, JsonObject } from '../runtimes.js';
 import { readRecordsDetailed } from '../runtimes.js';
+import { correlateActivity } from './correlate.js';
 import { extractActivity } from './extract.js';
+import { projectActivity, projectActivityWithLimits } from './project.js';
+import { renderActivityMarkdown, renderActivityReport } from './render.js';
 import type { ActivitySource } from './types.js';
 
 const FIXTURE_ROOT = fileURLToPath(
@@ -1094,6 +1097,119 @@ describe('activity extraction failure boundaries', () => {
         read: { ...TEST_SNAPSHOT, records: [], diagnostics: [] },
       }),
     ).toThrow('Activity extraction requires an exact selected source');
+  });
+
+  it('distinguishes a source-wide usage extraction failure from absent usage', () => {
+    const message: JsonObject = { id: 'usage-failure-message', content: [] };
+    Object.defineProperty(message, 'usage', {
+      enumerable: true,
+      get() {
+        throw new Error('private usage extraction detail');
+      },
+    });
+    const extracted = extractActivity({
+      source: CLAUDE_SOURCE,
+      read: {
+        ...TEST_SNAPSHOT,
+        records: [
+          detailed(
+            {
+              type: 'assistant',
+              sessionId: CLAUDE_SOURCE.nativeSessionId,
+              message,
+            },
+            0,
+          ),
+        ],
+        diagnostics: [],
+      },
+    });
+
+    expect(extracted.sourceMetadata?.usage).toEqual({
+      scope: 'captured-source',
+      availability: 'not-read',
+      samples: [],
+      diagnostics: [{ code: 'USAGE_EXTRACTION_ERROR' }],
+    });
+    expect(JSON.stringify(extracted)).not.toContain(
+      'private usage extraction detail',
+    );
+
+    const correlated = correlateActivity(extracted);
+    for (const mode of ['watch', 'complete-capture'] as const) {
+      const report = projectActivity(correlated, {
+        mode,
+        renderFormat: 'compact-json',
+        deliveryRange: {
+          indexBase: 'zero-based-decoded-record-index',
+          start: 0,
+          end: 1,
+        },
+      });
+      expect(report.sourceMetadata.usage).toEqual({
+        scope: 'captured-source',
+        availability: 'not-read',
+        samples: [],
+        diagnostics: [{ code: 'USAGE_EXTRACTION_ERROR' }],
+      });
+      expect(renderActivityReport(report)).not.toContain(
+        'private usage extraction detail',
+      );
+    }
+
+    const markdown = renderActivityMarkdown(
+      projectActivity(correlated, {
+        mode: 'watch',
+        renderFormat: 'markdown',
+        deliveryRange: {
+          indexBase: 'zero-based-decoded-record-index',
+          start: 0,
+          end: 1,
+        },
+      }),
+    );
+    expect(markdown).toContain('Token usage: not-read');
+    expect(markdown).toContain('USAGE_EXTRACTION_ERROR; source-wide');
+    expect(markdown).not.toContain('private usage extraction detail');
+
+    if (!correlated.sourceMetadata?.usage) {
+      throw new Error('expected captured-source usage metadata');
+    }
+    const compactOptions = {
+      mode: 'watch' as const,
+      renderFormat: 'compact-json' as const,
+      deliveryRange: {
+        indexBase: 'zero-based-decoded-record-index' as const,
+        start: 0,
+        end: 1,
+      },
+    };
+    const withoutDiagnostic = {
+      ...correlated,
+      sourceMetadata: {
+        ...correlated.sourceMetadata,
+        usage: { ...correlated.sourceMetadata.usage, diagnostics: [] },
+      },
+    };
+    const baseline = projectActivityWithLimits(
+      withoutDiagnostic,
+      compactOptions,
+      {
+        maxBytes: null,
+        maxInvocations: null,
+        previewBytes: 2 * 1024,
+        lateContextBytes: 256,
+      },
+    );
+    const bounded = projectActivityWithLimits(correlated, compactOptions, {
+      maxBytes: baseline.renderedBytes,
+      maxInvocations: null,
+      previewBytes: 2 * 1024,
+      lateContextBytes: 256,
+    });
+    expect(bounded.sourceMetadata.usage?.availability).toBe('not-read');
+    expect(bounded.sourceMetadata.usage?.diagnostics).toEqual([]);
+    expect(bounded.omitted.usageDiagnostics).toBe(1);
   });
 
   it('carries stable detailed-reader diagnostics without engine error text', () => {

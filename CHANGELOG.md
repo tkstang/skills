@@ -14,6 +14,13 @@
 
 ### Fixed
 
+- `session-observer` 1.0.81 and `session-export-transcript` 2.0.33 distinguish a
+  source-wide usage extraction failure as `not-read` with a content-free
+  diagnostic instead of reporting runtime capability absence; the exporter now
+  also documents its opt-in narrative invocation-key index.
+  `session-observer-collab` 1.0.69 and `session-fork-to-destination` 0.2.47
+  receive the required shared activity source closure.
+
 - `session-export-transcript` 2.0.32 protects external hardlink aliases to any
   ordinary file directly inside the effective or default Session Observer state
   root, including Cursor state, backup-temporary, and future state files.
