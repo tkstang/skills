@@ -1,6 +1,6 @@
 ---
-oat_current_task: p04-t01
-oat_last_commit: c97f65db49a08af556f14a8a151e54a23d4f86bf
+oat_current_task: null
+oat_last_commit: 8ac3ba9e81a13fbcea622e1bfda7cc7d97d7f188
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -85,7 +85,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/skills/pull/99
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-21T00:38:58.910851+00:00'
+oat_project_state_updated: '2026-09-21T01:29:19.400546+00:00'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -109,7 +109,7 @@ oat_generated: false
 
 ## Current Phase
 
-p00–p02 complete. Independent p02 verification passed and all Low follow-ups are implemented; p03 review will include their narrow delta. p03 independent review passed and all bounded follow-ups are implemented. p04 is implemented; independent phase review and final acceptance remain. User authorized continuation through one mergeable PR.
+All7implementation tasks and p00–p04 phases are complete. Phase reviews passed and every accepted follow-up is implemented. Final integration verification passed; final review and lifecycle closeout remain in progress. User authorized continuation through one mergeable ready PR.
 
 ## Artifacts
 
@@ -133,7 +133,9 @@ p00–p02 complete. Independent p02 verification passed and all Low follow-ups a
 - ✓ p03 independent review passed
 - ✓ All p03 follow-ups addressed
 - ✓ p04 frozen-evidence retro implemented
-- ⧗ p04 independent review and final integration
+- ✓ p04 independent review and all follow-ups complete
+- ✓ Final integration checks passed
+- ⧗ Final review and lifecycle closeout
 
 ## Blockers
 

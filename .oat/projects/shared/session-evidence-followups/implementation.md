@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-20
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -153,7 +153,15 @@ Task2 `92b688f9fa95cd5bd8bc9d4d6267c995134ecdfa`: native Claude exact-session/me
 
 ## Final Summary (for PR/docs)
 
-All seven tasks are implemented. The wave supplies reliable terminal watch evidence, native/inferred skill attribution, honest usage accounting, complete paired activity captures and frozen-evidence retros. Consensus Review retains the15-minute default and configurable timeout from merged main. p00–p03 independent reviews passed and all findings are addressed; p04 review includes p03 follow-up validation. Final integration checks/review, ticket closeout and ready PR remain. Draft PR[#99](https://github.com/tkstang/skills/pull/99) includes merged main PR100/101; no merge or global installation is claimed.
+All7tasks across p00–p04 are implemented, self-reviewed by the user-selected Sol implementers and independently reviewed through requested Opus/high Consensus invocations. Final integration review remains pending; implementation stays in progress through closeout.
+
+The wave stabilizes SIGTERM watcher re-arm and emits deduplicated metadata-only unsuccessful native terminal events without peer-continuation authority. Shared activity adds native/inferred skill evidence and honest per-runtime usage semantics, ownership, resets and coverage. Exact-session export can write one frozen sanitized narrative plus complete sensitive structured activity JSON, with native identity/provenance, bounded previews, guarded source/state destinations and atomic JSON replacement. Retro requires the installed exporter workflow and a distinct reviewing session; it analyzes frozen evidence only, preserves all seven coverage states and separates observations, interpretations and proposals.
+
+Canonical changes live in shared transcript/activity and terminal decoding, Observer watch/digest, Exporter's CLI, Retro instructions/template and distribution dependencies. User/engineering docs, generated standalone/plugin payloads and version/changelog closure match. Current changed skills: Review0.1.17, Observer1.0.80, Collab1.0.68, Exporter2.0.32, Fork0.2.46 and Retro1.0.2. Main4150cfe2(PR100/101) is merged; its Consensus0.2.1 Draft-07 schemas,900-second Review default and CLI timeout override are retained, with branch host-poll guidance. No temporary schema shim ships.
+
+[Final integration checks](evidence/final-checks-complete.json):170 test files/2520 tests passed,1 expected opt-in skip; types,build:check,validate,smoke,changed-authoredlint/format,origin/main skillversions and diffcheck passed. Docs production58pages and actual desktop/phone light/dark diagram inspection passed. Watcher evidence retains50consecutive local passes including30CPU-loaded and3successful fixing-PR CI attempts. [Acceptance audit](evidence/final-acceptance-audit.md) maps all29ticket criteria; its stale packaging assertion was corrected and verified. Two frozen synthetic retro exercises retain honest limits.
+
+All accepted phase findings are implemented. Latest corrections remove the Observer state filename list in favor of direct ordinary-file inode checks and clarify all supported exporter install identities/current docs. Final review explicitly covers these bounded deltas. Recovery1/10 fixed the outdated packaging assertion append-only. Source/version closure and a required diagram proof caused no scope expansion. PR99 remains the single delivery PR; six-ticket lifecycle closeout, final review/gate and summary/document/PR sequencing remain before ready status. No merge, release, global install or provider-wide acceptance is claimed.
 
 ## References
 
