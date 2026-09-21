@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 080424d49b9812f10ad1fa3987605616b4f7401c
+oat_last_commit: 6d7318b4927951e67de9dc3e74a7e2896c665090
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -19,7 +19,7 @@ oat_hill_completed:
 - p04
 oat_parallel_execution: false
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: complete
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -86,7 +86,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/skills/pull/99
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-21T14:58:00Z'
+oat_project_state_updated: '2026-09-21T15:08:00Z'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -166,13 +166,13 @@ oat_project_recap:
 
 # Project State: session-evidence-followups
 
-**Status:** Implementation — remote review fixes verified
+**Status:** Implementation complete — PR feedback resolved
 **Started:** 2026-09-20
 **Last Updated:** 2026-09-20
 
 ## Current Phase
 
-Remote review reopened implementation for two valid CodeRabbit findings. Both p05 corrections and their independent native review now pass; publication, GitHub replies and final PR-state verification remain before PR99 returns to ready status.
+Remote review reopened implementation for two valid CodeRabbit findings. Both p05 corrections passed independent native review and CodeRabbit re-review on the pushed correction head. Replies are posted, both threads are resolved, current-head checks pass, and PR99 is ready and mergeable.
 
 ## Artifacts
 
@@ -200,7 +200,8 @@ Remote review reopened implementation for two valid CodeRabbit findings. Both p0
 - ✓ Final integration checks passed
 - ✓ Final review and lifecycle closeout complete at the prior reviewed head
 - ✓ p05 remote-review corrections and independent review complete
-- ⧗ Revalidate, reply and resolve PR threads
+- ✓ Final verification, publication, replies and thread resolution complete
+- ✓ Current-head CI and CodeRabbit re-review passed
 
 ## Blockers
 
@@ -208,7 +209,7 @@ None
 
 ## Next Milestone
 
-Run final verification, publish p05, reply to both CodeRabbit threads, and restore PR99 to a clean mergeable review state. Merge remains a separate user action.
+PR99 is ready for human review and merge. Merge remains a separate user action.
 
 ## Review routing for this authorized run
 

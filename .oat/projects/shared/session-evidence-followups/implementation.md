@@ -1,8 +1,8 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
-oat_last_updated: 2026-09-20
+oat_last_updated: 2026-09-21
 oat_current_task_id: null
 oat_generated: false
 ---
@@ -168,7 +168,7 @@ Task2 `92b688f9fa95cd5bd8bc9d4d6267c995134ecdfa`: native Claude exact-session/me
 
 ## Final Summary (for PR/docs)
 
-All seven tasks across p00–p04 are implemented, self-reviewed by the user-selected Sol implementers and independently reviewed through requested Opus/high Consensus invocations. Final integration review remains pending; implementation stays in progress through closeout.
+All nine tasks across p00–p05 are implemented. The original p00–p04 wave passed its requested independent reviews and closeout; the two p05 remote-review corrections passed a fresh independent native review and CodeRabbit's review of the pushed correction head. PR99 remains open and unmerged.
 
 The wave stabilizes SIGTERM watcher re-arm and emits deduplicated metadata-only unsuccessful native terminal events without peer-continuation authority. Shared activity adds native/inferred skill evidence and honest per-runtime usage semantics, ownership, resets and coverage. Exact-session export can write one frozen sanitized narrative plus complete sensitive structured activity JSON, with native identity/provenance, bounded previews, guarded source/state destinations and atomic JSON replacement. Retro requires the installed exporter workflow and a distinct reviewing session; it analyzes frozen evidence only, preserves all seven coverage states and separates observations, interpretations and proposals.
 
@@ -404,7 +404,7 @@ IMPLEMENT-16 recorded policy approval under the user's explicit instruction to c
 
 ## Implementation complete
 
-All five phases and seven tasks are complete, final independent review and accepted corrections passed, all six tickets are archived, and summary/document/PR closeout finished in its configured order. The user-authorized final checkpoint is complete. PR99 is ready for human review; current-head CI and mergeability are verified at delivery. Recap outcome is built at explainers/project-recap. No merge or release occurred.
+All six phases and nine tasks are complete. The original final independent review and its accepted corrections passed; p05 then addressed both remote-review findings and passed independent native review plus CodeRabbit re-review. All six tickets remain archived, and summary/document/PR closeout finished in its configured order. PR99 is ready for human review; current-head CI and mergeability are verified at delivery. Recap outcome is built at explainers/project-recap. No merge or release occurred.
 
 ## Remote Review Received — PR #99
 
@@ -432,4 +432,10 @@ Independent native review request `p05-review-20260921-01` used exact target `oa
 
 `Dispatch: scope=p05 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-5.6-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-5-6-sol-high`
 
-p05 is complete. Final repository verification, publication and GitHub thread resolution remain before PR99 returns to ready status.
+p05 is complete. Root final verification passed: 2,521 tests with one opt-in skip, type-check, generated freshness, repository validation, smoke, six-skill version closure, scoped lint and scoped formatting. Push hooks repeated validate, build freshness, type-check, version closure and internal-flag validation.
+
+## PR99 feedback closeout — passed
+
+The correction head `6d7318b4927951e67de9dc3e74a7e2896c665090` was pushed to PR99. Replies were posted to comments `4059008112` and `4059008119`, and both review threads were resolved. `agent-reviews --unresolved --pr 99` returned no findings. CodeRabbit completed its new-head review with a pass.
+
+Current-head GitHub checks passed: Docs CI run `35616152876`; Validate run `35616657924` including validate, commitlint, internal-flags, lint and skill-versions; CodeRabbit review completed. GitHub reports PR99 open, ready, and mergeable. The project-level implementation exit gate remains explicitly disabled as previously recorded; per the user's instruction, no additional Consensus or configured gate was launched for these bounded remote-review fixes. The fresh independent p05 native review and remote CodeRabbit pass are the correction-review evidence. No merge or release occurred.

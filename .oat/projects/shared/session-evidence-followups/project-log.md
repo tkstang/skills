@@ -100,6 +100,10 @@ evidence-p04-terminal-20260921: all accepted findings fixed8ac3ba9e and0ca7ad65;
 
 evidence-p05-pass-20260921: two Sol task commits and independent native review passed with zero findings; exporter49/49, phase97, types, build/validate/version/lint/format pass; recovery0; see reviews/p05-review-2026-09-21T145528Z.md.
 
+### 2026-09-21 · structural · oat-project-implement · pr99-feedback
+
+evidence-pr99-feedback-resolved-20260921: correction head6d7318b pushed; both comments replied to and threads resolved; CodeRabbit and current-head CI passed; PR99 ready and mergeable.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

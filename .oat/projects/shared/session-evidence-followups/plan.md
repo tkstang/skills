@@ -194,14 +194,14 @@ Close each fully satisfied item via repo Backlog Lifecycle: status/updated, comp
 | p02 | code | passed | 2026-09-20 | reviews/archived/p02-opus-fix-verification.md | 9a74ed1d | consensus | claude:opus |
 | final | code | passed | 2026-09-20 | reviews/archived/final-opus-review.md | 39aeee12 | consensus | claude:opus |
 | final | code | passed | 2026-09-20 | reviews/archived/final-followup-opus-review.md | 8c65be6c | consensus | claude:opus |
-| pr-99 | code | fixes_added | 2026-09-21 | reviews/archived/remote-pr-99-review-2026-09-21T143858Z.md | 6cb8f58846b83b68b90e320a90c40effa127ae4b | github-pr | - |
+| pr-99 | code | fixes_completed | 2026-09-21 | reviews/archived/remote-pr-99-review-2026-09-21T143858Z.md | 6cb8f58846b83b68b90e320a90c40effa127ae4b | github-pr | - |
 | p05 | code | passed | 2026-09-21 | reviews/p05-review-2026-09-21T145528Z.md | 080424d49b9812f10ad1fa3987605616b4f7401c | manual | - |
 
 Spec/design rows are retained template history; quick mode uses discovery and this plan only. Full reviewed plan plus the clean bounded H1 verification establish readiness. [Complexity review](reviews/archived/complexity-review.md) retains the minimum sufficient approach. The subsequently user-requested 600→900 timeout task is a narrow operational addition; its requirements are explicit above and it receives self-review and independent Opus code review, without repeating the unchanged six-ticket plan review.
 
 ## Implementation Complete
 
-Six phases and nine tasks are complete. Both p05 PR review corrections passed focused verification and independent native review. The configured exit gate remains historical evidence for the earlier reviewed implementation and must be refreshed after these product corrections. PR99 remains open and unmerged pending publication and thread resolution.
+Six phases and nine tasks are complete. Both p05 PR review corrections passed focused verification, independent native review and CodeRabbit re-review on the pushed correction head. Both GitHub threads are resolved, all current-head checks pass, and PR99 is open, ready and mergeable. The project-level configured exit gate remains explicitly disabled; no additional gate was launched for this bounded feedback cycle. PR99 remains unmerged.
 
 ## References
 
