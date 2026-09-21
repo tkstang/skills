@@ -161,13 +161,13 @@ Close each fully satisfied item via repo Backlog Lifecycle: status/updated, comp
 | spec   | artifact | pending         | -          | -                             | -             | -          | -           |
 | design | artifact | pending         | -          | -                             | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-20 | reviews/archived/plan-opus-review-1.md | fd106e85      | manual     | claude:opus |
-| p03 | code | fixes_completed | 2026-09-21 | reviews/p03-opus-review.md | 72bbc1c6 | consensus | claude:opus |
-| p04 | code | fixes_added | 2026-09-20 | reviews/p04-opus-review.md | - | consensus | - |
+| p03 | code | fixes_completed | 2026-09-21 | reviews/archived/p03-opus-review.md | 72bbc1c6 | consensus | claude:opus |
+| p04 | code | fixes_completed | 2026-09-20 | reviews/archived/p04-opus-review.md | - | consensus | - |
 | plan | artifact | passed | 2026-09-20 | reviews/archived/plan-opus-h1-verification.md | 6863c882 | manual | claude:opus |
 | p00 | code | passed | 2026-09-20 | reviews/archived/p00-opus-review.md | - | manual | - |
-| p01 | code | passed | 2026-09-20 | reviews/p01-opus-fix-verification.md | - | manual | - |
-| p02 | code | fixes_completed | 2026-09-20 | reviews/p02-opus-review.md | 8094b2df | consensus | claude:opus |
-| p02 | code | passed | 2026-09-20 | reviews/p02-opus-fix-verification.md | 9a74ed1d | consensus | claude:opus |
+| p01 | code | passed | 2026-09-20 | reviews/archived/p01-opus-fix-verification.md | - | manual | - |
+| p02 | code | fixes_completed | 2026-09-20 | reviews/archived/p02-opus-review.md | 8094b2df | consensus | claude:opus |
+| p02 | code | passed | 2026-09-20 | reviews/archived/p02-opus-fix-verification.md | 9a74ed1d | consensus | claude:opus |
 
 Spec/design rows are retained template history; quick mode uses discovery and this plan only. Full reviewed plan plus the clean bounded H1 verification establish readiness. [Complexity review](reviews/archived/complexity-review.md) retains the minimum sufficient approach. The subsequently user-requested 600→900 timeout task is a narrow operational addition; its requirements are explicit above and it receives self-review and independent Opus code review, without repeating the unchanged six-ticket plan review.
 

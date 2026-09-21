@@ -141,7 +141,7 @@ None
 
 ## Next Milestone
 
-Apply remaining p04 dependency/docs follow-ups, then final integration and ready PR
+Final integration review and closeout
 
 ## Review routing for this authorized run
 

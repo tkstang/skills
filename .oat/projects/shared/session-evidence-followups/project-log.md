@@ -86,11 +86,15 @@ evidence-p04-recovered-20260921: same-target recovery f3dea62b verified, attempt
 
 ### 2026-09-21 · structural · oat-project-implement · p04
 
-evidence-p04-pass-20260921: valid Opus pass0Critical/High,2Medium/3Low accepted; canonical reviews/p04-opus-review.md. Sequential original-target p03 guard and p04 docs follow-ups precede final integration review.
+evidence-p04-pass-20260921: valid Opus pass0Critical/High,2Medium/3Low accepted; canonical reviews/archived/p04-opus-review.md. Sequential original-target p03 guard and p04 docs follow-ups precede final integration review.
 
 ### 2026-09-21 · structural · oat-project-implement · p03
 
 evidence-p03-fix2-done-20260921: L2 fixed in0ca7ad65 by originalSolhigh; exporter97/97 and gates passed, exporter2.0.32/fork0.2.46 dependency closure. Review-fix2/2, recovery0; final review remains.
+
+### 2026-09-21 · structural · oat-project-implement · p04
+
+evidence-p04-terminal-20260921: all accepted findings fixed8ac3ba9e and0ca7ad65; p04 proof/gates pass, visual evidence/p04-visual/receipt.md. All7tasks/phases complete; final review next.
 
 ## End-of-run synthesis (pending — do not skip at project completion)
 
