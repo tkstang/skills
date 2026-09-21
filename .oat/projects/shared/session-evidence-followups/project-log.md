@@ -80,6 +80,10 @@ evidence-p04-implementation-outcome-20260921: Sol/medium completed p04-t01 in c9
 
 evidence-p04-invalid-20260921: Consensus reply defective, no pass; stable diagnostic evidence/p04-review-diagnostic.json retained. Independent final suite found stale packaging assertion; same-target p04 recovery and valid corrected-scope review remain required.
 
+### 2026-09-21 · structural · oat-project-implement · p04
+
+evidence-p04-recovered-20260921: same-target recovery f3dea62b verified, attempt1/10 preserved and pending marker settled; packaging41/41, freshness/types/lint pass. Corrected-scope review remains pending.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

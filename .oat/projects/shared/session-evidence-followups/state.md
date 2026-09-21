@@ -97,16 +97,7 @@ oat_phase_recovery_policy:
   phase_attempt_usage:
     p04:
       used_attempts: 1
-      pending_attempt:
-        attempt: 1
-        event_id: evidence-p04-recover1-20260921
-        original_request_id: evidence-p04-20260921
-        original_task_id: p04-t01
-        original_commit: c97f65db49a08af556f14a8a151e54a23d4f86bf
-        discovered_by: root pnpm run test at 0fdf33d6
-        dispatch_target: oat-phase-implementer-gpt-5-6-sol-medium
-        reservation_head: b6dd281e778468c0a5c3318719685281b45575f4
-        status: completed
+      pending_attempt: null
 oat_generated: false
 ---
 
@@ -150,7 +141,7 @@ None
 
 ## Next Milestone
 
-Recover stale packaging assertion, obtain valid p04 review, then final integration and ready PR
+Obtain valid p04 review, then final integration and ready PR
 
 ## Review routing for this authorized run
 

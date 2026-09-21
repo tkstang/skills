@@ -263,3 +263,21 @@ Consensus invocation `0ecf71ae-229f-4378-8d02-2562a676f090` requested Opus/high 
 Root final checks found one stale installed-boundary assertion at `tests/tooling/skill-packaging.test.ts:1293`: it still expects Retro's optional Observer sentence after p04 made exact-session export required. Full suite: 2519 passed, 1 failed, 1 opt-in skip. Types, build:check, validate, smoke, changed-authored lint/format (44/27 files), skill versions (6 against current main) and diff check passed. [Initial check receipt](evidence/final-checks-initial.json) retains log hashes. This mechanically derived integration test belongs to p04; public behavior and task scope remain unchanged. Same accepted Sol/medium handle will recover it under phase-standing authorization; implementation recovery accounting is separate from review rounds.
 
 Parallel read-only Sol/high [acceptance audit](evidence/final-acceptance-audit.md) maps all 29 criteria to source/tests/retained evidence, finds no product gap and identifies the same stale assertion. Sol/medium drafted PJM updates outside the tree; no closeout has yet been claimed. Final review and current-head remote checks remain required.
+
+
+### Recovery Event evidence-p04-recover1-20260921
+
+- Phase/task: p04 / p04-t01
+- Original request: evidence-p04-20260921
+- Original commit: c97f65db49a08af556f14a8a151e54a23d4f86bf
+- Defect class: test
+- Discovered by: root pnpm run test at 0fdf33d6
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-5-6-sol-medium
+- Recovery commit: f3dea62b62d756fbb3e27b0a19a4805b4921d643
+- Verification: precommit and postcommit focused test passed; all 41 packaging tests, build:check, type-check, scoped lint/format, and diff check passed
+- Reason: Replaced the stale optional Observer assertion with bounded standalone `session-export-transcript` and plugin-local `export-transcript` rendering assertions plus required-capability stop behavior.
+
+Root verified the exact two-file commit, immutable original task ancestry, clean returned checkout and matching committed completed marker. Cleared pending marker only after reconciliation, preserving used_attempts1. No product source or generated output changed. Same accepted handle, exact Sol/medium target, mechanically derived test boundary; no provider fallback or review-fix budget consumption. Full-suite rerun and valid corrected-scope review follow.
