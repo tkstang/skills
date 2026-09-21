@@ -36,6 +36,13 @@
 
 ### Added
 
+- `session-retro` 1.0.1 reviews exact paired narrative/activity captures from a
+  different session, preserves native identity, origins, usage ownership and
+  all seven coverage states, and separates frozen observations from
+  interpretation and proposed changes. Complete review now requires Session
+  Export Transcript; active or unknown-ended targets remain captured-activity
+  reviews.
+
 - `session-export-transcript` 2.0.30 adds exact-session complete structured
   activity captures with one-snapshot native identity evidence, stable
   narrative anchors and physical provenance, unbounded total report retention
