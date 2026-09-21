@@ -1,6 +1,6 @@
 ---
 oat_current_task: null
-oat_last_commit: 8ac3ba9e81a13fbcea622e1bfda7cc7d97d7f188
+oat_last_commit: 931f81dbb299dc777fd128584267a3298a9028c5
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -109,7 +109,7 @@ oat_generated: false
 
 ## Current Phase
 
-All7implementation tasks and p00–p04 phases are complete. Phase reviews passed and every accepted follow-up is implemented. Final integration verification passed; final review and lifecycle closeout remain in progress. User authorized continuation through one mergeable ready PR.
+All seven implementation tasks and p00–p04 phases are complete. Phase reviews passed and every accepted follow-up is implemented. Final diagnostic corrections and integration verification passed; the valid final review and lifecycle closeout remain in progress. User authorized continuation through one mergeable ready PR.
 
 ## Artifacts
 

@@ -173,7 +173,7 @@ Spec/design rows are retained template history; quick mode uses discovery and th
 
 ## Implementation Complete
 
-All5phases and7/7tasks are complete. Valid independent plan and phase reviews are retained in the ledger; all accepted findings are implemented. Corrected p04 review passed after the initial defective reply and append-only packaging recovery. Latest guard/dependency/docs follow-ups0ca7ad65 and8ac3ba9e await explicit final integration verification by Opus. Full local integration checks pass. Final review, configured gate disposition, six-ticket closeout and summary/document/PR tail remain required; no merge is authorized.
+All5phases and7/7tasks are complete. Valid independent plan and phase reviews are retained in the ledger; all accepted findings are implemented. Corrected p04 review passed after the initial defective reply and append-only packaging recovery. Latest guard/dependency/docs follow-ups and final diagnostic corrections in931f81db await explicit final integration verification by Opus. Full local integration checks pass. Final review, configured gate disposition, six-ticket closeout and summary/document/PR tail remain required; no merge is authorized.
 
 ## References
 

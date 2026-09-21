@@ -1,48 +1,20 @@
 {
-  "productHead": "8ac3ba9e81a13fbcea622e1bfda7cc7d97d7f188",
+  "productHead": "931f81dbb299dc777fd128584267a3298a9028c5",
   "baseline": "4150cfe2232ec203183d41f8d89f6f7fa434d6e1",
   "checks": {
-    "types": {
+    "full-suite": {
       "status": "passed",
-      "sha256": "f9b2954d9d2fe1f3ac96b119b54f471bf4afeb1f26bf9594bc87192828c6e5de",
+      "sha256": "00ae7ee61b0d2e5c9aec1388cb9b6ab0d0f996c283be012e5114ab16411d2389",
       "tail": [
         "",
-        "> skills@0.1.0 type-check /Users/tstang/orca/workspaces/skills/session-fidelity",
-        "> tsc --noEmit",
+        " RUN  v4.1.9 /Users/tstang/orca/workspaces/skills/session-fidelity",
+        "",
+        "",
+        " Test Files  170 passed | 1 skipped (171)",
+        "      Tests  2521 passed | 1 skipped (2522)",
+        "   Start at  20:58:25",
+        "   Duration  48.27s (transform 6.39s, setup 0ms, import 10.92s, tests 398.28s, environment 17ms)",
         ""
-      ]
-    },
-    "freshness": {
-      "status": "passed",
-      "sha256": "f07269dbc51868251908bb552e0e7ba0f858d3df2e55f09f9f15612da8ceafc2",
-      "tail": [
-        "> skills@0.1.0 build:check /Users/tstang/orca/workspaces/skills/session-fidelity",
-        "> tsx scripts/build-generated.ts --check",
-        "",
-        "consensus-loop: in sync",
-        "consensus-provider-cli: in sync"
-      ]
-    },
-    "validate": {
-      "status": "passed",
-      "sha256": "695189f3ec0db2df31bc31b26dbcb496c928fc4f0c7a729b127b397bd85dc54d",
-      "tail": [
-        "",
-        "> skills@0.1.0 validate /Users/tstang/orca/workspaces/skills/session-fidelity",
-        "> tsx scripts/validate.ts",
-        "",
-        "validation passed"
-      ]
-    },
-    "smoke": {
-      "status": "passed",
-      "sha256": "baa6c1ce7e607f498b1b9f34ba81c74b7123dfe0d9b7fedd9a442449e1c30143",
-      "tail": [
-        "",
-        "> skills@0.1.0 smoke /Users/tstang/orca/workspaces/skills/session-fidelity",
-        "> node scripts/smoke-test.mjs",
-        "",
-        "smoke passed"
       ]
     },
     "versions": {
@@ -55,36 +27,30 @@
         "",
         "skill-version validation: 6 changed skill(s) verified against origin/main"
       ]
-    },
-    "format": {
-      "status": "passed",
-      "sha256": "96a890483c9bc7a72365c5964bdfd0e90ce4513796eaa7858f69bf71c5672604",
-      "tail": [
-        "Checking formatting...",
-        "",
-        "All matched files use the correct format.",
-        "Finished in 333ms on 46 files using 10 threads."
-      ]
-    },
-    "lint": {
-      "status": "passed",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "tail": []
-    },
-    "full-suite": {
-      "status": "passed",
-      "sha256": "71f1209415fbbb5a9615a19e859f456b307ece71f085b35c25e24e1d8ae6ec23",
-      "tail": [
-        "",
-        "",
-        " Test Files  170 passed | 1 skipped (171)",
-        "      Tests  2520 passed | 1 skipped (2521)",
-        "   Start at  20:26:32",
-        "   Duration  52.73s (transform 6.55s, setup 0ms, import 12.91s, tests 435.08s, environment 10ms)",
-        ""
-      ]
     }
   },
-  "docs": "58 pages; pre/post p04 fix; actual four-view visual proof in p04-visual/receipt.md",
-  "limit": "One opt-in live test skipped. No general live-provider or release acceptance."
+  "implementerVerification": {
+    "source": "Exact Sol/high handle final correction terminal receipt, independently checked commit scope and clean return",
+    "commit": "931f81dbb299dc777fd128584267a3298a9028c5",
+    "status": "passed",
+    "activityTests": 87,
+    "exporterCliTests": 49,
+    "watchTests": 60,
+    "otherChecks": [
+      "type-check",
+      "build",
+      "post-commit build:check",
+      "validate",
+      "four-owner version closure against0641fb4d",
+      "scoped oxlint/oxfmt",
+      "docs local links",
+      "58-page docs production build",
+      "self-review"
+    ]
+  },
+  "unchangedChecks": {
+    "smoke": "Prior passing receipt remains applicable; Consensus runtime unchanged by final correction",
+    "visual": "Prior desktop/phone light/dark diagram proof remains applicable; no diagram change"
+  },
+  "limit": "One opt-in live-provider test skipped; no release/global-install or broad provider acceptance."
 }
