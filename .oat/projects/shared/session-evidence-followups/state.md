@@ -99,6 +99,47 @@ oat_phase_recovery_policy:
       used_attempts: 1
       pending_attempt: null
 oat_generated: false
+oat_implement_exit_gate:
+  status: allowed
+  resolution: configured
+  disposition: project_disabled
+  config_fingerprint: sha256:0053ad1c98180f1297ba341d497bb8a601d7d2bedc201251537727acf0cd61d1
+  resolved_command: oat --json gate review --project "$PROJECT_PATH" --review-type code --review-scope final --exit-nonzero-on
+    important "Use the oat-project-review-provide skill to review the current project. Use project state to determine
+    the most appropriate review scope. If the project is complete, provide a final independent code review of the
+    entire project. Return blocking findings clearly, or say no blocking findings."
+  resolved_description: Semantic cross-family final implementation review before oat-project-implement exits.
+  project_override:
+    value: disabled
+    source: state.md:oat_skill_gate_overrides
+  on_failure: block
+  max_attempts: 2
+  attempts_completed: 0
+  reviewed_head: 8c65be6c1b6c4b819c9da4b93551c03d2a175192
+  implementation_base_ref: origin/main
+  implementation_fingerprint: sha256:effective-delta-v1:c2b0e3124e4a4b84338529a5d09f380fdf04ee299346dc53a656ce2ba63df1f6
+  freshness_head: 8c65be6c1b6c4b819c9da4b93551c03d2a175192
+  freshness_fingerprint: sha256:effective-delta-v1:c2b0e3124e4a4b84338529a5d09f380fdf04ee299346dc53a656ce2ba63df1f6
+  launch_state: not_started
+  launch_attempt_id: null
+  launch_started_at: null
+  launch_result_receipt: null
+  gate_run_marker: null
+  gate_run_id: null
+  envelope_status: null
+  artifact: null
+  handoff: null
+  receive_state: not_started
+  receive_correlation: null
+  receive_source_artifact: null
+  receive_archived_artifact: null
+  receive_event_identity: null
+  receive_pre_head: null
+  receive_commit: null
+  receive_eligible: false
+  receive_completed: false
+  failure: null
+  updated_at: '2026-09-21T02:23:47.084753+00:00'
 ---
 
 # Project State: session-evidence-followups
