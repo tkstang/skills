@@ -68,6 +68,10 @@ evidence-p03-implementation-outcome-20260920: Sol/high completed p03-t01 in190e5
 
 evidence-main-integration-20260921: merged main4150cfe2 in14b7bd1e retaining PR100/101 and host polling guidance;75 focused tests, types, build/validate/version gates pass; canonical review runner replaces temporary shim.
 
+### 2026-09-21 · structural · oat-project-implement · p03-outcome
+
+evidence-p03-final-outcome-20260921: p03 Opus pass and all Low follow-ups implemented in fad824d7;135 focused tests and phase gates pass;fixround1,recovery0; p04 review includes narrow follow-up delta.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

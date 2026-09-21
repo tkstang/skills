@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03-t01
-oat_last_commit: 14b7bd1e70924615bb3a8adf1e914fc5a042897d
+oat_current_task: p04-t01
+oat_last_commit: fad824d7aa3c0ab754a970da66fe4f4a0594f525
 oat_blockers: []
 associated_issues:
   - { type: backlog, ref: 'BL-260919-stabilize-the-watcher-sigterm' }
@@ -85,7 +85,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/skills/pull/99
 oat_project_created: '2026-09-20T19:09:21.094Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-09-21T00:03:38.864885+00:00'
+oat_project_state_updated: '2026-09-21T00:26:10.127357+00:00'
 oat_dispatch_policy:
   mode: managed
   policy: high
@@ -104,7 +104,7 @@ oat_generated: false
 
 ## Current Phase
 
-p00–p02 complete. Independent p02 verification passed and all Low follow-ups are implemented; p03 review will include their narrow delta. p03 independent review passed; bounded Low fixes remain before p04. User authorized continuation through one mergeable PR.
+p00–p02 complete. Independent p02 verification passed and all Low follow-ups are implemented; p03 review will include their narrow delta. p03 independent review passed and all bounded follow-ups are implemented. p04 frozen-evidence retro is next. User authorized continuation through one mergeable PR.
 
 ## Artifacts
 
@@ -126,7 +126,8 @@ p00–p02 complete. Independent p02 verification passed and all Low follow-ups a
 - ✓ p03 complete structured capture implemented
 - ✓ Merged origin/main including PR100 and PR101
 - ✓ p03 independent review passed
-- ⧗ Address bounded p03 follow-ups
+- ✓ All p03 follow-ups addressed
+- ⧗ Implement p04 frozen-evidence retro
 
 ## Blockers
 
@@ -134,7 +135,7 @@ None
 
 ## Next Milestone
 
-Finish bounded p03 follow-ups, then implement p04 frozen-evidence retro
+Implement and independently review p04 frozen-evidence retro
 
 ## Review routing for this authorized run
 

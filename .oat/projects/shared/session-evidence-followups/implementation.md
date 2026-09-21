@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-09-20
-oat_current_task_id: p03-t01
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -16,7 +16,7 @@ oat_generated: false
 | p00   | complete | 1     | 1/1       |
 | p01   | complete | 2     | 2/2       |
 | p02   | complete | 2     | 2/2       |
-| p03   | review pending | 1     | 1/1       |
+| p03   | complete | 1     | 1/1       |
 | p04   | pending | 1     | 0/1       |
 
 **Total:** 6/7 tasks completed.
@@ -229,3 +229,9 @@ Root dispositions, all within p03:
 Same exact Sol/high handle gets `evidence-p03-fix1-20260921`, one bounded commit. One review-fix round of2; no implementation recovery. No blocking finding. p04 independent review will explicitly include this follow-up diff and final integration review remains required; no duplicate standalone review for nonblocking polish. Existing synthetic frozen captures remain valid unless an export-content behavior change is introduced.
 
 Parallel read-only preparation by Sol/medium exercised the generated CLI on synthetic Claude and Cursor inputs, producing frozen paired files and `/tmp/evidence-p04-capture-preflight.md` SHA256272e3fcde9da410843c0cc2a2b673fc37ff11c37b6ff4decece0abf2da630e25. Pairing/identity/origin/skill/usage assertions passed; only available/not-recorded were observed, all seven type states compared. Static Codex AskUser origin rules verified. No source-store reads were mixed into frozen findings. This remains preparation, not p04 acceptance; p04 will perform the final template/report exercise.
+
+## p03 terminal outcome
+
+Same Sol/high handle completed `evidence-p03-fix1-20260921` in sole commit `fad824d7aa3c0ab754a970da66fe4f4a0594f525` from50404fa3. Root inspected the complete runtime/test delta and confirmed clean released tree. All five Low dispositions and overlapping Medium exit1-table correction are addressed. Actual bounded export call keys form a nonempty subset of complete keys under eviction; deterministic rename failure reaches temporary creation and proves cleanup plus surviving narrative/nonzero/no success output; watch/control/temporary state names receive inode protection; docs name STATE_DIR checkpoint/watch roots and partial-write behavior. No broader collaboration filesystem scope added.
+
+Focused7-file exporter/activity135/135, types, build/freshness, validate, skill versions against merged main4150cfe2, scoped lint/format and docs58 pages passed. Post-commit focused/freshness passed; full suite reserved for final integration. Successful capture serialization unchanged; all four synthetic frozen artifact hashes retained. Versions export2.0.31, observer1.0.80, collab1.0.68, fork0.2.45. One bounded review-fix round, no recovery or unresolved findings. p04 review will include this delta from base50404fa3 and final integration review remains mandatory. p03 complete; p04 may proceed.

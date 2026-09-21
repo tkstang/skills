@@ -161,7 +161,7 @@ Close each fully satisfied item via repo Backlog Lifecycle: status/updated, comp
 | spec   | artifact | pending         | -          | -                             | -             | -          | -           |
 | design | artifact | pending         | -          | -                             | -             | -          | -           |
 | plan   | artifact | fixes_completed | 2026-09-20 | reviews/archived/plan-opus-review-1.md | fd106e85      | manual     | claude:opus |
-| p03 | code | passed | 2026-09-21 | reviews/p03-opus-review.md | 72bbc1c6 | consensus | claude:opus |
+| p03 | code | fixes_completed | 2026-09-21 | reviews/p03-opus-review.md | 72bbc1c6 | consensus | claude:opus |
 | p04    | code     | pending         | -          | -                             | -             | -          | -           |
 | plan | artifact | passed | 2026-09-20 | reviews/archived/plan-opus-h1-verification.md | 6863c882 | manual | claude:opus |
 | p00 | code | passed | 2026-09-20 | reviews/archived/p00-opus-review.md | - | manual | - |
@@ -173,7 +173,7 @@ Spec/design rows are retained template history; quick mode uses discovery and th
 
 ## Implementation Complete
 
-Phases 0–1 implemented and independently reviewed. Phase2 implemented and independently reviewed, with all findings addressed; final Low follow-ups will also be checked in p03 review. Phase 0: 1 task; Phase 1: 2 tasks; Phase 2: 2 tasks; Phase 3: 1 task; Phase 4: 1 task. **Total: 7 tasks, 6 complete.** p03 implementation is complete; independent review and p04 remain. Final acceptance/delivery remains mandatory after product phases.
+Phases 0–1 implemented and independently reviewed. Phase2 implemented and independently reviewed, with all findings addressed; final Low follow-ups will also be checked in p03 review. Phase 0: 1 task; Phase 1: 2 tasks; Phase 2: 2 tasks; Phase 3: 1 task; Phase 4: 1 task. **Total: 7 tasks, 6 complete.** p03 implementation and independent review are complete; p04 review also covers its bounded follow-up. p04 remains. Final acceptance/delivery remains mandatory after product phases.
 
 ## References
 
