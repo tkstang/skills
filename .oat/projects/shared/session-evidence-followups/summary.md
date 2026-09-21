@@ -141,3 +141,7 @@ evidence-p03-fix2-done-20260921: L2 fixed in0ca7ad65 by originalSolhigh; exporte
 ### 2026-09-21 · structural · oat-project-implement · p04
 
 evidence-p04-terminal-20260921: all accepted findings fixed8ac3ba9e and0ca7ad65; p04 proof/gates pass, visual evidence/p04-visual/receipt.md. All7tasks/phases complete; final review next.
+
+## Explainer Outcome
+
+[Project recap](explainers/project-recap/site/index.html) recorded outcome **built**, run `c9dfb65f-e1a3-4a09-9394-f8503f89d67f`. All seven static checks and inspected Chrome captures at 320, 768 and 1440 pixels passed. The immutable package captures the approved inputs at 14390681, before this outcome section and later PR closeout metadata; it is a historical snapshot, not a claim of current source-hash freshness.
