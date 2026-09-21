@@ -19,6 +19,12 @@
 
 ### Fixed
 
+- `session-export-transcript` 2.0.36 protects external hardlink aliases to
+  ordinary files recursively nested under both the effective and fixed-default
+  Session Observer state roots without following symlinks.
+  `session-fork-to-destination` 0.2.49 receives the required validation-only
+  exporter source closure; its runtime behavior is unchanged.
+
 - `session-export-transcript` 2.0.34 adds the opt-in Structured Activity Capture
   Index contract to its canonical instructions: one stable invocation key per
   captured call, a potentially large list, and the sensitive JSON as graph

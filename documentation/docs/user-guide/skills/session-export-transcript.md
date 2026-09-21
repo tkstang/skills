@@ -190,8 +190,9 @@ replaced atomically through a temporary sibling. Directories, symlinks, special
 files, aliases to the transcript or narrative output, and paths in both Observer
 checkpoint/watch roots — the effective `STATE_DIR` root and the fixed default
 `~/.local/state/session-observer` — are rejected before either output is written.
-External hardlink aliases to ordinary files directly inside either existing
-Observer state root are also rejected.
+External hardlink aliases to ordinary files recursively under either existing
+Observer state root are also rejected; symlinks under those roots are not
+followed.
 Independently relocated collaboration roots are outside this guard. The command
 returns failure without a success claim when a file operation fails; the two
 files are not presented as a filesystem transaction, so an activity JSON

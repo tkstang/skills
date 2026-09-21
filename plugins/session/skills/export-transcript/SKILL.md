@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: thomas.stang
-  version: '2.0.35'
+  version: '2.0.36'
 ---
 
 # export-transcript
@@ -186,8 +186,10 @@ existing ordinary file is replaced atomically through an exporter-owned
 temporary sibling. Directories, symlinks, special files, the source transcript,
 the narrative output, and both Observer checkpoint/watch roots — the effective
 `STATE_DIR` root and the fixed default `~/.local/state/session-observer` — are
-rejected before either output is written. Independently relocated collaboration roots are
-outside this guard. Destination validation precedes both writes, but the pair is
+rejected before either output is written. External hardlink aliases to ordinary
+files recursively under either root are also rejected; symlinks under those
+roots are not followed. Independently relocated collaboration roots are outside
+this guard. Destination validation precedes both writes, but the pair is
 not a filesystem transaction: a later activity JSON failure leaves the already
 written narrative at the path named in the error. The command still returns a
 nonzero exit and does not print a success claim. The exporter never reads or

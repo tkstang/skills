@@ -2545,10 +2545,44 @@ describe('export CLI — complete structured activity capture', () => {
     const defaultStateFile = join(defaultState, 'state.json.123.tmp');
     await writeFile(effectiveStateFile, 'effective-state-sentinel', 'utf8');
     await writeFile(defaultStateFile, 'default-state-sentinel', 'utf8');
+    const nestedEffectiveStateFile = join(
+      effectiveState,
+      'locks',
+      'owners',
+      'watch-owner-token',
+    );
+    const nestedDefaultStateFile = join(
+      defaultState,
+      'locks',
+      'owners',
+      'cursor-owner-token',
+    );
+    await mkdir(dirname(nestedEffectiveStateFile), { recursive: true });
+    await mkdir(dirname(nestedDefaultStateFile), { recursive: true });
+    await writeFile(
+      nestedEffectiveStateFile,
+      'nested-effective-state-sentinel',
+      'utf8',
+    );
+    await writeFile(
+      nestedDefaultStateFile,
+      'nested-default-state-sentinel',
+      'utf8',
+    );
     const hardlinkPath = join(home, 'source-hardlink.json');
     await link(sourcePath, hardlinkPath);
     const stateHardlinkPath = join(home, 'state-hardlink.json');
     await link(effectiveStateFile, stateHardlinkPath);
+    const nestedEffectiveHardlinkPath = join(
+      home,
+      'nested-effective-state-hardlink.md',
+    );
+    const nestedDefaultHardlinkPath = join(
+      home,
+      'nested-default-state-hardlink.json',
+    );
+    await link(nestedEffectiveStateFile, nestedEffectiveHardlinkPath);
+    await link(nestedDefaultStateFile, nestedDefaultHardlinkPath);
     const stateRootFixtures = [
       'watch.json',
       'watch.json.lock',
@@ -2619,6 +2653,16 @@ describe('export CLI — complete structured activity capture', () => {
         narrative: join(home, 'guard-state-hardlink.md'),
         activity: stateHardlinkPath,
       },
+      {
+        name: 'nested effective observer state narrative hardlink alias',
+        narrative: nestedEffectiveHardlinkPath,
+        activity: join(home, 'guard-nested-effective-state.json'),
+      },
+      {
+        name: 'nested default observer state activity hardlink alias',
+        narrative: join(home, 'guard-nested-default-state.md'),
+        activity: nestedDefaultHardlinkPath,
+      },
       ...stateRootHardlinks.map(({ name, hardlink, index }) => ({
         name: `observer ${name} narrative hardlink alias`,
         narrative: hardlink,
@@ -2671,6 +2715,14 @@ describe('export CLI — complete structured activity capture', () => {
     assert.equal(
       await readFile(defaultStateFile, 'utf8'),
       'default-state-sentinel',
+    );
+    assert.equal(
+      await readFile(nestedEffectiveStateFile, 'utf8'),
+      'nested-effective-state-sentinel',
+    );
+    assert.equal(
+      await readFile(nestedDefaultStateFile, 'utf8'),
+      'nested-default-state-sentinel',
     );
     for (const { statePath, index } of stateRootHardlinks) {
       assert.equal(

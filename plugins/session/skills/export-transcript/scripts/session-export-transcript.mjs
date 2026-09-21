@@ -4319,13 +4319,23 @@ async function inodeKeyIfOrdinaryFile(path) {
     throw error;
   }
 }
-async function observerStateEntries(root) {
+async function observerStateFileInodes(root) {
+  let entries;
   try {
-    return await readdir(root);
+    entries = await readdir(root, { withFileTypes: true });
   } catch (error) {
     if (isErrnoException(error) && error.code === "ENOENT") return [];
     throw error;
   }
+  return (await Promise.all(
+    entries.map(async (entry) => {
+      const entryPath = join2(root, entry.name);
+      if (entry.isDirectory()) return observerStateFileInodes(entryPath);
+      if (!entry.isFile()) return [];
+      const inode = await inodeKeyIfOrdinaryFile(entryPath);
+      return inode === null ? [] : [inode];
+    })
+  )).flat();
 }
 async function validateStructuredDestinations(narrativePath, activityPath, transcriptPath) {
   const [narrative, activity, canonicalSource] = await Promise.all([
@@ -4359,18 +4369,8 @@ async function validateStructuredDestinations(narrativePath, activityPath, trans
       );
     }
   }
-  const rootsWithStateEntries = await Promise.all(
-    observerStateRoots().map(async (root) => ({
-      root,
-      entries: await observerStateEntries(root)
-    }))
-  );
   const stateInodes = new Set(
-    (await Promise.all(
-      rootsWithStateEntries.flatMap(
-        ({ root, entries }) => entries.map((entry) => inodeKeyIfOrdinaryFile(join2(root, entry)))
-      )
-    )).filter((value) => value !== null)
+    (await Promise.all(observerStateRoots().map(observerStateFileInodes))).flat()
   );
   for (const destination of [narrative, activity]) {
     if (destination.inodeKey !== void 0 && stateInodes.has(destination.inodeKey)) {
