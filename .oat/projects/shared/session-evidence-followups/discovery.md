@@ -52,9 +52,9 @@ No product decisions pending. Native retry-message grammar and source CLI versio
 
 ## References
 
-- [BL-260919-stabilize-the-watcher-sigterm](../../../repo/pjm/backlog/items/BL-260919-stabilize-the-watcher-sigterm.md)
-- [BL-260919-surface-terminally](../../../repo/pjm/backlog/items/BL-260919-surface-terminally.md)
-- [BL-260919-skill-attribution-in-session](../../../repo/pjm/backlog/items/BL-260919-skill-attribution-in-session.md)
-- [BL-260919-token-and-usage-accounting](../../../repo/pjm/backlog/items/BL-260919-token-and-usage-accounting.md)
-- [BL-260919-uncapped-structured-activity](../../../repo/pjm/backlog/items/BL-260919-uncapped-structured-activity.md)
-- [BL-260919-session-retro-consume-activity](../../../repo/pjm/backlog/items/BL-260919-session-retro-consume-activity.md)
+- [BL-260919-stabilize-the-watcher-sigterm](../../../repo/pjm/backlog/archived/BL-260919-stabilize-the-watcher-sigterm.md)
+- [BL-260919-surface-terminally](../../../repo/pjm/backlog/archived/BL-260919-surface-terminally.md)
+- [BL-260919-skill-attribution-in-session](../../../repo/pjm/backlog/archived/BL-260919-skill-attribution-in-session.md)
+- [BL-260919-token-and-usage-accounting](../../../repo/pjm/backlog/archived/BL-260919-token-and-usage-accounting.md)
+- [BL-260919-uncapped-structured-activity](../../../repo/pjm/backlog/archived/BL-260919-uncapped-structured-activity.md)
+- [BL-260919-session-retro-consume-activity](../../../repo/pjm/backlog/archived/BL-260919-session-retro-consume-activity.md)

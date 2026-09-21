@@ -1,7 +1,7 @@
 ---
 id: BL-260919-surface-terminally
 title: Surface terminally unsuccessful peer turns as watch events
-status: in_progress
+status: closed
 priority: medium
 scope: feature
 scope_estimate: S
@@ -10,7 +10,7 @@ labels:
   - watch
 assignee: null
 created: 2026-09-19T19:24:01.288Z
-updated: 2026-09-20T21:00:05.601320Z
+updated: '2026-09-21T02:31:12Z'
 associated_issues: []
 external_plans: []
 ---

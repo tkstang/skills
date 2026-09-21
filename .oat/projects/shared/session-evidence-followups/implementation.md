@@ -362,3 +362,11 @@ Consensus run `a701868f-1450-498a-9c95-fc6fbdd4c23c` returned a validated pass w
 `Dispatch: scope=final action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:opus effort_axis=not-applicable dispatch_policy=high dispatch_ceiling=opus target=opus`
 
 Configured summary, document and single-PR delivery now proceed under the existing user authorization. The independently reviewed implementation is complete; project-disabled configured gate is recorded as allowed, never as an executed passing gate.
+
+## Summary and documentation closeout
+
+Summary child `/root/p00_timeout` committed a1696b0d: 143-line synthesis, successful CLI rollup of 14 structural entries, and three deduplicated durable decisions. No judgment or follow-up-marked ledger entry required promotion. Root verified the bounded summary/decision transition and checkpointed its effective delta.
+
+DOCUMENT-02 used the existing authorized automatic path. The capability audit found the observer, activity provenance/usage, complete exporter capture, Retro dependency/identity, and Review timeout guides adequately covered. The previous hardlink clarification is present in 0641fb4d, usage-error/index guide correction in 931f81db, and installed index instruction in 8c65be6c; no additional product documentation delta remains. The 58-page production build and actual dependency-diagram browser evidence remain valid for those reviewed changes.
+
+The required repository-reference sync used healthy declared PJM adoption and atomic `oat backlog archive` for the six accepted tickets. Active items decreased from 29 to 23, preserving all unselected relative roadmap priorities and PR100's separate archived item. Current state distinguishes accepted PR99 branch delivery from merged main4150cfe2; no next wave was selected. [Final wave acceptance](evidence/wave-acceptance.md) records all 29 criteria and the final valid review pair.

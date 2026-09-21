@@ -1,34 +1,36 @@
 # Backlog Priority Alignment
 
 **Date:** 2026-09-20
-**Status:** One approved wave is in implementation; all other candidates remain unselected.
+**Status:** The approved six-ticket wave is accepted and closed in draft PR #99; PR #99 still awaits merge, and no next wave is selected.
 
-The September 16 kickoff is superseded by the user-approved batch below. The user selected clear requirements and verifiable outcomes, one canonical plan for one wave, Sol implementation, independent Opus reviews, and one PR. A later request adds the bounded Consensus Review default-timeout change (600→900 seconds), executed first as p00-t01. It does not introduce a second wave.
+The September 20 batch used one canonical plan, task-sized implementation commits, Sol implementation and independent Opus reviews. Final acceptance closes the six records in the same PR because their criteria are satisfied. This records accepted branch delivery only: PR #99 is not merged, released, globally installed or live-provider certified.
 
-## Approved batch
+## Completed selected batch
 
-| Order | Item | Plan task |
+| Order | Completed item | Plan task |
 | --- | --- | --- |
-| 1 | [BL-260919-stabilize-the-watcher-sigterm — Stabilize the watcher SIGTERM re-arm test](../items/BL-260919-stabilize-the-watcher-sigterm.md) | p01-t01 |
-| 2 | [BL-260919-surface-terminally — Surface terminally unsuccessful peer turns as watch events](../items/BL-260919-surface-terminally.md) | p01-t02 |
-| 3 | [BL-260919-skill-attribution-in-session — Skill attribution in session activity events](../items/BL-260919-skill-attribution-in-session.md) | p02-t01 |
-| 4 | [BL-260919-token-and-usage-accounting — Token and usage accounting for session activity](../items/BL-260919-token-and-usage-accounting.md) | p02-t02 |
-| 5 | [BL-260919-uncapped-structured-activity — Uncapped structured activity export for cross-session analysis](../items/BL-260919-uncapped-structured-activity.md) | p03-t01 |
-| 6 | [BL-260919-session-retro-consume-activity — Session-retro: consume activity evidence](../items/BL-260919-session-retro-consume-activity.md) | p04-t01 |
+| 1 | [BL-260919-stabilize-the-watcher-sigterm — Stabilize the watcher SIGTERM re-arm test](../archived/BL-260919-stabilize-the-watcher-sigterm.md) | p01-t01 |
+| 2 | [BL-260919-surface-terminally — Surface terminally unsuccessful peer turns as watch events](../archived/BL-260919-surface-terminally.md) | p01-t02 |
+| 3 | [BL-260919-skill-attribution-in-session — Skill attribution in session activity events](../archived/BL-260919-skill-attribution-in-session.md) | p02-t01 |
+| 4 | [BL-260919-token-and-usage-accounting — Token and usage accounting for session activity](../archived/BL-260919-token-and-usage-accounting.md) | p02-t02 |
+| 5 | [BL-260919-uncapped-structured-activity — Uncapped structured activity export for cross-session analysis](../archived/BL-260919-uncapped-structured-activity.md) | p03-t01 |
+| 6 | [BL-260919-session-retro-consume-activity — Session-retro: consume activity evidence](../archived/BL-260919-session-retro-consume-activity.md) | p04-t01 |
 
-Project: [session-evidence-followups](../../../../projects/shared/session-evidence-followups/plan.md). The project has already consumed the kickoff context directly, so no duplicate per-ticket handoff files are generated.
+Project: [session-evidence-followups](../../../../projects/shared/session-evidence-followups/plan.md). The project contains the plan, implementation log, immutable review packets and acceptance receipts. The watcher record includes 50 consecutive final-tree local passes with CPU-load coverage and three consecutive successful fixing-PR validate runs.
 
-## Execution and acceptance
+## Delivery boundary
 
-Watcher work precedes shared skill/usage metadata, followed by complete structured export and its retro consumer. Read-only recon ran in parallel. Product phases serialize overlapping native schemas, version fields, changelog and generated bundles. One PR contains task-sized Conventional Commits; no stack and no merge authorization.
+PR #99 is the single delivery PR for the six-ticket wave and remains an open draft pending merge. Its final accepted branch implements metadata-only unsuccessful terminal events, watcher re-arm stability, skill attribution, usage accounting, complete structured activity capture and frozen-evidence Session Retro. Closing these tickets does not claim the code is on main.
 
-Each phase receives Sol self-review and an independent Opus review. Full integration checks and final independent review precede delivery. The watcher item remains open until 50 consecutive local runs (including CPU load) and three consecutive fixing-PR validate successes are recorded. No item closes on code presence alone.
+The separately requested Review timeout/schema work is already merged on main through PR #101 as Consensus `0.2.1`: Draft-07 response schemas, a 900-second default and an explicit `--timeout-sec` override. Accepted Opus reviews establish the bounded CLI route used for these packets; they do not certify a provider matrix, external install, marketplace discovery or native continuation.
 
 ## Not selected
 
-Installer live acceptance, live messaging acceptance, broader Consensus maintenance, duplicate self identity, digest recovery, child discovery, shared-session merge, retro ledger, and other research/scale items remain active but outside this wave. Their relative ratings are in the [full review](backlog-and-roadmap-review.md); a later wave requires separate selection.
+The 23 remaining active items retain their previous relative proposals. Installer live acceptance, live messaging acceptance, live-submit diagnosis, duplicate self identity, digest recovery, skill evaluation, collaboration protocol, child discovery, shared-session merge, retro ledger, research and scale work remain outside PR #99. A later wave requires separate selection and authorization.
 
 ## History
 
-- 2026-09-20: User approved the six-ticket wave and subsequently added the 15-minute review timeout. One project/plan and one PR confirmed.
-- 2026-09-16: Prior kickoff and proposed ordering retained in Git history. Observer/Consensus Review implementations and the installer implementation have since merged; installer live acceptance remains open.
+- 2026-09-20: Final acceptance completed the six-ticket wave and closed its records in draft PR #99; merge remains pending and no next wave was selected.
+- 2026-09-20: PR #101 merged the Consensus `0.2.1` Draft-07 schema and Review timeout path already used by the accepted bounded reviews.
+- 2026-09-20: User approved the six-ticket wave and subsequently added the 15-minute Review timeout requirement.
+- 2026-09-16: Prior kickoff and proposed ordering retained in Git history. Installer live acceptance remains open.

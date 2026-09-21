@@ -1,7 +1,7 @@
 ---
 id: BL-260919-skill-attribution-in-session
 title: Skill attribution in session activity events
-status: in_progress
+status: closed
 priority: high
 scope: feature
 scope_estimate: S
@@ -12,7 +12,7 @@ labels:
   - retro
 assignee: null
 created: 2026-09-19T19:23:58.861Z
-updated: 2026-09-20T21:00:05.601543Z
+updated: '2026-09-21T02:31:13Z'
 associated_issues: []
 external_plans: []
 ---

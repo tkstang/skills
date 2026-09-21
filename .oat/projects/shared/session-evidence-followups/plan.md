@@ -184,9 +184,9 @@ All5phases and7/7tasks are complete. Valid independent plan and phase reviews ar
 - [Backlog review](../../../repo/pjm/backlog/reviews/backlog-and-roadmap-review.md)
 - Native schemas: `documentation/docs/engineering/architecture/session-schemas/`
 - Retained structure research: `.oat/repo/reference/research/session-schemas-2026-09-18/`
-- [BL-260919-stabilize-the-watcher-sigterm](../../../repo/pjm/backlog/items/BL-260919-stabilize-the-watcher-sigterm.md)
-- [BL-260919-surface-terminally](../../../repo/pjm/backlog/items/BL-260919-surface-terminally.md)
-- [BL-260919-skill-attribution-in-session](../../../repo/pjm/backlog/items/BL-260919-skill-attribution-in-session.md)
-- [BL-260919-token-and-usage-accounting](../../../repo/pjm/backlog/items/BL-260919-token-and-usage-accounting.md)
-- [BL-260919-uncapped-structured-activity](../../../repo/pjm/backlog/items/BL-260919-uncapped-structured-activity.md)
-- [BL-260919-session-retro-consume-activity](../../../repo/pjm/backlog/items/BL-260919-session-retro-consume-activity.md)
+- [BL-260919-stabilize-the-watcher-sigterm](../../../repo/pjm/backlog/archived/BL-260919-stabilize-the-watcher-sigterm.md)
+- [BL-260919-surface-terminally](../../../repo/pjm/backlog/archived/BL-260919-surface-terminally.md)
+- [BL-260919-skill-attribution-in-session](../../../repo/pjm/backlog/archived/BL-260919-skill-attribution-in-session.md)
+- [BL-260919-token-and-usage-accounting](../../../repo/pjm/backlog/archived/BL-260919-token-and-usage-accounting.md)
+- [BL-260919-uncapped-structured-activity](../../../repo/pjm/backlog/archived/BL-260919-uncapped-structured-activity.md)
+- [BL-260919-session-retro-consume-activity](../../../repo/pjm/backlog/archived/BL-260919-session-retro-consume-activity.md)

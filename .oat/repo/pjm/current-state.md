@@ -1,7 +1,7 @@
 # Skills Repo Current State
 
 **Last updated:** 2026-09-20
-**Verified baseline:** `origin/main` at `be6cab1e` on 2026-09-20. PR #96 (Session Fidelity) merged at 14:00 UTC and PR #98 (Agent Messaging) merged at 14:32 UTC. Both projects are complete and archived. Merged source does not establish release or live-host acceptance.
+**Verified baseline:** `origin/main` at `4150cfe2` on 2026-09-20. PR #100 corrected and live-checked installation documentation, and PR #101 merged Consensus `0.2.1` with Draft-07 Review/Panel schemas plus Review's 900-second default and explicit CLI override. PR #99 is an open draft whose six-ticket session-evidence implementation has completed acceptance on its branch; it is not yet merged. Merged source does not establish release, global installation, marketplace discovery, or general live-provider acceptance.
 
 ## What is available in the verified source tree
 
@@ -9,7 +9,7 @@ Canonical authored skills live under `src/skills/`, shared transcript code under
 
 | Distribution      | Committed version / members                                                                                                                                                                                  | Boundary                                                                                                                                             |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Consensus plugin  | Manifest `0.2.0`; create, decide, plan, refine, evaluate, review, panel, phone-a-friend, observer, observer-collab                                                                                           | Deliberation, bounded review, consultation, and cross-session observation.                                                                           |
+| Consensus plugin | Manifest `0.2.1`; create, decide, plan, refine, evaluate, review, panel, phone-a-friend, observer, observer-collab | Deliberation, bounded review, consultation, and cross-session observation. |
 | Session plugin    | Manifest `0.3.2`; messaging, handoff, export-transcript, fork-to-destination, retro                                                                                                                          | Addressed local messaging plus transfer, activity-aware export, fork guidance, and retrospective workflows. Agent Messaging is merged in PR #98. |
 | Standalone skills | agent-messaging, complexity-review, consensus-review, must-we, next-steps, session-handoff, session-export-transcript, session-fork-to-destination, session-observer, session-observer-collab, session-retro | Eleven declared standalone payloads; plugin and standalone forms share canonical owners. Session Fidelity and Agent Messaging are merged. |
 
@@ -18,7 +18,7 @@ Plugin manifest versions are independent of each skill's sole authored `metadata
 ### Consensus
 
 - Create, Decide, Plan, Refine, and Evaluate use the two-peer convergence engine. Alternating, parallel-revision, and parallel-synthesized modes, agency-gated escalation, resume, and host-mediated parallel section orchestration are implemented.
-- Review dispatches exactly one read-only reviewer over exactly one branch-diff, selected-files, or document scope. It owns structured result validation and deterministic OAT-compatible Markdown rendering. Local receipt fixtures passed; live provider, external-install, and native-continuation acceptance remain unverified.
+- Review dispatches exactly one read-only reviewer over exactly one branch-diff, selected-files, or document scope. Main accepts the shipped Draft-07 response schema and exposes `--timeout-sec` from 1–3,600 seconds with a 900-second default. Accepted PR #99 reviews establish this bounded CLI route for their recorded packets; they do not certify every provider/model/effort combination, external installation, marketplace path, or native continuation.
 - Panel gathers independent, attributed responses without forced convergence. Phone a Friend dispatches one advisory invocation and leaves disposition with the host.
 - The provider CLI owns capability/preflight checks, model/effort forwarding where supported, subprocess policy, structured output, retry bounds, and submit-sidecar/final-message handling.
 - Saved defaults use invocation > project > user > built-in precedence. The five convergence wrappers forward configured peer model/effort; Review uses its separate ordered `defaults.reviewers` list with whole-list replacement. Reserved roles are not automatically consumed; independent per-workflow default sections are not implemented. Phone a Friend supports explicit per-call controls, not automatic advisor-role defaults.
@@ -35,13 +35,21 @@ Exact behavior: [Consensus guide](../../../documentation/docs/user-guide/consens
 - Deterministic fixtures, generated-payload execution, and repository gates are green for the merged delivery. Live Codex/Claude host delivery remains unverified and is tracked by **BL-260919-verify-live-agent-messaging — Verify live agent-messaging host acceptance**. Release and publication remain separate boundaries.
 - Export produces sanitized conversation Markdown by default and opt-in bounded, source-attributed activity for supported Claude Code, Codex, and Cursor evidence. Default output remains unchanged, and unopened native stores or child transcripts remain explicitly outside the evidence claim.
 - Handoff captures portable continuation context; Retro reviews session evidence. Neither requires native provider-session forking.
-- **Session Fork to Destination is available as an alpha**, canonical version `0.2.3`. It discovers, previews, and prepares instructions for user-controlled Claude Code or Codex destinations; it does not invoke a provider, create a session, or write provider stores. Cursor lacks exact cwd evidence and fails closed. Use explicit supported-provider selection while `--provider all` encounters that incomplete surface.
+- **Session Fork to Destination is available as an alpha**, canonical version `0.2.36` on `origin/main`. It discovers, previews, and prepares instructions for user-controlled Claude Code or Codex destinations; it does not invoke a provider, create a session, or write provider stores. Cursor lacks exact cwd evidence and fails closed.
 - The September 16 re-arm investigation is complete in PR #85. Deterministic fixtures found no lost renderable message across supported clean exact-pin `catch-up-then-watch` restarts, including SIGTERM, control-stop, max-runtime expiry, filtered-only ranges, startup appends, and competing-consumer interleavings. Raw-index gaps can reflect filtered activity. The legacy offset is persisted before stdout completion, so failed output can consume a range without replay; synthetic coverage verifies state and process stdout, not live harness delivery.
 
 See the [standalone catalog](../../../documentation/docs/user-guide/skills/index.md) and [Session plugin guide](../../../documentation/docs/user-guide/plugins/session/index.md) for usage and supported boundaries.
 
+### Implemented in PR #99, awaiting merge
+
+PR #99 implements and has accepted the six selected session-evidence tickets on its branch: metadata-only terminal events, condition-based watcher re-arm testing, bounded skill evidence, native usage semantics, exact-session complete structured export, and different-session Retro over paired frozen captures with all seven coverage states.
+
+Branch versions are `session-observer` 1.0.81, `session-observer-collab` 1.0.69, `session-export-transcript` 2.0.34, `session-retro` 1.0.2, `session-fork-to-destination` 0.2.48 and `consensus-review` 0.1.17; Session remains manifest 0.3.2. They remain branch state until PR #99 merges. Closing the six records means their acceptance criteria are satisfied in PR #99; it does not imply merge, release, installation, or live-provider acceptance.
+
 ### Documentation and distribution posture
 
+- PR #100 archived **BL-260920-re-verify-install-matrix — Re-verify Install matrix Cursor claims against current cursor-agent** after checking the named Cursor documentation claims. It did not complete the separate six-cell standalone installer acceptance ticket.
+- PR #101 merged Consensus `0.2.1`, including Draft-07 Review/Panel response schemas and Review timeout control. PR #99 carries only branch-local guidance/version closure around that merged runtime seam.
 - PR #79 colocated canonical owners and generated distributions; PR #82 promoted Must We?, Next Steps, and Session Retro.
 - PR #83 reorganized the site into User Guide (Getting Started, Plugins, Standalone Skills) and Engineering (Architecture, Development, Contributing, Operations), expanded TypeScript/build guidance, added diagrams and the Markdown/Visuals catalog, and completed the configuration reference.
 - README is an entry point; the [documentation site source](../../../documentation/docs/index.md) is the detailed reference. Engineering owns the build/packaging/testing and CI/release explanations.
@@ -50,23 +58,19 @@ See the [standalone catalog](../../../documentation/docs/user-guide/skills/index
 
 ## Release and verification posture
 
-- Live GitHub inspection on September 20 confirmed PRs #90, #93, #96 and #98 merged. `gh release list` returned only the published Consensus `v0.1.0` release from June 20; committed manifest versions above do not establish newer tagged releases.
-- Historical provider/hosted-discovery evidence applies only to the versions and installation forms actually tested. No fresh marketplace listing, provider discovery, all-skill global install parity, hosted-search, or live invocation claim is made by this review. The user-level Session Observer was refreshed from merged main to 1.0.71 and its payload parity checked; that is not fresh-provider acceptance.
-- The current Session manifest explicitly labels live permission/discovery verification unverified. Follow [RELEASING.md](../../../RELEASING.md) per plugin; merged Session Fidelity and deterministic messaging evidence do not satisfy separate installation or live-host acceptance.
-- `install.sh` supports the Consensus wrapper and, since PR #90, a first-party standalone path through `scripts/install-standalone.mjs`. Standalone installation uses an explicit pinned tag, host and scope. The documented `v0.1.2` example remains conditional; a suitable published payload tag and the six live host/scope acceptance cells are still outstanding.
-- Normal verification: `pnpm run type-check`, `pnpm run build:check`, `pnpm test`, `pnpm run validate`, and `pnpm run smoke`. Changed-file lint/format and skill-version gates apply. Paid live E2E is opt-in and separately authorized; no live providers were called in the agent-messaging delivery run.
-- The live-submit source-contract investigation remains open; mocked tests do not resolve that historical live discrepancy. Review's deterministic receipt exercise likewise does not prove live provider behavior.
+- PRs #90, #93, #96, #98, #100 and #101 are merged. PR #99 remains an open draft. Committed manifest versions do not establish a published release.
+- PR #100 verified its named Cursor documentation claims; it did not prove the full standalone installer matrix. PR #99 establishes no fresh marketplace, global-install, hosted-search, live-messaging, or general provider acceptance.
+- Follow [RELEASING.md](../../../RELEASING.md) per plugin. Normal deterministic gates remain required; paid or credentialed live E2E remains opt-in and separately authorized.
+- **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills**, live-submit diagnosis, and live Agent Messaging host acceptance remain open.
 
 ## Active planning
 
-There are **29 active item files** after closing and archiving Session Fidelity and Agent Messaging. Their deterministic implementations remain in completed history; release, installation, and exact live-host acceptance retain separate evidence boundaries.
+There are **23 active item files** after closing the six PR #99 session-evidence tickets. PR #99 still awaits merge; archived records describe accepted branch delivery, not merged-main availability. Release, installation, live-host acceptance and provider support remain separate evidence boundaries.
 
-**BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills** remains open for live acceptance; its implementation is already merged in PR #90. Session Fidelity and Agent Messaging are merged and archived. The September 20 [priority alignment](backlog/reviews/priority-alignment.md) records the approved six-ticket session-evidence wave plus the requested 15-minute review timeout. [session-evidence-followups](../../projects/shared/session-evidence-followups/plan.md) is implementing on backlog-review-2026-09-20 toward one mergeable PR, with Sol workers and independent Opus reviews. Nothing in this wave is claimed merged or accepted yet.
+Installer acceptance, live messaging acceptance and live-submit diagnosis remain authorization-gated work. No next product wave is selected. The [priority alignment](backlog/reviews/priority-alignment.md) records the completed batch, and the [roadmap](roadmap.md) preserves the relative order of all 23 unselected items.
 
-Agent Messaging is a completed provider-neutral inbox implementation independent of transcript observation. The shared-session-log substrate may reuse Session Fidelity's merged activity contract; neither completed project delivers safe N>2 transcript-consumer ownership automatically.
-
-- [Roadmap](roadmap.md) — Now / Next / Later direction.
-- [Backlog index](backlog/index.md) — active item inventory.
-- [Full review](backlog/reviews/backlog-and-roadmap-review.md) — ratings, dependencies, and evidence.
-- [Priority alignment](backlog/reviews/priority-alignment.md) — current approved one-wave selection and execution boundaries.
-- [Completed history](backlog/completed.md) and [decision records](../reference/decisions/index.md) — durable history; do not repeat it as active work.
+- [Roadmap](roadmap.md)
+- [Backlog index](backlog/index.md)
+- [Full review](backlog/reviews/backlog-and-roadmap-review.md)
+- [Priority alignment](backlog/reviews/priority-alignment.md)
+- [Completed history](backlog/completed.md) and [decision records](../reference/decisions/index.md)
