@@ -1,0 +1,716 @@
+<!doctype html>
+<!--
+  Neutral production shell. Worked content: ../examples/
+  TEMPLATE CONTRACT: THEME_CSS, TITLE, DESCRIPTION, EYEBROW, NAVIGATION, CONTENT, FOOTER
+  All replacement values are validated and escaped by the renderer.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reliable session evidence for frozen retros</title>
+    <meta
+      name="description"
+      content="A project recap of the session-evidence wave: reliable watcher signals, native activity provenance, exact-session export, and frozen-evidence retrospectives."
+    />
+    <style>
+      :root {
+        --canvas: hsl(210 20% 98%);
+        --panel: hsl(0 0% 100%);
+        --panel-muted: hsl(210 16% 94%);
+        --border: hsl(210 14% 82%);
+        --ink: hsl(215 24% 16%);
+        --muted: hsl(215 12% 38%);
+        --accent: hsl(215 28% 32%);
+        --success: hsl(145 45% 28%);
+        --warning: hsl(38 70% 30%);
+        --danger: hsl(0 55% 36%);
+        --sans: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        --serif: ui-serif, Georgia, serif;
+        --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+        --radius: 0.65rem;
+        --canvas: light-dark(#f4f6f9, #111827);
+        --panel: light-dark(#ffffff, #1f2937);
+        --panel-muted: light-dark(#eef1f5, #374151);
+        --border: light-dark(#cbd2dc, #4b5563);
+        --ink: light-dark(#16202e, #f9fafb);
+        --muted: light-dark(#4a5568, #d1d5db);
+        --accent: light-dark(#2f56c9, #93c5fd);
+        --success: light-dark(#157a54, #86efac);
+        --warning: light-dark(#965108, #fde047);
+        --danger: light-dark(#bd3a2c, #fca5a5);
+        --radius: 0.5rem;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        color-scheme: light dark;
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family: var(--sans);
+        line-height: 1.6;
+      }
+      a {
+        color: var(--accent);
+      }
+      .wrap {
+        display: grid;
+        grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
+        gap: 2rem;
+        max-width: 74rem;
+        margin: auto;
+        padding: 2rem;
+      }
+      .toc {
+        position: sticky;
+        top: 2rem;
+        align-self: start;
+        max-height: calc(100dvh - 4rem);
+        overflow-y: auto;
+      }
+      .toc-label,
+      .eyebrow {
+        color: var(--muted);
+        font: 0.72rem/1.4 var(--mono);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .toc a {
+        display: block;
+        border-inline-start: 2px solid transparent;
+        padding: 0.3rem 0.7rem;
+        text-decoration: none;
+      }
+      .toc a.active {
+        border-inline-start-color: var(--accent);
+        font-weight: 650;
+      }
+      main {
+        min-width: 0;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: var(--serif);
+        line-height: 1.2;
+        text-wrap: balance;
+      }
+      h1 {
+        font-size: clamp(2rem, 5vw, 3.4rem);
+        margin-block: 0.5rem 1rem;
+      }
+      h2 {
+        border-block-end: 1px solid var(--border);
+        padding-block-end: 0.45rem;
+        scroll-margin-top: 1rem;
+      }
+      section {
+        margin-block: 2.5rem;
+      }
+      .cards,
+      .lanes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+        gap: 1rem;
+      }
+      .card,
+      .lane,
+      .callout {
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--panel);
+        padding: 1rem;
+        overflow-wrap: anywhere;
+      }
+      .callout {
+        border-inline-start: 0.25rem solid var(--accent);
+      }
+      .callout--tip,
+      .callout--note {
+        border-inline-start-color: var(--accent);
+      }
+      .callout--important {
+        border-inline-start-color: var(--success);
+      }
+      .callout--warning {
+        border-inline-start-color: var(--warning);
+      }
+      .callout--caution {
+        border-inline-start-color: var(--danger);
+      }
+      .callout__label {
+        color: var(--muted);
+        font: 0.72rem/1.4 var(--mono);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      blockquote {
+        margin-inline: 0;
+        border-inline-start: 0.2rem solid var(--border);
+        padding-inline-start: 1rem;
+        color: var(--muted);
+      }
+      .task-list {
+        padding-inline-start: 0;
+        list-style: none;
+      }
+      .task-list li {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+      }
+      .task-list li > p {
+        margin-block: 0.2rem;
+      }
+      .timeline {
+        display: grid;
+        gap: 0.8rem;
+        padding-inline-start: 0;
+        list-style: none;
+      }
+      .timeline li {
+        display: grid;
+        grid-template-columns: minmax(7rem, 0.25fr) 1fr;
+        gap: 1rem;
+        border-inline-start: 0.2rem solid var(--accent);
+        padding-inline-start: 1rem;
+      }
+      .timeline time {
+        color: var(--muted);
+        font-family: var(--mono);
+      }
+      .table-scroll,
+      .diagram-scroll,
+      pre {
+        max-width: 100%;
+        overflow-x: auto;
+      }
+      .diagram-scroll > svg {
+        display: block;
+      }
+      pre {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--panel-muted);
+        padding: 1rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border-block-end: 1px solid var(--border);
+        padding: 0.6rem;
+        text-align: start;
+      }
+      code,
+      pre {
+        font-family: var(--mono);
+      }
+      :not(pre) > code {
+        border-radius: calc(var(--radius) / 2);
+        background: var(--panel-muted);
+        padding: 0.1em 0.3em;
+      }
+      figure {
+        margin-inline: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--panel);
+        padding: 1rem;
+      }
+      figcaption {
+        margin-block-start: 0.5rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      footer {
+        border-block-start: 1px solid var(--border);
+        color: var(--muted);
+        margin-block-start: 3rem;
+        padding-block-start: 1rem;
+      }
+      @media (max-width: 46rem) {
+        .wrap {
+          grid-template-columns: 1fr;
+          padding: 1rem;
+        }
+        .toc {
+          position: sticky;
+          top: 0;
+          z-index: 2;
+          display: flex;
+          gap: 0.25rem;
+          max-height: none;
+          overflow-x: auto;
+          background: var(--canvas);
+          border-block-end: 1px solid var(--border);
+          padding-block: 0.5rem;
+        }
+        .toc-label {
+          display: none;
+        }
+        .toc a {
+          flex: none;
+          white-space: nowrap;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <nav class="toc" aria-label="Page sections">
+        <div class="toc-label">Project recap · session evidence</div>
+        <a href="#original-request">Original request</a>
+        <a href="#key-agent-decisions">Key decisions</a>
+        <a href="#as-built-architecture">Architecture</a>
+        <a href="#implementation-record">Implementation</a>
+        <a href="#validation-evidence">Validation</a>
+        <a href="#outcome">Outcome</a>
+      </nav>
+      <main>
+        <header>
+          <div class="eyebrow">Project recap · session evidence</div>
+          <h1>Reliable session evidence for frozen retros</h1>
+          <p>
+            One delivery wave made watcher signals more reliable, preserved native activity provenance,
+            added exact-session paired export, and grounded retrospectives in frozen evidence while
+            keeping ordinary compact defaults unchanged.
+          </p>
+        </header>
+
+        <div class="callout callout--important">
+          <div class="callout__label">Overview: complete</div>
+          <p>
+            All seven tasks and 29 mapped ticket criteria are complete.
+            <a href="https://github.com/tkstang/skills/pull/99">PR #99</a> is the single delivery PR; it
+            remains draft and unmerged. No release, global install, provider-cache refresh, or broad
+            live-provider acceptance occurred.
+          </p>
+        </div>
+
+        <section id="original-request">
+          <h2>Original request</h2>
+          <p>
+            Deliver the six approved session-evidence backlog items as one coherent wave, then include
+            the user-requested fifteen-minute Consensus Review default. The work needed to improve evidence
+            quality end to end without turning default Observer or exporter output into a large activity
+            stream.
+          </p>
+          <div class="cards">
+            <article class="card">
+              <h3>Watch reliability</h3>
+              <p>
+                Stabilize SIGTERM re-arm evidence and surface unsuccessful native terminal turns as
+                metadata-only events.
+              </p>
+              <p><code>BL-260919-stabilize-the-watcher-sigterm</code></p>
+              <p><code>BL-260919-surface-terminally</code></p>
+            </article>
+            <article class="card">
+              <h3>Native activity evidence</h3>
+              <p>
+                Preserve provider-native skill attribution and token-usage semantics, including honest
+                gaps and reset boundaries.
+              </p>
+              <p><code>BL-260919-skill-attribution-in-session</code></p>
+              <p><code>BL-260919-token-and-usage-accounting</code></p>
+            </article>
+            <article class="card">
+              <h3>Frozen retrospective inputs</h3>
+              <p>
+                Export comprehensive structured activity for one exact session, then make Retro consume the
+                frozen narrative and activity pair.
+              </p>
+              <p><code>BL-260919-uncapped-structured-activity</code></p>
+              <p><code>BL-260919-session-retro-consume-activity</code></p>
+            </article>
+          </div>
+        </section>
+
+        <section id="key-agent-decisions">
+          <h2>Key agent decisions</h2>
+          <div class="cards">
+            <article class="card">
+              <h3>Freeze before interpretation</h3>
+              <p>
+                Retro runs from a different known native session and analyzes one frozen target pair.
+                Later live records cannot silently enter the episode under review.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Preserve native meaning</h3>
+              <p>
+                Identity, origin, availability, invocation, outcome, and usage remain separate.
+                Unknown evidence stays unknown; the system does not invent totals, prices, versions,
+                human authorship, or causality.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Capture once, derive a pair</h3>
+              <p>
+                <code>session-export-transcript --activity-output</code> reads one exact native snapshot
+                and derives both the sanitized narrative and sensitive activity JSON from it.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Keep rich capture opt-in</h3>
+              <p>
+                Comprehensive supported invocation capture is explicit. Ordinary Observer and narrative
+                defaults remain compact, with bounded previews and visible coverage limits.
+              </p>
+            </article>
+          </div>
+          <div class="callout callout--note">
+            <div class="callout__label">Boundary</div>
+            <p>
+              “Comprehensive” means every supported invocation found in the captured bytes. It does not prove
+              that a provider recorded every action or that the target session ended.
+            </p>
+          </div>
+        </section>
+
+        <section id="as-built-architecture">
+          <h2>As-built architecture</h2>
+          <p>
+            Native records enter one shared normalization layer. Observer consumes the compact,
+            metadata-safe projection, while an explicit exporter path freezes the richer exact-session
+            evidence that Retro later reviews.
+          </p>
+          <figure>
+            <div class="diagram-scroll">
+              <svg
+                viewBox="0 0 320 900"
+                width="100%"
+                role="img"
+                aria-labelledby="architecture-title architecture-description"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <title id="architecture-title">Session evidence architecture</title>
+                <desc id="architecture-description">
+                  Provider-native records flow through shared transcript normalization. A compact path
+                  feeds Session Observer, and an explicit capture path produces a paired narrative and
+                  activity JSON for Session Retro in a distinct reviewing session.
+                </desc>
+                <defs>
+                  <marker
+                    id="arrow"
+                    viewBox="0 0 10 10"
+                    refX="8"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)" />
+                  </marker>
+                </defs>
+                <g font-family="system-ui, sans-serif" fill="var(--ink)">
+                  <rect x="20" y="20" width="280" height="82" rx="8" fill="var(--panel-muted)" stroke="var(--border)" />
+                  <text x="160" y="51" text-anchor="middle" font-size="15" font-weight="700">Provider-native records</text>
+                  <text x="160" y="76" text-anchor="middle" font-size="12" fill="var(--muted)">Claude Code · Codex · Cursor</text>
+
+                  <path d="M160 102 V140" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow)" />
+                  <rect x="20" y="142" width="280" height="104" rx="8" fill="var(--panel)" stroke="var(--accent)" stroke-width="2" />
+                  <text x="160" y="174" text-anchor="middle" font-size="15" font-weight="700">Shared transcript layer</text>
+                  <text x="160" y="199" text-anchor="middle" font-size="12" fill="var(--muted)">identity · origin · terminal state</text>
+                  <text x="160" y="220" text-anchor="middle" font-size="12" fill="var(--muted)">skills · usage · coverage</text>
+
+                  <path d="M160 246 V284" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow)" />
+                  <rect x="20" y="286" width="280" height="180" rx="8" fill="var(--panel-muted)" stroke="var(--border)" />
+                  <text x="160" y="316" text-anchor="middle" font-size="14" font-weight="700">Two consumer paths</text>
+                  <rect x="38" y="336" width="244" height="48" rx="6" fill="var(--panel)" stroke="var(--border)" />
+                  <text x="160" y="358" text-anchor="middle" font-size="13" font-weight="700">Session Observer</text>
+                  <text x="160" y="376" text-anchor="middle" font-size="11" fill="var(--muted)">compact, metadata-only watch output</text>
+                  <rect x="38" y="400" width="244" height="48" rx="6" fill="var(--panel)" stroke="var(--accent)" />
+                  <text x="160" y="422" text-anchor="middle" font-size="13" font-weight="700">Session Export Transcript</text>
+                  <text x="160" y="440" text-anchor="middle" font-size="11" fill="var(--muted)">explicit exact-session capture</text>
+
+                  <path d="M160 466 V504" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow)" />
+                  <rect x="20" y="506" width="280" height="136" rx="8" fill="var(--panel)" stroke="var(--accent)" stroke-width="2" />
+                  <text x="160" y="536" text-anchor="middle" font-size="14" font-weight="700">One frozen evidence pair</text>
+                  <rect x="38" y="554" width="244" height="30" rx="5" fill="var(--panel-muted)" stroke="var(--border)" />
+                  <text x="160" y="574" text-anchor="middle" font-size="12">Sanitized narrative Markdown</text>
+                  <rect x="38" y="596" width="244" height="30" rx="5" fill="var(--panel-muted)" stroke="var(--border)" />
+                  <text x="160" y="616" text-anchor="middle" font-size="12">Sensitive structured activity JSON</text>
+
+                  <path d="M160 642 V680" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow)" />
+                  <rect x="20" y="682" width="280" height="96" rx="8" fill="var(--panel)" stroke="var(--success)" stroke-width="2" />
+                  <text x="160" y="714" text-anchor="middle" font-size="15" font-weight="700">Session Retro</text>
+                  <text x="160" y="739" text-anchor="middle" font-size="12" fill="var(--muted)">distinct known reviewing session</text>
+                  <text x="160" y="759" text-anchor="middle" font-size="12" fill="var(--muted)">observation → interpretation → proposal</text>
+
+                  <path d="M160 778 V816" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow)" />
+                  <rect x="20" y="818" width="280" height="62" rx="8" fill="var(--panel-muted)" stroke="var(--border)" />
+                  <text x="160" y="845" text-anchor="middle" font-size="13" font-weight="700">Evidence-backed retrospective</text>
+                  <text x="160" y="865" text-anchor="middle" font-size="11" fill="var(--muted)">with explicit coverage and origin limits</text>
+                </g>
+              </svg>
+            </div>
+            <figcaption>
+              The rich path is opt-in and sensitive. Destination aliases to source files, narrative
+              output, and protected Observer state are rejected; JSON replacement is atomic.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="implementation-record">
+          <h2>Implementation record</h2>
+          <p>
+            The branch kept one wave and one delivery PR. Shared generated payload and version ownership
+            made the product phases sequential; bounded read-only preparation ran alongside them.
+          </p>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Phase</th>
+                  <th scope="col">Delivered behavior</th>
+                  <th scope="col">Practical effect</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>p00</code></td>
+                  <td>Consensus Review uses the requested default and retains explicit timeout control.</td>
+                  <td>Long reviews receive the requested host budget without removing the operator override.</td>
+                </tr>
+                <tr>
+                  <td><code>p01</code></td>
+                  <td>SIGTERM re-arm waits for observed readiness and evidence deltas.</td>
+                  <td>The watcher test follows runtime state instead of a fixed lifetime race.</td>
+                </tr>
+                <tr>
+                  <td><code>p01</code></td>
+                  <td>Supported unsuccessful native turns emit at-most-once metadata-only terminal events.</td>
+                  <td>Failures become visible without exposing bodies or granting continuation authority.</td>
+                </tr>
+                <tr>
+                  <td><code>p02</code></td>
+                  <td>Activity carries native attribution plus narrow inferred direct skill-read evidence.</td>
+                  <td>Skill evidence keeps provenance and excludes instruction bodies.</td>
+                </tr>
+                <tr>
+                  <td><code>p02</code></td>
+                  <td>Usage samples preserve provider semantics, models, ownership, resets, and errors.</td>
+                  <td>Consumers see recorded token evidence without invented totals, pricing, or false zeroes.</td>
+                </tr>
+                <tr>
+                  <td><code>p03</code></td>
+                  <td>One exact snapshot produces a sanitized narrative and comprehensive sensitive activity JSON.</td>
+                  <td>Stable keys, locators, coverage, diagnostics, and guarded atomic writes support replayable review.</td>
+                </tr>
+                <tr>
+                  <td><code>p04</code></td>
+                  <td>Retro requires the exporter, a distinct reviewer identity, and one frozen evidence pair.</td>
+                  <td>Findings separate observation, interpretation, and proposal while preserving coverage limits.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout callout--warning">
+            <div class="callout__label">Security and scale</div>
+            <p>
+              The Structured Activity Capture Index has one stable invocation key per captured call. It
+              can be large, remains opt-in, and its sensitive JSON is the source of graph truth; the
+              narrative is a bounded review surface.
+            </p>
+          </div>
+        </section>
+
+        <section id="validation-evidence">
+          <h2>Validation evidence</h2>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Result</th>
+                  <th scope="col">What it establishes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Integration Notes</th>
+                  <td>2,521 tests passed; one expected opt-in live-provider test skipped across 171 files.</td>
+                  <td>Integrated runtime, packaging, and instruction behavior on the reviewed branch.</td>
+                </tr>
+                <tr>
+                  <td>Repository gates</td>
+                  <td>Type-check, build freshness, validation, smoke, skill-version, scoped lint/format, and documentation production passed.</td>
+                  <td>Canonical sources, generated payloads, declared distributions, and maintained documentation agree.</td>
+                </tr>
+                <tr>
+                  <th scope="row">p01</th>
+                  <td>50 consecutive local passes, including 30 loaded iterations, plus three successful fixing-PR CI attempts.</td>
+                  <td>The SIGTERM re-arm behavior remained stable under the retained acceptance conditions.</td>
+                </tr>
+                <tr>
+                  <th scope="row">Summary and documentation closeout</th>
+                  <td>All 29 mapped ticket criteria have source, test, or retained evidence.</td>
+                  <td>The six approved backlog items are accounted for without adding another feature wave.</td>
+                </tr>
+                <tr>
+                  <td>Independent review</td>
+                  <td>Final integration review passed with zero Critical, High, or Medium findings; the accepted instruction follow-up passed focused review with zero findings.</td>
+                  <td>The integrated producer and consumer contracts, plus the final bounded instruction delta, were independently checked.</td>
+                </tr>
+                <tr>
+                  <td>Frozen Retro exercises</td>
+                  <td>Two synthetic frozen exercises retained the documented runtime and origin limits.</td>
+                  <td>Retro can reason from paired artifacts without treating fixtures as broad provider acceptance.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>Closeout ledger</h3>
+          <p>
+            These maintained project labels bind the delivery summary to the same facts used by the
+            project record.
+          </p>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Project label</th>
+                  <th scope="col">Recorded evidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">summary.md</th>
+                  <td>Updated 2026-09-20 with revision count 0; complete.</td>
+                </tr>
+                <tr>
+                  <th scope="row">Overview</th>
+                  <td>15-minute Review budget; PR #99; 29 mapped criteria; complete.</td>
+                </tr>
+                <tr>
+                  <th scope="row">What Was Implemented</th>
+                  <td>
+                    900-second default; Review 0.1.17; Exporter 2.0.34; Fork 0.2.48; implementation
+                    complete and the six selected tickets closed.
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Key Decisions</th>
+                  <td>Opt-in complete activity export.</td>
+                </tr>
+                <tr>
+                  <th scope="row">Design Deltas</th>
+                  <td>Upstream reconciliation merged.</td>
+                </tr>
+                <tr>
+                  <th scope="row">Tradeoffs Made</th>
+                  <td>Complete activity uses a sensitive JSON artifact instead of a new stream protocol.</td>
+                </tr>
+                <tr>
+                  <th scope="row">Follow-up Items</th>
+                  <td>The opt-in provider exercise remains skipped; complete capture retains its stated limits.</td>
+                </tr>
+                <tr>
+                  <th scope="row">2026-09-20 · structural · oat-project-implement · p02-complete</th>
+                  <td>complete.</td>
+                </tr>
+                <tr>
+                  <th scope="row">p02</th>
+                  <td>complete.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Evidence links: <a href="../../../summary.md">project summary</a>,
+            <a href="../../../evidence/final-checks-complete.json">final local check receipt</a>,
+            <a href="../../../evidence/wave-acceptance.md">wave acceptance map</a>, and
+            <a href="../../../reviews/archived/final-opus-review.md">final independent review</a>.
+          </p>
+          <div class="callout callout--note">
+            <div class="callout__label">Acceptance limit</div>
+            <p>
+              The opt-in live-provider test remains outside routine execution. Retro fixtures cover representative Claude
+              and Cursor evidence rather than every runtime and state combination. Static Codex checks
+              establish documented origin limits without claiming an exercised Codex Retro fixture.
+            </p>
+          </div>
+        </section>
+
+        <section id="outcome">
+          <h2>Outcome</h2>
+          <div class="lanes">
+            <article class="lane">
+              <h3>What changed for users</h3>
+              <p>
+                Watchers expose bounded terminal evidence. Activity reports preserve skill and usage
+                provenance. Exporter can freeze one exact session into a paired narrative and sensitive
+                JSON artifact. Retro reviews that pair from a distinct session.
+              </p>
+            </article>
+            <article class="lane">
+              <h3>What stayed bounded</h3>
+              <p>
+                Compact defaults remain compact. Terminal events do not become peer messages. Comprehensive
+                export does not claim provider completeness or session completion. Retro proposes
+                changes but remains instruction-only and read-only.
+              </p>
+            </article>
+            <article class="lane">
+              <h3>Delivery boundary</h3>
+              <p>
+                The linked delivery pull request remains draft and unmerged. Release, global install,
+                provider-cache refresh, and broad live-provider acceptance remain outside this recap's
+                implemented boundary.
+              </p>
+            </article>
+          </div>
+          <blockquote>
+            The wave ends with a reproducible evidence path: capture one exact target, preserve what the
+            runtime actually recorded, freeze the pair, and keep retrospective conclusions inside those
+            evidence limits.
+          </blockquote>
+        </section>
+
+        <footer>
+          Source-grounded project recap · prepared from the project summary, implementation record,
+          plan, discovery, and retained validation ledger.
+        </footer>
+      </main>
+    </div>
+    <script>
+      (() => {
+        const links = [...document.querySelectorAll('.toc a[href^="#"]')];
+        const targets = links
+          .map((link) => document.querySelector(link.getAttribute('href')))
+          .filter(Boolean);
+        const observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              links.forEach((link) =>
+                link.classList.toggle(
+                  'active',
+                  link.getAttribute('href') === `#${entry.target.id}`,
+                ),
+              );
+            }
+          },
+          { rootMargin: '-15% 0px -70% 0px' },
+        );
+        targets.forEach((target) => observer.observe(target));
+      })();
+    </script>
+  </body>
+</html>

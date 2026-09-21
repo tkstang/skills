@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "explainer-kit.manifest/v2",
+  "runId": "c9dfb65f-e1a3-4a09-9394-f8503f89d67f",
+  "slug": "project-recap",
+  "recipe": {
+    "id": "project-recap",
+    "version": "2"
+  },
+  "createdAt": "2026-09-21T02:44:07.870Z",
+  "mode": "unattended",
+  "source": {
+    "factBasePath": "source/fact-base.json",
+    "factBaseHash": "sha256:da866fad4688957af5bc5e415dc2c174870fd904d1fc652f98f104781b9fc35a",
+    "inputHashes": {
+      "discovery.md": "sha256:0f4b89024f075644374d5a80c479f9ed34642a386f7d5013b7491ca67f2b9aca",
+      "implementation.md": "sha256:bc83b3988e135c06f98ad929829d1d58cca1f8d49d5adf9853978f1d954aa540",
+      "plan.md": "sha256:df97d408e8fa4d4cf22b78083f94ae05fbad0055b4574746173058d130059cc3",
+      "project-log.md": "sha256:842d94c4eb44aa1f54087fd78e1ffcea98bd73c693d09ce1d46ecba59d466591",
+      "summary.md": "sha256:519e3b4c7fe833c0a8673cd66ea7c16b3c3cc3362f93ac916ed1b5b48c913e5c"
+    }
+  },
+  "theme": {
+    "path": "theme.resolved.json",
+    "hash": "sha256:82c4bf82ac817bb8c04c83bb971d2c2b22aa621384689fb4e0d0fa3a62498f27"
+  },
+  "artifacts": [
+    {
+      "id": "project-recap",
+      "type": "hub",
+      "contentPath": "site/index.html",
+      "hash": "sha256:3ac5442760d02ee71802c90c87d559bdfac14ea9b2243681781141066d93ec3f",
+      "status": "built"
+    }
+  ],
+  "immutableHashes": {
+    "qa/1440.png": "sha256:e29bb17342fb2cea8dbb654d0b1c5ba9a8f01a44c1efe231a1cb9625070b998e",
+    "qa/320.png": "sha256:0d7652307a03e00819bbcbcda9e88e2128b7e29dc79f40846dc7f85352ac03e1",
+    "qa/768.png": "sha256:e683b176e60ad2af4ddf035a33173c39bc7652ffacf3061447c440b038306097",
+    "qa/result.json": "sha256:9c5bd25630cb852a308c3b5fe0544e9de02245b2ba4245f3b4e588d84680192b",
+    "site/index.html": "sha256:3ac5442760d02ee71802c90c87d559bdfac14ea9b2243681781141066d93ec3f",
+    "source/fact-base.json": "sha256:da866fad4688957af5bc5e415dc2c174870fd904d1fc652f98f104781b9fc35a",
+    "source/fact-base.md": "sha256:6aaf1c7f2dac7d09ba2e7c44fbcbf71d282994f0b183faf9bfd787e072812850",
+    "source/ledger.json": "sha256:0c0e9321b715cd308321a5a077395a7475b0ec2e15444126360b9ebf4728acc3",
+    "theme.resolved.json": "sha256:82c4bf82ac817bb8c04c83bb971d2c2b22aa621384689fb4e0d0fa3a62498f27"
+  },
+  "outcome": "built",
+  "warnings": []
+}
