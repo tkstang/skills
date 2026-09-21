@@ -104,7 +104,7 @@ oat_generated: false
 
 ## Current Phase
 
-p00–p02 complete. Independent p02 verification passed and all Low follow-ups are implemented; p03 review will include their narrow delta. p03 is implemented and awaits independent review on the reconciled main tree. User authorized continuation through one mergeable PR.
+p00–p02 complete. Independent p02 verification passed and all Low follow-ups are implemented; p03 review will include their narrow delta. p03 independent review passed; bounded Low fixes remain before p04. User authorized continuation through one mergeable PR.
 
 ## Artifacts
 
@@ -125,7 +125,8 @@ p00–p02 complete. Independent p02 verification passed and all Low follow-ups a
 - ✓ p02 independent review passed and all findings addressed
 - ✓ p03 complete structured capture implemented
 - ✓ Merged origin/main including PR100 and PR101
-- ⧗ Independently review p03
+- ✓ p03 independent review passed
+- ⧗ Address bounded p03 follow-ups
 
 ## Blockers
 
@@ -133,7 +134,7 @@ None
 
 ## Next Milestone
 
-Independently review p03, then implement p04 frozen-evidence retro
+Finish bounded p03 follow-ups, then implement p04 frozen-evidence retro
 
 ## Review routing for this authorized run
 
