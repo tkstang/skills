@@ -64,6 +64,10 @@ evidence-p02-complete-20260920: phase complete with independent pass and all fol
 
 evidence-p03-implementation-outcome-20260920: Sol/high completed p03-t01 in190e5a51; full2499-test suite and phase checks passed, recovery0, independent review pending; see implementation.md.
 
+### 2026-09-21 · structural · oat-project-implement · main-integration
+
+evidence-main-integration-20260921: merged main4150cfe2 in14b7bd1e retaining PR100/101 and host polling guidance;75 focused tests, types, build/validate/version gates pass; canonical review runner replaces temporary shim.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
