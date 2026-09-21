@@ -295,3 +295,10 @@ Root accepts all five findings:
 - L3: explicitly name removal of optional Observer enrichment in the Changed changelog entry.
 
 Product fixes remain sequential: p03 guard first; p04 dependency/docs second, through their original exact Sol handles. Root owns dispositions and tracking. Final integration review will verify these bounded nonblocking follow-ups; no redundant phase-only round is required after their passing checks. [Final local check receipt](evidence/final-checks.json) records2520 tests passing/1 opt-in skip; [current CI receipt](evidence/p04-ci-proof.json) records Validate35549545686 passing atc8d55723, with Docs35549545620 also successful. New guard/code changes require relevant rechecks before final review.
+
+
+## p03 second bounded follow-up — complete
+
+Same original Sol/high handle completed `evidence-p03-fix2-20260921` from46ce490c in sole commit `0ca7ad65857caf0c446ad30e0bc8577af58b01c5`; root verified exact11-file scope and clean released tree. L2 now checks ordinary-file inodes for all direct entries in the two existing Observer state roots, removing the drifting filename list. Nonrecursive, missing roots allowed only forENOENT, other I/O failures propagate. Existing hardlink regression adds Cursor state/lock/temp/backup, backup.tmp and arbitrary future ordinary file, with unchanged source/state sentinels. No output serialization or default CLI change.
+
+Exporter2.0.32 and Fork2.0.46 carry required version closure. Phase-base validation correctly detected Fork's declared dependency on exporter source; root explicitly authorized this mechanical addition rather than waiving the gate. Fork runtime bytes are unchanged. Exporter97/97,types,build/freshness,validate,phase-base versions(2),scopedlintformat and self-review passed before/after commit. Review-fix round2/2, recovery0, no provider/install/push/PJM activity. p04's remaining four dependency/docs findings are next; final integration review verifies both follow-ups.
