@@ -130,6 +130,125 @@ describe('review scope capture', () => {
     ]);
   });
 
+  it('captures a tracked directory symlink in a branch diff as link text', async () => {
+    const fixture = await gitFixture();
+    const skillDirectory = path.join(
+      fixture.worktree,
+      '.agents',
+      'skills',
+      'example',
+    );
+    const providerDirectory = path.join(fixture.worktree, '.claude', 'skills');
+    await mkdir(skillDirectory, { recursive: true });
+    await mkdir(providerDirectory, { recursive: true });
+    await writeFile(path.join(skillDirectory, 'SKILL.md'), '# Example\n');
+    await symlink(
+      '../../.agents/skills/example',
+      path.join(providerDirectory, 'example'),
+      'dir',
+    );
+    git(fixture.worktree, ['add', '.agents', '.claude']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'add provider view']);
+
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'base_branch', ref: fixture.base },
+    });
+
+    expect(
+      scope.versions.find(
+        (entry) =>
+          entry.path === '.claude/skills/example' && entry.source === 'live',
+      ),
+    ).toMatchObject({
+      kind: 'symlink',
+      mode: 0o120000,
+      text: '../../.agents/skills/example',
+      bytes: Buffer.byteLength('../../.agents/skills/example'),
+    });
+  });
+
+  it('captures a retargeted tracked symlink as separate base and live link text', async () => {
+    const fixture = await gitFixture();
+    const linkPath = path.join(fixture.worktree, 'provider-view');
+    await mkdir(path.join(fixture.worktree, 'target-one'));
+    await mkdir(path.join(fixture.worktree, 'target-two'));
+    await symlink('target-one', linkPath, 'dir');
+    git(fixture.worktree, ['add', 'provider-view']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'add provider view']);
+    const base = git(fixture.worktree, ['rev-parse', 'HEAD']).trim();
+    await rm(linkPath);
+    await symlink('target-two', linkPath, 'dir');
+    git(fixture.worktree, ['add', 'provider-view']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'retarget provider view']);
+
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'base_branch', ref: base },
+    });
+
+    expect(
+      scope.versions
+        .filter((entry) => entry.path === 'provider-view')
+        .map(({ source, kind, mode, text }) => ({ source, kind, mode, text })),
+    ).toEqual([
+      {
+        source: 'live',
+        kind: 'symlink',
+        mode: 0o120000,
+        text: 'target-two',
+      },
+      {
+        source: 'base',
+        kind: 'symlink',
+        mode: 0o120000,
+        text: 'target-one',
+      },
+    ]);
+  });
+
+  it('captures an explicitly selected escaping symlink without reading its target', async () => {
+    const fixture = await gitFixture();
+    const external = path.join(fixture.root, 'outside.txt');
+    await writeFile(external, 'outside contents must not be captured\n');
+    await symlink(external, path.join(fixture.worktree, 'escape.txt'));
+
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'files', paths: ['escape.txt'] },
+    });
+
+    expect(scope.versions[0]).toMatchObject({
+      kind: 'symlink',
+      mode: 0o120000,
+      text: external,
+      bytes: Buffer.byteLength(external),
+    });
+    expect(scope.versions[0]?.text).not.toContain('outside contents');
+  });
+
+  it('rejects a selected symlink reached through an escaping symlinked ancestor', async () => {
+    const fixture = await gitFixture();
+    const externalDirectory = path.join(fixture.root, 'outside');
+    await mkdir(externalDirectory);
+    await symlink('target', path.join(externalDirectory, 'outside-link'));
+    await symlink(
+      externalDirectory,
+      path.join(fixture.worktree, 'linked-directory'),
+      'dir',
+    );
+
+    await expect(
+      captureReviewScope({
+        cwd: fixture.worktree,
+        request: {
+          kind: 'files',
+          paths: ['linked-directory/outside-link'],
+        },
+      }),
+    ).rejects.toThrow('path_escape: linked-directory/outside-link');
+  });
+
   it('uses repository paths for internal documents and stable absolute anchors for external documents', async () => {
     const fixture = await gitFixture();
     const external = path.join(fixture.root, 'external plan.md');
@@ -196,11 +315,10 @@ describe('review scope capture', () => {
     });
   });
 
-  it('rejects malformed refs, empty scopes, escapes, symlink escapes, binary inputs, and bounds', async () => {
+  it('rejects malformed refs, empty scopes, binary inputs, special files, and bounds', async () => {
     const fixture = await gitFixture();
-    const external = path.join(fixture.root, 'outside.txt');
-    await writeFile(external, 'outside\n');
-    await symlink(external, path.join(fixture.worktree, 'escape.txt'));
+    const fifo = path.join(fixture.worktree, 'named-pipe');
+    execFileSync('mkfifo', [fifo]);
     await writeFile(
       path.join(fixture.worktree, 'binary.txt'),
       Buffer.from([0]),
@@ -227,15 +345,15 @@ describe('review scope capture', () => {
     await expect(
       captureReviewScope({
         cwd: fixture.worktree,
-        request: { kind: 'files', paths: ['escape.txt'] },
-      }),
-    ).rejects.toThrow('scope_path_not_regular');
-    await expect(
-      captureReviewScope({
-        cwd: fixture.worktree,
         request: { kind: 'files', paths: ['binary.txt'] },
       }),
     ).rejects.toThrow('binary_scope_not_supported');
+    await expect(
+      captureReviewScope({
+        cwd: fixture.worktree,
+        request: { kind: 'files', paths: ['named-pipe'] },
+      }),
+    ).rejects.toThrow('scope_path_not_regular: named-pipe');
     await expect(
       captureReviewScope({
         cwd: fixture.worktree,
@@ -252,6 +370,41 @@ describe('review scope capture', () => {
 });
 
 describe('selected scope drift', () => {
+  it('detects a selected symlink being retargeted, replaced, or removed', async () => {
+    const mutations = [
+      async (linkPath: string) => {
+        await rm(linkPath);
+        await symlink('target-two', linkPath);
+      },
+      async (linkPath: string) => {
+        await rm(linkPath);
+        await writeFile(linkPath, 'replacement file\n');
+      },
+      async (linkPath: string) => rm(linkPath),
+    ];
+
+    for (const mutate of mutations) {
+      const fixture = await gitFixture();
+      const linkPath = path.join(fixture.worktree, 'provider-view');
+      await symlink('target-one', linkPath);
+      const scope = await captureReviewScope({
+        cwd: fixture.worktree,
+        request: { kind: 'files', paths: ['provider-view'] },
+      });
+      const before = await captureScopeState(scope);
+      await mutate(linkPath);
+      const after = await captureScopeState(scope);
+
+      expect(compareScopeState(before, after)).toMatchObject({
+        checked: true,
+        stable: false,
+        differences: expect.arrayContaining([
+          'selected path changed: worktree:provider-view',
+        ]),
+      });
+    }
+  });
+
   it('detects selected dirty content changing when porcelain status stays the same', async () => {
     const fixture = await gitFixture();
     await writeFile(path.join(fixture.worktree, 'tracked.txt'), 'dirty-one\n');

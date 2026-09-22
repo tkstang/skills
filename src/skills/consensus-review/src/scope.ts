@@ -1,6 +1,14 @@
 import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { chmod, lstat, mkdir, open, realpath, stat } from 'node:fs/promises';
+import {
+  chmod,
+  lstat,
+  mkdir,
+  open,
+  readlink,
+  realpath,
+  stat,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -23,7 +31,7 @@ export type ReviewScopeRequest =
 export interface CapturedFileVersion {
   source: 'live' | 'base';
   path: string;
-  kind: 'file' | 'deleted';
+  kind: 'file' | 'symlink' | 'deleted';
   mode: number | null;
   bytes: number;
   sha256: string | null;
@@ -48,7 +56,7 @@ export interface CapturedReviewScope {
 export interface SelectedPathState {
   path: string;
   location: 'worktree' | 'external';
-  kind: 'file' | 'deleted';
+  kind: 'file' | 'symlink' | 'deleted';
   mode: number | null;
   bytes: number;
   sha256: string | null;
@@ -439,7 +447,31 @@ async function captureWorktreeVersion(
       { cause: error },
     );
   }
-  if (info.isSymbolicLink() || !info.isFile()) {
+  if (info.isSymbolicLink()) {
+    const canonicalParent = await realpath(path.dirname(requested));
+    if (!inside(root, canonicalParent)) {
+      throw new Error(`path_escape: ${normalized}`);
+    }
+    const canonicalLink = path.join(canonicalParent, path.basename(requested));
+    const target = await readlink(canonicalLink, {
+      encoding: 'buffer',
+    }).catch((error) => {
+      throw new Error(
+        `scope_path_unreadable: ${normalized}: ${fsMessage(error)}`,
+        { cause: error },
+      );
+    });
+    return versionFromBytes(
+      normalized,
+      'live',
+      0o120000,
+      target,
+      includeText,
+      null,
+      'symlink',
+    );
+  }
+  if (!info.isFile()) {
     throw new Error(`scope_path_not_regular: ${normalized}`);
   }
   const canonical = await realpath(requested);
@@ -483,13 +515,15 @@ async function captureGitVersion(
   } catch {
     return deletedVersion(normalized, 'base');
   }
+  const symlink = mode === '120000';
   return versionFromBytes(
     normalized,
     'base',
-    Number.parseInt(mode, 8) & 0o777,
+    symlink ? 0o120000 : Number.parseInt(mode, 8) & 0o777,
     bytes,
     true,
     blobId,
+    symlink ? 'symlink' : 'file',
   );
 }
 
@@ -587,13 +621,14 @@ function versionFromBytes(
   bytes: Buffer,
   includeText: boolean,
   blobId: string | null = null,
+  kind: 'file' | 'symlink' = 'file',
 ): CapturedFileVersion {
   if (bytes.includes(0))
     throw new Error(`binary_scope_not_supported: ${filePath}`);
   return {
     source,
     path: filePath,
-    kind: 'file',
+    kind,
     mode,
     bytes: bytes.length,
     sha256: sha256(bytes),

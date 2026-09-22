@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Read
 argument-hint: base_branch=<ref> | --files <paths...> | --document <path> --host <runtime>
 metadata:
   author: thomas.stang
-  version: '0.1.17'
+  version: '0.1.18'
 ---
 
 # Consensus Review
@@ -24,9 +24,12 @@ If the user supplied one unambiguous scope, translate it directly. Do not ask
 again. Otherwise present exactly these choices and wait for the answer:
 
 1. **Branch diff** — ask for the base ref; reviews tracked changes from its
-   merge base through the current tracked worktree.
+   merge base through the current tracked worktree. Tracked symlinks are
+   captured as their unfollowed link text with Git mode `120000`; their targets
+   are never read through.
 2. **Selected files** — ask for explicit repository paths; named untracked
-   files are allowed.
+   files and symlinks are allowed. Selected symlinks use the same unfollowed
+   link-text treatment as branch diffs.
 3. **Document or plan** — ask for one repository or external document path.
 
 Do not guess a scope, dispatch while details are missing, or treat cancellation

@@ -1926,7 +1926,15 @@ function encodePromptBlockData(text) {
 // src/skills/consensus-review/src/scope.ts
 import { execFile } from "node:child_process";
 import { createHash, randomUUID as randomUUID3 } from "node:crypto";
-import { chmod, lstat as lstat2, mkdir, open as open2, realpath, stat } from "node:fs/promises";
+import {
+  chmod,
+  lstat as lstat2,
+  mkdir,
+  open as open2,
+  readlink,
+  realpath,
+  stat
+} from "node:fs/promises";
 import os from "node:os";
 import path6 from "node:path";
 import { promisify } from "node:util";
@@ -2238,7 +2246,31 @@ async function captureWorktreeVersion(root, relativePath, requirePresent = false
       { cause: error }
     );
   }
-  if (info.isSymbolicLink() || !info.isFile()) {
+  if (info.isSymbolicLink()) {
+    const canonicalParent = await realpath(path6.dirname(requested));
+    if (!inside(root, canonicalParent)) {
+      throw new Error(`path_escape: ${normalized}`);
+    }
+    const canonicalLink = path6.join(canonicalParent, path6.basename(requested));
+    const target = await readlink(canonicalLink, {
+      encoding: "buffer"
+    }).catch((error) => {
+      throw new Error(
+        `scope_path_unreadable: ${normalized}: ${fsMessage(error)}`,
+        { cause: error }
+      );
+    });
+    return versionFromBytes(
+      normalized,
+      "live",
+      40960,
+      target,
+      includeText,
+      null,
+      "symlink"
+    );
+  }
+  if (!info.isFile()) {
     throw new Error(`scope_path_not_regular: ${normalized}`);
   }
   const canonical = await realpath(requested);
@@ -2273,13 +2305,15 @@ async function captureGitVersion(root, revision, relativePath) {
   } catch {
     return deletedVersion(normalized, "base");
   }
+  const symlink = mode === "120000";
   return versionFromBytes(
     normalized,
     "base",
-    Number.parseInt(mode, 8) & 511,
+    symlink ? 40960 : Number.parseInt(mode, 8) & 511,
     bytes,
     true,
-    blobId
+    blobId,
+    symlink ? "symlink" : "file"
   );
 }
 async function resolveDocument(root, candidate) {
@@ -2354,13 +2388,13 @@ async function boundedRead(filePath) {
     await handle.close();
   }
 }
-function versionFromBytes(filePath, source, mode, bytes, includeText, blobId = null) {
+function versionFromBytes(filePath, source, mode, bytes, includeText, blobId = null, kind = "file") {
   if (bytes.includes(0))
     throw new Error(`binary_scope_not_supported: ${filePath}`);
   return {
     source,
     path: filePath,
-    kind: "file",
+    kind,
     mode,
     bytes: bytes.length,
     sha256: sha256(bytes),
@@ -2988,6 +3022,7 @@ kind=${input.scope.request.kind}
 canonical_worktree=${encodePromptBlockData(input.scope.canonicalWorktree)}
 evidence_path=${encodePromptBlockData(input.evidencePath)}
 evidence_manifest=${encodePromptBlockData(JSON.stringify(manifest))}
+symlink_evidence=Entries with kind "symlink" contain the unfollowed link target in text and use Git mode 120000.
 </captured_evidence_data>
 <host_provenance_data>
 author_identity=unknown
@@ -3799,7 +3834,7 @@ function validateLocation(value, scope, findingLabel, errors) {
   const version = scope.versions.find(
     (entry) => entry.path === value.path && entry.sha256 === value.source_version
   );
-  if (!version || version.kind !== "file" || version.text === null) {
+  if (!version || version.kind !== "file" && version.kind !== "symlink" || version.text === null) {
     errors.push(`${label}.source_version must identify captured bytes`);
     return;
   }

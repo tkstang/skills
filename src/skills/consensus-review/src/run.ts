@@ -1128,7 +1128,11 @@ function validateLocation(
     (entry) =>
       entry.path === value.path && entry.sha256 === value.source_version,
   );
-  if (!version || version.kind !== 'file' || version.text === null) {
+  if (
+    !version ||
+    (version.kind !== 'file' && version.kind !== 'symlink') ||
+    version.text === null
+  ) {
     errors.push(`${label}.source_version must identify captured bytes`);
     return;
   }
