@@ -190,6 +190,7 @@ kind=${input.scope.request.kind}
 canonical_worktree=${encodePromptBlockData(input.scope.canonicalWorktree)}
 evidence_path=${encodePromptBlockData(input.evidencePath)}
 evidence_manifest=${encodePromptBlockData(JSON.stringify(manifest))}
+symlink_evidence=Entries with kind "symlink" contain the unfollowed link target in text and use Git mode 120000.
 </captured_evidence_data>
 <host_provenance_data>
 author_identity=unknown

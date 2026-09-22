@@ -19,6 +19,11 @@
 
 ### Fixed
 
+- `consensus-review` 0.1.18 captures tracked branch-diff and explicitly selected
+  symlinks as unfollowed link-target text with Git mode `120000`, includes them
+  in hash-based drift detection, and continues rejecting other non-regular
+  filesystem entries before provider dispatch.
+
 - `session-export-transcript` 2.0.36 protects external hardlink aliases to
   ordinary files recursively nested under both the effective and fixed-default
   Session Observer state roots without following symlinks.

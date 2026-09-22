@@ -492,6 +492,75 @@ describe('one bounded review transaction', () => {
     );
   });
 
+  it('dispatches a branch review whose diff contains a tracked directory symlink', async () => {
+    const fixture = await gitReviewFixture();
+    const skillDirectory = path.join(
+      fixture.worktree,
+      '.agents',
+      'skills',
+      'example',
+    );
+    const providerDirectory = path.join(fixture.worktree, '.claude', 'skills');
+    await mkdir(skillDirectory, { recursive: true });
+    await mkdir(providerDirectory, { recursive: true });
+    await writeFile(path.join(skillDirectory, 'SKILL.md'), '# Example\n');
+    await symlink(
+      '../../.agents/skills/example',
+      path.join(providerDirectory, 'example'),
+      'dir',
+    );
+    execFileSync('git', ['add', '.agents', '.claude'], {
+      cwd: fixture.worktree,
+    });
+    execFileSync('git', ['commit', '-q', '-m', 'add provider view'], {
+      cwd: fixture.worktree,
+    });
+    let invocations = 0;
+
+    const result = await executeBoundedReview(
+      {
+        cwd: fixture.worktree,
+        scope: { kind: 'base_branch', ref: fixture.head },
+        host: 'codex',
+        request: 'Review the branch diff.',
+        hostSummary: '',
+        schemaPath: fixture.schema,
+        runId: 'symlink-branch-run',
+      },
+      reviewExecutionDependencies(fixture, async (request) => {
+        invocations += 1;
+        expect(request.prompt).toContain(
+          'Entries with kind "symlink" contain the unfollowed link target',
+        );
+        return successEnvelope(validPassReply(scopeToken(request.prompt)));
+      }),
+    );
+
+    expect(invocations).toBe(1);
+    expect(result).toMatchObject({
+      ok: true,
+      status: 'completed',
+      invocation_count: 1,
+    });
+    if (!result.ok || result.status !== 'completed') {
+      throw new Error('expected completed symlink branch fixture');
+    }
+    const evidence = JSON.parse(
+      await readFile(result.aggregate.paths.evidence, 'utf8'),
+    ) as {
+      versions: Array<Record<string, unknown>>;
+    };
+    expect(evidence.versions).toContainEqual(
+      expect.objectContaining({
+        source: 'live',
+        path: '.claude/skills/example',
+        kind: 'symlink',
+        mode: 0o120000,
+        text: '../../.agents/skills/example',
+      }),
+    );
+  });
+
   it('persists mixed bounded author evidence and keeps requested options separate from observed identity', async () => {
     const fixture = await gitReviewFixture();
     await writeFile(path.join(fixture.worktree, 'second.ts'), 'second\n');
