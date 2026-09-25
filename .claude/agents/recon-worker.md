@@ -1,1 +1,0 @@
-../../.agents/agents/recon-worker.md

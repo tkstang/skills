@@ -18,6 +18,7 @@
 # END OAT analysis artifacts
 
 .superpowers/
+.claude/worktrees/
 
 # Node/runtime outputs
 node_modules/

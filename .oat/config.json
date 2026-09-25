@@ -13,18 +13,7 @@
   },
   "tools": {
     "core": false,
-    "ideas": true,
-    "docs": true,
-    "workflows": true,
-    "utility": true,
-    "project-management": true,
-    "research": true,
-    "brainstorm": false,
-    "requiredBy": {
-      "utility": [
-        "research"
-      ]
-    }
+    "brainstorm": false
   },
   "pjm": {
     "initialized": true,
