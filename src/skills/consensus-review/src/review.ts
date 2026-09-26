@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { randomUUID } from 'node:crypto';
-import { constants } from 'node:fs';
+import { constants, realpathSync } from 'node:fs';
 import { link, lstat, open, realpath, unlink } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 import type { KnownHostRuntime } from '../../../plugins/consensus/provider-cli/host-guard.js';
 import { executeBoundedReview } from './run.js';
@@ -855,7 +855,7 @@ function errorMessage(error: unknown): string {
 
 if (
   process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
 ) {
   process.exitCode = await reviewMain();
 }

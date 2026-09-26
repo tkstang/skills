@@ -2,9 +2,10 @@
 
 // src/skills/refine/src/consensus-refine.ts
 import { execFile } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { readFile as readFile6 } from "node:fs/promises";
 import path12 from "node:path";
-import { fileURLToPath as fileURLToPath4 } from "node:url";
+import { fileURLToPath as fileURLToPath3 } from "node:url";
 import { promisify } from "node:util";
 
 // src/plugins/consensus/config/consensus-config.ts
@@ -423,7 +424,6 @@ function formatCount(count) {
 // src/plugins/consensus/core/consensus-loop.ts
 import { mkdir as mkdir4, readFile as readFile3 } from "node:fs/promises";
 import path6 from "node:path";
-import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
 import { createHash } from "node:crypto";
@@ -3266,13 +3266,6 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path6.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
-  runConsensusLoop(process.argv.slice(2)).catch((error) => {
-    process.stderr.write(`${hardErrorMessage(error)}
-`);
-    process.exitCode = exitCodeForError(error);
-  });
-}
 
 // src/skills/refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
@@ -6080,7 +6073,7 @@ async function runWrapperCli(argv, options = {}) {
     return exitCode;
   }
 }
-if (process.argv[1] && path12.resolve(process.argv[1]) === fileURLToPath4(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath3(import.meta.url))) {
   runWrapperCli(process.argv.slice(2)).then((exitCode) => {
     process.exitCode = exitCode;
   });

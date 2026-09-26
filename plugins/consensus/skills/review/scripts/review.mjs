@@ -3,10 +3,10 @@
 
 // src/skills/consensus-review/src/review.ts
 import { randomUUID as randomUUID6 } from "node:crypto";
-import { constants as constants2 } from "node:fs";
+import { constants as constants2, realpathSync } from "node:fs";
 import { link as link2, lstat as lstat4, open as open4, realpath as realpath3, unlink as unlink2 } from "node:fs/promises";
 import path10 from "node:path";
-import { fileURLToPath as fileURLToPath2, pathToFileURL } from "node:url";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // src/skills/consensus-review/src/run.ts
 import { createHash as createHash3, randomUUID as randomUUID5 } from "node:crypto";
@@ -4907,7 +4907,7 @@ function isMissing3(error) {
 function errorMessage2(error) {
   return error instanceof Error ? error.message : String(error);
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath2(import.meta.url))) {
   process.exitCode = await reviewMain();
 }
 export {

@@ -3,7 +3,9 @@
 // Source: src/plugins/consensus/provider-cli/cli.ts
 
 // src/plugins/consensus/provider-cli/cli.ts
+import { realpathSync } from "node:fs";
 import { readFile as readFile3, stat } from "node:fs/promises";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // src/plugins/consensus/provider-cli/commands.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
@@ -3639,7 +3641,7 @@ function readAllStdin(stdin, maxBytes) {
     stdin.resume();
   });
 }
-if (process.argv[1] && import.meta.url === new URL(process.argv[1], "file:").href) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath2(import.meta.url))) {
   runConsensusCli(process.argv.slice(2), nodeIo()).then((code) => {
     process.exitCode = code;
   });

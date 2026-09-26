@@ -1,6 +1,5 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import type {
   JsonRecord,
@@ -1066,14 +1065,4 @@ export function routeEscalation(
     decide_via: 'user',
     decision_kinds: decisionKindsFor('user'),
   };
-}
-
-if (
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
-  runConsensusLoop(process.argv.slice(2)).catch((error) => {
-    process.stderr.write(`${hardErrorMessage(error)}\n`);
-    process.exitCode = exitCodeForError(error);
-  });
 }
