@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: --goal <text> [--constraints <text>]
 metadata:
   author: thomas.stang
-  version: '0.1.16'
+  version: '0.1.17'
 ---
 
 # Plan

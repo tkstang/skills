@@ -1,8 +1,9 @@
 // GENERATED skill payload for plan.
 
 // src/skills/plan/src/consensus-plan.ts
+import { realpathSync } from "node:fs";
 import path7 from "node:path";
-import { fileURLToPath as fileURLToPath4 } from "node:url";
+import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/config/consensus-config.ts
 import { randomUUID } from "node:crypto";
@@ -420,7 +421,6 @@ function formatCount(count) {
 // src/plugins/consensus/core/consensus-loop.ts
 import { mkdir as mkdir4, readFile as readFile3 } from "node:fs/promises";
 import path6 from "node:path";
-import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // src/plugins/consensus/core/loop-validation.ts
 import { createHash } from "node:crypto";
@@ -3415,13 +3415,6 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
     decision_kinds: decisionKindsFor("user")
   };
 }
-if (process.argv[1] && path6.resolve(process.argv[1]) === fileURLToPath3(import.meta.url)) {
-  runConsensusLoop(process.argv.slice(2)).catch((error) => {
-    process.stderr.write(`${hardErrorMessage(error)}
-`);
-    process.exitCode = exitCodeForError(error);
-  });
-}
 
 // src/skills/plan/src/consensus-plan.ts
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
@@ -4239,7 +4232,7 @@ async function runPlanCli(argv = process.argv.slice(2), options = {}) {
     return exitCode;
   }
 }
-if (process.argv[1] && path7.resolve(process.argv[1]) === fileURLToPath4(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath3(import.meta.url))) {
   runPlanCli(process.argv.slice(2)).then((exitCode) => {
     process.exitCode = exitCode;
   });

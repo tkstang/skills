@@ -77,7 +77,7 @@ export const GENERATED_BANNER_PREFIX =
 export const generatedOutputs: GeneratedOutput[] = [
   {
     id: 'consensus-loop',
-    source: 'src/plugins/consensus/core/consensus-loop.ts',
+    source: 'src/plugins/consensus/core/consensus-loop-cli.ts',
     output: 'plugins/consensus/scripts/consensus-loop.mjs',
     bundle: true,
   },

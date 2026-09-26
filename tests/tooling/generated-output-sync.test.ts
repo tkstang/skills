@@ -188,7 +188,7 @@ describe('generated output drift guard', () => {
     expect(generatedOutputs).toEqual([
       {
         id: 'consensus-loop',
-        source: 'src/plugins/consensus/core/consensus-loop.ts',
+        source: 'src/plugins/consensus/core/consensus-loop-cli.ts',
         output: 'plugins/consensus/scripts/consensus-loop.mjs',
         bundle: true,
       },
@@ -218,7 +218,7 @@ describe('generated output drift guard', () => {
       'utf8',
     );
     expect(text).toContain(
-      '// Source: src/plugins/consensus/core/consensus-loop.ts',
+      '// Source: src/plugins/consensus/core/consensus-loop-cli.ts',
     );
     expect(text).not.toMatch(/from\s+['"]\.\.?\//u);
   });

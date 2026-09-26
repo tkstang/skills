@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
+import { realpathSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
 import { runConsensusCli } from './commands.js';
 import type { ConsensusCliIo } from './commands.js';
@@ -68,7 +70,7 @@ function readAllStdin(
 
 if (
   process.argv[1] &&
-  import.meta.url === new URL(process.argv[1], 'file:').href
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
 ) {
   runConsensusCli(process.argv.slice(2), nodeIo()).then((code) => {
     process.exitCode = code;

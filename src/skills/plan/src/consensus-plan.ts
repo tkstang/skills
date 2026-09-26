@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -1128,7 +1129,7 @@ export async function runPlanCli(
 
 if (
   process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
 ) {
   runPlanCli(process.argv.slice(2)).then((exitCode) => {
     process.exitCode = exitCode;

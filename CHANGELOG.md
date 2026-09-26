@@ -19,6 +19,26 @@
 
 ### Fixed
 
+- Generated CLI scripts now run when invoked through a symlinked skill
+  directory, such as `~/.claude/skills/<name>` pointing at
+  `~/.agents/skills/<name>`. Their entrypoint guards compared unresolved paths
+  or URLs, so a symlinked invocation skipped `main()` and exited 0 with no
+  output. Every guard now compares real paths:
+  - `session-observer-collab` 1.0.70 (`collab-control.mjs`)
+  - `consensus-review` 0.1.19
+  - `create` 0.1.17, `decide` 0.1.17, `evaluate` 0.1.21
+  - `panel` 0.1.14, `plan` 0.1.17, `refine` 0.1.20
+  - `consensus` plugin 0.2.2 (`consensus.mjs`, `consensus-loop.mjs`)
+  - `phone-a-friend` 0.1.13, `session-observer` 1.0.82, and
+    `session-fork-to-destination` 0.2.50 are version bumps for shared runtime
+    changes only; their own content is unchanged.
+- The shared consensus loop's CLI entrypoint moved to
+  `src/plugins/consensus/core/consensus-loop-cli.ts`. Wrappers that bundle the
+  loop (`create`, `decide`, `evaluate`, `plan`, and the `refine` scripts) no
+  longer also run the loop's `main()` when executed, which previously printed
+  a duplicate error and let helper scripts such as `refine-args.mjs` start the
+  loop.
+
 - `consensus-review` 0.1.18 captures tracked branch-diff and explicitly selected
   symlinks as unfollowed link-target text with Git mode `120000`, includes them
   in hash-based drift detection, and continues rejecting other non-regular

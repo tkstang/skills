@@ -3,6 +3,7 @@
 
 // src/skills/session-observer-collab/src/collab-control.mjs
 import { randomUUID as randomUUID6 } from "node:crypto";
+import { realpathSync } from "node:fs";
 import { chmod as chmod5, mkdir as mkdir5, open as open8, readFile as readFile7, rm as rm4 } from "node:fs/promises";
 import { join as join5 } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -3353,7 +3354,7 @@ async function main() {
     process.exitCode = 1;
   }
 }
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1])
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)))
   await main();
 export {
   CONTROL_SCHEMA_VERSION,

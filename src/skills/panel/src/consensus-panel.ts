@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import {
   lstat,
   mkdir,
@@ -1500,7 +1500,7 @@ function panelExitCodeForError(error: unknown) {
 
 if (
   process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
 ) {
   runPanelCli(process.argv.slice(2)).then((exitCode) => {
     process.exitCode = exitCode;

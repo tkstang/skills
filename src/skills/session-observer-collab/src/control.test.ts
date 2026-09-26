@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   chmod,
@@ -12,7 +12,9 @@ import {
 } from 'node:fs/promises';
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, test } from 'vitest';
 
@@ -849,6 +851,27 @@ describe('collaboration lease controls', () => {
     await expect(
       compareAndSwapCursor(root, 'owner-1', expected, 8, 3_000),
     ).resolves.toMatchObject({ ok: false, reason: 'stale' });
+  });
+
+  test('runs the CLI when invoked through a symlinked skill directory', async () => {
+    const { home } = await fixture();
+    const scripts = dirname(
+      fileURLToPath(
+        new URL(
+          '../../../../skills/session-observer-collab/scripts/collab-control.mjs',
+          import.meta.url,
+        ),
+      ),
+    );
+    const linked = join(home, 'linked-scripts');
+    await symlink(scripts, linked, 'dir');
+
+    const result = await promisify(execFile)(
+      process.execPath,
+      [join(linked, 'collab-control.mjs'), 'status', '--json'],
+      { env: { ...process.env, HOME: home } },
+    ).catch((error) => error);
+    expect(JSON.parse(result.stdout)).toMatchObject({ command: 'status' });
   });
 
   test('status recovers a killed generation-bound waiter but preserves a live waiter', async () => {
