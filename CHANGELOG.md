@@ -19,6 +19,12 @@
 
 ### Fixed
 
+- `session-observer-collab` 1.0.70 runs `collab-control.mjs` when it is
+  invoked through a symlinked skill directory (such as
+  `~/.claude/skills/session-observer-collab`). Its entrypoint guard now
+  compares real paths, as the monitor and stop-hook entrypoints already do;
+  before this, the command exited 0 with no output.
+
 - `consensus-review` 0.1.18 captures tracked branch-diff and explicitly selected
   symlinks as unfollowed link-target text with Git mode `120000`, includes them
   in hash-based drift detection, and continues rejecting other non-regular
