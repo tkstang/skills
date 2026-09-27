@@ -7448,6 +7448,7 @@ var LOCK_RETRIES2 = 100;
 var LOCK_INTERVAL_MS2 = 50;
 var CURSOR_COMPATIBILITY = "pre-integration-record-index";
 var migrationBackupSequence = 0;
+var backupSequence2 = 0;
 var lockSequence2 = 0;
 function isErrnoException2(err) {
   return err instanceof Error && "code" in err;
@@ -7468,7 +7469,11 @@ function tmpPath(dir) {
   return join4(dir, `state.json.${process.pid}.tmp`);
 }
 function bakPath(dir, label) {
-  return join4(dir, `state.json.${label}-${Date.now()}-${process.pid}.bak`);
+  backupSequence2 += 1;
+  return join4(
+    dir,
+    `state.json.${label}-${Date.now()}-${process.pid}-${backupSequence2}.bak`
+  );
 }
 function isPidLive(pid) {
   if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0)
@@ -8053,7 +8058,7 @@ async function load() {
   for (const sessionId of legacyCursorIds) {
     await migrateLegacyCursorState(sessionId);
   }
-  legacy = await loadLegacyState();
+  if (legacyCursorIds.length > 0) legacy = await loadLegacyState();
   const cursor = await loadCursorState();
   const sessions = { ...legacy.sessions };
   for (const entry of Object.values(cursor.sessions)) {

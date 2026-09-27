@@ -674,26 +674,27 @@ it('migration via mutate(): re-load after mutate returns upgraded schema (schema
 // ---------------------------------------------------------------------------
 // 12. Backup uniqueness: repeated backups do not overwrite each other
 // ---------------------------------------------------------------------------
-it('repeated corrupt backups produce unique filenames and do not clobber each other', async () => {
+it('repeated corrupt backups keep one copy of each corrupt state within one millisecond', async () => {
   await withTmpStateDir(async (dir) => {
-    // Simulate two consecutive corrupt-state loads.
-    // We do them sequentially with a tiny delay to get distinct timestamps.
+    // Pin the clock so both loads share a millisecond: names must stay unique
+    // without relying on wall-clock gaps.
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_790_000_000_000);
+    try {
+      await writeFile(join(dir, 'state.json'), '{ bad json 1 }');
+      await state.load();
+      await writeFile(join(dir, 'state.json'), '{ bad json 2 }');
+      await state.load();
+    } finally {
+      now.mockRestore();
+    }
 
-    await writeFile(join(dir, 'state.json'), '{ bad json 1 }');
-    await state.load(); // triggers first backup
-
-    await writeFile(join(dir, 'state.json'), '{ bad json 2 }');
-    // Small delay to ensure distinct millisecond timestamp in backup filename
-    await sleep(5);
-    await state.load(); // triggers second backup
-
-    const files = await readdir(dir);
-    const bakFiles = files.filter((f) => f.startsWith('state.json.corrupt-'));
-    // Both backups must exist as distinct files
-    expect(
-      bakFiles.length >= 2,
-      `expected at least 2 backup files, got ${bakFiles.length}: ${bakFiles.join(', ')}`,
-    ).toBeTruthy();
+    const bakFiles = (await readdir(dir)).filter((f) =>
+      f.startsWith('state.json.corrupt-'),
+    );
+    const contents = await Promise.all(
+      bakFiles.map((f) => readFile(join(dir, f), 'utf8')),
+    );
+    expect(contents.toSorted()).toEqual(['{ bad json 1 }', '{ bad json 2 }']);
   });
 });
 
