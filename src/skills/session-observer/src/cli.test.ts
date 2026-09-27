@@ -1149,6 +1149,8 @@ describe('CLI subcommand dispatch', () => {
           result.status === 3,
         `unexpected exit code: ${result.status}`,
       ).toBeTruthy();
+      // A thrown error also exits 1; it must not reach the top-level handler.
+      expect(result.stderr).not.toContain('Unexpected error');
     } finally {
       await rm(home, { recursive: true, force: true });
     }
@@ -2297,6 +2299,25 @@ describe('Cursor CLI state and delivery composition', () => {
 // ---------------------------------------------------------------------------
 
 describe('state subcommand', () => {
+  test('plain state get and state clear exit 0 without --json', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
+    try {
+      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
+      await mkdir(stateDir, { recursive: true });
+      const env = { HOME: tmpDir, STATE_DIR: stateDir };
+
+      for (const op of ['get', 'clear']) {
+        const result = spawnCli(['state', op], env);
+        expect(
+          result.status,
+          `state ${op} should exit 0\nstderr: ${result.stderr}`,
+        ).toBe(0);
+      }
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('state reset --runtime cursor exits 0', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {

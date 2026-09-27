@@ -279,8 +279,8 @@ test('No match with empty candidates → noMatch result', () => {
 
 test('Ties: candidates within TIE_WINDOW_SEC (5s) of winner appear in ties[]', () => {
   // Winner: mtime = NOW - 10
-  // Tie: mtime = NOW - 13 (within 5s window)
-  // No-tie: mtime = NOW - 100 (outside window)
+  // Tie: mtime = NOW - 15 (exactly at the inclusive 5s boundary)
+  // No-tie: mtime = NOW - 16 (just outside the window)
   const winner = mkCandidate({
     recordedCwd: TARGET_CWD,
     mtime: NOW - 10,
@@ -289,14 +289,14 @@ test('Ties: candidates within TIE_WINDOW_SEC (5s) of winner appear in ties[]', (
   });
   const inWindow = mkCandidate({
     recordedCwd: TARGET_CWD,
-    mtime: NOW - 13,
-    ageSec: 13,
+    mtime: NOW - 15,
+    ageSec: 15,
     sessionId: 'sess-tie',
   });
   const farAway = mkCandidate({
     recordedCwd: TARGET_CWD,
-    mtime: NOW - 100,
-    ageSec: 100,
+    mtime: NOW - 16,
+    ageSec: 16,
     sessionId: 'sess-far',
   });
 

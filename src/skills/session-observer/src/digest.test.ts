@@ -1820,6 +1820,17 @@ describe('optional activity projection', () => {
     expect(markdown).not.toContain('## Activity');
     expect(markdown).toContain('[Bash]');
     expect(markdown).toContain('[Read → result]');
+
+    // Callers that omit includeActivity (collab monitor and stop hooks) must
+    // get the same activity-off digest.
+    const defaulted = await buildDigest('claude-code', withToolBurst, {
+      fromIndex: 0,
+      mode: 'review',
+      includeToolCalls: true,
+      includeToolResults: true,
+    });
+    expect(defaulted).toEqual(explicitOff);
+    expect(renderMarkdown(defaulted)).toBe(markdown);
   });
 
   test('attaches independently budgeted activity and suppresses duplicate legacy markers', async () => {

@@ -423,6 +423,30 @@ it.each([
       continuity: checkpoint(2),
     }),
   ],
+  [
+    'device substitution',
+    (entry: CursorSessionStateEntry) => ({
+      ...entry,
+      continuity: { ...entry.continuity, device: 99 },
+    }),
+  ],
+  [
+    'inode substitution',
+    (entry: CursorSessionStateEntry) => ({
+      ...entry,
+      continuity: { ...entry.continuity, inode: 99 },
+    }),
+  ],
+  [
+    'verified prefix substitution',
+    (entry: CursorSessionStateEntry) => ({
+      ...entry,
+      continuity: {
+        ...entry.continuity,
+        prefixSha256: 'f'.repeat(64),
+      },
+    }),
+  ],
 ] as const)(
   'create-only session setter rejects no-pending %s without replacing durable state',
   async (_label, replacement) => {

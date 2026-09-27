@@ -28,7 +28,7 @@ Claude Code transcripts follow the record shape used in `~/.claude/projects/<enc
 
 ### empty.jsonl
 
-Empty file (0 bytes). Used by the CLI and integration suites to verify empty-transcript handling.
+Empty file (0 bytes). Used by the CLI suite to verify empty-transcript handling.
 
 ---
 
@@ -70,7 +70,7 @@ Cursor agent transcripts follow the record shape used in `~/.cursor/projects/<en
 
 ### typical.jsonl
 
-3 records: a short user/assistant exchange with text blocks only. Used to verify record parsing, message extraction, and direct Cursor `buildDigest` coverage.
+4 records: a short user/assistant exchange with text blocks only, closed by `turn_ended`. Used to verify record parsing, message extraction, and direct Cursor `buildDigest` coverage.
 
 ### with-tool-use.jsonl
 

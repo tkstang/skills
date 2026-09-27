@@ -4877,9 +4877,16 @@ describe('runWatchLoop', () => {
               );
               if (state?.active) {
                 stopped = true;
-                await watchState.writeControlDirective('stop', {
-                  pid: process.pid,
-                });
+                // A pid-less legacy file from an older release must still
+                // reach the running watcher and be consumed on exit.
+                await writeFile(
+                  join(stateDir, 'watch.control.json'),
+                  JSON.stringify({
+                    directive: 'stop',
+                    issuedAt: new Date(nowMs).toISOString(),
+                  }),
+                  'utf8',
+                );
               }
             }
           },
@@ -4897,11 +4904,9 @@ describe('runWatchLoop', () => {
         await readFile(join(stateDir, 'watch.json'), 'utf8'),
       );
       expect(watchJson.active).toBe(null);
-      expect(
-        await readJsonIfExists(
-          join(stateDir, `watch.control.${process.pid}.json`),
-        ),
-      ).toBe(null);
+      expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(
+        null,
+      );
     });
   });
 
