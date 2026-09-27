@@ -11,6 +11,7 @@
 - **Immediate acceptance work:** **BL-260916-add-a-first-party-install — Add a first-party install command for standalone skills** remains open after its PR #90 implementation for a pinned payload tag and six live host/scope cells. [BL-260919-verify-live-agent-messaging — Verify live agent-messaging host acceptance](items/BL-260919-verify-live-agent-messaging.md) and **BL-260723-investigate-live-submit — Investigate live submit verdict-source contract mismatch** remain separately authorized live-evidence tasks.
 - **Collaboration follow-ups:** [BL-260919-resolve-codex-self-identity — Resolve Codex self identity with duplicate rollout candidates](items/BL-260919-resolve-codex-self-identity.md) and [BL-260919-improve-default-observer — Improve default observer digest coverage and full-history recovery](items/BL-260919-improve-default-observer.md) remain independent of completed messaging/evidence delivery. Inbox delivery, transcript observation and N>2 consumer ownership stay distinct boundaries.
 - **Remaining evidence/retro sequence:** **BL-260919-skill-evaluation-retro — Skill evaluation retro: activation, adherence, outcome, efficiency** remains the next proposed consumer after PR #99 merges, followed by the existing child-discovery, delegation, findings-ledger, sidecar and deferred-enrichment proposals. Their relative order is unchanged and unselected.
+- **Session-observer test-pruning follow-ups (September 27):** the pruning campaign ([report](../../reference/reviews/2026-09-26-session-observer-test-pruning-campaign.md)) filed three low-priority cleanups: [BL-260927-remove-dead-handoff-discovery](items/BL-260927-remove-dead-handoff-discovery.md) (S), [BL-260927-decide-the-fate-of-unwired](items/BL-260927-decide-the-fate-of-unwired.md) (M) and [BL-260927-deduplicate-session-observer](items/BL-260927-deduplicate-session-observer.md) (M). Its two reproduced defects, subcommand `--help` and same-millisecond backup names, are fixed in a follow-up PR rather than tracked here.
 - **Deferred investment:** shared-session merge, N>2 offsets, idle integrations, research, deliberation metrics/similarity, harmonization, multi-round panel and reserved host-native/group-convergence capabilities remain open. Historical research and external plans need current-path and contract checks before execution.
 - **Release boundary:** merged payloads, accepted PR branches and manifest versions do not prove a tagged release, global installation, marketplace/search listing, live messaging, or general provider acceptance. Follow the per-plugin release checklist and each live-acceptance ticket independently.
 
@@ -34,12 +35,15 @@
 | BL-260701-add-multi-round-panel | Add multi-round panel discussion | open | low | idea | M |
 | BL-260612-add-similarity-heuristic | Add similarity heuristic for near-converged deliberation states | open | low | feature | S |
 | BL-260612-add-whole-document | Add whole-document harmonization pass after section convergence | open | low | feature | M |
+| BL-260927-decide-the-fate-of-unwired | Decide the fate of unwired session-observer code paths | open | low | task | M |
+| BL-260927-deduplicate-session-observer | Deduplicate session-observer CLI runtime resolution and close legacy coverage gaps | open | low | task | M |
 | BL-260619-define-host-native-dispatch | Define host-native dispatch / safe-packet protocol (reserved seam) | open | low | initiative | L |
 | BL-260919-grouped-activity-summaries | Grouped activity summaries and derived enrichments adapted from cli-continues | open | low | feature | M |
 | BL-260619-multi-peer-3-deliberation | Multi-peer (3+) deliberation extension (reserved / v3+ concern) | open | low | idea | L |
 | BL-260713-optional-idle-session | Optional idle-session application integrations | open | low | idea | M |
 | BL-260713-per-observer-offsets-and-safe | Per-observer offsets and safe N&gt;2 collaboration mesh | open | low | initiative | L |
 | BL-260919-reintroduce-deferred-activity | Reintroduce deferred activity correlation and provenance | open | low | feature | M |
+| BL-260927-remove-dead-handoff-discovery | Remove dead handoff discovery from session-fork-to-destination | open | low | task | S |
 <!-- END OAT BACKLOG-INDEX -->
 
 ## Notes

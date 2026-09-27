@@ -1,0 +1,29 @@
+---
+id: BL-260927-remove-dead-handoff-discovery
+title: Remove dead handoff discovery from session-fork-to-destination
+status: open
+priority: low
+scope: task
+scope_estimate: S
+labels:
+  - session-fork-to-destination
+  - cleanup
+  - dead-code
+assignee: null
+created: 2026-09-27T12:30:49.577Z
+updated: 2026-09-27T12:30:49.577Z
+associated_issues: []
+external_plans: []
+---
+
+## Description
+
+The session-observer test-pruning campaign (2026-09-26) found that discoverHandoffCandidates in src/skills/session-fork-to-destination/src/discovery.ts has had no production caller since #87 retired the handoff executor, and it is not in the shipped bundle. Most of the 634-line discovery.test.ts guards only this dead function. The rest of discovery.ts is live: preview.ts imports compareQualifiedSessionIds from it. The one observer behavior the suite uniquely guarded (exact-all Claude candidates carry the transcript-recorded cwd, locate.ts) is now covered by a colliding-slug case in session-observer's locate.test.ts. See .oat/repo/reference/reviews/2026-09-26-session-observer-test-pruning-campaign.md.
+
+## Acceptance Criteria
+
+- Before deleting, re-confirm `discoverHandoffCandidates` has no caller in `src/`, `scripts/`, or generated `skills/`/`plugins/` payloads.
+- Delete `discoverHandoffCandidates` and any helpers or dependency seams only it uses. Keep `compareQualifiedSessionIds` and anything else `preview.ts` or other live code imports.
+- Remove the `discovery.test.ts` cases that exercise only the deleted function. Keep or move any case that protects a still-live export.
+- Confirm the `locate.ts` transcript-cwd rule for exact-all Claude candidates is still guarded. Changing it to return `targetCwd` must fail `locate.test.ts`'s colliding-slug case.
+- Bump `session-fork-to-destination`, add a CHANGELOG entry, regenerate outputs, and pass focused tests plus `pnpm run test`, `validate`, `build:check`, and `validate:skill-versions`.
