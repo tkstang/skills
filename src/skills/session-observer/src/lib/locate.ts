@@ -1933,6 +1933,17 @@ export async function discover(
   throw new Error(`Unknown runtime: ${runtime}`);
 }
 
+function preferredAliasPath(
+  candidate: TranscriptCandidate,
+  kept: TranscriptCandidate,
+  canonical: string,
+): boolean {
+  const candidateIsCanonical = candidate.transcriptPath === canonical;
+  const keptIsCanonical = kept.transcriptPath === canonical;
+  if (candidateIsCanonical !== keptIsCanonical) return candidateIsCanonical;
+  return candidate.transcriptPath.localeCompare(kept.transcriptPath) < 0;
+}
+
 /** Find one exact session among the same-cwd candidates for a runtime. */
 export async function findSessionCandidate(
   runtime: Runtime,
@@ -1970,13 +1981,21 @@ export async function findSessionCandidate(
       // Discovery already established the source path. Preserve it when a
       // concurrent deletion prevents canonicalization.
     }
-    if (!canonicalMatches.has(canonical)) {
-      canonicalMatches.set(
-        canonical,
-        runtime === 'codex'
-          ? { ...candidate, transcriptPath: canonical }
-          : candidate,
-      );
+    if (runtime === 'codex') {
+      if (!canonicalMatches.has(canonical)) {
+        canonicalMatches.set(canonical, {
+          ...candidate,
+          transcriptPath: canonical,
+        });
+      }
+      continue;
+    }
+    // Other runtimes keep a discovered path. Choose it independently of
+    // directory order: prefer the copy that is already canonical, then the
+    // lexicographically smallest alias.
+    const kept = canonicalMatches.get(canonical);
+    if (!kept || preferredAliasPath(candidate, kept, canonical)) {
+      canonicalMatches.set(canonical, candidate);
     }
   }
   const distinctMatches = [...canonicalMatches.values()];

@@ -99,7 +99,14 @@ const classifyCountHarness = vi.hoisted(() => {
 const opendirFailureHarness = vi.hoisted(() => {
   let failedPath: string | null = null;
   let failedIteratorPath: string | null = null;
+  // Directory order is filesystem-defined (macOS and Linux CI differ), so
+  // tests that depend on it pin both orders explicitly.
+  const reversedPaths = new Set<string>();
   return {
+    reverseEntriesAt: (path: string) => {
+      reversedPaths.add(path);
+    },
+    isReversed: (path: string) => reversedPaths.has(path),
     failOnceAt: (path: string) => {
       failedPath = path;
     },
@@ -119,6 +126,7 @@ const opendirFailureHarness = vi.hoisted(() => {
     reset: () => {
       failedPath = null;
       failedIteratorPath = null;
+      reversedPaths.clear();
     },
   };
 });
@@ -163,6 +171,19 @@ vi.mock('node:fs/promises', async (importOriginal) => {
         });
       }
       const directory = await actual.opendir(...args);
+      if (
+        typeof args[0] === 'string' &&
+        opendirFailureHarness.isReversed(args[0])
+      ) {
+        const entries: import('node:fs').Dirent[] = [];
+        for await (const entry of directory) entries.push(entry);
+        entries.reverse();
+        return {
+          async *[Symbol.asyncIterator]() {
+            yield* entries;
+          },
+        } as unknown as Awaited<ReturnType<typeof actual.opendir>>;
+      }
       if (
         typeof args[0] !== 'string' ||
         !opendirFailureHarness.consumeIterator(args[0])
@@ -934,41 +955,51 @@ test('codex exact pins canonicalize a symlink alias to one source', async () => 
   });
 });
 
-test('claude exact pins reject distinct canonical sources and deduplicate symlink aliases', async () => {
-  await withTempHome(async (home) => {
-    const targetCwd = join(home, 'Code', 'claude-duplicate-source');
-    const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
-    await mkdir(projectDir, { recursive: true });
-    const first = join(projectDir, 'first.jsonl');
-    const second = join(projectDir, 'second.jsonl');
-    const alias = join(projectDir, 'first-alias.jsonl');
-    await writeFile(
-      first,
-      makeClaudeTypical(targetCwd, 'claude-duplicate'),
-      'utf8',
-    );
-    await symlink(first, alias);
+test.each(['forward', 'reversed'])(
+  'claude exact pins reject distinct canonical sources and deduplicate symlink aliases (%s directory order)',
+  async (order) => {
+    await withTempHome(async (home) => {
+      const targetCwd = join(home, 'Code', 'claude-duplicate-source');
+      const projectDir = join(
+        home,
+        '.claude',
+        'projects',
+        encodeCwd(targetCwd),
+      );
+      await mkdir(projectDir, { recursive: true });
+      if (order === 'reversed')
+        opendirFailureHarness.reverseEntriesAt(projectDir);
+      const first = join(projectDir, 'first.jsonl');
+      const second = join(projectDir, 'second.jsonl');
+      const alias = join(projectDir, 'first-alias.jsonl');
+      await writeFile(
+        first,
+        makeClaudeTypical(targetCwd, 'claude-duplicate'),
+        'utf8',
+      );
+      await symlink(first, alias);
 
-    await expect(
-      findSessionCandidate('claude-code', targetCwd, 'claude-duplicate'),
-    ).resolves.toMatchObject({ sessionId: 'claude-duplicate' });
+      await expect(
+        findSessionCandidate('claude-code', targetCwd, 'claude-duplicate'),
+      ).resolves.toMatchObject({ sessionId: 'claude-duplicate' });
 
-    await writeFile(
-      second,
-      makeClaudeTypical(targetCwd, 'claude-duplicate'),
-      'utf8',
-    );
-    await expect(
-      findSessionCandidate('claude-code', targetCwd, 'claude-duplicate'),
-    ).rejects.toMatchObject({
-      code: 'SESSION_IDENTITY_AMBIGUOUS',
-      candidates: expect.arrayContaining([
-        expect.objectContaining({ transcriptPath: first }),
-        expect.objectContaining({ transcriptPath: second }),
-      ]),
+      await writeFile(
+        second,
+        makeClaudeTypical(targetCwd, 'claude-duplicate'),
+        'utf8',
+      );
+      await expect(
+        findSessionCandidate('claude-code', targetCwd, 'claude-duplicate'),
+      ).rejects.toMatchObject({
+        code: 'SESSION_IDENTITY_AMBIGUOUS',
+        candidates: expect.arrayContaining([
+          expect.objectContaining({ transcriptPath: first }),
+          expect.objectContaining({ transcriptPath: second }),
+        ]),
+      });
     });
-  });
-});
+  },
+);
 
 test('codex cwd cache revalidates a stale root mapping against native child evidence', async () => {
   await withTempHome(async (home) => {

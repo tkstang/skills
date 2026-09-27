@@ -43,6 +43,12 @@
     other.
   - `load()` no longer writes a duplicate backup of an unchanged corrupt state
     file.
+  - An exact Claude Code pin that finds a transcript through both its real
+    path and a symlink now reports the real path regardless of directory
+    order. It used to keep whichever copy the filesystem listed first, so
+    the reported path, and the path saved state binds to, could differ
+    between machines. The symlink-alias test failed on Linux CI from
+    2026-09-22 for this reason.
 - Shared-source version bumps only, with unchanged content:
   - `session-observer-collab` 1.0.72
   - `session-fork-to-destination` 0.2.52
