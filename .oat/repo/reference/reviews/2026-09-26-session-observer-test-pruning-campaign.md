@@ -247,9 +247,11 @@ The campaign reported these without fixing them, since no fix was authorized at 
 ## Repository policy notes
 
 - **Test-only changes still fan out version bumps.** The repo requires them for every declaration that lists a changed source root:
-  - `session-observer` 1.0.83;
-  - `session-observer-collab` 1.0.71, `session-export-transcript` 2.0.37 and `session-fork-to-destination` 0.2.51, which are shared-source bumps only;
-  - the `consensus` plugin 0.2.3 and the `session` plugin 0.3.3.
+  - `session-observer` 1.0.84;
+  - `session-observer-collab` 1.0.72, `session-export-transcript` 2.0.37 and `session-fork-to-destination` 0.2.52, which are shared-source bumps only;
+  - the `consensus` plugin 0.2.4 and the `session` plugin 0.3.4.
+
+  These are the final numbers after #107's defect fixes were folded into this PR and #108 merged to `main` first. #108 took the intermediate numbers.
 
   The plugin bumps also required updating the pinned version literals in `tests/repo/plugin-manifests.test.ts` and `tests/release/validate-script.test.ts`, as #104 did.
 - **`bump-version.ts` and lint-staged disagree on quotes.** `scripts/bump-version.ts` writes double-quoted `metadata.version`. The pre-commit oxfmt then rewrites only the canonical `SKILL.md` to single quotes, leaving the generated copies stale until `pnpm run build` runs again.
