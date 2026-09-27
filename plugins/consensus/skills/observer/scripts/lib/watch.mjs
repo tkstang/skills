@@ -10216,12 +10216,10 @@ async function unlinkIfExists(path) {
 }
 async function readControlDirective({
   pid
-} = {}) {
+}) {
   const dir = stateDir3();
-  if (pid !== void 0) {
-    const own = await readControlFile(controlPath(dir, pid));
-    if (own) return own;
-  }
+  const own = await readControlFile(controlPath(dir, pid));
+  if (own) return own;
   return readControlFile(controlPath(dir));
 }
 async function clearControlDirective({

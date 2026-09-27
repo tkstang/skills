@@ -914,13 +914,13 @@ async function unlinkIfExists(path: string): Promise<boolean> {
 }
 
 /**
- * Pid-targeted directives get their own file (watch.control.<pid>.json) so
- * controls aimed at different watchers cannot overwrite each other within one
- * poll interval. Pid-less directives use the legacy watch.control.json.
+ * Directives are pid-targeted (watch.control.<pid>.json) so controls aimed at
+ * different watchers cannot overwrite each other within one poll interval. A
+ * legacy pid-less watch.control.json is still read and cleared, never written.
  */
 export async function writeControlDirective(
   directive: WatchControlDirective,
-  { issuedAt, pid }: { issuedAt?: unknown; pid?: number } = {},
+  { issuedAt, pid }: { issuedAt?: unknown; pid: number },
 ): Promise<WatchControlFile> {
   if (!CONTROL_DIRECTIVES.has(directive)) {
     throw new Error(`unknown watch control directive: ${directive}`);
@@ -929,22 +929,20 @@ export async function writeControlDirective(
   const payload: WatchControlFile = {
     directive,
     issuedAt: toIsoTimestamp(issuedAt),
+    pid,
   };
-  if (pid !== undefined) payload.pid = pid;
-  const basename =
-    pid === undefined ? 'watch.control.json' : `watch.control.${pid}.json`;
-  await writeJsonAtomic(dir, basename, payload);
+  await writeJsonAtomic(dir, `watch.control.${pid}.json`, payload);
   return payload;
 }
 
 export async function readControlDirective({
   pid,
-}: { pid?: number } = {}): Promise<WatchControlFile | null> {
+}: {
+  pid: number;
+}): Promise<WatchControlFile | null> {
   const dir = stateDir();
-  if (pid !== undefined) {
-    const own = await readControlFile(controlPath(dir, pid));
-    if (own) return own;
-  }
+  const own = await readControlFile(controlPath(dir, pid));
+  if (own) return own;
   return readControlFile(controlPath(dir));
 }
 
@@ -968,7 +966,7 @@ export async function clearControlDirective({
  * Remove control directives addressed to pids that are no longer alive, so a
  * directive written for a watcher that died before consuming it cannot linger.
  */
-export async function clearStaleControlDirectives(): Promise<number> {
+async function clearStaleControlDirectives(): Promise<number> {
   const dir = stateDir();
   let entries;
   try {

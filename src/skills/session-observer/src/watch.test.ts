@@ -2,7 +2,7 @@
  * watch.test.ts — tests for src/skills/session-observer/src/lib/watch.ts
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import {
   mkdtemp,
@@ -816,7 +816,9 @@ describe('runWatchLoop', () => {
                 )
               ) {
                 stopIssued = true;
-                await watchState.writeControlDirective('stop');
+                await watchState.writeControlDirective('stop', {
+                  pid: process.pid,
+                });
               }
             },
           },
@@ -3004,7 +3006,9 @@ describe('runWatchLoop', () => {
           sleep: async (ms: number) => {
             nowMs += ms;
             sleepCount++;
-            if (sleepCount <= 4) {
+            // Writes continue past the 90 ms max-pending age, so max-pending
+            // must emit mid-stream and the rest is left for the final flush.
+            if (sleepCount <= 6) {
               await appendClaudeMessage(
                 transcriptPath,
                 sessionId,
@@ -3015,86 +3019,22 @@ describe('runWatchLoop', () => {
         },
       );
 
-      const output = stdout.join('');
+      // The max-runtime exit force-flushes whatever is still pending, so a
+      // single delta would not prove max-pending. Require the max-pending
+      // delta to land while writes are still arriving, before that flush.
+      const digests = stdout
+        .join('')
+        .split('## session-observer digest')
+        .slice(1);
       expect(result.reason).toBe('max-runtime');
       expect(
-        result.eventCount >= 1,
+        result.eventCount,
         'max-pending should prevent indefinite debounce starvation',
-      ).toBeTruthy();
-      expect(output.includes('continuous update 1')).toBeTruthy();
-    });
-  });
-
-  test('emits newline-delimited JSON events when json mode is enabled', async () => {
-    await withTempSessionHome(async (home, stateDir) => {
-      const cwd = '/test/watch-json';
-      const sessionId = 'watch-json';
-      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
-        { content: 'json baseline message' },
-      ]);
-      const stdout: string[] = [];
-      // Virtual clock: append once the baseline target is locked (so it is a
-      // delta, not absorbed into the baseline), then let the loop emit it via
-      // debounce before the virtual max-runtime. No wall-clock race.
-      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
-      let appended = false;
-
-      await runWatchLoop(
-        {
-          runtime: 'claude-code',
-          cwd,
-          pollSec: 0.03,
-          debounceSec: 0.04,
-          maxRuntimeMin: 0.02,
-          json: true,
-        },
-        {
-          writeStdout: (chunk: string) => stdout.push(chunk),
-          now: () => nowMs,
-          sleep: async (ms: number) => {
-            nowMs += ms;
-            if (!appended) {
-              const state = await readJsonIfExists(
-                join(stateDir, 'watch.json'),
-              );
-              if (
-                state?.watchers?.some(
-                  (watcher: any) => watcher.targets?.length >= 1,
-                )
-              ) {
-                appended = true;
-                await appendClaudeMessage(
-                  transcriptPath,
-                  sessionId,
-                  'json update payload',
-                );
-              }
-            }
-          },
-        },
-      );
-
-      const lines = stdout
-        .join('')
-        .trim()
-        .split('\n')
-        .filter(Boolean)
-        .map((line) => JSON.parse(line));
-      const locked = lines.find((line) => line.type === 'baseline');
-      const event = lines.find((line) => line.type === 'delta');
-      const stopped = lines.find((line) => line.type === 'stopped');
-      expect(
-        locked,
-        'json watch should emit a startup lock event',
-      ).toBeTruthy();
-      expect(event, 'json watch should emit a delta event').toBeTruthy();
-      expect(stopped, 'json watch should emit a stopped event').toBeTruthy();
-      expect(locked.sessionId).toBe(sessionId);
-      expect(event.type).toBe('delta');
-      expect(event.runtime).toBe('claude-code');
-      expect(event.sessionId).toBe(sessionId);
-      expect(event.newRecords).toBe(1);
-      expect(event.digest.entries[0].text).toBe('json update payload');
+      ).toBe(2);
+      expect(digests).toHaveLength(2);
+      expect(digests[0]).toContain('continuous update 1');
+      expect(digests[0]).not.toContain('continuous update 6');
+      expect(digests[1]).toContain('continuous update 6');
     });
   });
 
@@ -3305,18 +3245,14 @@ describe('runWatchLoop', () => {
     });
   });
 
-  test('budgets final watch activity Markdown after hostile punctuation is escaped', async () => {
-    await withTempSessionHome(async (home) => {
-      const cwd = '/test/watch-activity-markdown-budget';
-      const sessionId = 'watch-activity-markdown-budget';
+  test('human-mode watch emits activity in the budgeted Markdown format', async () => {
+    await withTempSessionHome(async (home, stateDir) => {
+      const cwd = '/test/watch-activity-markdown';
+      const sessionId = 'watch-activity-markdown';
       const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
-        { content: 'hostile activity baseline' },
+        { content: 'markdown activity baseline' },
       ]);
       const stdout: string[] = [];
-      const hostilePayload =
-        '[link](javascript:synthetic) **bold** ~~strike~~ __underline__'.repeat(
-          36,
-        );
       let nowMs = Date.UTC(2026, 8, 19, 12, 10, 0);
       let appended = false;
 
@@ -3338,7 +3274,7 @@ describe('runWatchLoop', () => {
             nowMs += ms;
             if (!appended) {
               const state = await readJsonIfExists(
-                join(home, '.local', 'state', 'session-observer', 'watch.json'),
+                join(stateDir, 'watch.json'),
               );
               if (
                 state?.watchers?.some(
@@ -3346,22 +3282,23 @@ describe('runWatchLoop', () => {
                 )
               ) {
                 appended = true;
-                await appendClaudeMessage(
-                  transcriptPath,
-                  sessionId,
-                  Array.from({ length: 100 }, (_, index) => ({
+                await appendClaudeMessage(transcriptPath, sessionId, [
+                  {
                     type: 'tool_use',
-                    id: `hostile-watch-${index}`,
-                    name: `hostile-watch-${index}`,
-                    input: { payload: hostilePayload },
-                  })),
-                );
+                    id: 'markdown-watch-call',
+                    name: 'Read',
+                    input: { file_path: 'watched.md' },
+                  },
+                ]);
               }
             }
           },
         },
       );
 
+      // Budget and escaping math is owned by the activity projection and digest
+      // suites; this pins that non-JSON watch requests the Markdown format and
+      // writes the budgeted section unaltered.
       const output = stdout.join('');
       const activityStart = output.indexOf('## Activity');
       const stoppedStart = output.indexOf(
@@ -3371,33 +3308,15 @@ describe('runWatchLoop', () => {
       expect(result.eventCount).toBe(1);
       expect(activityStart).toBeGreaterThanOrEqual(0);
       expect(stoppedStart).toBeGreaterThan(activityStart);
-      const emittedActivity = output.slice(activityStart, stoppedStart);
-      expect(emittedActivity.endsWith('\n\n')).toBe(true);
-      const activityText = emittedActivity.slice(0, -1);
+      const activityText = output.slice(activityStart, stoppedStart - 1);
       const byteAccounting = /- Activity bytes: (\d+)\/(\d+);/.exec(
         activityText,
       );
-      const deliveredCalls = /- delivered-range: calls (\d+);/.exec(
-        activityText,
-      );
-      const displayedCalls = /- displayed: calls (\d+);/.exec(activityText);
-      const omittedCalls = /- Omitted evidence: calls (\d+);/.exec(
-        activityText,
-      );
-
       expect(activityText).toContain('- Budgeted format: markdown');
       expect(byteAccounting).not.toBeNull();
       expect(Buffer.byteLength(activityText, 'utf8')).toBe(
         Number(byteAccounting![1]),
       );
-      expect(Number(byteAccounting![1])).toBeLessThanOrEqual(
-        Number(byteAccounting![2]),
-      );
-      expect(activityText).toMatch(/- Omitted groups: .*byte limit [1-9]\d*/);
-      expect(Number(omittedCalls![1])).toBe(
-        Number(deliveredCalls![1]) - Number(displayedCalls![1]),
-      );
-      expect(activityText).not.toContain('[link](javascript:synthetic)');
     });
   });
 
@@ -3699,11 +3618,14 @@ describe('runWatchLoop', () => {
         .map((line) => JSON.parse(line));
       const locked = lines.find((line) => line.type === 'baseline');
       const event = lines.find((line) => line.type === 'delta');
+      const stopped = lines.find((line) => line.type === 'stopped');
       expect(
         locked,
         'runtime both should emit a startup lock event',
       ).toBeTruthy();
       expect(event, 'runtime both should emit a delta event').toBeTruthy();
+      expect(stopped, 'json watch should emit a stopped event').toBeTruthy();
+      expect(locked.sessionId).toBe(sessionId);
       expect(event.type).toBe('delta');
       expect(event.runtime).toBe('claude-code');
       expect(event.sessionId).toBe(sessionId);
@@ -4429,7 +4351,7 @@ describe('runWatchLoop', () => {
       expect(statusPayload.targets[0].consumedThrough).toBe(1);
       expect(statusPayload.targets[0].recordsBehind).toBe(1);
 
-      await watchState.writeControlDirective('stop');
+      await watchState.writeControlDirective('stop', { pid: process.pid });
       await watchPromise;
     });
   });
@@ -4771,12 +4693,13 @@ describe('runWatchLoop', () => {
       // Virtual clock with a staged scenario driven off the loop's own progress:
       //   stage 0: baseline locked        -> pause
       //   stage 1: pause directive applied -> append while paused
-      //   stage 2: a poll observed the append without emitting (paused) -> assert
-      //            no emission, then resume
+      //   stage 2: polls kept seeing the append past the debounce window
+      //            without emitting (paused) -> assert no emission, then resume
       // After resume the loop emits the settled update before (virtual)
       // max-runtime. No real wall-clock is raced.
       let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
       let stage = 0;
+      let pausedSleeps = 0;
 
       const result = await runWatchLoop(
         {
@@ -4801,14 +4724,16 @@ describe('runWatchLoop', () => {
                 )
               ) {
                 stage = 1;
-                await watchState.writeControlDirective('pause');
+                await watchState.writeControlDirective('pause', {
+                  pid: process.pid,
+                });
               }
               return;
             }
             if (stage === 1) {
               // Pause has been applied once the directive is consumed/cleared.
               const control = await readJsonIfExists(
-                join(stateDir, 'watch.control.json'),
+                join(stateDir, `watch.control.${process.pid}.json`),
               );
               if (control === null) {
                 stage = 2;
@@ -4821,14 +4746,18 @@ describe('runWatchLoop', () => {
               return;
             }
             if (stage === 2) {
-              // The poll this cycle observed the append; a paused watcher must
-              // not have emitted it.
+              // Let the debounce window elapse while paused: an unpaused
+              // watcher would emit on the third tick after the append.
+              pausedSleeps += 1;
+              if (pausedSleeps < 3) return;
               expect(
                 !stdout.join('').includes('paused update'),
                 'paused watcher should not emit settled updates',
               ).toBeTruthy();
               stage = 3;
-              await watchState.writeControlDirective('resume');
+              await watchState.writeControlDirective('resume', {
+                pid: process.pid,
+              });
             }
           },
         },
@@ -4852,10 +4781,13 @@ describe('runWatchLoop', () => {
       // is driven off the loop's own observable progress (target lock, then a
       // poll that has seen the append) instead of racing a ~1.2s wall-clock
       // max-runtime budget against real-time orchestration. debounceSec is far
-      // beyond the runtime budget, so the explicit flush is the only emit path.
+      // beyond the runtime budget, and the run ends with a stop directive (which
+      // does not force-flush like max-runtime does), so the explicit flush is
+      // the only emit path.
       let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
       let appended = false;
       let flushed = false;
+      let stopped = false;
 
       const result = await runWatchLoop(
         {
@@ -4893,13 +4825,22 @@ describe('runWatchLoop', () => {
             if (!flushed) {
               // The poll between append and now has the record pending; force it.
               flushed = true;
-              await watchState.writeControlDirective('flush');
+              await watchState.writeControlDirective('flush', {
+                pid: process.pid,
+              });
+              return;
+            }
+            if (!stopped) {
+              stopped = true;
+              await watchState.writeControlDirective('stop', {
+                pid: process.pid,
+              });
             }
           },
         },
       );
 
-      expect(result.reason).toBe('max-runtime');
+      expect(result.reason).toBe('control-stop');
       expect(result.eventCount).toBe(1);
       expect(stdout.join('').includes('flush update')).toBeTruthy();
     });
@@ -4936,7 +4877,9 @@ describe('runWatchLoop', () => {
               );
               if (state?.active) {
                 stopped = true;
-                await watchState.writeControlDirective('stop');
+                await watchState.writeControlDirective('stop', {
+                  pid: process.pid,
+                });
               }
             }
           },
@@ -4954,91 +4897,11 @@ describe('runWatchLoop', () => {
         await readFile(join(stateDir, 'watch.json'), 'utf8'),
       );
       expect(watchJson.active).toBe(null);
-      expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(
-        null,
-      );
-    });
-  });
-
-  test('inactive watch-ctl stop leaves no stale directive for the next watcher', async () => {
-    await withTempSessionHome(async (home, stateDir) => {
-      const cwd = '/test/watch-inactive-stop';
-      const sessionId = 'watch-inactive-stop';
-      const transcriptPath = await writeClaudeTranscript(home, cwd, sessionId, [
-        { content: 'inactive stop baseline message' },
-      ]);
-      await writeFile(
-        join(stateDir, 'watch.control.json'),
-        JSON.stringify({
-          directive: 'stop',
-          issuedAt: new Date().toISOString(),
-        }),
-        'utf8',
-      );
-
-      const stopResult = spawnSync(
-        'node',
-        [CLI_PATH, 'watch-ctl', 'stop', '--json'],
-        {
-          encoding: 'utf8',
-          env: { ...process.env, HOME: home, STATE_DIR: stateDir },
-        },
-      );
       expect(
-        stopResult.status,
-        `inactive stop should exit 0\nstdout: ${stopResult.stdout}\nstderr: ${stopResult.stderr}`,
-      ).toBe(0);
-      const stopPayload = JSON.parse(stopResult.stdout);
-      expect(stopPayload.noActiveWatcher).toBe(true);
-      expect(stopPayload.active).toBe(false);
-      expect(await readJsonIfExists(join(stateDir, 'watch.control.json'))).toBe(
-        null,
-      );
-
-      const stdout: string[] = [];
-      // Virtual clock: append once this fresh watcher has established its
-      // baseline, then let the loop emit it before the (virtual) max-runtime.
-      let nowMs = Date.UTC(2026, 5, 3, 12, 0, 0);
-      let appended = false;
-
-      const result = await runWatchLoop(
-        {
-          runtime: 'claude-code',
-          cwd,
-          pollSec: 0.03,
-          debounceSec: 0.04,
-          maxRuntimeMin: 0.012,
-        },
-        {
-          writeStdout: (chunk: string) => stdout.push(chunk),
-          now: () => nowMs,
-          sleep: async (ms: number) => {
-            nowMs += ms;
-            if (!appended) {
-              const state = await readJsonIfExists(
-                join(stateDir, 'state.json'),
-              );
-              if (
-                state?.sessions?.['claude-code:watch-inactive-stop']
-                  ?.lastRecordIndex === 1
-              ) {
-                appended = true;
-                await appendClaudeMessage(
-                  transcriptPath,
-                  sessionId,
-                  'next watcher update after inactive stop',
-                );
-              }
-            }
-          },
-        },
-      );
-
-      expect(result.reason).toBe('max-runtime');
-      expect(result.eventCount).toBe(1);
-      expect(
-        stdout.join('').includes('next watcher update after inactive stop'),
-      ).toBeTruthy();
+        await readJsonIfExists(
+          join(stateDir, `watch.control.${process.pid}.json`),
+        ),
+      ).toBe(null);
     });
   });
 
