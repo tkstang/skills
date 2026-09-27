@@ -3641,7 +3641,16 @@ function readAllStdin(stdin, maxBytes) {
     stdin.resume();
   });
 }
-if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath2(import.meta.url))) {
+function isEntrypointPath(argvPath) {
+  try {
+    return realpathSync(argvPath) === realpathSync(fileURLToPath2(import.meta.url));
+  } catch (error) {
+    const code = error.code;
+    if (code === "ENOENT" || code === "ENOTDIR") return false;
+    throw error;
+  }
+}
+if (process.argv[1] && isEntrypointPath(process.argv[1])) {
   runConsensusCli(process.argv.slice(2), nodeIo()).then((code) => {
     process.exitCode = code;
   });

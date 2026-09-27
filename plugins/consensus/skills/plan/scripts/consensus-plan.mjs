@@ -4232,7 +4232,16 @@ async function runPlanCli(argv = process.argv.slice(2), options = {}) {
     return exitCode;
   }
 }
-if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath3(import.meta.url))) {
+function isEntrypointPath(argvPath) {
+  try {
+    return realpathSync(argvPath) === realpathSync(fileURLToPath3(import.meta.url));
+  } catch (error) {
+    const code = error.code;
+    if (code === "ENOENT" || code === "ENOTDIR") return false;
+    throw error;
+  }
+}
+if (process.argv[1] && isEntrypointPath(process.argv[1])) {
   runPlanCli(process.argv.slice(2)).then((exitCode) => {
     process.exitCode = exitCode;
   });

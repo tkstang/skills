@@ -4499,7 +4499,16 @@ async function runAgentMessagingCli(argv, io = defaultIo()) {
     return exitFor(error);
   }
 }
-if (process.argv[1] && realpathSync(path13.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
+function isEntrypointPath(argvPath) {
+  try {
+    return realpathSync(path13.resolve(argvPath)) === realpathSync(fileURLToPath(import.meta.url));
+  } catch (error) {
+    const code = error.code;
+    if (code === "ENOENT" || code === "ENOTDIR") return false;
+    throw error;
+  }
+}
+if (process.argv[1] && isEntrypointPath(process.argv[1])) {
   runAgentMessagingCli(process.argv.slice(2)).then((code) => {
     process.exitCode = code;
   });
