@@ -4,6 +4,20 @@
 
 ### Changed
 
+- `session-observer` 1.0.83 prunes its test surface and the shared transcript
+  runtime tests. The suites keep every contract, repair assertions that could
+  not fail, and remove only test-only production hooks: the `realpathSafe`
+  and `tierOf` exports and the `tieWindowSec` and `globalRecentProvider` rank
+  options, the `renderJson` digest export, the `clearStaleControlDirectives`
+  export, and the pid-less watch control-directive write. Watchers still read
+  and consume a pid-less legacy `watch.control.json`. The observer's behavior
+  is unchanged. The shared `src/shared/transcript` changes are test-only apart
+  from dropping the `codexRetryEvidenceFragment` export, so these are version
+  bumps for shared-source changes only: `session-observer-collab` 1.0.71,
+  `session-export-transcript` 2.0.37, and
+  `session-fork-to-destination` 0.2.51. Their own content is unchanged. The `consensus` plugin is now 0.2.3
+  and the `session` plugin 0.3.3, carrying these member versions.
+
 - `session-export-transcript` 2.0.35 clarifies that complete structured capture
   validates its exact-session contract before ordinary selector precedence, so
   every `--activity-output` and `--match` combination is rejected even when
