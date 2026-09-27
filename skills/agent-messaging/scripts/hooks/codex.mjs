@@ -2324,7 +2324,16 @@ async function runCodexHookMain() {
     );
   }
 }
-if (process.argv[1] && realpathSync(path11.resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) {
+function isEntrypointPath(argvPath) {
+  try {
+    return realpathSync(path11.resolve(argvPath)) === realpathSync(fileURLToPath(import.meta.url));
+  } catch (error) {
+    const code = error.code;
+    if (code === "ENOENT" || code === "ENOTDIR") return false;
+    throw error;
+  }
+}
+if (process.argv[1] && isEntrypointPath(process.argv[1])) {
   runCodexHookMain().catch(() => void 0);
 }
 export {

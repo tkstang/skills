@@ -1568,7 +1568,16 @@ function panelExitCodeForError(error) {
   if (code === "EACCES" || code === "EPERM") return PANEL_EXIT_CODES.NOPERM;
   return PANEL_EXIT_CODES.CONFIG;
 }
-if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
+function isEntrypointPath(argvPath) {
+  try {
+    return realpathSync(argvPath) === realpathSync(fileURLToPath(import.meta.url));
+  } catch (error) {
+    const code = error.code;
+    if (code === "ENOENT" || code === "ENOTDIR") return false;
+    throw error;
+  }
+}
+if (process.argv[1] && isEntrypointPath(process.argv[1])) {
   runPanelCli(process.argv.slice(2)).then((exitCode) => {
     process.exitCode = exitCode;
   });

@@ -4907,7 +4907,16 @@ function isMissing3(error) {
 function errorMessage2(error) {
   return error instanceof Error ? error.message : String(error);
 }
-if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath2(import.meta.url))) {
+function isEntrypointPath(argvPath) {
+  try {
+    return realpathSync(argvPath) === realpathSync(fileURLToPath2(import.meta.url));
+  } catch (error) {
+    const code = error.code;
+    if (code === "ENOENT" || code === "ENOTDIR") return false;
+    throw error;
+  }
+}
+if (process.argv[1] && isEntrypointPath(process.argv[1])) {
   process.exitCode = await reviewMain();
 }
 export {
