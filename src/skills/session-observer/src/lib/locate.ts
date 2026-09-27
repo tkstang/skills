@@ -31,7 +31,7 @@
 
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import type { Stats } from 'node:fs';
+import type { Dirent, Stats } from 'node:fs';
 import {
   opendir,
   stat,
@@ -1518,9 +1518,23 @@ async function findCursorSessionCandidates(
   }
 
   try {
+    // Scan in evidence order, not directory order: when canonical-cwd and
+    // raw-cwd project directories reach the same transcript, the first copy
+    // wins deduplication, and only the canonical copy can resolve exactly.
+    const evidenceRank = new Map(
+      directVariants.map(({ encoded }, index) => [encoded, index]),
+    );
+    const orderedProjectDirs: Dirent[] = [];
     for await (const projectDir of projectDirs) {
       pinnedBudget.consumeEntry();
-      if (!projectDir.isDirectory()) continue;
+      if (projectDir.isDirectory()) orderedProjectDirs.push(projectDir);
+    }
+    orderedProjectDirs.sort(
+      (left, right) =>
+        (evidenceRank.get(left.name) ?? evidenceRank.size) -
+        (evidenceRank.get(right.name) ?? evidenceRank.size),
+    );
+    for (const projectDir of orderedProjectDirs) {
       const cwdEvidence = directEvidence.get(projectDir.name);
       const transcriptsRoot = join(
         projectsRoot,

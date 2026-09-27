@@ -2703,6 +2703,51 @@ test.each<CursorAliasPlacement>(['leaf', 'ancestor'])(
   },
 );
 
+test.each(['forward', 'reversed'])(
+  'cursor exact pin through a raw cwd alias keeps the canonical project copy (%s directory order)',
+  async (order) => {
+    await withTempHome(async (home) => {
+      const { aliasCwd, canonicalCwd } = await createCursorAliasPaths(
+        home,
+        'leaf',
+      );
+      const sessionId = `session-shared-transcripts-${order}`;
+      const transcriptPath = await writeCursorTranscriptForCwd(
+        home,
+        canonicalCwd,
+        sessionId,
+      );
+      // The raw-cwd project directory reaches the same transcripts through a
+      // directory alias, so both project directories yield one real file.
+      const projectsRoot = join(home, '.cursor', 'projects');
+      const rawProject = join(projectsRoot, encodeCursorCwd(aliasCwd));
+      await mkdir(rawProject, { recursive: true });
+      await symlink(
+        join(projectsRoot, encodeCursorCwd(canonicalCwd), 'agent-transcripts'),
+        join(rawProject, 'agent-transcripts'),
+        'dir',
+      );
+      if (order === 'reversed') {
+        opendirFailureHarness.reverseEntriesAt(projectsRoot);
+      }
+
+      const candidate = await findSessionCandidate(
+        'cursor',
+        aliasCwd,
+        sessionId,
+      );
+      expect(candidate?.cwdEvidence).toBe('direct-parent-dir');
+      expect(
+        await resolveCursorIdentity(candidate!, aliasCwd, sessionId),
+      ).toMatchObject({
+        canonicalCwd,
+        canonicalTranscriptPath: await realpath(transcriptPath),
+        strength: 'exact',
+      });
+    });
+  },
+);
+
 test.each<CursorAliasPlacement>(['leaf', 'ancestor'])(
   'cursor identity: %s raw cwd alias-only store remains diagnostic with an explicit pin',
   async (placement) => {

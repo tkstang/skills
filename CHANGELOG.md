@@ -49,6 +49,11 @@
     the reported path, and the path saved state binds to, could differ
     between machines. The symlink-alias test failed on Linux CI from
     2026-09-22 for this reason.
+  - An exact Cursor pin made through a raw cwd alias no longer depends on
+    directory order either. When the canonical-cwd and raw-cwd project
+    directories reach the same transcript, the canonical copy is now kept.
+    Previously the raw-alias copy could win, and it can only resolve as
+    diagnostic, so an otherwise exact pin was rejected.
 - Shared-source version bumps only, with unchanged content:
   - `session-observer-collab` 1.0.72
   - `session-fork-to-destination` 0.2.52

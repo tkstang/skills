@@ -6314,9 +6314,18 @@ async function findCursorSessionCandidates(targetCwd, sessionId, cache) {
     return candidates;
   }
   try {
+    const evidenceRank = new Map(
+      directVariants.map(({ encoded }, index) => [encoded, index])
+    );
+    const orderedProjectDirs = [];
     for await (const projectDir of projectDirs) {
       pinnedBudget.consumeEntry();
-      if (!projectDir.isDirectory()) continue;
+      if (projectDir.isDirectory()) orderedProjectDirs.push(projectDir);
+    }
+    orderedProjectDirs.sort(
+      (left, right) => (evidenceRank.get(left.name) ?? evidenceRank.size) - (evidenceRank.get(right.name) ?? evidenceRank.size)
+    );
+    for (const projectDir of orderedProjectDirs) {
       const cwdEvidence = directEvidence.get(projectDir.name);
       const transcriptsRoot = join2(
         projectsRoot,
