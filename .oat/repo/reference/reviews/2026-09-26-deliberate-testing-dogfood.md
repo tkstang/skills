@@ -50,6 +50,7 @@ The skill's weak spots are all about coordination, and none of them came up in a
 
 ## Too light (missing guidance that mattered)
 
+- **A baseline taken on one machine is not the baseline.** Step 1 says to record every in-scope file's result at a pinned commit, but not where. I ran it locally on macOS and got 784/784. Linux CI had failed one in-scope test on every `main` push for four days, because its result depends on directory order. PR #106's CI surfaced it after the campaign had reported "no baseline failures". The failing test was kept, since the campaign had not changed it. The failure was a real product defect, fixed in PR #107. Suggested addition to step 1: record the latest CI result for the pinned commit alongside the local run, and treat a platform difference as a baseline failure to classify.
 - **Cross-lane keeper conflicts.** Step 4 checks for redundant layers within a lane, but says nothing about keepers in other lanes. Two failures occurred:
   - **A keeper deleted elsewhere.** L2 planned deletions whose keeper L3 planned to delete.
   - **A mutual-keeper cycle.** L3 deleted O8 citing an integration test, while L5 deleted that integration test citing O8.
@@ -76,7 +77,7 @@ The skill's weak spots are all about coordination, and none of them came up in a
 ## Steps skipped or adapted, and why
 
 - **New worktree:** not created. The session already ran in a harness-created worktree on a new branch at current `main`, which met the requirement.
-- **Step 1, baseline failure classification:** not applicable. There were no baseline failures.
+- **Step 1, baseline failure classification:** skipped because the local baseline was green. That was a mistake: CI showed an in-scope baseline failure that only happens on Linux. See the first item under "Too light".
 - **Step 5, "register moved suites in CI routing and test inventories":** not applicable. The moved test landed in an existing suite covered by the Vitest include globs. I ran `docs-presence`, which pins test and fixture file names.
 - **Step 7, repair with control and candidate:** skipped. The request did not authorize product fixes, so the defects are reported with reproductions only.
 - **Step 8, base integration:** skipped. `main` gained no commits during the campaign.

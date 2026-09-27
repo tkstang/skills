@@ -42,7 +42,9 @@
 
 ## Baseline
 
-At `666daccc` all 23 in-scope files passed: 784 tests in about 36 seconds. There were no baseline failures to classify.
+At `666daccc` all 23 in-scope files passed locally on macOS: 784 tests in about 36 seconds.
+
+**Correction (2026-09-27), from PR #106's CI:** the baseline was not clean on Linux. `locate.test.ts` "claude exact pins reject distinct canonical sources and deduplicate symlink aliases" has failed on every `main` push since 2026-09-22 (`854313ca` onward, including `666daccc`). The campaign did not change that test. Its result depends on directory order: macOS lists the real transcript before its symlink alias, and Linux CI lists the alias first. The baseline should have included a CI run. The test was kept as-is, as a failing keeper; see product defect 3.
 
 ## Lanes
 
@@ -197,7 +199,9 @@ Settling injections at cutover also changed dispositions:
 - **Max-pending (L4).** The planned repair assertion failed on unmodified code, so the repair was redesigned.
 - **Vacuous tests confirmed and repaired:** the watch max-pending, flush and pause tests; the digest 20K-warning test, whose assertion never ran; and the `recordIndex` monotone checks.
 
-## Product defects (reported, not fixed; no fix was authorized)
+## Product defects
+
+The campaign reported these without fixing them, since no fix was authorized at the time. All three are now fixed in follow-up PR #107, which is stacked on #106.
 
 1. **Subcommand `--help` runs the command instead of printing help.**
    - Repro, generated CLI with a temp `HOME` and `STATE_DIR` in an empty directory:
@@ -218,6 +222,11 @@ Settling injections at cutover also changed dispositions:
    - Repro: pin `Date.now`, then load two different corrupt states in one process. One backup survives, containing only the second content. With the real clock, both survive.
    - Each corrupt `load()` also writes two backups of the same content.
    - Impact: low in practice. The doc comment's claim that names are unique is false within one millisecond. A `sleep(5)` in `state.test.ts` hides it.
+
+3. **Claude exact-pin alias path depends on directory order** (the baseline CI failure).
+   - When an exact Claude Code pin finds a transcript through both its real path and a symlink alias, `findSessionCandidate` collapses them into one match. It kept whichever copy discovery listed first; Codex matches are rewritten to the real path.
+   - Effect: the reported path, and the path saved state binds to, could differ between machines.
+   - Reproduction: CI logs from four `main` runs show it. Locally, it is now reproducible by reversing directory entry order in the test's `opendir` harness.
 
 ## Follow-ups (not in this campaign)
 
