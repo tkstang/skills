@@ -111,11 +111,7 @@ function closeEngagedTie(winner, candidate, tieWindowSec) {
   return Math.abs((winner.mtime ?? 0) - (candidate.mtime ?? 0)) <= tieWindowSec;
 }
 function rank(candidates, targetCwd, opts = {}) {
-  const {
-    tieWindowSec = TIE_WINDOW_SEC,
-    gitWorktrees = [],
-    globalRecentProvider
-  } = opts;
+  const { gitWorktrees = [] } = opts;
   const byTier = {
     A: [],
     B: [],
@@ -142,8 +138,7 @@ function rank(candidates, targetCwd, opts = {}) {
     winningPool = byTier.C;
   }
   if (!winningTier) {
-    const allByMtime = [...candidates].toSorted((a, b) => b.mtime - a.mtime);
-    const globalRecent = globalRecentProvider ? globalRecentProvider() : allByMtime.slice(0, 5);
+    const globalRecent = [...candidates].toSorted((a, b) => b.mtime - a.mtime).slice(0, 5);
     return {
       winner: null,
       noMatch: true,
@@ -169,7 +164,7 @@ function rank(candidates, targetCwd, opts = {}) {
     ...winner,
     active: winner.ageSec < ACTIVE_THRESHOLD_SEC
   };
-  const ties = sorted.slice(1).filter((c) => closeEngagedTie(winner, c, tieWindowSec));
+  const ties = sorted.slice(1).filter((c) => closeEngagedTie(winner, c, TIE_WINDOW_SEC));
   const fallbacks = [
     ...sorted.slice(1),
     ...unengagedPool.toSorted(compareCandidatePreference)
@@ -182,7 +177,5 @@ function rank(candidates, targetCwd, opts = {}) {
   };
 }
 export {
-  rank,
-  realpathSafe,
-  tierOf
+  rank
 };

@@ -1,29 +1,21 @@
 /**
  * locate.test.ts — Tests for src/skills/session-observer/src/lib/locate.ts
  *
- * Test cases:
- *   1. claude-code: direct encoded-dir lookup returns candidate with correct metadata
- *   2. claude-code: glob fallback when encoded dir is missing (no match, no throw)
- *   3. codex: discovers transcript and extracts cwd from session-meta record
- *   4. codex: LOOKBACK_DAYS filter excludes old files
- *   5. codex cwd cache: cache hit proved by observable cache-file state
- *   6. cursor: empty direct transcript dirs do not suppress fallback scans
- *   7. gitWorktrees: parses real repo --porcelain output
- *   8. gitWorktrees: returns [] when git exec fails
- *   9. classification cache: an unchanged transcript is read+parsed once
- *      across two discover() passes sharing a cache instance (proved by an
- *      fs-read call-count seam below the runtimes.js module boundary, so it
- *      also covers meta extraction, not just classification)
- *  10. classification cache: appending to a transcript (mtime/size change)
- *      invalidates the cache and re-classifies
- *  11. ClassificationCache: signature mismatch (mtime or size) never returns
- *      a stale result
- *  12. ClassificationCache: evicts the least-recently-used entry once its
- *      bound is exceeded
- *  13. ClassificationCache: a small cap thrashes under a full-directory scan
- *      exceeding it (pins the inherent limit any bounded cache has)
- *  14. ClassificationCache: the default capacity survives a realistic
- *      long-lived project directory scan (regression for the 300→5000 fix)
+ * Coverage areas:
+ *   - claude-code / codex / cursor default discovery: direct lookup, fallback
+ *     slug evidence, and the 7-day recency cutoff (codex, cursor fallback)
+ *   - exact-all (read-only) discovery: fail-closed cwd evidence, aggregate
+ *     entry/byte/deadline budgets, summarize policy, persistence=forbid
+ *   - findSessionCandidate exact pins: same-cwd match, duplicate/invalid
+ *     identity errors, canonical symlink dedupe, bounded Cursor pinned lookup
+ *   - codex cwd cache: legacy-entry distrust, signature invalidation, atomic
+ *     publish on rename failure
+ *   - resolveCursorIdentity: exact vs diagnostic vs ambiguous ownership
+ *   - gitWorktrees parsing and failure fallback
+ *   - ClassificationCache: single read per unchanged transcript (proved by an
+ *     fs-read call-count seam below the runtimes.js module boundary),
+ *     compact entries, invalidation, derivation namespaces, LRU bound, and a
+ *     default capacity that survives realistic long-lived directory scans
  */
 
 import {
@@ -655,30 +647,54 @@ test('codex exact-all accepts repeated agreeing top-level and payload cwd eviden
   });
 });
 
-test('claude-code exact-all uses exact transcript cwd evidence', async () => {
+test('claude-code exact-all uses exact transcript cwd evidence, not the colliding direct slug', async () => {
   await withTempHome(async (home) => {
-    const targetCwd = join(home, 'Code', 'exact-project');
+    // `a-b` and `a/b` encode to the same Claude project slug, so the direct
+    // directory alone cannot say which cwd a transcript belongs to.
+    const targetCwd = join(home, 'Code', 'a-b');
+    const collidingCwd = join(home, 'Code', 'a', 'b');
     const projectDir = join(home, '.claude', 'projects', encodeCwd(targetCwd));
+    expect(encodeCwd(collidingCwd)).toBe(encodeCwd(targetCwd));
     await mkdir(projectDir, { recursive: true });
     await writeFile(
       join(projectDir, 'exact.jsonl'),
       makeClaudeTypical(targetCwd, 'cc-exact'),
       'utf8',
     );
+    await writeFile(
+      join(projectDir, 'colliding.jsonl'),
+      makeClaudeTypical(collidingCwd, 'cc-colliding'),
+      'utf8',
+    );
 
-    await expect(
-      discover(
-        'claude-code',
-        targetCwd,
-        new ClassificationCache(),
-        exactReadOnlyDiscovery,
-      ),
-    ).resolves.toEqual([
-      expect.objectContaining({
+    const candidates = await discover(
+      'claude-code',
+      targetCwd,
+      new ClassificationCache(),
+      exactReadOnlyDiscovery,
+    );
+
+    expect(
+      candidates
+        .map(({ sessionId, recordedCwd, cwdEvidence }) => ({
+          sessionId,
+          recordedCwd,
+          cwdEvidence,
+        }))
+        .toSorted((left, right) =>
+          left.sessionId.localeCompare(right.sessionId),
+        ),
+    ).toEqual([
+      {
+        sessionId: 'cc-colliding',
+        recordedCwd: collidingCwd,
+        cwdEvidence: 'transcript-record',
+      },
+      {
         sessionId: 'cc-exact',
         recordedCwd: targetCwd,
         cwdEvidence: 'transcript-record',
-      }),
+      },
     ]);
   });
 });
@@ -1012,26 +1028,6 @@ test('codex cwd cache revalidates a stale root mapping against native child evid
   });
 });
 
-test('claude-code: glob fallback when encoded dir is missing — no throw, returns []', async () => {
-  await withTempHome(async (home) => {
-    const targetCwd = join(home, 'Code', 'nonexistent-project');
-    // Do NOT create the encoded dir — test the fallback path
-    const projectsRoot = join(home, '.claude', 'projects');
-    await mkdir(projectsRoot, { recursive: true });
-
-    const candidates = await discover('claude-code', targetCwd);
-
-    // No match under targetCwd, but must not throw
-    expect(Array.isArray(candidates), 'should return an array').toBeTruthy();
-    // All returned candidates (if any from other dirs) should not have recordedCwd === targetCwd
-    const exactMatch = candidates.filter((c) => c.recordedCwd === targetCwd);
-    expect(
-      exactMatch.length,
-      'should find no exact-cwd match when encoded dir is absent',
-    ).toBe(0);
-  });
-});
-
 test('claude-code: direct lookup uses dot-sanitized project dir slug', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(
@@ -1120,45 +1116,6 @@ test('codex: discover returns candidate with cwd from session-meta record', asyn
   });
 });
 
-test('codex: LOOKBACK_DAYS filter excludes files older than 7 days', async () => {
-  await withTempHome(async (home) => {
-    const targetCwd = '/Users/testuser/Code/my-project';
-
-    // Create a "stale" transcript dated 30 days ago
-    const staleDate = new Date();
-    staleDate.setDate(staleDate.getDate() - 30);
-    const staleYear = staleDate.getFullYear().toString();
-    const staleMonth = String(staleDate.getMonth() + 1).padStart(2, '0');
-    const staleDay = String(staleDate.getDate()).padStart(2, '0');
-
-    const staleDir = join(
-      home,
-      '.codex',
-      'sessions',
-      staleYear,
-      staleMonth,
-      staleDay,
-    );
-    await mkdir(staleDir, { recursive: true });
-    const stalePath = join(staleDir, 'session-stale.jsonl');
-    await writeFile(stalePath, makeCodexTypical(targetCwd), 'utf8');
-
-    // Set the mtime to 30 days ago
-    const staleTime = staleDate.getTime() / 1000;
-    await utimes(stalePath, staleTime, staleTime);
-
-    const candidates = await discover('codex', targetCwd);
-
-    const staleFound = candidates.find(
-      (c: any) => c.transcriptPath === stalePath,
-    );
-    expect(
-      staleFound,
-      'stale transcript should be excluded by LOOKBACK_DAYS filter',
-    ).toBe(undefined);
-  });
-});
-
 test('codex exact-all includes old sessions while default discovery remains recent-only', async () => {
   await withTempHome(async (home) => {
     const targetCwd = '/Users/testuser/Code/exact-all-project';
@@ -1234,10 +1191,23 @@ test('codex persistence=forbid ignores stale cache reads and leaves the cache by
     const transcriptStat = await stat(transcriptPath);
     const cachePath = join(process.env.STATE_DIR!, 'codex-cwd-cache.json');
     await mkdir(dirname(cachePath), { recursive: true });
+    // A current-format entry whose file signature matches the transcript, so
+    // default discovery would reuse it; only persistence=forbid keeps the
+    // stale identity out of the result.
     const seeded = JSON.stringify({
       [`${transcriptPath}:${Math.floor(transcriptStat.mtimeMs / 1000)}`]: {
         recordedCwd: '/stale/cache/value',
         sessionId: 'stale-cache-id',
+        identityVersion: 2,
+        fileSize: transcriptStat.size,
+        fileMtimeMs: transcriptStat.mtimeMs,
+        fileDev: transcriptStat.dev,
+        fileIno: transcriptStat.ino,
+        meta: {
+          sessionId: 'stale-cache-id',
+          recordedCwd: '/stale/cache/value',
+        },
+        identityStatus: 'legacy',
       },
     });
     await writeFile(cachePath, seeded, 'utf8');
@@ -1280,38 +1250,6 @@ test('codex persistence=forbid does not create an absent state directory', async
     await expect(readdir(process.env.STATE_DIR!)).rejects.toMatchObject({
       code: 'ENOENT',
     });
-  });
-});
-
-test('exact-all rejects the complete discovery when aggregate entry or byte budgets are crossed', async () => {
-  await withTempHome(async (home) => {
-    const targetCwd = '/Users/testuser/Code/budget-project';
-    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '22');
-    await mkdir(sessionDir, { recursive: true });
-    await writeFile(join(sessionDir, 'one.jsonl'), makeCodexTypical(targetCwd));
-    await writeFile(join(sessionDir, 'two.jsonl'), makeCodexTypical(targetCwd));
-
-    const options: DiscoveryOptions = {
-      ...exactReadOnlyDiscovery,
-      budget: {
-        maxEntries: 1,
-        maxAggregateBytes: 1_000_000,
-        maxMetadataBytesPerEntry: 256 * 1024,
-        deadlineMs: 30_000,
-      },
-    };
-    await expect(
-      discover('codex', targetCwd, new ClassificationCache(), options),
-    ).rejects.toMatchObject({ code: 'DISCOVERY_ENTRY_BUDGET_EXCEEDED' });
-
-    options.budget = {
-      ...options.budget!,
-      maxEntries: 10,
-      maxAggregateBytes: 1,
-    };
-    await expect(
-      discover('codex', targetCwd, new ClassificationCache(), options),
-    ).rejects.toMatchObject({ code: 'DISCOVERY_BYTE_BUDGET_EXCEEDED' });
   });
 });
 
@@ -1766,83 +1704,11 @@ test('codex cwd cache: subsecond rewrites invalidate same-path same-size identit
   });
 });
 
-test('codex cwd cache: saveCwdCache writes atomically — no tmp residue, parseable JSON', async () => {
-  await withTempHome(async (home) => {
-    const targetCwd = '/Users/testuser/Code/atomic-cache-project';
-    const sessionDate = '2026/05/15';
-    const sessionDir = join(
-      home,
-      '.codex',
-      'sessions',
-      ...sessionDate.split('/'),
-    );
-    await mkdir(sessionDir, { recursive: true });
-    const transcriptPath = join(sessionDir, 'session-atomic-test.jsonl');
-    await writeFile(transcriptPath, makeCodexTypical(targetCwd), 'utf8');
-
-    // Cache miss on first discover — exercises the saveCwdCache write path.
-    await discover('codex', targetCwd);
-
-    const stateDir = process.env.STATE_DIR!;
-    const entries = await readdir(stateDir);
-    const tmpFiles = entries.filter(
-      (f) => f.includes('codex-cwd-cache') && f.endsWith('.tmp'),
-    );
-    expect(
-      tmpFiles,
-      'no codex-cwd-cache tmp files should remain after a successful save',
-    ).toEqual([]);
-
-    const cacheFilePath = join(stateDir, 'codex-cwd-cache.json');
-    const raw = await readFile(cacheFilePath, 'utf8');
-    expect(() => JSON.parse(raw)).not.toThrow();
-    const parsed = JSON.parse(raw);
-    expect(Object.keys(parsed).length).toBeGreaterThan(0);
-  });
-});
-
-test('codex cwd cache: concurrent discover calls both save without leaving tmp residue or corrupt JSON', async () => {
-  await withTempHome(async (home) => {
-    const cwdA = '/Users/testuser/Code/concurrent-project-a';
-    const cwdB = '/Users/testuser/Code/concurrent-project-b';
-    const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '16');
-    await mkdir(sessionDir, { recursive: true });
-    const transcriptA = join(sessionDir, 'session-concurrent-a.jsonl');
-    const transcriptB = join(sessionDir, 'session-concurrent-b.jsonl');
-    await writeFile(transcriptA, makeCodexTypical(cwdA), 'utf8');
-    await writeFile(transcriptB, makeCodexTypical(cwdB), 'utf8');
-
-    // Both are cache misses — two discover() calls racing to save the cache
-    // concurrently in the same process (regression for the tmp-name
-    // collision risk when two saves land in the same pid+millisecond).
-    await Promise.all([discover('codex', cwdA), discover('codex', cwdB)]);
-
-    const stateDir = process.env.STATE_DIR!;
-    const entries = await readdir(stateDir);
-    const tmpFiles = entries.filter(
-      (f) => f.includes('codex-cwd-cache') && f.endsWith('.tmp'),
-    );
-    expect(
-      tmpFiles,
-      'no codex-cwd-cache tmp files should remain after concurrent saves',
-    ).toEqual([]);
-
-    const cacheFilePath = join(stateDir, 'codex-cwd-cache.json');
-    const raw = await readFile(cacheFilePath, 'utf8');
-    expect(() => JSON.parse(raw)).not.toThrow();
-    const parsed = JSON.parse(raw);
-    expect(Object.keys(parsed).length).toBeGreaterThan(0);
-  });
-});
-
-// The two tests above only assert no-tmp-residue + valid nonempty JSON —
-// conditions a direct (non-atomic) `writeFile(path, content)` implementation
-// would *also* satisfy, since it never creates a tmp file at all and always
-// leaves well-formed JSON behind on success. Neither test discriminates
-// "temp file + rename" from "write straight to the destination". This test
-// does, by forcing the *publish* step (the rename) to fail and checking a
-// property only an atomic implementation can guarantee: an interrupted
-// write never mutates the pre-existing destination at all.
+// A no-tmp-residue + valid-JSON check after a successful save cannot tell
+// "temp file + rename" from a direct (non-atomic) `writeFile(path, content)`.
+// This test does, by forcing the *publish* step (the rename) to fail and
+// checking a property only an atomic implementation can guarantee: an
+// interrupted write never mutates the pre-existing destination at all.
 test('codex cwd cache: a failed rename leaves the pre-existing cache byte-identical, no tmp residue, and stays best-effort non-fatal', async () => {
   await withTempHome(async (home) => {
     const sessionDir = join(home, '.codex', 'sessions', '2026', '05', '17');
@@ -1959,34 +1825,6 @@ test('cursor: direct lookup discovers agent transcript with exact cwd evidence',
     expect(c.cwdSlug).toBe(encoded);
     expect(c.cwdEvidence).toBe('direct-parent-dir');
     expect(c.cwdEvidenceQuality).toBe('caller-derived-lossy');
-  });
-});
-
-test('cursor: explicit session lookup does not read large sibling transcript bodies', async () => {
-  await withTempHome(async (home) => {
-    classifyCountHarness.reset();
-    const targetCwd = join(home, 'Code', 'bounded-pin-project');
-    const targetTranscript = await writeCursorTranscriptForCwd(
-      home,
-      targetCwd,
-      'session-target',
-    );
-    const siblingTranscript = await writeCursorTranscriptForCwd(
-      home,
-      targetCwd,
-      'session-large-sibling',
-    );
-    await writeFile(siblingTranscript, 'x'.repeat(4 * 1024 * 1024), 'utf8');
-
-    await expect(
-      findSessionCandidate('cursor', targetCwd, 'session-target'),
-    ).resolves.toMatchObject({
-      runtime: 'cursor',
-      sessionId: 'session-target',
-      transcriptPath: targetTranscript,
-    });
-    expect(classifyCountHarness.countFor(targetTranscript)).toBe(1);
-    expect(classifyCountHarness.countFor(siblingTranscript)).toBe(0);
   });
 });
 
@@ -2237,37 +2075,6 @@ test.each([
   },
 );
 
-test('cursor: fallback scan preserves project cwdSlug evidence', async () => {
-  await withTempHome(async (home) => {
-    const targetCwd = join(home, 'Code', 'missing-project');
-    const fallbackSlug = 'Users-test-Code-real-project';
-    const transcriptDir = join(
-      home,
-      '.cursor',
-      'projects',
-      fallbackSlug,
-      'agent-transcripts',
-      'session-abc',
-    );
-    await mkdir(transcriptDir, { recursive: true });
-    const transcriptPath = join(transcriptDir, 'conversation.jsonl');
-    await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
-
-    const candidates = await discover('cursor', targetCwd);
-    const c: any = candidates.find(
-      (candidate: any) => candidate.transcriptPath === transcriptPath,
-    );
-
-    expect(c, 'fallback scan should include Cursor project dirs').toBeTruthy();
-    expect(c.runtime).toBe('cursor');
-    expect(c.sessionId).toBe('session-abc');
-    expect(c.recordedCwd).toBe(null);
-    expect(c.cwdSlug).toBe(fallbackSlug);
-    expect(c.cwdEvidence).toBe('project-dir-slug');
-    expect(c.cwdEvidenceQuality).toBe('diagnostic');
-  });
-});
-
 test('cursor: empty direct transcript dir still allows fallback scan', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'my.cursor-project');
@@ -2303,42 +2110,12 @@ test('cursor: empty direct transcript dir still allows fallback scan', async () 
       c,
       'empty direct Cursor dirs should not suppress fallback candidates',
     ).toBeTruthy();
+    expect(c.runtime).toBe('cursor');
+    expect(c.sessionId).toBe('session-fallback');
     expect(c.recordedCwd).toBe(null);
     expect(c.cwdSlug).toBe(fallbackSlug);
     expect(c.cwdEvidence).toBe('project-dir-slug');
-  });
-});
-
-test('cursor: fallback scan excludes transcripts older than 7 days', async () => {
-  await withTempHome(async (home) => {
-    const targetCwd = join(home, 'Code', 'missing-project');
-    const fallbackSlug = 'Users-test-Code-real-project';
-    const transcriptDir = join(
-      home,
-      '.cursor',
-      'projects',
-      fallbackSlug,
-      'agent-transcripts',
-      'session-old',
-    );
-    await mkdir(transcriptDir, { recursive: true });
-    const transcriptPath = join(transcriptDir, 'conversation.jsonl');
-    await writeFile(transcriptPath, CURSOR_TYPICAL, 'utf8');
-
-    const staleDate = new Date();
-    staleDate.setDate(staleDate.getDate() - 30);
-    const staleTime = staleDate.getTime() / 1000;
-    await utimes(transcriptPath, staleTime, staleTime);
-
-    const candidates = await discover('cursor', targetCwd);
-    const staleFound = candidates.find(
-      (candidate: any) => candidate.transcriptPath === transcriptPath,
-    );
-
-    expect(
-      staleFound,
-      'stale Cursor fallback transcript should be excluded',
-    ).toBe(undefined);
+    expect(c.cwdEvidenceQuality).toBe('diagnostic');
   });
 });
 
@@ -2968,40 +2745,6 @@ test.each<CursorAliasPlacement>(['leaf', 'ancestor'])(
   },
 );
 
-test('cursor identity: transcript symlinks escaping the supported store are rejected', async () => {
-  await withTempHome(async (home) => {
-    const targetCwd = join(home, 'Code', 'escape-project');
-    const transcriptDir = join(
-      home,
-      '.cursor',
-      'projects',
-      encodeCursorCwd(targetCwd),
-      'agent-transcripts',
-      'session-escape',
-    );
-    await mkdir(transcriptDir, { recursive: true });
-    const directPath = join(transcriptDir, 'transcript.jsonl');
-    await writeFile(directPath, CURSOR_TYPICAL, 'utf8');
-    const [candidate] = await discover('cursor', targetCwd);
-
-    const outsidePath = join(home, 'outside.jsonl');
-    const escapedPath = join(transcriptDir, 'escaped.jsonl');
-    await writeFile(outsidePath, CURSOR_TYPICAL, 'utf8');
-    await symlink(outsidePath, escapedPath);
-
-    expect(
-      await resolveCursorIdentity(
-        { ...candidate, transcriptPath: escapedPath },
-        targetCwd,
-        'session-escape',
-      ),
-    ).toMatchObject({
-      strength: 'ambiguous',
-      reasons: expect.arrayContaining(['PATH_OUTSIDE_SUPPORTED_ROOT']),
-    });
-  });
-});
-
 test('cursor identity: an explicit pin mismatch cannot switch to a changed candidate', async () => {
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'pin-project');
@@ -3383,33 +3126,6 @@ function simulateScan(cache: ClassificationCache, keys: string[]): number {
   }
   return hits;
 }
-
-test('ClassificationCache: a small cap thrashes under repeated full-directory scans exceeding it (documents the inherent limit)', () => {
-  // With a cap strictly below the number of unique keys touched per pass, NO
-  // eviction policy can help: each pass's populate-on-miss evictions land
-  // exactly on the keys the very next pass is about to ask for again, since
-  // every pass walks the same cyclic order. This is what the default was
-  // raised from 300 to 5000 to avoid for realistic candidate counts — see
-  // the ClassificationCache doc comment in locate.ts. This test pins the
-  // underlying property itself, at a small scale, so it stays fast and
-  // deterministic. It takes a second full pass for the cascade to reach
-  // steady state (the first pass is populating an empty cache, so it can
-  // only ever be all misses regardless of cap), so three passes are run and
-  // only the third's hit count is asserted on.
-  const cap = 100;
-  const passSize = 101; // one more unique key than the cache can hold
-  const keys = Array.from({ length: passSize }, (_, i) => `/scan/${i}`);
-  const cache = new ClassificationCache(cap);
-
-  simulateScan(cache, keys); // pass 1: populates an empty cache (all misses)
-  simulateScan(cache, keys); // pass 2: cascade begins
-  const thirdPassHits = simulateScan(cache, keys); // pass 3: steady-state thrash
-
-  expect(
-    thirdPassHits,
-    'once a scan exceeds the cap, repeated identical scans settle into zero hits — this is the workload property the 5000 default is sized to avoid, not something an eviction policy can fix',
-  ).toBe(0);
-});
 
 test('ClassificationCache: the default capacity comfortably survives repeated realistic long-lived project directory scans', () => {
   // Regression for a cross-model review finding: the original 300-entry

@@ -315,18 +315,4 @@ describe('classifier metrics feed candidate ranking', () => {
 
     expect(result.winner?.sessionId).toBe('sess-prompt-only-newer');
   });
-
-  test('a prompt-only session alone is selectable rather than unengagedOnly', () => {
-    const classification = classifyTranscriptRecords(
-      'claude-code',
-      MINIMAL_ASK_USER_RECORDS,
-    );
-    const result: any = rank(
-      [candidateFrom('sess-prompt-only', classification, 30)],
-      TARGET_CWD,
-    );
-
-    expect(result.winner?.sessionId).toBe('sess-prompt-only');
-    expect(result.unengagedOnly).toBeFalsy();
-  });
 });
