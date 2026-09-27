@@ -19,6 +19,25 @@
 
 ### Fixed
 
+- Generated CLI scripts no longer throw when imported from `node -e` code
+  with a positional argument. Node sets `process.argv[1]` to that argument,
+  which need not be a file, and the real-path entrypoint guards added for
+  symlinked installs called `realpathSync` on it, failing the import with
+  `ENOENT`. A non-path `argv[1]` now means "not run as the CLI". The change
+  applies to:
+  - `session-observer-collab` 1.0.71 (`collab-control.mjs`,
+    `claude-monitor.mjs`, and the Codex and Cursor stop hooks)
+  - `agent-messaging` 1.0.23, including its Claude Code and Codex hooks
+  - `consensus-review` 0.1.20
+  - `create` 0.1.18, `decide` 0.1.18, `evaluate` 0.1.22
+  - `panel` 0.1.15, `plan` 0.1.18, `refine` 0.1.21
+  - `consensus` plugin 0.2.3 (`consensus.mjs`, `consensus-loop.mjs`) and
+    `session` plugin 0.3.3
+
+  `phone-a-friend` 0.1.14, `session-observer` 1.0.83, and
+  `session-fork-to-destination` 0.2.51 are version bumps for shared-runtime
+  changes only; their own content is unchanged.
+
 - Generated CLI scripts now run when invoked through a symlinked skill
   directory, such as `~/.claude/skills/<name>` pointing at
   `~/.agents/skills/<name>`. Their entrypoint guards compared unresolved paths
