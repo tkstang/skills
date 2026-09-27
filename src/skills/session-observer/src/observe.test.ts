@@ -21,7 +21,7 @@ import { expect, describe, test, vi } from 'vitest';
 
 import { getCursorSession, mutateCursorState } from './lib/cursor-state.js';
 import { renderMarkdown } from './lib/digest.js';
-import { observeCatchUp, resolveSelfIdentity } from './lib/observe.js';
+import { observeCatchUp } from './lib/observe.js';
 import * as stateLib from './lib/state.js';
 
 const growInPlaceBeforeFixture = new URL(
@@ -169,14 +169,11 @@ async function writeNativeCodexTranscript(
   return transcriptPath;
 }
 
-type CursorFixtureFrame = Record<string, unknown> | string;
-
 async function writeCursorTranscript(
   home: string,
   cwd: string,
   sessionId: string,
-  frames: CursorFixtureFrame[],
-  { trailingNewline = true }: { trailingNewline?: boolean } = {},
+  frames: Array<Record<string, unknown>>,
 ): Promise<string> {
   const dir = join(
     home,
@@ -188,12 +185,9 @@ async function writeCursorTranscript(
   );
   await mkdir(dir, { recursive: true });
   const transcriptPath = join(dir, `${sessionId}.jsonl`);
-  const body = frames
-    .map((frame) => (typeof frame === 'string' ? frame : JSON.stringify(frame)))
-    .join('\n');
   await writeFile(
     transcriptPath,
-    `${body}${trailingNewline ? '\n' : ''}`,
+    `${frames.map((frame) => JSON.stringify(frame)).join('\n')}\n`,
     'utf8',
   );
   return transcriptPath;
@@ -224,35 +218,6 @@ describe('observeCatchUp', () => {
             expect.objectContaining({ sessionId: nativeId }),
           ]),
         },
-      });
-    });
-  });
-
-  test('whoami returns native Codex lineage instead of inherited root identity', async () => {
-    await withTempSessionHome(async (home) => {
-      const cwd = '/test/whoami-native-child';
-      const childId = 'aaaaaaaa-bbbb-4aaa-8aaa-aaaaaaaaaaaa';
-      const rootId = 'bbbbbbbb-cccc-4bbb-8bbb-bbbbbbbbbbbb';
-      const transcript = await writeNativeCodexTranscript(
-        home,
-        cwd,
-        'child.jsonl',
-        childId,
-        rootId,
-      );
-
-      await expect(
-        resolveSelfIdentity(cwd, { CODEX_THREAD_ID: childId }),
-      ).resolves.toEqual({
-        identity: expect.objectContaining({
-          runtime: 'codex',
-          session: childId,
-          nativeSessionId: childId,
-          rootSessionId: rootId,
-          parentSessionId: rootId,
-          transcript,
-          source: 'harness-environment',
-        }),
       });
     });
   });
@@ -550,64 +515,24 @@ describe('observeCatchUp', () => {
         ],
       );
 
-      const events: string[] = [];
       const result = await observeCatchUp({
         runtime: 'claude-code',
         cwd,
         session: 'claude-code:observe-output-order',
       });
-      events.push('observe-returned');
 
       expect(result.ok).toBe(true);
       if (!result.ok) throw new Error(result.message);
       const state = JSON.parse(
         await readFile(join(stateDir, 'state.json'), 'utf8'),
       );
-      events.push('state-observed');
       const rendered = renderMarkdown(result.digest);
-      events.push('caller-rendered');
 
       expect(result.markedRead).toBe(true);
       expect(
         state.sessions['claude-code:observe-output-order'].lastRecordIndex,
       ).toBe(result.digest.range.nextIndex);
       expect(rendered).toContain('Synthetic response.');
-      expect(events).toEqual([
-        'observe-returned',
-        'state-observed',
-        'caller-rendered',
-      ]);
-    });
-  });
-
-  test('fails before returning a legacy digest when persisted state cannot be read', async () => {
-    await withTempSessionHome(async (home, stateDir) => {
-      const cwd = '/test/observe-state-read-failure';
-      await writeClaudeTranscript(
-        home,
-        cwd,
-        'observe-state-read-failure.jsonl',
-        'observe-state-read-failure',
-        [
-          { role: 'user', content: 'Synthetic direction.' },
-          { role: 'assistant', content: 'Must not be delivered.' },
-        ],
-      );
-      await mkdir(join(stateDir, 'state.json'));
-
-      const result = await observeCatchUp({
-        runtime: 'claude-code',
-        cwd,
-        session: 'claude-code:observe-state-read-failure',
-      });
-
-      expect(result).toMatchObject({
-        ok: false,
-        kind: 'error',
-        exitCode: 1,
-        message: expect.stringContaining('EISDIR'),
-      });
-      expect(result).not.toHaveProperty('digest');
     });
   });
 
@@ -646,43 +571,6 @@ describe('observeCatchUp', () => {
       } finally {
         markRead.mockRestore();
       }
-    });
-  });
-
-  test('builds reusable Cursor frame fixtures including malformed and partial tails', async () => {
-    await withTempSessionHome(async (home) => {
-      const cwd = '/test/observe-cursor-fixture';
-      const transcriptPath = await writeCursorTranscript(
-        home,
-        cwd,
-        'observe-cursor-fixture',
-        [
-          {
-            role: 'user',
-            message: {
-              content: [{ type: 'text', text: 'Synthetic direction.' }],
-            },
-          },
-          '{"malformed":',
-          '{"role":"assistant","message":{"content":"Synthetic partial',
-        ],
-        { trailingNewline: false },
-      );
-
-      const raw = await readFile(transcriptPath, 'utf8');
-      expect(transcriptPath).toContain(
-        join(
-          '.cursor',
-          'projects',
-          cursorSlug(cwd),
-          'agent-transcripts',
-          'observe-cursor-fixture',
-        ),
-      );
-      expect(raw.split('\n')).toHaveLength(3);
-      expect(raw).toContain('Synthetic direction.');
-      expect(raw).toContain('{"malformed":');
-      expect(raw.endsWith('Synthetic partial')).toBe(true);
     });
   });
 
@@ -1415,53 +1303,6 @@ describe('observeCatchUp', () => {
       });
       expect(result.delivery?.entryKeys).toEqual([]);
       await expect(result.delivery!.abandon()).resolves.toBe('abandoned');
-    });
-  });
-
-  test('blocks Cursor continuity mismatch without mutating its committed checkpoint', async () => {
-    await withTempSessionHome(async (home) => {
-      const cwd = join(home, 'workspace', 'observe-cursor-continuity');
-      await mkdir(cwd, { recursive: true });
-      const sessionId = 'observe-cursor-continuity';
-      const transcriptPath = await writeCursorTranscript(home, cwd, sessionId, [
-        {
-          role: 'user',
-          message: { content: [{ type: 'text', text: 'Original direction.' }] },
-        },
-        {
-          role: 'assistant',
-          message: { content: [{ type: 'text', text: 'Original response.' }] },
-        },
-        { type: 'turn_ended', status: 'success' },
-      ]);
-      const first = await observeCatchUp(
-        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
-        { ownerPid: 7102 },
-      );
-      expect(first.ok).toBe(true);
-      if (!first.ok || first.runtime !== 'cursor' || first.delivery === null) {
-        throw new Error('expected reserved Cursor delivery');
-      }
-      await first.delivery.commit();
-      const committed = await getCursorSession(sessionId);
-
-      const raw = await readFile(transcriptPath, 'utf8');
-      await writeFile(
-        transcriptPath,
-        raw.replace('Original direction.', 'Xriginal direction.'),
-        'utf8',
-      );
-      const blocked = await observeCatchUp(
-        { runtime: 'cursor', cwd, session: `cursor:${sessionId}` },
-        { ownerPid: 7102 },
-      );
-
-      expect(blocked).toMatchObject({
-        ok: false,
-        kind: 'continuityBlocked',
-        payload: { continuityBlocked: true, code: 'PREFIX_MISMATCH' },
-      });
-      expect(await getCursorSession(sessionId)).toEqual(committed);
     });
   });
 

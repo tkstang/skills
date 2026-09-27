@@ -4,7 +4,6 @@
  * Exports:
  *   buildDigest(runtime, transcriptPath, opts)  → Promise<Digest>
  *   renderMarkdown(digest)                      → string
- *   renderJson(digest)                          → string
  *
  * Opts:
  *   fromIndex       {number}  — first record index to include (default 0)
@@ -1660,18 +1659,4 @@ export function renderMarkdown(digest: SessionDigest): string {
   }
 
   return output;
-}
-
-// ---------------------------------------------------------------------------
-// renderJson
-// ---------------------------------------------------------------------------
-
-/**
- * Render a Digest as a pretty-printed JSON string.
- *
- * @param {object} digest
- * @returns {string}
- */
-export function renderJson(digest: SessionDigest): string {
-  return JSON.stringify(digest, null, 2);
 }

@@ -4714,11 +4714,7 @@ function renderMarkdown(digest) {
   }
   return output;
 }
-function renderJson(digest) {
-  return JSON.stringify(digest, null, 2);
-}
 export {
   buildDigest,
-  renderJson,
   renderMarkdown
 };

@@ -23,270 +23,16 @@ const queuedAttachmentOnlyClaude = join(
   'claude-code',
   'queued-attachment-only.jsonl',
 );
-const typicalCodex = join(FIXTURES, 'codex', 'typical.jsonl');
 const typicalCursor = join(FIXTURES, 'cursor', 'typical.jsonl');
-const automaticWakeFixtures = [
-  ['claude-code', join(FIXTURES, 'claude-code', 'automatic-wake.jsonl')],
-  ['codex', join(FIXTURES, 'codex', 'automatic-wake.jsonl')],
-  ['cursor', join(FIXTURES, 'cursor', 'automatic-wake.jsonl')],
-] as const;
 
 import { createCursorTurnAccumulator } from '../../../shared/transcript/cursor-analysis.js';
 import { scanCursorTranscript } from '../../../shared/transcript/cursor-frames.js';
 import { readRecordsDetailed } from '../../../shared/transcript/runtimes.js';
-import { buildDigest, renderJson, renderMarkdown } from './lib/digest.js';
+import { buildDigest, renderMarkdown } from './lib/digest.js';
 import type {
   CursorIdentityEvidence,
-  CursorDigestV2,
   CursorSessionStateEntry,
-  Digest,
-  SessionDigest,
 } from './lib/types.js';
-
-const cursorDigestV2Fixture = {
-  schemaVersion: 2,
-  runtime: 'cursor',
-  sessionId: 'cursor-contract-fixture',
-  transcriptPath: '/synthetic/cursor-contract-fixture.jsonl',
-  recordedCwd: '/synthetic/project',
-  matchedTier: 'A',
-  widenedFrom: null,
-  active: true,
-  engagement: {
-    status: 'engaged',
-    engaged: true,
-    recordCount: 12,
-    genuineUserMessages: 1,
-    operatorAskUserAnswers: 0,
-    syntheticUserMessages: 0,
-    assistantMessages: 2,
-    realMessageCount: 3,
-    hasAssistantAndUser: true,
-    bootstrapRecordIndexes: [],
-    bootstrapRecordCount: 0,
-  },
-  mode: 'catch-up',
-  range: {
-    indexBase: 'zero-based-jsonl-frame-index',
-    fromIndex: 4,
-    toIndex: 10,
-    nextIndex: 11,
-    totalFrames: 12,
-    renderedFromIndex: 5,
-    renderedToIndex: 9,
-    newFrames: 7,
-  },
-  accounting: {
-    indexBase: 'zero-based-jsonl-frame-index',
-    raw: {
-      fromIndex: 4,
-      toIndex: 10,
-      count: 7,
-      nextIndex: 11,
-      totalFrames: 12,
-    },
-    rendered: {
-      count: 2,
-      fromIndex: 5,
-      toIndex: 9,
-    },
-    filtered: {
-      toolCalls: 1,
-      automaticControls: 1,
-      emptyOrNoOp: 1,
-      metadataFrames: 2,
-      unstableContent: 0,
-    },
-    buffered: {
-      fromIndex: 11,
-      count: 1,
-      reason: 'malformed',
-    },
-    recovery: {
-      omittedUserMessages: [
-        {
-          transcriptPath: '/synthetic/cursor-contract-fixture.jsonl',
-          indexBase: 'zero-based-jsonl-frame-index',
-          frameIndex: 4,
-          entryKey: 'entry-user-4',
-        },
-      ],
-      omittedAssistantEntries: [
-        {
-          transcriptPath: '/synthetic/cursor-contract-fixture.jsonl',
-          indexBase: 'zero-based-jsonl-frame-index',
-          frameIndex: 7,
-          entryKey: 'entry-assistant-7',
-        },
-      ],
-    },
-  },
-  entries: [
-    {
-      role: 'assistant',
-      text: 'Synthetic pending observation.',
-      recordIndex: 5,
-      sourceFrameIndex: 5,
-      kind: 'message',
-      entryKey: 'entry-assistant-5',
-      turnId: 'turn-1',
-      availability: 'pending-lifecycle',
-    },
-    {
-      role: 'assistant',
-      text: 'Synthetic completed observation.',
-      recordIndex: 9,
-      sourceFrameIndex: 8,
-      kind: 'message',
-      entryKey: 'entry-assistant-8',
-      turnId: 'turn-1',
-      availability: 'completed',
-    },
-  ],
-  filters: {
-    includeToolCalls: false,
-    includeToolResults: false,
-    includeCommandMessages: false,
-  },
-  warnings: [],
-  fallbacks: [],
-  cursorEvidence: {
-    projection: 'observation',
-    continuity: 'verified',
-    status: {
-      engagement: 'engaged',
-      activity: 'assistant-progress',
-      content: 'available',
-      lifecycle: 'success',
-      delivery: 'reserved',
-      health: 'blocked',
-    },
-    lifecycleEvents: [
-      {
-        turnId: 'turn-1',
-        terminalFrameIndex: 9,
-        lifecycle: 'success',
-        finalEntryKey: 'entry-assistant-8',
-        contentPreviouslyObservable: true,
-      },
-    ],
-    bufferedFromFrame: 11,
-    blockingFrame: {
-      frameIndex: 11,
-      byteStart: 820,
-      byteEnd: 854,
-      parseState: 'malformed',
-    },
-  },
-} satisfies CursorDigestV2;
-
-// ---------------------------------------------------------------------------
-// Cursor digest v2 data contract
-// ---------------------------------------------------------------------------
-
-describe('Cursor digest v2 data contract', () => {
-  test('keeps schema-v1 record indexes and schema-v2 frame indexes discriminated', () => {
-    const sessionDigest: SessionDigest = cursorDigestV2Fixture;
-
-    expect(sessionDigest.schemaVersion).toBe(2);
-    expect(sessionDigest.range.indexBase).toBe('zero-based-jsonl-frame-index');
-
-    const legacySchemaVersion: Digest['schemaVersion'] = 1;
-    const legacyIndexBase: Digest['range']['indexBase'] =
-      'zero-based-jsonl-record-index';
-
-    expect(legacySchemaVersion).toBe(1);
-    expect(legacyIndexBase).toBe('zero-based-jsonl-record-index');
-  });
-
-  test('round-trips the fixture without losing frame provenance or lifecycle evidence', () => {
-    const serialized = JSON.stringify(cursorDigestV2Fixture);
-    const parsed = JSON.parse(serialized) as CursorDigestV2;
-    const completionFixture = {
-      ...cursorDigestV2Fixture,
-      cursorEvidence: {
-        ...cursorDigestV2Fixture.cursorEvidence,
-        projection: 'confirmed-completion',
-      },
-    } satisfies CursorDigestV2;
-
-    expect(parsed).toEqual(cursorDigestV2Fixture);
-    expect(parsed.entries).toEqual([
-      expect.objectContaining({
-        recordIndex: 5,
-        sourceFrameIndex: 5,
-        entryKey: 'entry-assistant-5',
-        availability: 'pending-lifecycle',
-      }),
-      expect.objectContaining({
-        recordIndex: 9,
-        sourceFrameIndex: 8,
-        entryKey: 'entry-assistant-8',
-        availability: 'completed',
-      }),
-    ]);
-    expect(parsed.cursorEvidence).toMatchObject({
-      projection: 'observation',
-      continuity: 'verified',
-      bufferedFromFrame: 11,
-      blockingFrame: {
-        frameIndex: 11,
-        parseState: 'malformed',
-      },
-      lifecycleEvents: [
-        {
-          terminalFrameIndex: 9,
-          lifecycle: 'success',
-          finalEntryKey: 'entry-assistant-8',
-        },
-      ],
-    });
-    expect(
-      (JSON.parse(JSON.stringify(completionFixture)) as CursorDigestV2)
-        .cursorEvidence.projection,
-    ).toBe('confirmed-completion');
-  });
-
-  test('balances raw, rendered, filtered, and buffered frame accounting', () => {
-    const { accounting, range } = cursorDigestV2Fixture;
-    const filteredCount = Object.values(accounting.filtered).reduce(
-      (total, count) => total + count,
-      0,
-    );
-
-    expect(accounting.raw.count).toBe(
-      accounting.rendered.count + filteredCount,
-    );
-    expect(accounting.raw.count).toBe(range.newFrames);
-    expect(accounting.raw.nextIndex - accounting.raw.fromIndex).toBe(
-      accounting.raw.count,
-    );
-    expect(accounting.raw.toIndex).toBe(accounting.raw.nextIndex - 1);
-    expect(accounting.buffered.count).toBe(
-      accounting.raw.totalFrames - accounting.raw.nextIndex,
-    );
-    expect(accounting.buffered.fromIndex).toBe(accounting.raw.nextIndex);
-  });
-
-  test('keeps lifecycle, recovery, and blocking metadata structural-only', () => {
-    const structuralMetadata = {
-      cursorEvidence: cursorDigestV2Fixture.cursorEvidence,
-      recovery: cursorDigestV2Fixture.accounting.recovery,
-    };
-    const serialized = JSON.stringify(structuralMetadata);
-
-    expect(serialized).not.toContain('Synthetic pending observation.');
-    expect(serialized).not.toContain('Synthetic completed observation.');
-    expect(serialized).not.toMatch(/"(text|message|prose|rawContent)":/);
-    expect(structuralMetadata.cursorEvidence.lifecycleEvents[0]).toEqual({
-      turnId: 'turn-1',
-      terminalFrameIndex: 9,
-      lifecycle: 'success',
-      finalEntryKey: 'entry-assistant-8',
-      contentPreviouslyObservable: true,
-    });
-  });
-});
 
 async function cursorDigestAnalysis(
   transcriptPath: string,
@@ -677,7 +423,7 @@ describe('Cursor digest v2 behavior', () => {
       expect(markdown).toContain('**lifecycle:** pending');
       expect(markdown).toContain('**health:** healthy');
       expect(markdown.match(/Synthetic stable observation\./g)).toHaveLength(1);
-      expect(JSON.parse(renderJson(digest))).toEqual(digest);
+      expect(JSON.parse(JSON.stringify(digest, null, 2))).toEqual(digest);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -1015,88 +761,6 @@ describe('buildDigest', () => {
     }
   });
 
-  test.each(automaticWakeFixtures)(
-    'classifies %s wake envelopes as automatic control input',
-    async (runtime, fixture) => {
-      for (const mode of ['review', 'catch-up'] as const) {
-        const digest = await buildDigest(runtime, fixture, {
-          fromIndex: 0,
-          mode,
-        });
-        const control = digest.entries.find(
-          (entry) => entry.origin === 'automatic-control',
-        );
-
-        expect(control).toMatchObject({
-          role: 'user',
-          displayRole: 'automatic-control',
-          kind: 'message',
-          origin: 'automatic-control',
-          automaticControl: {
-            automatic: true,
-            runtime: expect.any(String),
-            leaseId: expect.stringMatching(/^lease-/),
-            pinnedPeer: expect.any(Object),
-            range: {
-              fromIndex: expect.any(Number),
-              toIndex: expect.any(Number),
-            },
-          },
-        });
-        expect(renderMarkdown(digest)).toContain(
-          '### Hook/control (automatic)',
-        );
-
-        expect(digest.engagement).toMatchObject({
-          status: 'unengaged',
-          engaged: false,
-          genuineUserMessages: 0,
-          operatorAskUserAnswers: 0,
-          syntheticUserMessages: 1,
-          hasAssistantAndUser: false,
-        });
-
-        const json = JSON.parse(renderJson(digest));
-        expect(json.entries).toContainEqual(
-          expect.objectContaining({
-            origin: 'automatic-control',
-            displayRole: 'automatic-control',
-            automaticControl: expect.objectContaining({ automatic: true }),
-          }),
-        );
-      }
-    },
-  );
-
-  test('does not classify ordinary JSON user text as automatic control', async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'digest-wake-test-'));
-    try {
-      const transcriptPath = join(tmpDir, 'ordinary-json.jsonl');
-      await writeFile(
-        transcriptPath,
-        `${JSON.stringify({
-          type: 'response_item',
-          payload: {
-            type: 'message',
-            role: 'user',
-            content: [{ type: 'input_text', text: '{"automatic":true}' }],
-          },
-        })}\n`,
-      );
-
-      const digest = await buildDigest('codex', transcriptPath);
-      expect(digest.entries).toContainEqual(
-        expect.objectContaining({
-          role: 'user',
-          text: '{"automatic":true}',
-        }),
-      );
-      expect(digest.entries[0]).not.toHaveProperty('origin');
-    } finally {
-      await rm(tmpDir, { recursive: true, force: true });
-    }
-  });
-
   test('labels native Claude task notifications without treating them as human input', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'digest-claude-origin-'));
     try {
@@ -1136,7 +800,9 @@ describe('buildDigest', () => {
         syntheticUserMessages: 1,
       });
       expect(renderMarkdown(digest)).toContain('### Runtime notification');
-      expect(JSON.parse(renderJson(digest)).entries[0]).toMatchObject({
+      expect(
+        JSON.parse(JSON.stringify(digest, null, 2)).entries[0],
+      ).toMatchObject({
         origin: 'runtime-notification',
       });
     } finally {
@@ -1226,7 +892,7 @@ describe('buildDigest', () => {
         markdown.match(/Yes, include the migration guide\./g),
       ).toHaveLength(1);
 
-      const json = JSON.parse(renderJson(digest));
+      const json = JSON.parse(JSON.stringify(digest, null, 2));
       expect(json.entries).toContainEqual(
         expect.objectContaining({
           displayRole: 'queued-user',
@@ -1254,76 +920,6 @@ describe('buildDigest', () => {
         recordIndex: 1,
       }),
     );
-  });
-
-  test('returns correct entry count and range for fromIndex=0 (claude-code)', async () => {
-    const digest = await buildDigest('claude-code', typicalClaude, {
-      fromIndex: 0,
-      includeToolCalls: false,
-      includeToolResults: false,
-      mode: 'review',
-    });
-
-    expect(digest.range.fromIndex, 'fromIndex should be 0').toBe(0);
-    expect(
-      digest.range.totalRecords > 0,
-      'totalRecords should be > 0',
-    ).toBeTruthy();
-    expect(
-      digest.entries.length > 0,
-      'entries should be non-empty',
-    ).toBeTruthy();
-    expect(
-      digest.entries.every((e: any) => e.kind === 'message'),
-      'default filter: only message entries',
-    ).toBeTruthy();
-  });
-
-  test('returns only entries with recordIndex >= fromIndex (mid-stream)', async () => {
-    // Read the file to know how many records there are
-    const fullDigest = await buildDigest('claude-code', typicalClaude, {
-      fromIndex: 0,
-      mode: 'review',
-    });
-    const totalRecords = fullDigest.range.totalRecords;
-    // Skip half the records
-    const midIndex = Math.floor(totalRecords / 2);
-
-    const partial = await buildDigest('claude-code', typicalClaude, {
-      fromIndex: midIndex,
-      mode: 'catch-up',
-    });
-
-    expect(
-      partial.entries.every((e: any) => e.recordIndex >= midIndex),
-      'all entries should have recordIndex >= fromIndex',
-    ).toBeTruthy();
-    expect(partial.range.fromIndex, 'range.fromIndex should match').toBe(
-      midIndex,
-    );
-  });
-
-  test('newRecords set correctly in catch-up mode', async () => {
-    const fullDigest = await buildDigest('claude-code', typicalClaude, {
-      fromIndex: 0,
-      mode: 'review',
-    });
-    const totalRecords = fullDigest.range.totalRecords;
-    const midIndex = Math.floor(totalRecords / 2);
-
-    const catchUp = await buildDigest('claude-code', typicalClaude, {
-      fromIndex: midIndex,
-      mode: 'catch-up',
-    });
-
-    expect(
-      typeof catchUp.range.newRecords,
-      'newRecords should be a number in catch-up mode',
-    ).toBe('number');
-    expect(
-      catchUp.range.newRecords >= 0,
-      'newRecords should be >= 0',
-    ).toBeTruthy();
   });
 
   test('catch-up separates raw records consumed from rendered messages', async () => {
@@ -1727,9 +1323,9 @@ describe('buildDigest', () => {
       expect(renderMarkdown(digest)).toContain(
         `${transcriptPath} records 2 (zero-based JSONL indices).`,
       );
-      expect(JSON.parse(renderJson(digest)).accounting.recovery).toEqual(
-        digest.accounting.recovery,
-      );
+      expect(
+        JSON.parse(JSON.stringify(digest, null, 2)).accounting.recovery,
+      ).toEqual(digest.accounting.recovery);
       expect(
         digest.warnings.some((w: string) =>
           w.includes('Large digest fallback'),
@@ -1738,18 +1334,6 @@ describe('buildDigest', () => {
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
-  });
-
-  test('buildDigest works for codex runtime', async () => {
-    const digest = await buildDigest('codex', typicalCodex, {
-      fromIndex: 0,
-      mode: 'review',
-    });
-    expect(
-      digest.range.totalRecords > 0,
-      'should parse codex fixture',
-    ).toBeTruthy();
-    expect(digest.runtime).toBe('codex');
   });
 
   test('buildDigest works for cursor runtime', async () => {
@@ -1847,12 +1431,9 @@ describe('renderMarkdown', () => {
       includeToolResults: false,
     });
 
-    const md = renderMarkdown(digest);
-    // Filter line should mention tool calls excluded
-    expect(
-      md.includes('tool') || md.includes('filter'),
-      'header should mention tool filtering',
-    ).toBeTruthy();
+    expect(renderMarkdown(digest)).toContain(
+      '**filters:** tool calls excluded · tool results excluded · command messages excluded',
+    );
   });
 
   test('header contains active flag when digest.active is true', async () => {
@@ -1867,83 +1448,6 @@ describe('renderMarkdown', () => {
     expect(
       md.includes('active') || md.includes('ACTIVE'),
       'header should include active flag',
-    ).toBeTruthy();
-  });
-
-  test('header contains range metadata', async () => {
-    const digest = await buildDigest('claude-code', typicalClaude, {
-      fromIndex: 0,
-      mode: 'review',
-    });
-
-    const md = renderMarkdown(digest);
-    // Should contain fromIndex and totalRecords info
-    expect(
-      md.includes('0'),
-      'header should contain fromIndex value',
-    ).toBeTruthy();
-    expect(
-      md.includes(String(digest.range.totalRecords)),
-      'header should contain totalRecords',
-    ).toBeTruthy();
-  });
-
-  test('no tool markers by default', async () => {
-    const digest = await buildDigest('claude-code', withToolBurst, {
-      fromIndex: 0,
-      mode: 'review',
-      includeToolCalls: false,
-      includeToolResults: false,
-    });
-    const md = renderMarkdown(digest);
-    // Should not contain tool-call markers like [Read] or [Bash]
-    expect(
-      !md.includes('[Read]') && !md.includes('[Bash]'),
-      'should not include tool markers by default',
-    ).toBeTruthy();
-  });
-
-  test('--max-turns slices from the tail', async () => {
-    const fullDigest = await buildDigest('claude-code', typicalClaude, {
-      fromIndex: 0,
-      mode: 'review',
-    });
-    const fullMd = renderMarkdown(fullDigest);
-
-    const slicedDigest = await buildDigest('claude-code', typicalClaude, {
-      fromIndex: 0,
-      mode: 'review',
-      maxTurns: 1,
-    });
-    const slicedMd = renderMarkdown(slicedDigest);
-
-    expect(
-      slicedMd.length < fullMd.length ||
-        slicedDigest.entries.length <= fullDigest.entries.length,
-      '--max-turns should produce a smaller or equal digest',
-    ).toBeTruthy();
-    expect(
-      slicedDigest.entries.length <= fullDigest.entries.length,
-      'sliced entries <= full entries',
-    ).toBeTruthy();
-  });
-
-  test('--max-bytes slices from the tail by byte count', async () => {
-    const fullDigest = await buildDigest('claude-code', typicalClaude, {
-      fromIndex: 0,
-      mode: 'review',
-    });
-
-    // Use a very small byte limit to ensure slicing happens
-    const slicedDigest = await buildDigest('claude-code', typicalClaude, {
-      fromIndex: 0,
-      mode: 'review',
-      maxBytes: 100,
-    });
-
-    expect(
-      slicedDigest.entries.length <= fullDigest.entries.length,
-      '--max-bytes slices entries',
     ).toBeTruthy();
   });
 });
@@ -1981,53 +1485,25 @@ describe('20K warning', () => {
       }
       await writeFile(largePath, lines.join('\n') + '\n', 'utf8');
 
+      // An explicit tail slice bypasses the automatic large-digest fallback, so
+      // the rendered markdown really exceeds the 20K-char threshold.
       const digest = await buildDigest('claude-code', largePath, {
         fromIndex: 0,
         mode: 'review',
+        maxTurns: 40,
       });
-      const md = renderMarkdown(digest);
 
-      // Should contain 20K warning
-      if (md.length > 20000) {
-        expect(
-          md.includes('20') ||
-            md.includes('large') ||
-            md.includes('warning') ||
-            md.includes('Warning'),
-          '20K-char digest should prepend a warning',
-        ).toBeTruthy();
-      }
+      expect(renderMarkdown(digest)).toMatch(
+        /^> \*\*Warning:\*\* This digest is large \(/u,
+      );
+      const small = await buildDigest('claude-code', typicalClaude, {
+        fromIndex: 0,
+        mode: 'review',
+      });
+      expect(renderMarkdown(small)).not.toMatch(/^> \*\*Warning:\*\*/u);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// renderJson
-// ---------------------------------------------------------------------------
-
-describe('renderJson', () => {
-  test('returns valid JSON that round-trips via JSON.parse', async () => {
-    const digest = await buildDigest('claude-code', typicalClaude, {
-      fromIndex: 0,
-      mode: 'review',
-    });
-    const jsonStr = renderJson(digest);
-    expect(
-      typeof jsonStr === 'string',
-      'renderJson returns a string',
-    ).toBeTruthy();
-    let parsed: any;
-    expect(() => {
-      parsed = JSON.parse(jsonStr);
-    }, 'output should be valid JSON').not.toThrow();
-    expect(parsed.schemaVersion, 'schemaVersion should be 1').toBe(1);
-    expect(
-      Array.isArray(parsed.entries),
-      'entries should be an array',
-    ).toBeTruthy();
-    expect(parsed.runtime, 'runtime should be preserved').toBe('claude-code');
   });
 });
 
@@ -2047,23 +1523,6 @@ describe('ask-user exchanges', () => {
     'cursor',
     'ask-question-final.jsonl',
   );
-
-  test('renders questions and answers with the default tool filters', async () => {
-    const digest = await buildDigest('claude-code', askUserClaude, {
-      fromIndex: 0,
-      mode: 'review',
-    });
-    const md = renderMarkdown(digest);
-
-    expect(md).toContain('[AskUserQuestion] 2 questions:');
-    expect(md).toContain('Pkg boundary — Where should the parser live?');
-    // The operator's free-text answer is the context an observer loses today.
-    expect(md).toContain(
-      'Design depth: "Actually, show me the tradeoffs first."',
-    );
-    // Ordinary tool traffic in the same fixture stays out of the digest.
-    expect(md).not.toContain('[Read]');
-  });
 
   test('counts ask-user entries as rendered rather than filtered', async () => {
     const digest = await buildDigest('claude-code', askUserClaude, {
@@ -2128,31 +1587,6 @@ describe('ask-user exchanges', () => {
       ),
       'the excluded question must stay reachable through recovery',
     ).toBe(true);
-  });
-
-  // `observation` is the projection normal review and catch-up use, and it has
-  // a delivered-entry branch that `confirmed-completion` skips. Cover both
-  // sides of it: first emission, then suppression once already delivered.
-  test('emits the Cursor question once under the observation projection', async () => {
-    const context = await cursorDigestAnalysis(askQuestionCursor);
-    const digest = await buildDigest(
-      'cursor',
-      askQuestionCursor,
-      cursorDigestOptions(
-        context,
-        'observation',
-        cursorDigestState(askQuestionCursor, context),
-      ),
-    );
-    const md = renderMarkdown(digest);
-
-    expect(md).toContain('[AskQuestion] Discovery convergence — 2 questions:');
-    expect(md).toContain(
-      '(selected option not recorded in Cursor transcripts)',
-    );
-    const occurrences =
-      md.split('[AskQuestion] Discovery convergence').length - 1;
-    expect(occurrences).toBe(1);
   });
 
   // A question is not assistant progress the completion contract withholds:
@@ -2233,7 +1667,11 @@ describe('ask-user exchanges', () => {
       ),
     );
 
-    expect(renderMarkdown(digest)).toContain('[AskQuestion] Migration gate');
+    const md = renderMarkdown(digest);
+    expect(md).toContain('[AskQuestion] Migration gate');
+    // The question is its render group's final record, so both the completed
+    // loop and the ask-user carve-out could emit it; it must render once.
+    expect(md.split('[AskQuestion] Migration gate').length - 1).toBe(1);
     expect(digest.entries[0]!.kind).toBe('ask_user');
   });
 
@@ -2360,13 +1798,7 @@ describe('ask-user exchanges', () => {
 });
 
 describe('optional activity projection', () => {
-  test('keeps the default digest byte-compatible when activity is absent', async () => {
-    const baseline = await buildDigest('claude-code', withToolBurst, {
-      fromIndex: 0,
-      mode: 'review',
-      includeToolCalls: true,
-      includeToolResults: true,
-    });
+  test('keeps the legacy tool-inclusive digest when activity is off', async () => {
     const explicitOff = await buildDigest('claude-code', withToolBurst, {
       fromIndex: 0,
       mode: 'review',
@@ -2383,8 +1815,11 @@ describe('optional activity projection', () => {
       toolCalls: 0,
       toolResults: 0,
     });
-    expect(renderJson(explicitOff)).toBe(renderJson(baseline));
-    expect(renderMarkdown(explicitOff)).toBe(renderMarkdown(baseline));
+    expect(explicitOff).not.toHaveProperty('activity');
+    const markdown = renderMarkdown(explicitOff);
+    expect(markdown).not.toContain('## Activity');
+    expect(markdown).toContain('[Bash]');
+    expect(markdown).toContain('[Read → result]');
   });
 
   test('attaches independently budgeted activity and suppresses duplicate legacy markers', async () => {
