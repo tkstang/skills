@@ -449,6 +449,14 @@ async function applySnippetFilter(
   return { candidates: matches, matches };
 }
 
+const GENERAL_USAGE_SUBCOMMANDS = new Set([
+  'review',
+  'catch-up',
+  'locate',
+  'whoami',
+  'state',
+]);
+
 function printUsage(): never {
   process.stdout.write(
     [
@@ -2223,7 +2231,13 @@ async function runWatchCtl(args: CliArgs): Promise<void> {
 async function main(argv: string[]): Promise<void> {
   const args = parseCliArgs(argv);
 
-  if (args.help && !args.subcommand) {
+  // watch, catch-up-then-watch, and watch-ctl print their own usage; the
+  // remaining subcommands are documented by the top-level usage. Checking
+  // before dispatch keeps --help from running discovery or touching state.
+  if (
+    args.help &&
+    (!args.subcommand || GENERAL_USAGE_SUBCOMMANDS.has(args.subcommand))
+  ) {
     return printUsage();
   }
 

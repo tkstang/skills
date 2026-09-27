@@ -33,6 +33,28 @@
 
 ### Fixed
 
+- `session-observer` 1.0.84:
+  - `review`, `catch-up`, `locate`, `whoami` and `state` now print usage for
+    `--help` and exit 0. Previously they ran the command: a live discovery or
+    review, or an unknown-operation error for `state`. A help request never
+    runs discovery or touches observer state.
+  - Corrupt and v0-migration state backups now carry a per-process sequence
+    number, so two backups in the same millisecond no longer overwrite each
+    other.
+  - `load()` no longer writes a duplicate backup of an unchanged corrupt state
+    file.
+  - An exact Claude Code pin that finds a transcript through both its real
+    path and a symlink now reports the real path regardless of directory
+    order. It used to keep whichever copy the filesystem listed first, so
+    the reported path, and the path saved state binds to, could differ
+    between machines. The symlink-alias test failed on Linux CI from
+    2026-09-22 for this reason.
+- Shared-source version bumps only, with unchanged content:
+  - `session-observer-collab` 1.0.72
+  - `session-fork-to-destination` 0.2.52
+  - `consensus` plugin 0.2.4
+  - `session` plugin 0.3.4
+
 - Generated CLI scripts now run when invoked through a symlinked skill
   directory, such as `~/.claude/skills/<name>` pointing at
   `~/.agents/skills/<name>`. Their entrypoint guards compared unresolved paths
