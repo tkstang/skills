@@ -370,9 +370,20 @@ export async function runCursorStopMain() {
     process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
-if (
-  process.argv[1] &&
-  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
-) {
+// `node -e` code can set argv[1] to a positional argument that is not a path;
+// importing this module that way must not throw or run the CLI.
+function isEntrypointPath(argvPath) {
+  try {
+    return (
+      realpathSync(argvPath) === realpathSync(fileURLToPath(import.meta.url))
+    );
+  } catch (error) {
+    const code = error?.code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false;
+    throw error;
+  }
+}
+
+if (process.argv[1] && isEntrypointPath(process.argv[1])) {
   runCursorStopMain().catch(() => {});
 }

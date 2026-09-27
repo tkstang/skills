@@ -86,10 +86,21 @@ export async function runClaudeCodeHookMain(): Promise<void> {
   }
 }
 
-if (
-  process.argv[1] &&
-  realpathSync(path.resolve(process.argv[1])) ===
-    realpathSync(fileURLToPath(import.meta.url))
-) {
+// `node -e` code can set argv[1] to a positional argument that is not a path;
+// importing this module that way must not throw or run the CLI.
+function isEntrypointPath(argvPath: string): boolean {
+  try {
+    return (
+      realpathSync(path.resolve(argvPath)) ===
+      realpathSync(fileURLToPath(import.meta.url))
+    );
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false;
+    throw error;
+  }
+}
+
+if (process.argv[1] && isEntrypointPath(process.argv[1])) {
   runClaudeCodeHookMain().catch(() => undefined);
 }

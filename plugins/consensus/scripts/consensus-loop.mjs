@@ -2876,7 +2876,16 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
 }
 
 // src/plugins/consensus/core/consensus-loop-cli.ts
-if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath3(import.meta.url))) {
+function isEntrypointPath(argvPath) {
+  try {
+    return realpathSync(argvPath) === realpathSync(fileURLToPath3(import.meta.url));
+  } catch (error) {
+    const code = error.code;
+    if (code === "ENOENT" || code === "ENOTDIR") return false;
+    throw error;
+  }
+}
+if (process.argv[1] && isEntrypointPath(process.argv[1])) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}
 `);

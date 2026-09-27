@@ -4,19 +4,19 @@
 
 ### Changed
 
-- `session-observer` 1.0.83 prunes its test surface and the shared transcript
+- `session-observer` 1.0.84 prunes its test surface and the shared transcript
   runtime tests. The suites keep every contract, repair assertions that could
   not fail, and remove only test-only production hooks: the `realpathSafe`
   and `tierOf` exports and the `tieWindowSec` and `globalRecentProvider` rank
   options, the `renderJson` digest export, the `clearStaleControlDirectives`
   export, and the pid-less watch control-directive write. Watchers still read
   and consume a pid-less legacy `watch.control.json`. The observer's behavior
-  is unchanged. The shared `src/shared/transcript` changes are test-only apart
-  from dropping the `codexRetryEvidenceFragment` export, so these are version
-  bumps for shared-source changes only: `session-observer-collab` 1.0.71,
-  `session-export-transcript` 2.0.37, and
-  `session-fork-to-destination` 0.2.51. Their own content is unchanged. The `consensus` plugin is now 0.2.3
-  and the `session` plugin 0.3.3, carrying these member versions.
+  is unchanged apart from the fixes listed below. The shared
+  `src/shared/transcript` changes are test-only apart from dropping the
+  `codexRetryEvidenceFragment` export, so `session-export-transcript` 2.0.37
+  is a version bump for shared-source changes only. The same release also
+  carries `session-observer-collab` 1.0.72, `session-fork-to-destination`
+  0.2.52, the `consensus` plugin 0.2.4 and the `session` plugin 0.3.4.
 
 - `session-export-transcript` 2.0.35 clarifies that complete structured capture
   validates its exact-session contract before ordinary selector precedence, so
@@ -59,6 +59,25 @@
   - `session-fork-to-destination` 0.2.52
   - `consensus` plugin 0.2.4
   - `session` plugin 0.3.4
+
+- Generated CLI scripts no longer throw when imported from `node -e` code
+  with a positional argument. Node sets `process.argv[1]` to that argument,
+  which need not be a file, and the real-path entrypoint guards added for
+  symlinked installs called `realpathSync` on it, failing the import with
+  `ENOENT`. A non-path `argv[1]` now means "not run as the CLI". The change
+  applies to:
+  - `session-observer-collab` 1.0.71 (`collab-control.mjs`,
+    `claude-monitor.mjs`, and the Codex and Cursor stop hooks)
+  - `agent-messaging` 1.0.23, including its Claude Code and Codex hooks
+  - `consensus-review` 0.1.20
+  - `create` 0.1.18, `decide` 0.1.18, `evaluate` 0.1.22
+  - `panel` 0.1.15, `plan` 0.1.18, `refine` 0.1.21
+  - `consensus` plugin 0.2.3 (`consensus.mjs`, `consensus-loop.mjs`) and
+    `session` plugin 0.3.3
+
+  `phone-a-friend` 0.1.14, `session-observer` 1.0.83, and
+  `session-fork-to-destination` 0.2.51 are version bumps for shared-runtime
+  changes only; their own content is unchanged.
 
 - Generated CLI scripts now run when invoked through a symlinked skill
   directory, such as `~/.claude/skills/<name>` pointing at

@@ -9,7 +9,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -66,6 +66,28 @@ function run(script: string, home: string) {
   });
 }
 
+// `node -e` code sets process.argv[1] to its first positional argument, which
+// need not be a file. Importing an entrypoint that way must not run main().
+function importWithNonFileArgv(script: string, home: string) {
+  return new Promise<{ code: number | null; output: string }>((resolve) => {
+    execFile(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `await import(${JSON.stringify(pathToFileURL(script).href)});`,
+        'not-a-file',
+      ],
+      { cwd: home, env: { ...process.env, HOME: home }, timeout: 15_000 },
+      (error, stdout, stderr) => {
+        const code =
+          error && typeof error.code === 'number' ? error.code : error ? 1 : 0;
+        resolve({ code, output: `${stdout}${stderr}` });
+      },
+    ).stdin?.end();
+  });
+}
+
 describe('generated entrypoints through symlinks', () => {
   let temporary: string;
   let linkedRoot: string;
@@ -99,6 +121,24 @@ describe('generated entrypoints through symlinks', () => {
       expect(text, script).not.toMatch(/runConsensusLoop\(process\.argv/u);
     }
   });
+
+  it('imports without running main when argv[1] is not a file', async () => {
+    const scripts = await entrypoints();
+    const results = await Promise.all(
+      scripts.map(async (script) => {
+        const home = await mkdtemp(path.join(temporary, 'home-'));
+        return {
+          script,
+          result: await importWithNonFileArgv(
+            path.join(repoRoot, script),
+            home,
+          ),
+        };
+      }),
+    );
+    for (const { script, result } of results)
+      expect(result, script).toEqual({ code: 0, output: '' });
+  }, 120_000);
 
   it('produces the same output through a symlinked install', async () => {
     const scripts = await entrypoints();

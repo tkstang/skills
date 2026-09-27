@@ -8716,7 +8716,16 @@ async function runClaudeMonitorMain(argv = process.argv.slice(2), env = process.
     ].includes(result.reason) ? 0 : 1
   };
 }
-if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
+function isEntrypointPath(argvPath) {
+  try {
+    return realpathSync(argvPath) === realpathSync(fileURLToPath(import.meta.url));
+  } catch (error) {
+    const code = error?.code;
+    if (code === "ENOENT" || code === "ENOTDIR") return false;
+    throw error;
+  }
+}
+if (process.argv[1] && isEntrypointPath(process.argv[1])) {
   runClaudeMonitorMain().then((result) => {
     process.exitCode = result.exitCode;
   }).catch((error) => {

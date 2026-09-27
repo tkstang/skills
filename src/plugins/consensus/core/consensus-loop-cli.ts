@@ -8,10 +8,21 @@ import { exitCodeForError, hardErrorMessage } from './loop-validation.js';
 // so wrappers that bundle the loop do not also inherit its entrypoint.
 export * from './consensus-loop.js';
 
-if (
-  process.argv[1] &&
-  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
-) {
+// `node -e` code can set argv[1] to a positional argument that is not a path;
+// importing this module that way must not throw or run the CLI.
+function isEntrypointPath(argvPath: string): boolean {
+  try {
+    return (
+      realpathSync(argvPath) === realpathSync(fileURLToPath(import.meta.url))
+    );
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false;
+    throw error;
+  }
+}
+
+if (process.argv[1] && isEntrypointPath(process.argv[1])) {
   runConsensusLoop(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${hardErrorMessage(error)}\n`);
     process.exitCode = exitCodeForError(error);
