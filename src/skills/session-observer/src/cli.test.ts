@@ -237,12 +237,6 @@ async function writeNativeCodexTranscript(
 // ---------------------------------------------------------------------------
 
 describe('CLI subcommand dispatch', () => {
-  test('--help lists whoami command surface', () => {
-    const result = spawnCli(['--help']);
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain('whoami');
-  });
-
   test('whoami resolves explicit, harness, and ambiguous identities', async () => {
     const home = await mkdtemp(join(tmpdir(), 'cli-whoami-'));
     try {
@@ -498,17 +492,6 @@ describe('CLI subcommand dispatch', () => {
     }
   });
 
-  test('--help lists cursor as a runtime option', () => {
-    const result = spawnCli(['--help']);
-    expect(result.status, `help should exit 0\nstderr: ${result.stderr}`).toBe(
-      0,
-    );
-    expect(
-      result.stdout.includes('--runtime <claude-code|codex|cursor|auto>'),
-      'help should include cursor in the runtime list',
-    ).toBeTruthy();
-  });
-
   test('--help lists watch command surface', () => {
     const result = spawnCli(['--help']);
     expect(result.status, `help should exit 0\nstderr: ${result.stderr}`).toBe(
@@ -531,6 +514,10 @@ describe('CLI subcommand dispatch', () => {
       'help should list top-level --watch alias',
     ).toBeTruthy();
     expect(result.stdout).toContain('--include-activity');
+    expect(result.stdout).toContain('whoami');
+    expect(result.stdout).toContain(
+      '--runtime <claude-code|codex|cursor|auto>',
+    );
   });
 
   test('review --include-activity exposes the optional schema without advancing state', async () => {
@@ -1143,28 +1130,40 @@ describe('CLI subcommand dispatch', () => {
     }
   });
 
-  test('review --help does not throw', () => {
-    const result = spawnCli(['review', '--help']);
-    // --help exits 0 or 1; should not crash with code 127 or similar
-    // (exits 2 or 3 are also valid if runtime auto-resolution kicks in first)
-    expect(result.status !== null, 'should have an exit code').toBeTruthy();
-    expect(
-      result.status === 0 ||
-        result.status === 1 ||
-        result.status === 2 ||
-        result.status === 3,
-      `unexpected exit code: ${result.status}`,
-    ).toBeTruthy();
+  test('review --help does not throw', async () => {
+    // Isolate from the real HOME: `review` does not handle --help, so this
+    // runs a real auto-runtime discovery that must not touch real state.
+    const home = await mkdtemp(join(tmpdir(), 'cli-review-help-'));
+    try {
+      const result = spawnCli(['review', '--help'], {
+        HOME: home,
+        STATE_DIR: join(home, '.state'),
+      });
+      // --help exits 0 or 1; should not crash with code 127 or similar
+      // (exits 2 or 3 are also valid if runtime auto-resolution kicks in first)
+      expect(result.status !== null, 'should have an exit code').toBeTruthy();
+      expect(
+        result.status === 0 ||
+          result.status === 1 ||
+          result.status === 2 ||
+          result.status === 3,
+        `unexpected exit code: ${result.status}`,
+      ).toBeTruthy();
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
   });
 
   test('unknown subcommand exits with code 1', () => {
     const result = spawnCli(['not-a-command']);
     expect(result.status, 'unknown subcommand should exit 1').toBe(1);
+    expect(result.stderr).toContain('Unknown subcommand: not-a-command');
   });
 
   test('no arguments exits with code 1', () => {
     const result = spawnCli([]);
     expect(result.status, 'no arguments should exit 1').toBe(1);
+    expect(result.stderr).toContain('No subcommand specified');
   });
 });
 
@@ -1198,37 +1197,6 @@ describe('exit codes', () => {
       ).toBe(3);
       expect(
         result.stdout.includes('has no user conversation yet'),
-      ).toBeTruthy();
-    } finally {
-      await rm(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  test('review against typical fixture exits 0', async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
-    try {
-      const cwd = '/test/my-project';
-      const encodedCwd = '-test-my-project';
-      const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
-      await mkdir(projectDir, { recursive: true });
-      await copyFile(typicalClaude, join(projectDir, 'session-001.jsonl'));
-
-      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
-      await mkdir(stateDir, { recursive: true });
-
-      const result = spawnCli(
-        ['review', '--runtime', 'claude-code', '--cwd', cwd],
-        { HOME: tmpDir, STATE_DIR: stateDir },
-      );
-
-      expect(
-        result.status,
-        `Expected exit 0, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      ).toBe(0);
-      expect(
-        result.stdout.includes('### User') ||
-          result.stdout.includes('session-observer'),
-        'output should contain markdown content',
       ).toBeTruthy();
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
@@ -1269,47 +1237,6 @@ describe('locate --json', () => {
       expect(cache).not.toContain(oldPath);
     } finally {
       await rm(home, { recursive: true, force: true });
-    }
-  });
-
-  test('locate --json outputs parseable JSON with winner/fallbacks', async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
-    try {
-      const cwd = '/test/locate-project';
-      const encodedCwd = '-test-locate-project';
-      const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
-      await mkdir(projectDir, { recursive: true });
-      await copyFile(typicalClaude, join(projectDir, 'session-001.jsonl'));
-
-      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
-      await mkdir(stateDir, { recursive: true });
-
-      const result = spawnCli(
-        ['locate', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
-        { HOME: tmpDir, STATE_DIR: stateDir },
-      );
-
-      expect(
-        result.status === 0 || result.status === 2,
-        `Expected exit 0 or 2 for locate, got ${result.status}\nstderr: ${result.stderr}`,
-      ).toBeTruthy();
-
-      if (result.status === 0) {
-        let parsed: any;
-        expect(() => {
-          parsed = JSON.parse(result.stdout);
-        }, 'stdout should be valid JSON').not.toThrow();
-        expect(
-          'winner' in parsed || 'noMatch' in parsed,
-          'JSON should contain winner or noMatch key',
-        ).toBeTruthy();
-        expect(
-          'fallbacks' in parsed || 'noMatch' in parsed,
-          'JSON should contain fallbacks or noMatch',
-        ).toBeTruthy();
-      }
-    } finally {
-      await rm(tmpDir, { recursive: true, force: true });
     }
   });
 
@@ -1394,6 +1321,8 @@ describe('locate --json', () => {
 
       const parsed = JSON.parse(result.stdout);
       expect(parsed.winner.sessionId).toBe('cc-session-001');
+      expect(parsed).toHaveProperty('tier');
+      expect(parsed).toHaveProperty('fallbacks');
       expect(parsed.snippet.query).toBe('Hello');
       expect(parsed.snippet.matches.length).toBe(1);
       expect(parsed.snippet.matches[0].sessionId).toBe('cc-session-001');
@@ -1413,11 +1342,12 @@ describe('locate --json', () => {
 describe('--runtime auto', () => {
   test('auto with SESSION_OBSERVER_SELF=claude-code resolves to codex', async () => {
     // If self is claude-code, auto should try to read codex's transcript.
-    // With no codex transcripts, this should exit 2 (noMatch).
+    // The only candidate belongs to self, so this must exit 2 (noMatch).
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
       await mkdir(stateDir, { recursive: true });
+      await copyClaudeTranscript(tmpDir, '/nonexistent', 'self-claude');
 
       const result = spawnCli(
         ['review', '--runtime', 'auto', '--cwd', '/nonexistent'],
@@ -1437,30 +1367,6 @@ describe('--runtime auto', () => {
     }
   });
 
-  test('auto with SESSION_OBSERVER_SELF=codex resolves to claude-code', async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
-    try {
-      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
-      await mkdir(stateDir, { recursive: true });
-
-      const result = spawnCli(
-        ['review', '--runtime', 'auto', '--cwd', '/nonexistent'],
-        {
-          HOME: tmpDir,
-          STATE_DIR: stateDir,
-          SESSION_OBSERVER_SELF: 'codex',
-        },
-      );
-      // Should try claude-code (the peer), find no transcripts → exit 2
-      expect(
-        result.status,
-        `Expected exit 2 (noMatch) when peer runtime has no transcripts, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      ).toBe(2);
-    } finally {
-      await rm(tmpDir, { recursive: true, force: true });
-    }
-  });
-
   test('auto with no env hint and no candidates in either runtime → exit 2', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
@@ -1468,17 +1374,25 @@ describe('--runtime auto', () => {
       await mkdir(stateDir, { recursive: true });
 
       const result = spawnCli(
-        ['review', '--runtime', 'auto', '--cwd', '/nonexistent-project'],
+        [
+          'review',
+          '--runtime',
+          'auto',
+          '--cwd',
+          '/nonexistent-project',
+          '--json',
+        ],
         {
           HOME: tmpDir,
           STATE_DIR: stateDir,
         },
       );
-      // No candidates in either runtime → exit 2 or 3
+      // No candidates in any runtime → exit 2 (noMatch)
       expect(
-        result.status === 2 || result.status === 3,
-        `Expected exit 2 or 3 when no candidates in either runtime, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      ).toBeTruthy();
+        result.status,
+        `Expected exit 2 when no candidates in any runtime, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      ).toBe(2);
+      expect(JSON.parse(result.stdout).noMatch).toBe(true);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -2383,63 +2297,6 @@ describe('Cursor CLI state and delivery composition', () => {
 // ---------------------------------------------------------------------------
 
 describe('state subcommand', () => {
-  test('state get exits 0 with empty state', async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
-    try {
-      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
-      await mkdir(stateDir, { recursive: true });
-
-      const result = spawnCli(['state', 'get'], {
-        HOME: tmpDir,
-        STATE_DIR: stateDir,
-      });
-      expect(
-        result.status,
-        `state get should exit 0\nstderr: ${result.stderr}`,
-      ).toBe(0);
-    } finally {
-      await rm(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  test('state clear exits 0', async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
-    try {
-      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
-      await mkdir(stateDir, { recursive: true });
-
-      const result = spawnCli(['state', 'clear'], {
-        HOME: tmpDir,
-        STATE_DIR: stateDir,
-      });
-      expect(
-        result.status,
-        `state clear should exit 0\nstderr: ${result.stderr}`,
-      ).toBe(0);
-    } finally {
-      await rm(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  test('state reset --runtime codex exits 0', async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
-    try {
-      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
-      await mkdir(stateDir, { recursive: true });
-
-      const result = spawnCli(['state', 'reset', '--runtime', 'codex'], {
-        HOME: tmpDir,
-        STATE_DIR: stateDir,
-      });
-      expect(
-        result.status,
-        `state reset should exit 0\nstderr: ${result.stderr}`,
-      ).toBe(0);
-    } finally {
-      await rm(tmpDir, { recursive: true, force: true });
-    }
-  });
-
   test('state reset --runtime cursor exits 0', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
@@ -2507,6 +2364,11 @@ describe('state subcommand', () => {
             preservesSiblingSessions: false,
           },
         });
+        expect(
+          JSON.parse(
+            await readFile(join(stateDir, 'cursor-state.json'), 'utf8'),
+          ),
+        ).toEqual({ schemaVersion: 2, sessions: {}, legacyUnverified: {} });
       } finally {
         await rm(tmpDir, { recursive: true, force: true });
       }
