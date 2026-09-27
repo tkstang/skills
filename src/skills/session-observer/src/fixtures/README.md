@@ -12,7 +12,7 @@ Claude Code transcripts follow the record shape used in `~/.claude/projects/<enc
 
 ### typical.jsonl
 
-13 records: session-meta + 6 user/assistant turn pairs. Includes one `tool_use` + one `tool_result` block. All JSON parses cleanly. Used to verify: correct record count, message extraction, session ID extraction, and that tool calls / results are filtered by default.
+13 records: session-meta + 6 user/assistant turn pairs. Includes one `tool_use` + one `tool_result` block. All JSON parses cleanly. Used to verify: message extraction, session ID extraction, and that tool calls / results are filtered by default.
 
 ### with-tool-burst.jsonl
 
@@ -26,17 +26,9 @@ Claude Code transcripts follow the record shape used in `~/.claude/projects/<enc
 
 6 records covering native top-level `origin.kind` values for human input, task notifications, legacy absent provenance, peer provenance, and an unknown future value.
 
-### malformed.jsonl
-
-6 lines, one of which is not valid JSON (a plain-text line in the middle). Used to verify that `readRecords` emits a warning but does not throw, and returns all valid records before and after the bad line.
-
-### partial-tail.jsonl
-
-5 lines where the last line is a truncated/incomplete JSON object (simulates a write that was interrupted mid-record). Used to verify that `readRecords` drops the partial trailing line with a warning.
-
 ### empty.jsonl
 
-Empty file (0 bytes). Used to verify that `readRecords` returns an empty array without error.
+Empty file (0 bytes). Used by the CLI and integration suites to verify empty-transcript handling.
 
 ---
 
@@ -52,7 +44,7 @@ Codex transcripts follow the record shape used in `~/.codex/sessions/**/*.jsonl`
 
 ### typical.jsonl
 
-13 records: session-meta (`type: session_started`) + 6 user/assistant pairs + 2 function_calls. Includes `cwd` in the session-meta record. Used to verify: correct record count, `extractMeta` returns `(sessionId, recordedCwd)`, function calls included/excluded based on flags.
+13 records: session-meta (`type: session_started`) + 6 user/assistant pairs + 2 function_calls. Includes `cwd` in the session-meta record. Used to verify: `extractMeta` returns `(sessionId, recordedCwd)`, function calls included/excluded based on flags.
 
 ### with-function-calls.jsonl
 
@@ -65,14 +57,6 @@ Codex transcripts follow the record shape used in `~/.codex/sessions/**/*.jsonl`
 ### no-cwd-record.jsonl
 
 4 records with no session-meta record containing `cwd`. Used to verify that `extractMeta` returns `{ sessionId, recordedCwd: null }` gracefully.
-
-### malformed.jsonl
-
-6 lines, one of which is not valid JSON. Used to verify tolerant parsing (same as claude-code/malformed.jsonl).
-
-### partial-tail.jsonl
-
-5 lines where the last line is truncated mid-write. Used to verify that `readRecords` drops the partial trailing line with a warning (same as claude-code/partial-tail.jsonl).
 
 ---
 
@@ -103,14 +87,6 @@ Cursor agent transcripts follow the record shape used in `~/.cursor/projects/<en
 ### ask-question-unterminated.jsonl
 
 6 records: a completed opening turn, then an unterminated turn containing assistant prose, an `AskQuestion` tool_use, a typed user reply, and further assistant work — with **no** trailing `turn_ended`. Models a still-open or truncated turn. Used to verify that the trailing buffer is flushed for the question and for the operator's typed reply (Cursor records a typed answer as an ordinary user message), while unfinished assistant progress stays hidden. A provisional tail containing no question keeps the existing hide-it-all behavior — see `unterminated.jsonl`.
-
-### malformed.jsonl
-
-5 lines, one of which is not valid JSON. Used to verify tolerant parsing for Cursor-shaped transcripts: `readRecords` warns, skips the bad line, and preserves valid records before and after it.
-
-### partial-tail.jsonl
-
-5 lines where the last line is truncated mid-write. Used to verify that `readRecords` drops the partial trailing line with a warning for Cursor-shaped transcripts.
 
 ### Framed transcript contract
 

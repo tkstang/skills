@@ -136,9 +136,7 @@ function validCalendarDate(
   );
 }
 
-export function codexRetryEvidenceFragment(
-  message: string,
-): string | undefined {
+function codexRetryEvidenceFragment(message: string): string | undefined {
   const match = RETRY_SUFFIX.exec(message);
   if (!match) return;
   const hour = Number(match[6]);

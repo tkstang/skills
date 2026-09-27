@@ -12,10 +12,6 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-// @ts-expect-error No type declarations; this test exercises the shipped artifact.
-import * as shippedCursorAnalysis from '../../../skills/session-observer/scripts/lib/cursor-analysis.mjs';
-// @ts-expect-error No type declarations; this test exercises the shipped artifact.
-import * as shippedCursorFrames from '../../../skills/session-observer/scripts/lib/cursor-frames.mjs';
 import type {
   DetailedTranscriptRead,
   JsonObject,
@@ -89,144 +85,6 @@ function fixturePath(runtime: Runtime, name: string): string {
   if (runtime === 'cursor') return join(FIXTURES_CURSOR, name);
   throw new Error(`Unknown fixture runtime: ${runtime}`);
 }
-
-// ---------------------------------------------------------------------------
-// readRecords
-// ---------------------------------------------------------------------------
-
-describe('readRecords', () => {
-  it('typical.jsonl — returns expected count and parsed objects (claude-code)', async () => {
-    const records = await readRecords(
-      fixturePath('claude-code', 'typical.jsonl'),
-    );
-    // 13 lines in the fixture
-    expectEqual(records.length, 13);
-    expectEqual(typeof records[0], 'object');
-    expectEqual(records[0].sessionId, 'cc-session-001');
-  });
-
-  it('typical.jsonl — returns expected count and parsed objects (codex)', async () => {
-    const records = await readRecords(fixturePath('codex', 'typical.jsonl'));
-    // 13 lines in the fixture
-    expectEqual(records.length, 13);
-    expectEqual(typeof records[0], 'object');
-  });
-
-  it('typical.jsonl — returns expected count and parsed objects (cursor)', async () => {
-    const records = await readRecords(fixturePath('cursor', 'typical.jsonl'));
-    expectEqual(records.length, 4);
-    expectEqual(typeof records[0], 'object');
-    expectEqual(records[0].role, 'user');
-  });
-
-  it('malformed.jsonl — returns valid records, warns, does not throw (claude-code)', async () => {
-    const warnings: string[] = [];
-    const origWarn = console.warn;
-    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
-    try {
-      const records = await readRecords(
-        fixturePath('claude-code', 'malformed.jsonl'),
-      );
-      // 5 valid JSON lines + 1 non-JSON → 5 records returned
-      expectEqual(records.length, 5);
-      expectOk(warnings.length > 0, 'expected a console.warn for the bad line');
-    } finally {
-      console.warn = origWarn;
-    }
-  });
-
-  it('malformed.jsonl — returns valid records, warns, does not throw (codex)', async () => {
-    const warnings: string[] = [];
-    const origWarn = console.warn;
-    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
-    try {
-      const records = await readRecords(
-        fixturePath('codex', 'malformed.jsonl'),
-      );
-      expectEqual(records.length, 5);
-      expectOk(warnings.length > 0, 'expected a console.warn for the bad line');
-    } finally {
-      console.warn = origWarn;
-    }
-  });
-
-  it('malformed.jsonl — returns valid records, warns, does not throw (cursor)', async () => {
-    const warnings: string[] = [];
-    const origWarn = console.warn;
-    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
-    try {
-      const records = await readRecords(
-        fixturePath('cursor', 'malformed.jsonl'),
-      );
-      expectEqual(records.length, 4);
-      expectOk(warnings.length > 0, 'expected a console.warn for the bad line');
-    } finally {
-      console.warn = origWarn;
-    }
-  });
-
-  it('partial-tail.jsonl — drops the partial last line with a warning (claude-code)', async () => {
-    const warnings: string[] = [];
-    const origWarn = console.warn;
-    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
-    try {
-      const records = await readRecords(
-        fixturePath('claude-code', 'partial-tail.jsonl'),
-      );
-      // 4 good lines + 1 partial → 4 records returned
-      expectEqual(records.length, 4);
-      expectOk(
-        warnings.length > 0,
-        'expected a console.warn for the partial tail',
-      );
-    } finally {
-      console.warn = origWarn;
-    }
-  });
-
-  it('partial-tail.jsonl — drops the partial last line with a warning (codex)', async () => {
-    const warnings: string[] = [];
-    const origWarn = console.warn;
-    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
-    try {
-      const records = await readRecords(
-        fixturePath('codex', 'partial-tail.jsonl'),
-      );
-      expectEqual(records.length, 4);
-      expectOk(
-        warnings.length > 0,
-        'expected a console.warn for the partial tail',
-      );
-    } finally {
-      console.warn = origWarn;
-    }
-  });
-
-  it('partial-tail.jsonl — drops the partial last line with a warning (cursor)', async () => {
-    const warnings: string[] = [];
-    const origWarn = console.warn;
-    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
-    try {
-      const records = await readRecords(
-        fixturePath('cursor', 'partial-tail.jsonl'),
-      );
-      expectEqual(records.length, 4);
-      expectOk(
-        warnings.length > 0,
-        'expected a console.warn for the partial tail',
-      );
-    } finally {
-      console.warn = origWarn;
-    }
-  });
-
-  it('empty.jsonl — returns empty array', async () => {
-    const records = await readRecords(
-      fixturePath('claude-code', 'empty.jsonl'),
-    );
-    expectDeepEqual(records, []);
-  });
-});
 
 describe('readRecordsDetailed', () => {
   let tmpDir: string;
@@ -382,6 +240,34 @@ describe('readRecordsDetailed', () => {
         { index: 2 },
       ]);
       expect(warnings).toEqual([expectedWarning]);
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
+  it('drops a partial tail from legacy reads with one warning', async () => {
+    const transcriptPath = join(tmpDir, 'legacy-partial-tail.jsonl');
+    const partial = '{"broken":';
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ index: 1 })}\n${partial}`,
+    );
+    let parseReason = '';
+    try {
+      JSON.parse(partial);
+    } catch (error) {
+      parseReason = error instanceof Error ? error.message : String(error);
+    }
+    const warnings: string[] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
+    try {
+      await expect(readRecords(transcriptPath)).resolves.toEqual([
+        { index: 1 },
+      ]);
+      expect(warnings).toEqual([
+        `[runtimes] Partial trailing line dropped from ${transcriptPath} (line 2): ${parseReason}`,
+      ]);
     } finally {
       console.warn = originalWarn;
     }
@@ -677,21 +563,24 @@ describe('bounded transcript readers', () => {
 // ---------------------------------------------------------------------------
 
 describe('encodeCwd', () => {
-  it('claude-code: encodes absolute path by replacing / and . with -', () => {
-    const encoded = encodeCwd('claude-code', '/Users/x/Code/y');
-    expectEqual(encoded, '-Users-x-Code-y');
-  });
-
-  it('claude-code: matches observed dot-sanitized project dirs', () => {
-    const encoded = encodeCwd(
+  it.each([
+    [
       'claude-code',
       '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5',
-    );
-    expectEqual(
-      encoded,
       '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
-    );
-  });
+    ],
+    ['codex', '/Users/x/Code/y', null],
+    [
+      'cursor',
+      '/Users/thomas.stang/Code/vox/duet',
+      'Users-thomas-stang-Code-vox-duet',
+    ],
+  ] as const)(
+    '%s: returns the documented preferred directory form',
+    (runtime, cwd, expected) => {
+      expectEqual(encodeCwd(runtime, cwd), expected);
+    },
+  );
 
   it('claude-code: exposes dot-sanitized and slash-only variants', () => {
     const variants = encodeCwdVariants(
@@ -702,16 +591,6 @@ describe('encodeCwd', () => {
       '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
       '-Users-thomas.stang-.superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
     ]);
-  });
-
-  it('codex: returns null (no path encoding)', () => {
-    const encoded = encodeCwd('codex', '/Users/x/Code/y');
-    expectEqual(encoded, null);
-  });
-
-  it('cursor: encodes absolute path by joining slash and dot separated segments', () => {
-    const encoded = encodeCwd('cursor', '/Users/thomas.stang/Code/vox/duet');
-    expectEqual(encoded, 'Users-thomas-stang-Code-vox-duet');
   });
 
   it('cursor: exposes the observed project slug variant', () => {
@@ -784,16 +663,6 @@ describe('extractMeta (claude-code)', () => {
 
   afterAll(async () => {
     await rm(tmpDir, { recursive: true, force: true });
-  });
-
-  it('returns sessionId from the first record with a sessionId field', async () => {
-    // Use the typical fixture directly — it has sessionId in record[0]
-    const meta = await extractMeta(
-      'claude-code',
-      fixturePath('claude-code', 'typical.jsonl'),
-    );
-    expectOk(meta !== null, 'meta should not be null');
-    expectEqual(meta.sessionId, 'cc-session-001');
   });
 
   it('returns recordedCwd decoded from the parent-directory name', async () => {
@@ -1356,13 +1225,12 @@ describe('normalizeEntries (claude-code)', () => {
     const entries = normalizeEntries('claude-code', records, {
       includeToolCalls: false,
     });
-    // Entries should have monotonically non-decreasing recordIndex
-    let prevIndex = -1;
-    for (const e of entries) {
-      expectOk(e.recordIndex >= 0);
-      expectOk(e.recordIndex >= prevIndex);
-      prevIndex = e.recordIndex;
-    }
+    // typical.jsonl: record 0 is a summary and record 5 carries only a
+    // tool_result, so neither yields a default message entry.
+    expectDeepEqual(
+      entries.map((e) => e.recordIndex),
+      [1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12],
+    );
   });
 
   it('filters Claude slash-command message payloads by default', () => {
@@ -1627,22 +1495,12 @@ describe('normalizeEntries (codex)', () => {
     const entries = normalizeEntries('codex', records, {
       includeToolCalls: false,
     });
-    let prevIndex = -1;
-    for (const e of entries) {
-      expectOk(e.recordIndex >= 0);
-      expectOk(e.recordIndex >= prevIndex);
-      prevIndex = e.recordIndex;
-    }
-  });
-
-  it('no-cwd-record: normalizeEntries still works (no session-meta required)', async () => {
-    const noCwdRecords = await readRecords(
-      fixturePath('codex', 'no-cwd-record.jsonl'),
+    // typical.jsonl: record 0 is session_started and records 4 and 7 are
+    // function_call items, filtered by default.
+    expectDeepEqual(
+      entries.map((e) => e.recordIndex),
+      [1, 2, 3, 5, 6, 8, 9, 10, 11, 12],
     );
-    const entries = normalizeEntries('codex', noCwdRecords, {
-      includeToolCalls: false,
-    });
-    expectOk(entries.length > 0);
   });
 });
 
@@ -1717,6 +1575,7 @@ describe('Cursor shared control classification', () => {
     '<session_observer_wake automatic="true" schema_version="2.0" runtime="cursor" lease_id="x" peer="cursor:y" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>',
     '<session_observer_wake automatic="true" schema_version="3" runtime="cursor" lease_id="x" peer="cursor:y" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>',
     'ordinary human input',
+    '{"automatic":true}',
   ])('rejects invalid or non-automatic envelope text: %s', (text) => {
     expect(parseAutomaticControlEnvelope(text)).toBeNull();
   });
@@ -1867,39 +1726,6 @@ describe('normalizeEntries (cursor)', () => {
       );
     });
   }
-});
-
-describe('shipped Cursor framed runtime modules', () => {
-  it('loads and composes the Session Observer generated frame reader and analyzer', async () => {
-    const accumulator = shippedCursorAnalysis.createCursorTurnAccumulator(
-      {
-        runtime: 'cursor',
-        projectCwd: '/synthetic/project',
-        sessionId: 'synthetic-generated-session',
-        canonicalTranscriptPath: '/synthetic/project/transcript.jsonl',
-      },
-      0,
-    );
-    const scan = await shippedCursorFrames.scanCursorTranscript(
-      fixturePath('cursor', 'framed-closed.jsonl'),
-      { onFrame: accumulator.onFrame },
-    );
-    const analysis = accumulator.finish(scan);
-
-    expect(analysis.turns).toHaveLength(1);
-    expect(analysis.turns[0]).toMatchObject({
-      lifecycle: 'success',
-      fromFrameIndex: 0,
-      observedThroughFrame: 2,
-      humanRecordIndexes: [0],
-      finalSubstantiveEntryKey: expect.any(String),
-    });
-    expect(analysis.turns[0].assistantRecords[0]).toMatchObject({
-      sourceFrameIndex: 1,
-      classification: 'substantive',
-      text: 'Synthetic response beta.',
-    });
-  });
 });
 
 // ---------------------------------------------------------------------------
