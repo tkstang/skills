@@ -12222,6 +12222,13 @@ async function applySnippetFilter2(candidates, snippet) {
   }
   return { candidates: matches, matches };
 }
+var GENERAL_USAGE_SUBCOMMANDS = /* @__PURE__ */ new Set([
+  "review",
+  "catch-up",
+  "locate",
+  "whoami",
+  "state"
+]);
 function printUsage() {
   process.stdout.write(
     [
@@ -13548,7 +13555,7 @@ If continued monitoring is desired, restart catch-up-then-watch after your respo
 }
 async function main(argv) {
   const args = parseCliArgs(argv);
-  if (args.help && !args.subcommand) {
+  if (args.help && (!args.subcommand || GENERAL_USAGE_SUBCOMMANDS.has(args.subcommand))) {
     return printUsage();
   }
   switch (args.subcommand) {

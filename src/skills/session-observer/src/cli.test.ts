@@ -10,6 +10,7 @@ import {
   copyFile,
   realpath,
   readFile,
+  readdir,
   utimes,
   writeFile,
 } from 'node:fs/promises';
@@ -1130,31 +1131,30 @@ describe('CLI subcommand dispatch', () => {
     }
   });
 
-  test('review --help does not throw', async () => {
-    // Isolate from the real HOME: `review` does not handle --help, so this
-    // runs a real auto-runtime discovery that must not touch real state.
-    const home = await mkdtemp(join(tmpdir(), 'cli-review-help-'));
-    try {
-      const result = spawnCli(['review', '--help'], {
-        HOME: home,
-        STATE_DIR: join(home, '.state'),
-      });
-      // --help exits 0 or 1; should not crash with code 127 or similar
-      // (exits 2 or 3 are also valid if runtime auto-resolution kicks in first)
-      expect(result.status !== null, 'should have an exit code').toBeTruthy();
-      expect(
-        result.status === 0 ||
-          result.status === 1 ||
-          result.status === 2 ||
-          result.status === 3,
-        `unexpected exit code: ${result.status}`,
-      ).toBeTruthy();
-      // A thrown error also exits 1; it must not reach the top-level handler.
-      expect(result.stderr).not.toContain('Unexpected error');
-    } finally {
-      await rm(home, { recursive: true, force: true });
-    }
-  });
+  test.each(['review', 'catch-up', 'locate', 'whoami', 'state'])(
+    '%s --help prints usage without discovery or state writes',
+    async (subcommand) => {
+      const home = await mkdtemp(join(tmpdir(), 'cli-subcommand-help-'));
+      const stateDir = join(home, '.state');
+      try {
+        const result = spawnCli([subcommand, '--help'], {
+          HOME: home,
+          STATE_DIR: stateDir,
+        });
+        expect(result.status, `stderr: ${result.stderr}`).toBe(0);
+        expect(result.stdout).toContain(
+          'Usage: session-observer <subcommand> [options]',
+        );
+        expect(result.stderr).toBe('');
+        // Help must not run discovery, which creates the state directory.
+        await expect(readdir(stateDir)).rejects.toMatchObject({
+          code: 'ENOENT',
+        });
+      } finally {
+        await rm(home, { recursive: true, force: true });
+      }
+    },
+  );
 
   test('unknown subcommand exits with code 1', () => {
     const result = spawnCli(['not-a-command']);
