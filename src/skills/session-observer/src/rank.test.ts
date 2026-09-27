@@ -2,14 +2,14 @@
  * rank.test.ts — Tests for src/skills/session-observer/src/lib/rank.ts
  *
  * Test cases:
- *   1. Tier A wins over Tier B and Tier C; non-A candidates filtered out
- *   2. Tier B wins when no Tier A; Tier C (no-match) candidates filtered out
- *   3. No match → returns { winner: null, noMatch: true, sisters, globalRecent }
- *   4. Ties: candidates within TIE_WINDOW_SEC of winner appear in ties[]
- *   5. active: true set on winner when ageSec < 60
- *   6. realpathSafe handles ENOENT without throwing
- *   7. Within a tier, sort by mtime DESC
- *   8. Symlink-equivalent cwd paths rank as Tier A
+ *   1. Tier A wins over Tier B; lower tiers stay out of the winning pool
+ *   2. Tier B wins (descendant or ancestor cwd) when no Tier A exists
+ *   3. Tier C: Claude/Cursor parent-dir slug recovery
+ *   4. No match → { winner: null, noMatch: true, sisters, globalRecent top-5 }
+ *   5. Ties: candidates within the default 5s window appear in ties[]
+ *   6. active flag on the winner (ageSec < 60)
+ *   7. Engagement and Codex-child preference before recency
+ *   8. Cwd normalization: symlink-equivalent paths and path-boundary safety
  */
 
 import { mkdtemp, mkdir, rm, symlink } from 'node:fs/promises';
@@ -18,7 +18,7 @@ import { join } from 'node:path';
 
 import { expect, test } from 'vitest';
 
-import { rank, realpathSafe, tierOf } from './lib/rank.js';
+import { rank } from './lib/rank.js';
 
 // ---------------------------------------------------------------------------
 // Helpers for building synthetic Candidate objects
@@ -67,11 +67,8 @@ test('Tier A wins over Tier B and non-A candidates are not in fallbacks', () => 
   expect(result.winner, 'should have a winner').toBeTruthy();
   expect(result.winner.sessionId, 'Tier A should win').toBe(tierA.sessionId);
   expect(result.tier, 'result tier should be A').toBe('A');
-  // Tier B should appear in fallbacks, not bumped to winner
-  expect(
-    Array.isArray(result.fallbacks),
-    'fallbacks should be an array',
-  ).toBeTruthy();
+  // Fallbacks come only from the winning tier, so Tier B is excluded.
+  expect(result.fallbacks).toEqual([]);
 });
 
 test('Tier A exact cwd beats newer unrelated candidate', () => {
@@ -187,11 +184,9 @@ test('No match → { winner: null, noMatch: true, sisters, globalRecent }', () =
   });
 
   const mockSisters = ['/Users/test/project-worktree'];
-  const mockGlobalRecent = [noMatchCandidate];
 
   const result: any = rank([noMatchCandidate], TARGET_CWD, {
     gitWorktrees: mockSisters,
-    globalRecentProvider: () => mockGlobalRecent,
   });
 
   expect(result.winner, 'winner should be null on noMatch').toBe(null);
@@ -199,14 +194,7 @@ test('No match → { winner: null, noMatch: true, sisters, globalRecent }', () =
   expect(result.sisters, 'sisters should come from opts.gitWorktrees').toEqual(
     mockSisters,
   );
-  expect(
-    Array.isArray(result.globalRecent),
-    'globalRecent should be an array',
-  ).toBeTruthy();
-  expect(
-    result.globalRecent.length >= 1,
-    'globalRecent should have at least one entry',
-  ).toBeTruthy();
+  expect(result.globalRecent).toEqual([noMatchCandidate]);
 });
 
 test('Claude parent-dir slug match beats newer unrelated global candidate', () => {
@@ -291,8 +279,8 @@ test('No match with empty candidates → noMatch result', () => {
 
 test('Ties: candidates within TIE_WINDOW_SEC (5s) of winner appear in ties[]', () => {
   // Winner: mtime = NOW - 10
-  // Tie: mtime = NOW - 13 (within 5s window)
-  // No-tie: mtime = NOW - 100 (outside window)
+  // Tie: mtime = NOW - 15 (exactly at the inclusive 5s boundary)
+  // No-tie: mtime = NOW - 16 (just outside the window)
   const winner = mkCandidate({
     recordedCwd: TARGET_CWD,
     mtime: NOW - 10,
@@ -301,20 +289,18 @@ test('Ties: candidates within TIE_WINDOW_SEC (5s) of winner appear in ties[]', (
   });
   const inWindow = mkCandidate({
     recordedCwd: TARGET_CWD,
-    mtime: NOW - 13,
-    ageSec: 13,
+    mtime: NOW - 15,
+    ageSec: 15,
     sessionId: 'sess-tie',
   });
   const farAway = mkCandidate({
     recordedCwd: TARGET_CWD,
-    mtime: NOW - 100,
-    ageSec: 100,
+    mtime: NOW - 16,
+    ageSec: 16,
     sessionId: 'sess-far',
   });
 
-  const result: any = rank([winner, inWindow, farAway], TARGET_CWD, {
-    tieWindowSec: 5,
-  });
+  const result: any = rank([winner, inWindow, farAway], TARGET_CWD);
 
   expect(result.winner, 'should have a winner').toBeTruthy();
   expect(result.winner.sessionId, 'newest should win').toBe('sess-winner');
@@ -365,12 +351,6 @@ test('active: false set on winner when ageSec >= 60', () => {
   expect(result.winner.active, 'active should be false when ageSec >= 60').toBe(
     false,
   );
-});
-
-test('realpathSafe handles ENOENT without throwing', async () => {
-  const missingPath = '/nonexistent/path/that/does/not/exist';
-
-  expect(realpathSafe(missingPath)).toBe(missingPath);
 });
 
 test('Within a tier, candidates sorted by mtime DESC', () => {
@@ -468,13 +448,7 @@ test('only unengaged same-cwd candidates surface unengagedOnly instead of a winn
   expect(result.candidates[0].sessionId).toBe('sess-bootstrap-only');
 });
 
-test('tierOf: Tier A for exact cwd match', () => {
-  if (!tierOf) return; // tierOf export is optional per plan
-  const candidate = mkCandidate({ recordedCwd: TARGET_CWD });
-  expect(tierOf(candidate, TARGET_CWD)).toBe('A');
-});
-
-test('tierOf: Tier A for symlink-equivalent cwd match', async () => {
+test('symlink-equivalent recordedCwd ranks as Tier A', async () => {
   const root = await mkdtemp(join(tmpdir(), 'rank-symlink-'));
   try {
     const realDir = join(root, 'real-project');
@@ -483,32 +457,20 @@ test('tierOf: Tier A for symlink-equivalent cwd match', async () => {
     await symlink(realDir, linkDir, 'dir');
 
     const candidate = mkCandidate({ recordedCwd: linkDir });
+    const result: any = rank([candidate], realDir);
 
-    expect(tierOf(candidate, realDir)).toBe('A');
+    expect(result.winner?.sessionId).toBe(candidate.sessionId);
+    expect(result.tier).toBe('A');
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test('tierOf: Tier B for descendant cwd (recordedCwd under targetCwd)', () => {
-  if (!tierOf) return;
-  const candidate = mkCandidate({ recordedCwd: TARGET_CWD + '/subdir/nested' });
-  expect(tierOf(candidate, TARGET_CWD)).toBe('B');
-});
-
-test('tierOf: Tier B for ancestor cwd (targetCwd under recordedCwd)', () => {
-  // Session was started at the repo root (/tmp/project), agent invoked from a subdir
-  // e.g. tierOf({ recordedCwd: '/tmp/project' }, '/tmp/project/src') → 'B'
-  if (!tierOf) return;
-  const candidate = mkCandidate({ recordedCwd: '/tmp/project' });
-  expect(tierOf(candidate, '/tmp/project/src')).toBe('B');
-});
-
-test('tierOf: Tier C when recordedCwd is a prefix of targetCwd but not path-boundary-safe', () => {
+test('a string-prefix cwd that is not a path ancestor does not match', () => {
   // /foo/barbaz should NOT match /foo/bar — the '/foo/bar' + '/' check prevents this
-  if (!tierOf) return;
   const candidate = mkCandidate({ recordedCwd: '/foo/bar' });
-  expect(tierOf(candidate, '/foo/barbaz')).toBe('C');
+  const result: any = rank([candidate], '/foo/barbaz');
+  expect(result.noMatch).toBe(true);
 });
 
 test('rank: Tier B bidirectional — ancestor recordedCwd yields a winner', () => {
@@ -525,18 +487,6 @@ test('rank: Tier B bidirectional — ancestor recordedCwd yields a winner', () =
   expect(result.tier).toBe('B');
 });
 
-test('tierOf: Tier C for no match', () => {
-  if (!tierOf) return;
-  const candidate = mkCandidate({ recordedCwd: '/some/other/project' });
-  expect(tierOf(candidate, TARGET_CWD)).toBe('C');
-});
-
-test('tierOf: null recordedCwd → Tier C', () => {
-  if (!tierOf) return;
-  const candidate = mkCandidate({ recordedCwd: null });
-  expect(tierOf(candidate, TARGET_CWD)).toBe('C');
-});
-
 test('globalRecent: top-5 by mtime from all candidates', () => {
   // 7 candidates with no cwd match → noMatch path, globalRecent should be top-5
   const candidates = Array.from({ length: 7 }, (_, i) =>
@@ -548,20 +498,14 @@ test('globalRecent: top-5 by mtime from all candidates', () => {
     }),
   );
 
-  const result: any = rank(candidates, TARGET_CWD);
+  const result: any = rank(candidates.toReversed(), TARGET_CWD);
 
   expect(result.noMatch, 'should be noMatch').toBe(true);
-  expect(
-    result.globalRecent.length <= 5,
-    'globalRecent should contain at most 5 entries',
-  ).toBeTruthy();
-  // Verify they are sorted by mtime DESC
-  for (let i = 1; i < result.globalRecent.length; i++) {
-    expect(
-      result.globalRecent[i - 1].mtime >= result.globalRecent[i].mtime,
-      'globalRecent should be sorted mtime DESC',
-    ).toBeTruthy();
-  }
-  // First entry should be the most recent (mtime = NOW - 10)
-  expect(result.globalRecent[0].sessionId).toBe('sess-0');
+  expect(result.globalRecent.map((c: any) => c.sessionId)).toEqual([
+    'sess-0',
+    'sess-1',
+    'sess-2',
+    'sess-3',
+    'sess-4',
+  ]);
 });

@@ -583,28 +583,25 @@ async function unlinkIfExists(path) {
     throw err;
   }
 }
-async function writeControlDirective(directive, { issuedAt, pid } = {}) {
+async function writeControlDirective(directive, { issuedAt, pid }) {
   if (!CONTROL_DIRECTIVES.has(directive)) {
     throw new Error(`unknown watch control directive: ${directive}`);
   }
   const dir = stateDir();
   const payload = {
     directive,
-    issuedAt: toIsoTimestamp(issuedAt)
+    issuedAt: toIsoTimestamp(issuedAt),
+    pid
   };
-  if (pid !== void 0) payload.pid = pid;
-  const basename = pid === void 0 ? "watch.control.json" : `watch.control.${pid}.json`;
-  await writeJsonAtomic(dir, basename, payload);
+  await writeJsonAtomic(dir, `watch.control.${pid}.json`, payload);
   return payload;
 }
 async function readControlDirective({
   pid
-} = {}) {
+}) {
   const dir = stateDir();
-  if (pid !== void 0) {
-    const own = await readControlFile(controlPath(dir, pid));
-    if (own) return own;
-  }
+  const own = await readControlFile(controlPath(dir, pid));
+  if (own) return own;
   return readControlFile(controlPath(dir));
 }
 async function clearControlDirective({
@@ -649,7 +646,6 @@ async function clearStaleControlDirectives() {
 }
 export {
   clearControlDirective,
-  clearStaleControlDirectives,
   clearWatcher,
   compareAndSetCursorWatchTarget,
   findLiveWatcherForTarget,

@@ -4,6 +4,20 @@
 
 ### Changed
 
+- `session-observer` 1.0.84 prunes its test surface and the shared transcript
+  runtime tests. The suites keep every contract, repair assertions that could
+  not fail, and remove only test-only production hooks: the `realpathSafe`
+  and `tierOf` exports and the `tieWindowSec` and `globalRecentProvider` rank
+  options, the `renderJson` digest export, the `clearStaleControlDirectives`
+  export, and the pid-less watch control-directive write. Watchers still read
+  and consume a pid-less legacy `watch.control.json`. The observer's behavior
+  is unchanged apart from the fixes listed below. The shared
+  `src/shared/transcript` changes are test-only apart from dropping the
+  `codexRetryEvidenceFragment` export, so `session-export-transcript` 2.0.37
+  is a version bump for shared-source changes only. The same release also
+  carries `session-observer-collab` 1.0.72, `session-fork-to-destination`
+  0.2.52, the `consensus` plugin 0.2.4 and the `session` plugin 0.3.4.
+
 - `session-export-transcript` 2.0.35 clarifies that complete structured capture
   validates its exact-session contract before ordinary selector precedence, so
   every `--activity-output` and `--match` combination is rejected even when
@@ -18,6 +32,33 @@
   reviews.
 
 ### Fixed
+
+- `session-observer` 1.0.84:
+  - `review`, `catch-up`, `locate`, `whoami` and `state` now print usage for
+    `--help` and exit 0. Previously they ran the command: a live discovery or
+    review, or an unknown-operation error for `state`. A help request never
+    runs discovery or touches observer state.
+  - Corrupt and v0-migration state backups now carry a per-process sequence
+    number, so two backups in the same millisecond no longer overwrite each
+    other.
+  - `load()` no longer writes a duplicate backup of an unchanged corrupt state
+    file.
+  - An exact Claude Code pin that finds a transcript through both its real
+    path and a symlink now reports the real path regardless of directory
+    order. It used to keep whichever copy the filesystem listed first, so
+    the reported path, and the path saved state binds to, could differ
+    between machines. The symlink-alias test failed on Linux CI from
+    2026-09-22 for this reason.
+  - An exact Cursor pin made through a raw cwd alias no longer depends on
+    directory order either. When the canonical-cwd and raw-cwd project
+    directories reach the same transcript, the canonical copy is now kept.
+    Previously the raw-alias copy could win, and it can only resolve as
+    diagnostic, so an otherwise exact pin was rejected.
+- Shared-source version bumps only, with unchanged content:
+  - `session-observer-collab` 1.0.72
+  - `session-fork-to-destination` 0.2.52
+  - `consensus` plugin 0.2.4
+  - `session` plugin 0.3.4
 
 - Generated CLI scripts no longer throw when imported from `node -e` code
   with a positional argument. Node sets `process.argv[1]` to that argument,

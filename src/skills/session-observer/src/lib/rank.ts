@@ -3,15 +3,14 @@
  *
  * Exports:
  *   rank(candidates, targetCwd, opts)  → RankResult
- *   tierOf(candidate, targetCwd)       → 'A' | 'B' | 'C'
  *
  * Tier definitions:
  *   A — candidate.recordedCwd === targetCwd         (exact match)
  *   B — either cwd is a path-prefix of the other       (subdir/root match)
  *   C — Claude parent-dir slug matches target cwd      (weak recovery)
  *
- * No dependency on locate.mjs. The CLI injects gitWorktrees results and the
- * globalRecentProvider via opts so rank is a pure, independently-testable function.
+ * No dependency on locate.mjs. The CLI injects gitWorktrees results via opts so
+ * rank is a pure, independently-testable function.
  *
  * Constants:
  *   TIE_WINDOW_SEC       = 5   — close candidates within this many seconds are "ties"
@@ -46,7 +45,7 @@ function stripTrailingSlashes(path: string): string {
   return path.replace(/\/+$/u, '');
 }
 
-export function realpathSafe(path: string): string {
+function realpathSafe(path: string): string {
   try {
     return realpathSync.native(path);
   } catch {
@@ -80,7 +79,7 @@ function normalizeCwdPath(path: string): string {
  * @param {string} targetCwd
  * @returns {'A' | 'B' | 'C'}
  */
-export function tierOf(
+function tierOf(
   candidate: Pick<TranscriptCandidate, 'recordedCwd'>,
   targetCwd: string,
 ): RankTier {
@@ -105,10 +104,7 @@ export function tierOf(
  * @param {object[]} candidates   — Candidate[] from locate.discover
  * @param {string} targetCwd
  * @param {object} [opts]
- * @param {number} [opts.tieWindowSec=5]       — seconds within which two candidates are "tied"
  * @param {string[]} [opts.gitWorktrees=[]]    — sister worktree paths for noMatch widening
- * @param {(() => object[]) | undefined} [opts.globalRecentProvider]
- *   — optional function returning all candidates sorted by mtime DESC for globalRecent (top-5)
  *
  * @returns {RankResult}
  *
@@ -258,11 +254,7 @@ export function rank(
   targetCwd: string,
   opts: RankOptions = {},
 ): RankResult {
-  const {
-    tieWindowSec = TIE_WINDOW_SEC,
-    gitWorktrees = [],
-    globalRecentProvider,
-  } = opts;
+  const { gitWorktrees = [] } = opts;
 
   // Classify all candidates into tiers. Tier C is weak Claude slug evidence,
   // not "any no-match candidate"; global recency remains diagnostic only.
@@ -296,10 +288,9 @@ export function rank(
 
   // No match case
   if (!winningTier) {
-    const allByMtime = [...candidates].toSorted((a, b) => b.mtime - a.mtime);
-    const globalRecent = globalRecentProvider
-      ? globalRecentProvider()
-      : allByMtime.slice(0, 5);
+    const globalRecent = [...candidates]
+      .toSorted((a, b) => b.mtime - a.mtime)
+      .slice(0, 5);
     return {
       winner: null,
       noMatch: true,
@@ -337,7 +328,7 @@ export function rank(
   // engagement/size signals and close mtimes.
   const ties = sorted
     .slice(1)
-    .filter((c) => closeEngagedTie(winner, c, tieWindowSec));
+    .filter((c) => closeEngagedTie(winner, c, TIE_WINDOW_SEC));
 
   // Fallbacks: remaining sorted candidates in the winning tier after winner
   const fallbacks = [

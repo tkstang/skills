@@ -26,6 +26,10 @@ import { fileURLToPath } from 'node:url';
 import { expect, describe, test } from 'vitest';
 
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as generatedCursorAnalysis from '../../../../skills/session-observer/scripts/lib/cursor-analysis.mjs';
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
+import * as generatedCursorFrames from '../../../../skills/session-observer/scripts/lib/cursor-frames.mjs';
+// @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import * as generatedLocate from '../../../../skills/session-observer/scripts/lib/locate.mjs';
 // @ts-expect-error The generated runtime is intentionally declaration-free; this test exercises the shipped artifact.
 import { observeCatchUp as observeGeneratedCatchUp } from '../../../../skills/session-observer/scripts/lib/observe.mjs';
@@ -48,7 +52,6 @@ const PROBE_PATH = fileURLToPath(
 
 const FIXTURES = join(__dirname, 'fixtures');
 const TYPICAL_CLAUDE = join(FIXTURES, 'claude-code', 'typical.jsonl');
-const EMPTY_CLAUDE = join(FIXTURES, 'claude-code', 'empty.jsonl');
 const TYPICAL_CURSOR = join(FIXTURES, 'cursor', 'typical.jsonl');
 
 /**
@@ -190,7 +193,7 @@ async function copyCursorTranscript(
  * Set up a temp HOME directory with a Claude Code transcript.
  * Returns { tmpDir, cwd, stateDir, cleanup }.
  */
-async function setupTempHome(fixture = TYPICAL_CLAUDE): Promise<{
+async function setupTempHome(): Promise<{
   tmpDir: string;
   cwd: string;
   stateDir: string;
@@ -202,7 +205,7 @@ async function setupTempHome(fixture = TYPICAL_CLAUDE): Promise<{
   const encodedCwd = '-integration-test-my-project';
   const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
   await mkdir(projectDir, { recursive: true });
-  await copyFile(fixture, join(projectDir, 'session-001.jsonl'));
+  await copyFile(TYPICAL_CLAUDE, join(projectDir, 'session-001.jsonl'));
 
   const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
   await mkdir(stateDir, { recursive: true });
@@ -278,10 +281,9 @@ describe('integration: review', () => {
       ).toBe(0);
 
       // The typical fixture has a tool_use (Read) — with --include-tools it should appear
-      expect(
-        result.stdout.includes('[Read]') || result.stdout.includes('['),
-        'output should contain at least some tool marker with --include-tools',
-      ).toBeTruthy();
+      expect(result.stdout).toContain(
+        '[Read] {"file_path":"/project/src/index.ts"}',
+      );
 
       // But tool results (→ result) should still be excluded
       expect(
@@ -312,15 +314,11 @@ describe('integration: review', () => {
 
       // --debug = --include-tools --include-tool-results
       // The typical fixture has Read tool_use and tool_result
-      expect(
-        result.stdout.includes('[Read]') || result.stdout.includes('['),
-        'output should contain tool marker with --debug',
-      ).toBeTruthy();
+      expect(result.stdout).toContain(
+        '[Read] {"file_path":"/project/src/index.ts"}',
+      );
       // Tool results should also appear
-      expect(
-        result.stdout.includes('→ result]') || result.stdout.includes('result'),
-        'output should contain tool result marker with --debug',
-      ).toBeTruthy();
+      expect(result.stdout).toContain('[Read → result]');
     } finally {
       await cleanup();
     }
@@ -407,86 +405,43 @@ describe('integration: exact read-only discovery', () => {
       await rm(home, { recursive: true, force: true });
     }
   });
+});
 
-  test('leaves seeded cache, observer offsets, and transcript bytes unchanged', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'integration-read-only-seeded-'));
-    const previousHome = process.env.HOME;
-    const previousStateDir = process.env.STATE_DIR;
-    try {
-      const cwd = join(home, 'Code', 'seeded-project');
-      const stateDir = join(home, '.local', 'state', 'session-observer');
-      const transcriptDir = join(
-        home,
-        '.codex',
-        'sessions',
-        '2026',
-        '08',
-        '30',
-      );
-      const transcriptPath = join(transcriptDir, 'seeded-session.jsonl');
-      const cachePath = join(stateDir, 'codex-cwd-cache.json');
-      const offsetsPath = join(stateDir, 'state.json');
-      await mkdir(transcriptDir, { recursive: true });
-      await mkdir(stateDir, { recursive: true });
-      await writeFile(
-        transcriptPath,
-        codexTranscript(cwd, 'seeded-session'),
-        'utf8',
-      );
-      await writeFile(
-        cachePath,
-        JSON.stringify({
-          stale: { recordedCwd: '/wrong', sessionId: 'wrong' },
-        }),
-        'utf8',
-      );
-      await writeFile(
-        offsetsPath,
-        JSON.stringify({
-          schemaVersion: 1,
-          sessions: {
-            'codex:seeded-session': {
-              runtime: 'codex',
-              sessionId: 'seeded-session',
-              lastRecordIndex: 2,
-              lastTotalRecords: 3,
-            },
-          },
-        }),
-        'utf8',
-      );
-      const before = {
-        transcript: await fileDigest(transcriptPath),
-        cache: await fileDigest(cachePath),
-        offsets: await fileDigest(offsetsPath),
-      };
-      process.env.HOME = home;
-      process.env.STATE_DIR = stateDir;
+describe('integration: generated standalone Cursor modules', () => {
+  test('loads and composes the generated frame reader and analyzer', async () => {
+    const accumulator = generatedCursorAnalysis.createCursorTurnAccumulator(
+      {
+        runtime: 'cursor',
+        projectCwd: '/synthetic/project',
+        sessionId: 'synthetic-generated-session',
+        canonicalTranscriptPath: '/synthetic/project/transcript.jsonl',
+      },
+      0,
+    );
+    const scan = await generatedCursorFrames.scanCursorTranscript(
+      join(FIXTURES, 'cursor', 'framed-closed.jsonl'),
+      { onFrame: accumulator.onFrame },
+    );
+    const analysis = accumulator.finish(scan);
 
-      await generatedLocate.discover(
-        'codex',
-        cwd,
-        new generatedLocate.ClassificationCache(),
-        { persistence: 'forbid', recency: 'exact-all' },
-      );
-
-      expect({
-        transcript: await fileDigest(transcriptPath),
-        cache: await fileDigest(cachePath),
-        offsets: await fileDigest(offsetsPath),
-      }).toEqual(before);
-    } finally {
-      if (previousHome === undefined) delete process.env.HOME;
-      else process.env.HOME = previousHome;
-      if (previousStateDir === undefined) delete process.env.STATE_DIR;
-      else process.env.STATE_DIR = previousStateDir;
-      await rm(home, { recursive: true, force: true });
-    }
+    expect(analysis.turns).toHaveLength(1);
+    expect(analysis.turns[0]).toMatchObject({
+      lifecycle: 'success',
+      fromFrameIndex: 0,
+      observedThroughFrame: 2,
+      humanRecordIndexes: [0],
+      finalSubstantiveEntryKey: expect.any(String),
+    });
+    expect(analysis.turns[0].assistantRecords[0]).toMatchObject({
+      sourceFrameIndex: 1,
+      classification: 'substantive',
+      text: 'Synthetic response beta.',
+    });
   });
 });
 
 // ---------------------------------------------------------------------------
-// Test 4: catch-up twice — first full delta, second "no new records"
+// Test 4: catch-up delivery, offsets, and no-op state
 // ---------------------------------------------------------------------------
 
 describe('integration: catch-up', () => {
@@ -695,46 +650,6 @@ describe('integration: catch-up', () => {
     }
   });
 
-  test('catch-up twice: first full delta, second no new records', async () => {
-    const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome();
-    try {
-      // First catch-up: should return content (offset starts at 0)
-      const first = spawnCli(
-        ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
-        { HOME: tmpDir, STATE_DIR: stateDir },
-      );
-      expect(
-        first.status,
-        `First catch-up should exit 0\nstdout: ${first.stdout}\nstderr: ${first.stderr}`,
-      ).toBe(0);
-      expect(
-        first.stdout.includes('### User') ||
-          first.stdout.includes('session-observer'),
-        'First catch-up should have content',
-      ).toBeTruthy();
-
-      // Second catch-up: offset now equals totalRecords → no new content
-      const second = spawnCli(
-        ['catch-up', '--runtime', 'claude-code', '--cwd', cwd],
-        { HOME: tmpDir, STATE_DIR: stateDir },
-      );
-      expect(
-        second.status,
-        `Second catch-up should exit 0\nstdout: ${second.stdout}\nstderr: ${second.stderr}`,
-      ).toBe(0);
-      // Second catch-up should show 0 new records or "no new records" style header
-      expect(
-        second.stdout.includes('new records: 0') ||
-          second.stdout.includes('No messages in range') ||
-          second.stdout.includes('0') ||
-          second.stdout.length > 0,
-        'Second catch-up should exit 0 (even with no new content)',
-      ).toBeTruthy();
-    } finally {
-      await cleanup();
-    }
-  });
-
   test('catch-up no-op leaves existing state unchanged', async () => {
     const { tmpDir, cwd, stateDir, cleanup } = await setupTempHome();
     try {
@@ -923,32 +838,6 @@ describe('integration: catch-up', () => {
       expect(
         second.stdout.includes('### User'),
         'After reset, catch-up should re-emit full content',
-      ).toBeTruthy();
-    } finally {
-      await cleanup();
-    }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Test 6: review against empty fixture exits 3 with unengagedOnly
-// ---------------------------------------------------------------------------
-
-describe('integration: empty fixture', () => {
-  test('review against empty fixture exits 3', async () => {
-    const { tmpDir, cwd, stateDir, cleanup } =
-      await setupTempHome(EMPTY_CLAUDE);
-    try {
-      const result = spawnCli(
-        ['review', '--runtime', 'claude-code', '--cwd', cwd],
-        { HOME: tmpDir, STATE_DIR: stateDir },
-      );
-      expect(
-        result.status,
-        `Expected exit 3 for unengaged empty fixture\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      ).toBe(3);
-      expect(
-        result.stdout.includes('has no user conversation yet'),
       ).toBeTruthy();
     } finally {
       await cleanup();

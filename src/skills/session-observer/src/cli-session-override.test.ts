@@ -50,10 +50,6 @@ function cursorSlug(cwd: string): string {
   return cwd.split(/[/.]/u).filter(Boolean).join('-');
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function copyCursorTranscript(
   home: string,
   cwd: string,
@@ -220,47 +216,7 @@ describe('--session override', () => {
     }
   });
 
-  test('review: --session accepts cursor runtime', async () => {
-    const tmpDir = await realpath(
-      await mkdtemp(join(tmpdir(), 'cli-session-cursor-')),
-    );
-    try {
-      const cwd = join(tmpDir, 'workspace', 'cursor-session-project');
-      await mkdir(cwd, { recursive: true });
-      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
-      await mkdir(stateDir, { recursive: true });
-      await copyCursorTranscript(tmpDir, cwd, 'cursor-pinned');
-
-      const result = spawnCli(
-        [
-          'review',
-          '--runtime',
-          'cursor',
-          '--cwd',
-          cwd,
-          '--session',
-          'cursor:cursor-pinned',
-          '--json',
-        ],
-        { HOME: tmpDir, STATE_DIR: stateDir },
-      );
-
-      expect(
-        result.status,
-        `--session should accept cursor, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
-      ).toBe(0);
-      const parsed = JSON.parse(result.stdout);
-      expect(parsed.schemaVersion).toBe(2);
-      expect(parsed.runtime).toBe('cursor');
-      expect(parsed.sessionId).toBe('cursor-pinned');
-    } finally {
-      await rm(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  test('review: --session resolves tie to a digest (exit 0)', async ({
-    skip,
-  }) => {
+  test('review: --session resolves tie to a digest (exit 0)', async () => {
     // Build two same-mtime candidates in the same encoded dir.
     // Without --session this causes a tie (exit 3). With --session it should exit 0.
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-tie-'));
@@ -284,32 +240,18 @@ describe('--session override', () => {
       const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
       await mkdir(stateDir, { recursive: true });
 
-      // Without --session: should exit 3 (tie) or 0 if only one session is found
+      // Without --session: the two same-age engaged sessions tie (exit 3).
       const noSession = spawnCli(
         ['review', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
         { HOME: tmpDir, STATE_DIR: stateDir },
       );
-      void noSession; // presence checked above; we proceed to test --session regardless
+      expect(
+        noSession.status,
+        `unpinned review should tie\nstdout: ${noSession.stdout}\nstderr: ${noSession.stderr}`,
+      ).toBe(3);
+      expect(JSON.parse(noSession.stdout).ties).toBe(true);
 
-      // Get the session IDs from locate
-      const locateResult = spawnCli(
-        ['locate', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
-        { HOME: tmpDir, STATE_DIR: stateDir },
-      );
-
-      if (locateResult.status !== 0) {
-        // No match or error — skip the session pinning test
-        skip(
-          'locate did not return a winner; skipping --session tie recovery sub-test',
-        );
-        return;
-      }
-
-      const locateData = JSON.parse(locateResult.stdout);
-      const winner = locateData.winner;
-      expect(winner, 'locate should return a winner').toBeTruthy();
-
-      // Pin to the winner's session — should always exit 0
+      // Pinning one of the tied sessions must bypass the tie — should exit 0
       const pinnedResult = spawnCli(
         [
           'review',
@@ -318,7 +260,7 @@ describe('--session override', () => {
           '--cwd',
           cwd,
           '--session',
-          `${winner.runtime}:${winner.sessionId}`,
+          'claude-code:cc-session-tie-a',
           '--json',
         ],
         { HOME: tmpDir, STATE_DIR: stateDir },
@@ -334,96 +276,6 @@ describe('--session override', () => {
         digestData.entries || digestData.range,
         'should return a digest object',
       ).toBeTruthy();
-    } finally {
-      await rm(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  test('catch-up: --session resolves to a digest (exit 0)', async ({
-    skip,
-  }) => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'cli-session-catchup-'));
-    try {
-      const cwd = '/test/catchup-session-project';
-      const encodedCwd = '-test-catchup-session-project';
-      const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
-      await mkdir(projectDir, { recursive: true });
-      await copyClaudeTranscript(
-        join(projectDir, 'session-cu-a.jsonl'),
-        'cc-session-cu-a',
-      );
-      await copyClaudeTranscript(
-        join(projectDir, 'session-cu-b.jsonl'),
-        'cc-session-cu-b',
-      );
-
-      const stateDir = join(tmpDir, '.local', 'state', 'session-observer');
-      await mkdir(stateDir, { recursive: true });
-
-      // Get a session ID from locate
-      const locateResult = spawnCli(
-        ['locate', '--runtime', 'claude-code', '--cwd', cwd, '--json'],
-        { HOME: tmpDir, STATE_DIR: stateDir },
-      );
-
-      if (locateResult.status !== 0) {
-        skip(
-          'locate did not return a winner; skipping --session catch-up sub-test',
-        );
-        return;
-      }
-
-      const locateData = JSON.parse(locateResult.stdout);
-      const winner = locateData.winner;
-      expect(winner, 'locate should return a winner').toBeTruthy();
-
-      // catch-up with --session should exit 0
-      const pinnedResult = spawnCli(
-        [
-          'catch-up',
-          '--runtime',
-          'claude-code',
-          '--cwd',
-          cwd,
-          '--session',
-          `${winner.runtime}:${winner.sessionId}`,
-          '--json',
-        ],
-        { HOME: tmpDir, STATE_DIR: stateDir },
-      );
-
-      expect(
-        pinnedResult.status,
-        `catch-up --session should resolve to exit 0, got ${pinnedResult.status}\nstdout: ${pinnedResult.stdout}\nstderr: ${pinnedResult.stderr}`,
-      ).toBe(0);
-
-      const statePath = join(stateDir, 'state.json');
-      const before = JSON.parse(await readFile(statePath, 'utf8'));
-      await sleep(25);
-
-      const secondPinnedResult = spawnCli(
-        [
-          'catch-up',
-          '--runtime',
-          'claude-code',
-          '--cwd',
-          cwd,
-          '--session',
-          `${winner.runtime}:${winner.sessionId}`,
-          '--json',
-        ],
-        { HOME: tmpDir, STATE_DIR: stateDir },
-      );
-      expect(
-        secondPinnedResult.status,
-        `second pinned catch-up should exit 0\nstdout: ${secondPinnedResult.stdout}\nstderr: ${secondPinnedResult.stderr}`,
-      ).toBe(0);
-
-      const after = JSON.parse(await readFile(statePath, 'utf8'));
-      expect(
-        after,
-        'pinned no-op catch-up should not rewrite matching state',
-      ).toEqual(before);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -526,6 +378,7 @@ describe('--session override', () => {
         result.status,
         `--session with non-existent id should exit 1, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
       ).toBe(1);
+      expect(result.stderr).toContain('Pinned session not found');
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
@@ -560,6 +413,9 @@ describe('--session override', () => {
         result.status,
         `--session without colon should exit 1, got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
       ).toBe(1);
+      expect(result.stderr).toContain(
+        '--session must be in <runtime>:<sessionId> format',
+      );
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }

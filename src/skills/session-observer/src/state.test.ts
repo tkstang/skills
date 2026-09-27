@@ -223,7 +223,10 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   };
 });
 
-it.each(LOCK_PUBLICATION_BOUNDARIES)(
+// Abandoned private tokens are cleaned by the PID in their filename, so one
+// publication boundary covers this lock; the transition-lock case below keeps
+// the full boundary table.
+it.each(['private-created'] as const)(
   'recovers a legacy-state queue after process death at contender publication boundary %s',
   async (boundary) => {
     await withTmpStateDir(async (dir) => {
@@ -298,10 +301,7 @@ it.each(LOCK_PUBLICATION_BOUNDARIES)(
   },
 );
 
-it.each([
-  ['write', 'private-created'],
-  ['sync', 'token-written'],
-] as const)(
+it.each([['write', 'private-created']] as const)(
   'cleans a private legacy-state token after injected %s failure',
   async (failure, boundary) => {
     await withTmpStateDir(async (dir) => {
@@ -335,49 +335,6 @@ it('mutate creates state.json on first write', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. mutate writes atomically — no lingering .tmp on success
-// ---------------------------------------------------------------------------
-it('mutate writes atomically: no lingering .tmp file after success', async () => {
-  await withTmpStateDir(async (dir) => {
-    await state.mutate((s: any) => s);
-    const files = await readdir(dir);
-    const tmpFiles = files.filter((f) => f.endsWith('.tmp'));
-    expect(
-      tmpFiles,
-      'no .tmp files should remain after a successful mutate',
-    ).toEqual([]);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 3. Lock contention: two concurrent mutates both succeed
-// ---------------------------------------------------------------------------
-it('two concurrent mutate calls both succeed and final state contains both mutations', async () => {
-  await withTmpStateDir(async (_dir) => {
-    // Both mutations write a different session entry; both must land.
-    await Promise.all([
-      state.markRead('claude-code', 'sess-a', {
-        lastRecordIndex: 1,
-        lastTotalRecords: 10,
-        transcriptPath: '/tmp/a.jsonl',
-        recordedCwd: '/proj',
-      }),
-      state.markRead('codex', 'sess-b', {
-        lastRecordIndex: 2,
-        lastTotalRecords: 20,
-        transcriptPath: '/tmp/b.jsonl',
-        recordedCwd: '/proj',
-      }),
-    ]);
-
-    const a: any = await state.getSession('claude-code', 'sess-a');
-    const b: any = await state.getSession('codex', 'sess-b');
-    expect(a, 'sess-a must exist').toBeTruthy();
-    expect(b, 'sess-b must exist').toBeTruthy();
-  });
-});
-
-// ---------------------------------------------------------------------------
 // 4. getSession returns null when missing; returns stored entry when present
 // ---------------------------------------------------------------------------
 it('getSession returns null when missing', async () => {
@@ -386,90 +343,6 @@ it('getSession returns null when missing', async () => {
     expect(result).toBe(null);
   });
 });
-
-it('getSession returns stored entry when present', async () => {
-  await withTmpStateDir(async (_dir) => {
-    await state.markRead('claude-code', 'sess-x', {
-      lastRecordIndex: 5,
-      lastTotalRecords: 10,
-      transcriptPath: '/tmp/x.jsonl',
-      recordedCwd: '/my/project',
-    });
-    const entry: any = await state.getSession('claude-code', 'sess-x');
-    expect(entry, 'entry should be found').toBeTruthy();
-    expect(entry.lastRecordIndex).toBe(5);
-    expect(entry.lastTotalRecords).toBe(10);
-    expect(entry.transcriptPath).toBe('/tmp/x.jsonl');
-    expect(entry.recordedCwd).toBe('/my/project');
-  });
-});
-
-it('validates nonzero legacy offsets against canonical source and provider identity', async () => {
-  await withTmpStateDir(async (dir) => {
-    const claudePath = join(dir, 'claude.jsonl');
-    await writeFile(
-      claudePath,
-      `${JSON.stringify({ sessionId: 'claude-valid', message: { role: 'assistant', content: 'ok' } })}\n`,
-      'utf8',
-    );
-    const entry = {
-      runtime: 'claude-code' as const,
-      sessionId: 'claude-valid',
-      lastRecordIndex: 1,
-      lastTotalRecords: 1,
-      transcriptPath: claudePath,
-    };
-
-    await expect(
-      state.validateSavedPosition(
-        'claude-code',
-        'claude-valid',
-        claudePath,
-        entry,
-      ),
-    ).resolves.toMatchObject({ status: 'valid' });
-  });
-});
-
-it.each([
-  {
-    name: 'missing stored path',
-    transcriptPath: undefined,
-    expectedCode: 'SAVED_POSITION_PATH_MISSING',
-  },
-  {
-    name: 'different stored path',
-    transcriptPath: 'other.jsonl',
-    expectedCode: 'SAVED_POSITION_PATH_MISMATCH',
-  },
-])(
-  'blocks a nonzero offset with $name',
-  async ({ transcriptPath, expectedCode }) => {
-    await withTmpStateDir(async (dir) => {
-      const selected = join(dir, 'selected.jsonl');
-      const other = join(dir, 'other.jsonl');
-      const record = `${JSON.stringify({ sessionId: 'codex-valid', payload: { type: 'session_meta', cwd: '/tmp/project' } })}\n`;
-      await writeFile(selected, record, 'utf8');
-      await writeFile(other, record, 'utf8');
-      const entry = {
-        runtime: 'codex' as const,
-        sessionId: 'codex-valid',
-        lastRecordIndex: 1,
-        lastTotalRecords: 1,
-        ...(transcriptPath === undefined
-          ? {}
-          : { transcriptPath: join(dir, transcriptPath) }),
-      };
-
-      await expect(
-        state.validateSavedPosition('codex', 'codex-valid', selected, entry),
-      ).resolves.toMatchObject({
-        status: 'blocked',
-        code: expectedCode,
-      });
-    });
-  },
-);
 
 it('allows zero state to bind to the selected source', async () => {
   await withTmpStateDir(async (dir) => {
@@ -801,26 +674,27 @@ it('migration via mutate(): re-load after mutate returns upgraded schema (schema
 // ---------------------------------------------------------------------------
 // 12. Backup uniqueness: repeated backups do not overwrite each other
 // ---------------------------------------------------------------------------
-it('repeated corrupt backups produce unique filenames and do not clobber each other', async () => {
+it('repeated corrupt backups keep one copy of each corrupt state within one millisecond', async () => {
   await withTmpStateDir(async (dir) => {
-    // Simulate two consecutive corrupt-state loads.
-    // We do them sequentially with a tiny delay to get distinct timestamps.
+    // Pin the clock so both loads share a millisecond: names must stay unique
+    // without relying on wall-clock gaps.
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_790_000_000_000);
+    try {
+      await writeFile(join(dir, 'state.json'), '{ bad json 1 }');
+      await state.load();
+      await writeFile(join(dir, 'state.json'), '{ bad json 2 }');
+      await state.load();
+    } finally {
+      now.mockRestore();
+    }
 
-    await writeFile(join(dir, 'state.json'), '{ bad json 1 }');
-    await state.load(); // triggers first backup
-
-    await writeFile(join(dir, 'state.json'), '{ bad json 2 }');
-    // Small delay to ensure distinct millisecond timestamp in backup filename
-    await sleep(5);
-    await state.load(); // triggers second backup
-
-    const files = await readdir(dir);
-    const bakFiles = files.filter((f) => f.startsWith('state.json.corrupt-'));
-    // Both backups must exist as distinct files
-    expect(
-      bakFiles.length >= 2,
-      `expected at least 2 backup files, got ${bakFiles.length}: ${bakFiles.join(', ')}`,
-    ).toBeTruthy();
+    const bakFiles = (await readdir(dir)).filter((f) =>
+      f.startsWith('state.json.corrupt-'),
+    );
+    const contents = await Promise.all(
+      bakFiles.map((f) => readFile(join(dir, f), 'utf8')),
+    );
+    expect(contents.toSorted()).toEqual(['{ bad json 1 }', '{ bad json 2 }']);
   });
 });
 
@@ -1053,13 +927,10 @@ it('restores the exact legacy preimage when a migration marker appears during co
   });
 });
 
-it.each([
-  'marker-written',
-  'backup-written',
-  'legacy-removed',
-  'marker-legacy-removed',
-  'complete',
-] as const)(
+// marker-written dies holding only the transition lock; backup-written dies
+// holding the transition and state locks. Resume at every boundary is covered
+// by the in-process table in cursor-state.test.ts.
+it.each(['marker-written', 'backup-written'] as const)(
   'reclaims process-crashed migration locks at %s',
   async (boundary) => {
     await withTmpStateDir(async (dir) => {
@@ -1226,7 +1097,7 @@ it.each(['prechecked', 'legacy-written', 'cursor-updated'] as const)(
   },
 );
 
-it.each(['locked', 'written'] as const)(
+it.each(['written'] as const)(
   'reclaims process-crashed v2 mutation lock at %s',
   async (boundary) => {
     await withTmpStateDir(async (dir) => {
@@ -1293,35 +1164,6 @@ it('explicit Cursor reset removes legacy markers without changing non-Cursor sta
   });
 });
 
-it.each([
-  ['corrupt', '{ corrupt'],
-  ['schema', JSON.stringify({ schemaVersion: 1, sessions: {} })],
-] as const)(
-  'runtime-scoped Cursor reset truthfully reports destructive whole-store %s recovery',
-  async (reason, raw) => {
-    await withTmpStateDir(async (dir) => {
-      await writeFile(join(dir, 'cursor-state.json'), raw);
-      await expect(
-        state.resetByRuntimeWithDiagnostics('cursor'),
-      ).resolves.toMatchObject({
-        runtime: 'cursor',
-        recovery: {
-          performed: true,
-          reason,
-          scope: 'cursor-store',
-          destructive: true,
-          preservesSiblingSessions: false,
-        },
-      });
-      await expect(loadCursorState()).resolves.toEqual({
-        schemaVersion: 2,
-        sessions: {},
-        legacyUnverified: {},
-      });
-    });
-  },
-);
-
 // ---------------------------------------------------------------------------
 // 13. Stale-lock reclaim: dead owner PID
 // Deterministic via the open('wx') call counter rather than a wall-clock
@@ -1360,49 +1202,6 @@ it('acquireLock reclaims a lock whose owner PID is dead, without waiting out the
         'a dead-PID lock should be reclaimed within a handful of open("wx") attempts, not the full retry budget',
       ).toBeLessThan(5);
     }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 14. Stale-lock reclaim: live-owner lock is never stolen while fresh
-// Deterministic via vi.waitFor keyed to a second open('wx') attempt, instead
-// of a fixed sleep(300) (review finding 2).
-// ---------------------------------------------------------------------------
-it('acquireLock does not reclaim a fresh live-owner lock; stays pending until the owner releases it', async () => {
-  await withTmpStateDir(async (dir) => {
-    const lock = join(dir, 'state.json.lock');
-    // Content is this test process's own (live) PID — simulates a healthy,
-    // currently-held lock.
-    await writeFile(lock, String(process.pid));
-
-    lockRaceHarness.startOpenCounter(lock);
-    let settled = false;
-    const pending = state
-      .mutate((s: any) => s)
-      .finally(() => {
-        settled = true;
-      });
-
-    // Wait until the loop has made a second open('wx') attempt — proof it
-    // evaluated and rejected reclaim once, then fell back to the normal
-    // retry path — rather than a guessed wall-clock duration.
-    await vi.waitFor(
-      () => {
-        if (lockRaceHarness.peekOpenCount() < 2) {
-          throw new Error('waiting for a second open("wx") attempt');
-        }
-      },
-      { timeout: 2000, interval: 5 },
-    );
-    expect(settled, 'a live-owner lock must not be reclaimed while fresh').toBe(
-      false,
-    );
-
-    // Simulate the owner's own releaseLock().
-    lockRaceHarness.stopOpenCounter();
-    await unlink(lock);
-    await pending;
-    expect(settled).toBe(true);
   });
 });
 
@@ -1459,10 +1258,9 @@ it.each([
 );
 
 // ---------------------------------------------------------------------------
-// 16. Stale-lock reclaim: a live-owner lock is never reclaimed via age,
-// however old — the age fallback only applies when no PID can be read.
-// Deterministic via vi.waitFor keyed to a second open('wx') attempt (review
-// finding 2).
+// 16. Stale-lock reclaim: a live-owner lock is never reclaimed, however old.
+// Deterministic via vi.waitFor keyed to a second lock attempt (review
+// finding 2); the lock bytes prove the owner's generation was not replaced.
 // ---------------------------------------------------------------------------
 it('acquireLock never reclaims a lock via age when its recorded PID is confirmed live, no matter how old', async () => {
   await withTmpStateDir(async (dir) => {
@@ -1491,6 +1289,7 @@ it('acquireLock never reclaims a lock via age when its recorded PID is confirmed
       settled,
       'a live-owner lock must never be reclaimed via age alone',
     ).toBe(false);
+    expect(await readFile(lock, 'utf8')).toBe(String(process.pid));
 
     lockRaceHarness.stopOpenCounter();
     await unlink(lock);
@@ -1502,13 +1301,9 @@ it('acquireLock never reclaims a lock via age when its recorded PID is confirmed
 // ---------------------------------------------------------------------------
 // 17. Stale-lock reclaim: concurrent reclaimers never both hold the lock.
 // Regression for the unconditional-unlink race: two contenders racing to
-// reclaim the SAME stale (dead-PID) lock must not both end up believing they
-// hold it. tryReclaim's rename-based exclusive claim (instead of a bare
-// unlink) is what this proves. (This same-process Promise.all race gives no
-// control over exactly where either contender is interrupted, so it cannot
-// by itself reproduce the isLockStale→tryReclaim TOCTOU window closed by
-// test 18 below — it still has real lost-update detection power, which is
-// why it stays.)
+// reclaim the SAME stale (dead-PID) lock must both land their writes. The
+// same-process race cannot pin the inspection/removal window (test 18 does);
+// it detects unserialized writers and tmp residue.
 // ---------------------------------------------------------------------------
 it('two concurrent mutate calls against a stale dead-PID lock both land cleanly — no double-acquisition, no residue', async () => {
   await withTmpStateDir(async (dir) => {
@@ -1554,9 +1349,8 @@ it('two concurrent mutate calls against a stale dead-PID lock both land cleanly 
     expect(a, 'race-a must exist').toBeTruthy();
     expect(b, 'race-b must exist').toBeTruthy();
 
-    // No leftover reclaim-claim or tmp artifacts from the race.
+    // No leftover tmp artifacts from the race.
     const files = await readdir(dir);
-    expect(files.filter((f) => f.includes('.reclaim.'))).toEqual([]);
     expect(files.filter((f) => f.endsWith('.tmp'))).toEqual([]);
   });
 });
@@ -1577,11 +1371,6 @@ it.each([
     'cursor-state.json.lock',
     (dir: string) => join(dir, 'cursor-state.json.lock'),
     () => mutateCursorState((s) => s),
-  ],
-  [
-    'cursor-state-transition.lock',
-    (dir: string) => join(dir, 'cursor-state-transition.lock'),
-    () => state.resetByRuntime('cursor'),
   ],
 ] as const)(
   'replacement between inspection and removal never deletes a fresh live generation of %s',

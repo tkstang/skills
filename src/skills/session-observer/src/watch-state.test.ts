@@ -253,22 +253,6 @@ test('startWatcher clears a stale active pid before registering the new watcher'
   });
 });
 
-test('control directives are written to and read from watch.control.json', async () => {
-  await withTmpStateDir(async (dir) => {
-    const issuedAt = '2026-06-03T12:02:00.000Z';
-
-    await watchState.writeControlDirective('pause', { issuedAt });
-
-    const raw = JSON.parse(
-      await readFile(join(dir, 'watch.control.json'), 'utf8'),
-    );
-    expect(raw).toEqual({ directive: 'pause', issuedAt });
-
-    const directive = await watchState.readControlDirective();
-    expect(directive).toEqual({ directive: 'pause', issuedAt });
-  });
-});
-
 test('pid-targeted control directives use per-pid files and do not overwrite each other', async () => {
   await withTmpStateDir(async (dir) => {
     const issuedAt = '2026-06-03T12:02:00.000Z';
@@ -308,10 +292,16 @@ test('pid-targeted control directives use per-pid files and do not overwrite eac
 });
 
 test('readControlDirective falls back to legacy pid-less directives', async () => {
-  await withTmpStateDir(async () => {
+  await withTmpStateDir(async (dir) => {
     const issuedAt = '2026-06-03T12:02:00.000Z';
 
-    await watchState.writeControlDirective('flush', { issuedAt });
+    // Nothing writes pid-less directives any more; a legacy file left by an
+    // older release must still be honored and consumed.
+    await writeFile(
+      join(dir, 'watch.control.json'),
+      JSON.stringify({ directive: 'flush', issuedAt }),
+      'utf8',
+    );
 
     expect(await watchState.readControlDirective({ pid: 333 })).toEqual({
       directive: 'flush',
@@ -324,7 +314,7 @@ test('readControlDirective falls back to legacy pid-less directives', async () =
   });
 });
 
-test('clearStaleControlDirectives removes directives for dead pids only', async () => {
+test('loading watch state removes control directives for dead pids only', async () => {
   await withTmpStateDir(async (_dir) => {
     const issuedAt = '2026-06-03T12:02:00.000Z';
     vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
@@ -343,8 +333,7 @@ test('clearStaleControlDirectives removes directives for dead pids only', async 
       pid: process.pid,
     });
 
-    const cleared = await watchState.clearStaleControlDirectives();
-    expect(cleared).toBe(1);
+    await watchState.loadWatchState();
     expect(await watchState.readControlDirective({ pid: 424242 })).toBe(null);
     expect(await watchState.readControlDirective({ pid: process.pid })).toEqual(
       { directive: 'pause', issuedAt, pid: process.pid },

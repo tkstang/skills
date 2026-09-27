@@ -66,6 +66,7 @@ const LOCK_RETRIES = 100;
 const LOCK_INTERVAL_MS = 50;
 const CURSOR_COMPATIBILITY = 'pre-integration-record-index';
 let migrationBackupSequence = 0;
+let backupSequence = 0;
 let lockSequence = 0;
 
 interface CursorCompatibilityEntry extends SessionStateEntry {
@@ -120,13 +121,18 @@ function tmpPath(dir: string): string {
 }
 
 /**
- * Generate a unique backup path using timestamp + pid.
+ * Generate a unique backup path using timestamp + pid + a per-process
+ * sequence, so two backups written in the same millisecond never collide.
  * @param {string} dir
  * @param {string} label  — e.g. 'corrupt' or 'v0'
  * @returns {string}
  */
 function bakPath(dir: string, label: string): string {
-  return join(dir, `state.json.${label}-${Date.now()}-${process.pid}.bak`);
+  backupSequence += 1;
+  return join(
+    dir,
+    `state.json.${label}-${Date.now()}-${process.pid}-${backupSequence}.bak`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1004,7 +1010,9 @@ export async function load(): Promise<SessionObserverState> {
     await migrateLegacyCursorState(sessionId);
   }
 
-  legacy = await loadLegacyState();
+  // Re-read only when a migration rewrote legacy state; a second read of an
+  // unchanged corrupt file would write a duplicate backup.
+  if (legacyCursorIds.length > 0) legacy = await loadLegacyState();
   const cursor = await loadCursorState();
   const sessions = { ...legacy.sessions };
   for (const entry of Object.values(cursor.sessions)) {

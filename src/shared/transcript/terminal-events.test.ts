@@ -10,7 +10,6 @@ import type {
   JsonObject,
 } from './runtimes.js';
 import {
-  codexRetryEvidenceFragment,
   decodeCodexLifecycleRecord,
   extractCursorTerminalEvents,
   extractRecordedTerminalEvents,
@@ -176,11 +175,20 @@ describe('Codex terminal decoding', () => {
   });
 
   it('accepts a valid bare calendar day without inventing an absolute instant', () => {
-    expect(
-      codexRetryEvidenceFragment(
-        'Limit punctuation varies: try again at Sep 19, 2026 5:01 AM.',
-      ),
-    ).toBe('Sep 19, 2026 5:01 AM');
+    const [event] = codexEvents([
+      {
+        type: 'event_msg',
+        payload: {
+          type: 'task_complete',
+          error: {
+            codex_error_info: 'usage_limit_exceeded',
+            message:
+              'Limit punctuation varies: try again at Sep 19, 2026 5:01 AM.',
+          },
+        },
+      },
+    ]);
+    expect(event.retryEvidence?.fragment).toBe('Sep 19, 2026 5:01 AM');
   });
 });
 

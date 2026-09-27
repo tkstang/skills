@@ -6314,9 +6314,18 @@ async function findCursorSessionCandidates(targetCwd, sessionId, cache) {
     return candidates;
   }
   try {
+    const evidenceRank = new Map(
+      directVariants.map(({ encoded }, index) => [encoded, index])
+    );
+    const orderedProjectDirs = [];
     for await (const projectDir of projectDirs) {
       pinnedBudget.consumeEntry();
-      if (!projectDir.isDirectory()) continue;
+      if (projectDir.isDirectory()) orderedProjectDirs.push(projectDir);
+    }
+    orderedProjectDirs.sort(
+      (left, right) => (evidenceRank.get(left.name) ?? evidenceRank.size) - (evidenceRank.get(right.name) ?? evidenceRank.size)
+    );
+    for (const projectDir of orderedProjectDirs) {
       const cwdEvidence = directEvidence.get(projectDir.name);
       const transcriptsRoot = join2(
         projectsRoot,
@@ -6613,6 +6622,12 @@ async function discover(runtime, targetCwd, cache = new ClassificationCache(), o
   if (runtime === "cursor") return discoverCursor(targetCwd, cache, options);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
+function preferredAliasPath(candidate, kept, canonical) {
+  const candidateIsCanonical = candidate.transcriptPath === canonical;
+  const keptIsCanonical = kept.transcriptPath === canonical;
+  if (candidateIsCanonical !== keptIsCanonical) return candidateIsCanonical;
+  return candidate.transcriptPath.localeCompare(kept.transcriptPath) < 0;
+}
 async function findSessionCandidate(runtime, targetCwd, sessionId, options) {
   const cache = new ClassificationCache();
   const candidates = runtime === "cursor" ? await findCursorSessionCandidates(targetCwd, sessionId, cache) : await discover(runtime, targetCwd, cache, options);
@@ -6635,11 +6650,18 @@ async function findSessionCandidate(runtime, targetCwd, sessionId, options) {
       canonical = await realpath(candidate.transcriptPath);
     } catch {
     }
-    if (!canonicalMatches.has(canonical)) {
-      canonicalMatches.set(
-        canonical,
-        runtime === "codex" ? { ...candidate, transcriptPath: canonical } : candidate
-      );
+    if (runtime === "codex") {
+      if (!canonicalMatches.has(canonical)) {
+        canonicalMatches.set(canonical, {
+          ...candidate,
+          transcriptPath: canonical
+        });
+      }
+      continue;
+    }
+    const kept = canonicalMatches.get(canonical);
+    if (!kept || preferredAliasPath(candidate, kept, canonical)) {
+      canonicalMatches.set(canonical, candidate);
     }
   }
   const distinctMatches = [...canonicalMatches.values()];
@@ -7635,11 +7657,7 @@ function closeEngagedTie(winner, candidate, tieWindowSec) {
   return Math.abs((winner.mtime ?? 0) - (candidate.mtime ?? 0)) <= tieWindowSec;
 }
 function rank(candidates, targetCwd, opts = {}) {
-  const {
-    tieWindowSec = TIE_WINDOW_SEC,
-    gitWorktrees: gitWorktrees2 = [],
-    globalRecentProvider
-  } = opts;
+  const { gitWorktrees: gitWorktrees2 = [] } = opts;
   const byTier = {
     A: [],
     B: [],
@@ -7666,8 +7684,7 @@ function rank(candidates, targetCwd, opts = {}) {
     winningPool = byTier.C;
   }
   if (!winningTier) {
-    const allByMtime = [...candidates].toSorted((a, b) => b.mtime - a.mtime);
-    const globalRecent = globalRecentProvider ? globalRecentProvider() : allByMtime.slice(0, 5);
+    const globalRecent = [...candidates].toSorted((a, b) => b.mtime - a.mtime).slice(0, 5);
     return {
       winner: null,
       noMatch: true,
@@ -7693,7 +7710,7 @@ function rank(candidates, targetCwd, opts = {}) {
     ...winner,
     active: winner.ageSec < ACTIVE_THRESHOLD_SEC
   };
-  const ties = sorted.slice(1).filter((c) => closeEngagedTie(winner, c, tieWindowSec));
+  const ties = sorted.slice(1).filter((c) => closeEngagedTie(winner, c, TIE_WINDOW_SEC));
   const fallbacks = [
     ...sorted.slice(1),
     ...unengagedPool.toSorted(compareCandidatePreference)
@@ -7726,6 +7743,7 @@ var LOCK_RETRIES2 = 100;
 var LOCK_INTERVAL_MS2 = 50;
 var CURSOR_COMPATIBILITY = "pre-integration-record-index";
 var migrationBackupSequence = 0;
+var backupSequence2 = 0;
 var lockSequence2 = 0;
 function isErrnoException2(err) {
   return err instanceof Error && "code" in err;
@@ -7746,7 +7764,11 @@ function tmpPath(dir) {
   return join4(dir, `state.json.${process.pid}.tmp`);
 }
 function bakPath(dir, label) {
-  return join4(dir, `state.json.${label}-${Date.now()}-${process.pid}.bak`);
+  backupSequence2 += 1;
+  return join4(
+    dir,
+    `state.json.${label}-${Date.now()}-${process.pid}-${backupSequence2}.bak`
+  );
 }
 function isPidLive(pid) {
   if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0)
@@ -8338,7 +8360,7 @@ async function load() {
   for (const sessionId of legacyCursorIds) {
     await migrateLegacyCursorState(sessionId);
   }
-  legacy = await loadLegacyState();
+  if (legacyCursorIds.length > 0) legacy = await loadLegacyState();
   const cursor = await loadCursorState();
   const sessions = { ...legacy.sessions };
   for (const entry of Object.values(cursor.sessions)) {
@@ -10520,28 +10542,25 @@ async function unlinkIfExists(path) {
     throw err;
   }
 }
-async function writeControlDirective(directive, { issuedAt, pid } = {}) {
+async function writeControlDirective(directive, { issuedAt, pid }) {
   if (!CONTROL_DIRECTIVES.has(directive)) {
     throw new Error(`unknown watch control directive: ${directive}`);
   }
   const dir = stateDir3();
   const payload = {
     directive,
-    issuedAt: toIsoTimestamp(issuedAt)
+    issuedAt: toIsoTimestamp(issuedAt),
+    pid
   };
-  if (pid !== void 0) payload.pid = pid;
-  const basename3 = pid === void 0 ? "watch.control.json" : `watch.control.${pid}.json`;
-  await writeJsonAtomic(dir, basename3, payload);
+  await writeJsonAtomic(dir, `watch.control.${pid}.json`, payload);
   return payload;
 }
 async function readControlDirective({
   pid
-} = {}) {
+}) {
   const dir = stateDir3();
-  if (pid !== void 0) {
-    const own = await readControlFile(controlPath(dir, pid));
-    if (own) return own;
-  }
+  const own = await readControlFile(controlPath(dir, pid));
+  if (own) return own;
   return readControlFile(controlPath(dir));
 }
 async function clearControlDirective({
@@ -12225,6 +12244,13 @@ async function applySnippetFilter2(candidates, snippet) {
   }
   return { candidates: matches, matches };
 }
+var GENERAL_USAGE_SUBCOMMANDS = /* @__PURE__ */ new Set([
+  "review",
+  "catch-up",
+  "locate",
+  "whoami",
+  "state"
+]);
 function printUsage() {
   process.stdout.write(
     [
@@ -13551,7 +13577,7 @@ If continued monitoring is desired, restart catch-up-then-watch after your respo
 }
 async function main(argv) {
   const args = parseCliArgs(argv);
-  if (args.help && !args.subcommand) {
+  if (args.help && (!args.subcommand || GENERAL_USAGE_SUBCOMMANDS.has(args.subcommand))) {
     return printUsage();
   }
   switch (args.subcommand) {

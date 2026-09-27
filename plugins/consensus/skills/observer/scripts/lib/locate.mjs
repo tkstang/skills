@@ -2270,9 +2270,18 @@ async function findCursorSessionCandidates(targetCwd, sessionId, cache) {
     return candidates;
   }
   try {
+    const evidenceRank = new Map(
+      directVariants.map(({ encoded }, index) => [encoded, index])
+    );
+    const orderedProjectDirs = [];
     for await (const projectDir of projectDirs) {
       pinnedBudget.consumeEntry();
-      if (!projectDir.isDirectory()) continue;
+      if (projectDir.isDirectory()) orderedProjectDirs.push(projectDir);
+    }
+    orderedProjectDirs.sort(
+      (left, right) => (evidenceRank.get(left.name) ?? evidenceRank.size) - (evidenceRank.get(right.name) ?? evidenceRank.size)
+    );
+    for (const projectDir of orderedProjectDirs) {
       const cwdEvidence = directEvidence.get(projectDir.name);
       const transcriptsRoot = join2(
         projectsRoot,
@@ -2569,6 +2578,12 @@ async function discover(runtime, targetCwd, cache = new ClassificationCache(), o
   if (runtime === "cursor") return discoverCursor(targetCwd, cache, options);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
+function preferredAliasPath(candidate, kept, canonical) {
+  const candidateIsCanonical = candidate.transcriptPath === canonical;
+  const keptIsCanonical = kept.transcriptPath === canonical;
+  if (candidateIsCanonical !== keptIsCanonical) return candidateIsCanonical;
+  return candidate.transcriptPath.localeCompare(kept.transcriptPath) < 0;
+}
 async function findSessionCandidate(runtime, targetCwd, sessionId, options) {
   const cache = new ClassificationCache();
   const candidates = runtime === "cursor" ? await findCursorSessionCandidates(targetCwd, sessionId, cache) : await discover(runtime, targetCwd, cache, options);
@@ -2591,11 +2606,18 @@ async function findSessionCandidate(runtime, targetCwd, sessionId, options) {
       canonical = await realpath(candidate.transcriptPath);
     } catch {
     }
-    if (!canonicalMatches.has(canonical)) {
-      canonicalMatches.set(
-        canonical,
-        runtime === "codex" ? { ...candidate, transcriptPath: canonical } : candidate
-      );
+    if (runtime === "codex") {
+      if (!canonicalMatches.has(canonical)) {
+        canonicalMatches.set(canonical, {
+          ...candidate,
+          transcriptPath: canonical
+        });
+      }
+      continue;
+    }
+    const kept = canonicalMatches.get(canonical);
+    if (!kept || preferredAliasPath(candidate, kept, canonical)) {
+      canonicalMatches.set(canonical, candidate);
     }
   }
   const distinctMatches = [...canonicalMatches.values()];

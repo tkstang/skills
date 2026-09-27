@@ -341,9 +341,7 @@ export interface RuntimeCandidateSet {
 }
 
 export interface RankOptions {
-  tieWindowSec?: number;
   gitWorktrees?: string[];
-  globalRecentProvider?: () => TranscriptCandidate[];
 }
 
 export interface RankMatchResult {

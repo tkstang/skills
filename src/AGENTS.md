@@ -32,6 +32,17 @@ For a worked example, read [Adding a skill or distribution](../documentation/doc
 - Run scoped tests with `pnpm run test:vitest <test-path>` and `pnpm run type-check` as appropriate. After intended payload changes, run `pnpm run build`, inspect the generated diff, then `pnpm run build:check` and `pnpm run validate`.
 - When auditing existing freshness, run `pnpm run build:check` **before** a build that could repair drift. Never interpret an installed-artifact smoke as fresh-provider or native-session acceptance.
 
+### Session observer and transcript tests
+
+These rules come from the September 2026 pruning campaign on `skills/session-observer/` and `shared/transcript/`, where each mistake below was found.
+
+- Every generated-CLI test sets a temporary `HOME` and `STATE_DIR`, including `--help` and argument-error cases. A test that ran against the real HOME wrote the user's cwd cache.
+- Timing and negative assertions must fail when the feature is removed. Watch debounce, max-pending, flush, and pause tests passed without their feature because the forced max-runtime flush or an early check masked it. A size-warning test never reached its threshold. A concurrent-save test could not collide. Break the feature once before relying on such a test.
+- Do not copy a runtime-agnostic test once per runtime. `readRecords` takes no runtime, so the per-runtime fixture copies exercised one code path.
+- A fixture-shape or data-contract test must call production code; asserting a hand-built fixture against itself proves nothing.
+- `cli.test.ts` and `integration.test.ts` run the generated bundle, so rebuild before a failure-injection check reaches them. Lib-level suites keep contracts the CLI cannot reach, such as locks, crash windows, and cache persistence. Don't replay those at both layers.
+- `tests/repo/docs-presence.test.ts` pins some test and fixture file names that shipped references cite. Update the references in the same change before you rename or delete one of those files.
+
 ## References
 
 - [Generated installation units](../documentation/docs/engineering/architecture/generated-runtime.md) — rendering, bundling, failure handling, and maintained release surfaces.
