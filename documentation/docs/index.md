@@ -17,6 +17,7 @@ job you want help with:
 | Hear another perspective without running a convergence loop         | [Phone-a-Friend](user-guide/consensus/phone-a-friend.md) or [Panel](user-guide/consensus/panel.md) |
 | Exchange addressed work across local coding-agent sessions          | [Agent Messaging](user-guide/skills/agent-messaging.md)                                            |
 | Hand work to another session, keep an archive, or review an episode | [Session](user-guide/plugins/session/index.md)                                                     |
+| Check that we agree on the goal and problem before or during work   | [Align](user-guide/skills/align.md)                                                                |
 | Decide what comes next or whether a proposed step is necessary      | [Next Steps](user-guide/skills/next-steps.md) or [Must We?](user-guide/skills/must-we.md)          |
 | Check whether a plan or implementation is needlessly complex        | [Complexity Review](user-guide/skills/complexity-review.md)                                        |
 | Create or improve an agent skill                                    | [Author Skill](user-guide/skills/author-skill.md)                                                  |

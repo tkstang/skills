@@ -222,6 +222,7 @@ under `skills/`:
 
 | Canonical standalone name     | Plugin-local form             | Source link                                                                                         |
 | ----------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- |
+| `align`                       | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/align)                       |
 | `agent-messaging`             | session `messaging`           | [standalone source](https://github.com/tkstang/skills/tree/main/skills/agent-messaging)             |
 | `author-skill`                | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/author-skill)                |
 | `next-steps`                  | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/next-steps)                  |

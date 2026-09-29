@@ -52,6 +52,7 @@ describe('repo-layout', () => {
 
     expect(standaloneSkills).toEqual([
       'agent-messaging',
+      'align',
       'author-skill',
       'complexity-review',
       'consensus-review',
