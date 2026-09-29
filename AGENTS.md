@@ -49,6 +49,10 @@
 
 ## Repository Conventions
 
+- For skill creation, revision, migration, or review, use
+  [author-skill](src/skills/author-skill/SKILL.md). It is the canonical authoring
+  guide; this repository's source, build, version, and verification conventions
+  below supply its repository-specific requirements.
 - Use Node >=22 for runtime and test scripts.
 - Keep runtime plugin code dependency-free and use Node standard library APIs unless a future project explicitly changes that contract. This applies to **shipped** skills/plugins, which must run with no install step; provider CLI subprocesses are the only external execution boundary. **Developer tooling** (git hooks, commit linting, future formatters) may take dependencies.
 - Developer dependencies use **pnpm** (`packageManager` is pinned in `package.json`; `pnpm-lock.yaml` is committed). Install with `pnpm install`; CI runs `pnpm install --frozen-lockfile`. Never add runtime dependencies to shipped skills.

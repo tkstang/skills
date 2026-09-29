@@ -19,6 +19,7 @@ job you want help with:
 | Hand work to another session, keep an archive, or review an episode | [Session](user-guide/plugins/session/index.md)                                                     |
 | Decide what comes next or whether a proposed step is necessary      | [Next Steps](user-guide/skills/next-steps.md) or [Must We?](user-guide/skills/must-we.md)          |
 | Check whether a plan or implementation is needlessly complex        | [Complexity Review](user-guide/skills/complexity-review.md)                                        |
+| Create or improve an agent skill                                    | [Author Skill](user-guide/skills/author-skill.md)                                                  |
 | Understand the implementation or contribute a skill                 | [Engineering](engineering/index.md)                                                                |
 
 ## Plugins or standalone skills?
