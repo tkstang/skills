@@ -1,19 +1,22 @@
 ---
 title: 'Phone-a-friend'
-description: 'Use the phone-a-friend skill for one-shot advisory peer consultation with a structured take, explicit host disposition, and no deliberation loop.'
+description: 'Use the phone-a-friend skill for advisory peer consultation with a structured take and explicit host disposition, one-shot by default with optional bounded follow-up rounds.'
 ---
 
 # Phone-a-friend
 
 `phone-a-friend` asks one other provider-backed AI peer for a structured
-advisory take on a focused question. It is intentionally non-converging: there is
-no deliberation loop, no peer-vs-peer artifact, and no automatic application of
-the result. The host agent owns the final judgment and dispositions the peer's
-take before continuing.
+advisory take on a focused question. There is no peer-vs-peer artifact and no
+automatic application of the result. The host agent owns the final judgment and
+dispositions the peer's take before continuing.
 
 Use it when you want a second opinion on a design choice, bug hypothesis,
 implementation risk, review concern, or another narrow question that can be
-answered in one provider turn.
+answered in one provider turn. One call is the default. When you explicitly ask
+the host to keep working with the peer, for example "use phone a friend and
+deliberate until you reach consensus" or "collaborate with <model> on this
+design until you agree", it runs a bounded [follow-up exchange](#follow-up-rounds)
+with the same peer.
 
 ## Workflow
 
@@ -123,6 +126,43 @@ The peer returns a JSON payload that matches
 
 If provider setup, JSON parsing, or schema validation fails, report the failure
 instead of inventing an advisory take.
+
+## Follow-up rounds
+
+A follow-up exchange is the host plus one peer working on a focused decision. It
+is not a multi-peer convergence workflow: use `refine` when two peers must
+repeatedly revise a draft.
+
+- **Triggers.** Explicit iteration requests start it: "deliberate until you
+  reach consensus", "collaborate with <model> until you agree", "go back and
+  forth", or "follow up with the same peer". "Ask them about this objection" is
+  one extra round. "Second opinion" and "what does <model> think?" stay
+  one-shot.
+- **Bounds.** At most 3 peer calls in total and 10 minutes by default, with the
+  same provider, model, and effort every round. At a limit, the host reports
+  the remaining disagreement and asks you how to proceed.
+- **Each round.** The host dispositions the previous take, labels the exact
+  candidate revision, and asks whether that revision is acceptable as written.
+  It never asks the peer to agree.
+- **Native resume.** Where the provider's resume support is verified (Claude
+  and Codex), the host continues the exact peer session with
+  `consensus run --resume <session-uuid>`. It never uses the "latest" session
+  or a fork.
+- **Reconstructed continuation.** Otherwise the host starts a new session with a
+  compact continuation packet (`--continuation reconstructed`). The wrapper
+  tells the peer it has no memory of earlier rounds, and the receipt says
+  `reconstructed`.
+- **Honest outcomes.** The exchange ends in agreement on a named revision, an
+  evidence gap, an impasse, an exhausted budget, or a provider failure. The
+  host never manufactures consensus. Agreement between the host and one peer
+  is not independent review, is not proof that the underlying evidence is
+  sound, and does not authorize publishing or applying the change.
+
+Every envelope carries a `continuation` receipt beside the advisory `json`. It
+records the mode, the provider session ID and any predecessor, the consultation
+ID and round, and any fallback reason. See
+[provider session continuation](../../engineering/architecture/consensus-runtime.md#provider-session-continuation)
+for the runtime contract and the provider verification matrix.
 
 ## Safety and Disposition
 

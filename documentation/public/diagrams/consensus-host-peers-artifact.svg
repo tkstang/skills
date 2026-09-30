@@ -49,7 +49,7 @@
   <text x="62" y="472" class="m">codex exec --json --output-last-message &lt;file&gt;</text>
   <rect x="40" y="506" width="750" height="56" rx="6" class="card"/>
   <rect x="40" y="506" width="6" height="56" rx="3" class="acc1"/>
-  <text x="62" y="540" class="m">cursor-agent --output-format json --force</text>
+  <text x="62" y="540" class="m">cursor-agent --print --output-format json --force</text>
   <text x="415" y="592" text-anchor="middle" class="p">Real OS processes, not one model wearing three hats</text>
   <path class="e" d="M415,612 L415,642"/>
 

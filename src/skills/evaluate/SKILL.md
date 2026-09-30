@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: <artifact.md> [--rubric <rubric.md>]
 metadata:
   author: Thomas Stang
-  version: '0.1.23'
+  version: '0.1.24'
 ---
 
 # Evaluate

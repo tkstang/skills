@@ -64,6 +64,71 @@ sandbox and approval behavior depends on the selected provider and requested
 runtime policy. Environment allowlisting reduces inheritance; it does not make
 peer output trustworthy or prove containment.
 
+## Provider session continuation
+
+`consensus run` can continue a single advisory consultation across calls. This
+is separate from the loop's `records.json` resume described below: it runs one
+provider turn, and the host carries the consultation state between calls. The
+[continuation module](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/continuation.ts)
+validates requests and builds receipts, and `runProviderTurn` in
+[`structured-output.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/structured-output.ts)
+runs the state machine.
+
+- **Modes.** A request is `new` (the default), `native-resume` (`--resume
+<session-uuid>`), or `reconstructed` (`--continuation reconstructed`). Native
+  resume targets one explicit session UUID. Titles, names, and "latest"
+  selectors are rejected because Claude resolves titles and Codex silently
+  opens a new thread for an unknown name.
+- **Session identity.** Session IDs come only from provider machine output:
+  Claude's result JSON `session_id` and Codex's JSONL `thread.started`
+  `thread_id`. If a resumed turn reports a different or missing session, the
+  run fails with `PROVIDER_SESSION_MISMATCH`. This is also the runtime guard
+  when a newer CLI changes its resume grammar.
+- **Controls.** Codex runs `exec resume` with `-c sandbox_mode=...`, because
+  resume rejects `--sandbox`, and passes the thread ID and a stdin `-`
+  positionally. Claude adds `--resume <uuid>` to the usual print-mode flags.
+  Model, effort, schema, permission, and approval controls are passed again
+  on every call, and all round instructions travel in the user prompt. The
+  wrapper never uses `--last`, `--continue`, `--fork-session`, or
+  `--no-session-persistence`.
+- **No duplicate turns.** Native resume is single-attempt. The receipt's `turn`
+  is `not_started`, `completed`, or `unknown`. A reconstructed fallback runs
+  only after an explicit `--resume-fallback reconstructed` request and only
+  when the adapter is unverified or the provider definitively rejected the
+  session: a not-found message on stderr and empty stdout. A turn with any
+  provider stdout counts as `unknown`, never `not_started`. A
+  timeout, an authentication failure, or an unknown exit never falls back or
+  retries.
+- **Disclosure.** Reconstructed runs start a new session, and the wrapper
+  prepends a notice that the peer has no memory of earlier rounds. After a
+  fallback, the envelope counts both attempts and keeps a warning in the
+  diagnostics.
+- **Receipt.** The envelope's `continuation` object sits beside the advisory
+  `json`. It records the mode, provider, session IDs (current, requested, and
+  previous), the consultation ID and round, the working directory, the
+  requested model and effort, observed models where the provider reports them,
+  the redacted runtime policy, the turn state, the fallback reason, and the
+  adapter's capability evidence.
+
+Each adapter's continuation capability is either `verified`, `unverified`, or
+`unsupported`, and only `verified` adapters reach a native resume.
+Verification means that a live same-session marker smoke passed for the
+recorded CLI version. It does not certify later versions or every policy
+combination.
+
+| Provider | Documented by provider    | Accepted by installed CLI                | Live raw-CLI smoke                                    | Through wrapper      | Capability   |
+| -------- | ------------------------- | ---------------------------------------- | ----------------------------------------------------- | -------------------- | ------------ |
+| Claude   | yes                       | Claude Code 2.1.284                      | passed 2026-09-28                                     | passed 2026-09-28    | `verified`   |
+| Codex    | yes                       | codex-cli 0.157.1                        | passed 2026-09-28                                     | passed 2026-09-28    | `verified`   |
+| Cursor   | yes (`--resume [chatId]`) | cursor-agent 2026.09.28 lists `--resume` | passed 2026-09-29 (answer replayed once on reconnect) | refused (unverified) | `unverified` |
+
+By default Cursor runs with `--force`, which trusts the workspace and
+auto-approves every command. `--permission-mode read-only` runs it with
+`--trust --mode ask --sandbox enabled` instead. Ask mode allows only read-only
+tools, including read-only shell commands (a live check ran `ls` but refused a
+file write), and the peer answers through its final message rather than
+`consensus submit`.
+
 ## From provider output to a verdict
 
 The provider CLI prefers a submitted verdict only when the submit capture exists,

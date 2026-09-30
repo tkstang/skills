@@ -2,16 +2,16 @@
 // GENERATED skill payload for consensus-review.
 
 // src/skills/consensus-review/src/review.ts
-import { randomUUID as randomUUID6 } from "node:crypto";
+import { randomUUID as randomUUID7 } from "node:crypto";
 import { constants as constants2, realpathSync as realpathSync2 } from "node:fs";
 import { link as link2, lstat as lstat4, open as open4, realpath as realpath3, unlink as unlink2 } from "node:fs/promises";
-import path11 from "node:path";
+import path12 from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // src/skills/consensus-review/src/run.ts
-import { createHash as createHash3, randomUUID as randomUUID5 } from "node:crypto";
+import { createHash as createHash3, randomUUID as randomUUID6 } from "node:crypto";
 import { link, lstat as lstat3, open as open3, realpath as realpath2, stat as stat2, unlink } from "node:fs/promises";
-import path10 from "node:path";
+import path11 from "node:path";
 
 // src/plugins/consensus/provider-cli/invocation.ts
 import { randomUUID } from "node:crypto";
@@ -22,7 +22,8 @@ function buildProviderInvocation(adapter, request, options = {}) {
     strategy: options.strategy ?? defaultStrategy(adapter),
     inlineJsonSchema: options.inlineJsonSchema,
     lastMessageFile: options.lastMessageFile,
-    preserveLastMessageFile: options.preserveLastMessageFile
+    preserveLastMessageFile: options.preserveLastMessageFile,
+    resumeSessionId: options.resumeSessionId
   });
 }
 var buildClaudeInvocation = (request, options = {}) => {
@@ -52,6 +53,10 @@ var buildClaudeInvocation = (request, options = {}) => {
   if (claudePermissionMode) {
     argv.push("--permission-mode", claudePermissionMode);
     redactedArgv.push("--permission-mode", claudePermissionMode);
+  }
+  if (options.resumeSessionId) {
+    argv.push("--resume", options.resumeSessionId);
+    redactedArgv.push("--resume", options.resumeSessionId);
   }
   const policy = request.runtime_policy;
   const scopedTools = [
@@ -107,7 +112,14 @@ var buildClaudeInvocation = (request, options = {}) => {
 var buildCodexInvocation = (request, options = {}) => {
   const strategy = options.strategy ?? "prompt_only";
   const lastMessageFile = options.lastMessageFile ?? codexLastMessageFile();
-  const argv = ["exec", "--json", "--output-last-message", lastMessageFile];
+  const resumeSessionId = options.resumeSessionId;
+  const argv = [
+    "exec",
+    ...resumeSessionId ? ["resume"] : [],
+    "--json",
+    "--output-last-message",
+    lastMessageFile
+  ];
   if (strategy === "constrained_native") {
     argv.push("--output-schema", request.schema_path);
   }
@@ -119,12 +131,20 @@ var buildCodexInvocation = (request, options = {}) => {
     );
   }
   if (request.runtime_policy?.sandbox) {
-    argv.push("--sandbox", request.runtime_policy.sandbox);
+    if (resumeSessionId) {
+      argv.push(
+        "-c",
+        codexConfigOverride("sandbox_mode", request.runtime_policy.sandbox)
+      );
+    } else {
+      argv.push("--sandbox", request.runtime_policy.sandbox);
+    }
   }
   const approvalPolicy = request.runtime_policy?.approval_policy ?? (request.runtime_policy?.permission_mode === "non-interactive" ? "never" : void 0);
   if (approvalPolicy) {
     argv.push("-c", codexConfigOverride("approval_policy", approvalPolicy));
   }
+  if (resumeSessionId) argv.push(resumeSessionId, "-");
   return invocation({
     executable: "codex",
     argv,
@@ -136,8 +156,22 @@ var buildCodexInvocation = (request, options = {}) => {
   });
 };
 var buildCursorInvocation = (request, options = {}) => {
+  if (options.resumeSessionId) {
+    throw new Error(
+      "Cursor native resume is not verified for this adapter; use a reconstructed continuation."
+    );
+  }
   const strategy = options.strategy === "submit_tool_candidate" ? "prompt_only" : options.strategy ?? "prompt_only";
-  const argv = ["--output-format", "json", "--force"];
+  const argv = request.runtime_policy?.permission_mode === "read-only" ? [
+    "--print",
+    "--output-format",
+    "json",
+    "--trust",
+    "--mode",
+    "ask",
+    "--sandbox",
+    "enabled"
+  ] : ["--print", "--output-format", "json", "--force"];
   return invocation({
     executable: "cursor-agent",
     argv,
@@ -543,6 +577,17 @@ var COMMON_UNSUPPORTED_OPTION_PATTERNS = [
   /unsupported (?:option|flag|argument)/i,
   /invalid (?:option|flag|argument)/i
 ];
+var CLAUDE_SESSION_NOT_FOUND_PATTERNS = [
+  // Evidence: Claude Code 2.1.284 `--print --resume <unknown-uuid>` exits 1
+  // with this message (live check, 2026-09-28).
+  /No conversation found with session ID/i
+];
+var CODEX_SESSION_NOT_FOUND_PATTERNS = [
+  // Evidence: codex-cli 0.157.1 `exec resume <unknown-uuid> -` exits 1 with
+  // "thread/resume failed: no rollout found for thread id" (live check,
+  // 2026-09-28).
+  /no rollout found for thread id/i
+];
 var COMMON_TRANSIENT_EXIT_PATTERNS = [
   /\b429\b/i,
   /rate limit/i,
@@ -581,7 +626,9 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     display_name: "Claude",
     executable: "claude",
     buildInvocation: buildClaudeInvocation,
+    extractSession: extractJsonResultSession,
     classifyRunFailure: defaultRunFailureClassifier({
+      session_not_found_patterns: CLAUDE_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
       unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
@@ -617,7 +664,12 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       },
       supports_submit_tool: false,
       supports_same_host_subprocess: true,
-      supports_host_native_dispatch: false
+      supports_host_native_dispatch: false,
+      continuation: {
+        native_resume: "verified",
+        session_id_source: "stdout_json.session_id",
+        evidence: "Live same-session smoke 2026-09-28 with Claude Code 2.1.284: `--print --output-format json --json-schema --resume <uuid>` recalled an unseen marker, preserved session_id, model, and schema. `--resume` also accepts a session title, so the wrapper requires a UUID."
+      }
     }
   },
   {
@@ -625,7 +677,9 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     display_name: "Codex",
     executable: "codex",
     buildInvocation: buildCodexInvocation,
+    extractSession: extractCodexJsonlSession,
     classifyRunFailure: defaultRunFailureClassifier({
+      session_not_found_patterns: CODEX_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
       unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
@@ -667,7 +721,12 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       },
       supports_submit_tool: false,
       supports_same_host_subprocess: true,
-      supports_host_native_dispatch: false
+      supports_host_native_dispatch: false,
+      continuation: {
+        native_resume: "verified",
+        session_id_source: "jsonl.thread.started.thread_id",
+        evidence: "Live same-session smoke 2026-09-28 with codex-cli 0.157.1: `exec resume --json --output-schema -c sandbox_mode=... <uuid> -` recalled an unseen marker with read-only sandbox and approval never. `exec resume` rejects `--sandbox`, and a non-UUID that matches no thread name silently starts a new thread, so the wrapper requires a UUID and verifies the returned thread_id."
+      }
     }
   },
   {
@@ -675,7 +734,9 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     display_name: "Cursor",
     executable: "cursor-agent",
     buildInvocation: buildCursorInvocation,
+    extractSession: extractJsonResultSession,
     classifyRunFailure: defaultRunFailureClassifier({
+      session_not_found_patterns: [],
       auth_required_patterns: [
         ...COMMON_AUTH_REQUIRED_PATTERNS,
         /credential.*locked/i
@@ -711,13 +772,18 @@ var DEFAULT_PROVIDER_ADAPTERS = [
         model: false,
         effort: null,
         runtime_policy: {
-          permission_modes: ["non-interactive"],
+          permission_modes: ["non-interactive", "read-only"],
           env_allowlist: true
         }
       },
       supports_submit_tool: false,
       supports_same_host_subprocess: true,
-      supports_host_native_dispatch: false
+      supports_host_native_dispatch: false,
+      continuation: {
+        native_resume: "unverified",
+        session_id_source: "stdout_json.session_id",
+        evidence: "Cursor documents `--resume [chatId]` and a JSON result `session_id`. Raw CLI resume passed a same-session marker smoke on 2026-09-29 (cursor-agent 2026.09.28, cursor-grok-4.6-high, `--print --mode ask --sandbox enabled`, run by the user because agent shells cannot read the Cursor login). During that smoke a transport reconnect replayed each resumed turn, so its result held two answers. The wrapper resume path is not implemented; a future one should require the read-only policy (`--trust --mode ask --sandbox enabled`), not the default `--force`."
+      }
     }
   }
 ];
@@ -755,6 +821,15 @@ ${failure2.message}`;
         retryable: true,
         terminal_reason: "provider_exit_interrupted",
         exit_classification: "interrupted"
+      };
+    }
+    if (failure2.stdout.trim() === "" && matchesAny(failure2.stderr, patterns.session_not_found_patterns)) {
+      return {
+        code: "PROVIDER_SESSION_NOT_FOUND",
+        message: outputLine ?? "Provider could not find the requested session.",
+        retryable: false,
+        terminal_reason: "provider_session_not_found",
+        exit_classification: "terminal"
       };
     }
     if (matchesAny(output, patterns.auth_required_patterns)) {
@@ -801,6 +876,43 @@ ${failure2.message}`;
       exit_classification: "unknown"
     };
   };
+}
+function extractJsonResultSession(stdout) {
+  let parsed;
+  try {
+    parsed = JSON.parse(stdout.trim());
+  } catch {
+    return {};
+  }
+  if (!isRecord(parsed)) return {};
+  const observation = {};
+  if (typeof parsed.session_id === "string" && parsed.session_id) {
+    observation.session_id = parsed.session_id;
+  }
+  if (isRecord(parsed.modelUsage)) {
+    const models = Object.keys(parsed.modelUsage);
+    if (models.length > 0) observation.observed_models = models;
+  }
+  return observation;
+}
+function extractCodexJsonlSession(stdout) {
+  for (const line of stdout.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("{")) continue;
+    let event;
+    try {
+      event = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (isRecord(event) && event.type === "thread.started" && typeof event.thread_id === "string" && event.thread_id) {
+      return { session_id: event.thread_id };
+    }
+  }
+  return {};
+}
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function terminalReasonForNonExitFailure(code) {
   if (code === "PROVIDER_MISSING") return "provider_missing";
@@ -1150,6 +1262,15 @@ function buildProviderProbeEnvironment({
 function providerEnvAllowlist(provider) {
   return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
 }
+function redactedRuntimePolicyDiagnostics(policy = {}) {
+  const effectivePolicy = defaultRuntimePolicy(policy);
+  return {
+    permission_mode: effectivePolicy.permission_mode,
+    ...effectivePolicy.sandbox ? { sandbox: effectivePolicy.sandbox } : {},
+    ...effectivePolicy.approval_policy ? { approval_policy: effectivePolicy.approval_policy } : {},
+    ...effectivePolicy.env_allowlist ? { env_allowlist: [...effectivePolicy.env_allowlist] } : {}
+  };
+}
 function validateOptionValue(option, value, supportedValues) {
   if (!value) return void 0;
   if (supportedValues?.includes(value)) return void 0;
@@ -1411,8 +1532,137 @@ function formatNumericVersion(version) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 import { readFile, rm as rm2 } from "node:fs/promises";
-import path5 from "node:path";
+import path6 from "node:path";
 import { fileURLToPath } from "node:url";
+
+// src/plugins/consensus/provider-cli/continuation.ts
+import { randomUUID as randomUUID2 } from "node:crypto";
+import path4 from "node:path";
+var UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+var NOT_STARTED_FAILURE_CODES = [
+  "PROVIDER_MISSING",
+  "PROVIDER_AUTH_REQUIRED",
+  "PROVIDER_UNSUPPORTED_OPTION",
+  "PROVIDER_SESSION_NOT_FOUND"
+];
+function isProviderSessionId(value) {
+  return UUID_PATTERN.test(value);
+}
+function continuationMode(request) {
+  return request.continuation?.mode ?? "new";
+}
+function continuationUsageError(request) {
+  const continuation = request.continuation;
+  if (!continuation) return void 0;
+  const { mode } = continuation;
+  if (continuation.round !== void 0) {
+    if (!Number.isInteger(continuation.round) || continuation.round < 1) {
+      return "Continuation round must be a positive integer.";
+    }
+    if (mode === "new" && continuation.round !== 1) {
+      return "A new consultation starts at round 1; use --resume or --continuation reconstructed for later rounds.";
+    }
+    if (mode !== "new" && continuation.round < 2) {
+      return "A continuation round must be 2 or greater.";
+    }
+  }
+  if (continuation.consultation_id !== void 0 && continuation.consultation_id.trim() === "") {
+    return "Continuation consultation_id must be a non-empty string.";
+  }
+  if (mode !== "native-resume") {
+    if (continuation.session_id !== void 0) {
+      return `A ${mode} run cannot target an existing session; use --resume for native resume.`;
+    }
+    if (continuation.fallback !== void 0 || continuation.fallback_prompt !== void 0) {
+      return "Resume fallback options apply only to native resume (--resume).";
+    }
+  }
+  if (mode === "new" && continuation.previous_session_id !== void 0) {
+    return "A predecessor session implies a continuation; use --continuation reconstructed.";
+  }
+  if (mode === "reconstructed" && continuation.previous_session_id !== void 0 && continuation.previous_session_id.trim() === "") {
+    return "Previous session id must be a non-empty string.";
+  }
+  if (mode !== "native-resume") return void 0;
+  if (!continuation.session_id) {
+    return "Native resume requires an explicit provider session id.";
+  }
+  if (!isProviderSessionId(continuation.session_id)) {
+    return 'Native resume requires a lowercase provider session UUID, as reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
+  }
+  if (continuation.previous_session_id !== void 0) {
+    return "Native resume continues the --resume session itself; --previous-session applies only to reconstructed continuation.";
+  }
+  if ((request.max_attempts ?? 1) > 1) {
+    return "Native resume is single-attempt: a failed or malformed turn may already be recorded in the session, so the wrapper never resubmits it.";
+  }
+  const fallback = continuation.fallback ?? "error";
+  const fallbackPrompt = continuation.fallback_prompt;
+  if (fallback === "error" && fallbackPrompt !== void 0) {
+    return "A fallback prompt requires --resume-fallback reconstructed.";
+  }
+  if (fallback === "reconstructed") {
+    if (!fallbackPrompt || fallbackPrompt.trim() === "") {
+      return "Reconstructed fallback requires a continuation packet (--fallback-prompt-file).";
+    }
+    if (fallbackPrompt.trim() === request.prompt.trim()) {
+      return "The fallback continuation packet must carry reconstructed context, not repeat the native follow-up prompt.";
+    }
+  }
+  return void 0;
+}
+function reconstructedContinuationPrompt(packet, fallbackReason) {
+  return [
+    "Continuation notice (added by the consensus wrapper):",
+    "- This is a NEW provider session. You have no memory of earlier rounds, and no earlier transcript is available to you.",
+    "- The host reconstructed the context below from earlier rounds. It is a summary, may be incomplete, and is not the original transcript.",
+    ...fallbackReason ? [
+      `- A native resume of the earlier session was requested but unavailable (${fallbackReason}).`
+    ] : [],
+    "- Judge the current candidate on its merits. Name material blockers, explain any disagreement, and state whether the exact candidate is acceptable. You are not obligated to agree.",
+    "",
+    packet
+  ].join("\n");
+}
+function turnStateFor(trace) {
+  if (!trace.process) return "not_started";
+  if (trace.process.ok) return "completed";
+  if (trace.process.stdout.trim() === "" && trace.failure_code && NOT_STARTED_FAILURE_CODES.includes(trace.failure_code)) {
+    return "not_started";
+  }
+  return "unknown";
+}
+function continuationReceipt(input) {
+  const { request, adapter, mode, trace } = input;
+  const observation = adapter && trace.process ? adapter.extractSession(trace.process.stdout) : {};
+  const continuation = request.continuation;
+  const round = continuation?.round ?? (mode === "new" && !input.fallbackReason ? 1 : void 0);
+  return {
+    mode,
+    provider: request.provider,
+    ...observation.session_id ? { session_id: observation.session_id } : {},
+    ...continuation?.mode === "native-resume" && continuation.session_id ? { requested_session_id: continuation.session_id } : {},
+    ...mode === "reconstructed" && previousSessionId(request) ? { previous_session_id: previousSessionId(request) } : {},
+    consultation_id: input.consultationId,
+    ...round !== void 0 ? { round } : {},
+    cwd: path4.resolve(request.cwd ?? process.cwd()),
+    ...request.model ? { requested_model: request.model } : {},
+    ...request.effort ? { requested_effort: request.effort } : {},
+    ...observation.observed_models ? { observed_models: observation.observed_models } : {},
+    runtime_policy: redactedRuntimePolicyDiagnostics(request.runtime_policy),
+    turn: turnStateFor(trace),
+    ...input.fallbackReason ? { fallback_reason: input.fallbackReason } : {},
+    ...adapter?.capabilities.continuation ? { capability: adapter.capabilities.continuation } : {}
+  };
+}
+function consultationIdFor(request) {
+  return request.continuation?.consultation_id ?? randomUUID2();
+}
+function previousSessionId(request) {
+  const continuation = request.continuation;
+  if (!continuation) return void 0;
+  return continuation.mode === "native-resume" ? continuation.session_id : continuation.previous_session_id;
+}
 
 // src/plugins/consensus/provider-cli/envelope.ts
 function successEnvelope(input) {
@@ -1461,12 +1711,12 @@ function buildAttemptSummary(attempts, retryable) {
 
 // src/plugins/consensus/provider-cli/schema-validate.ts
 function validateSchemaSubset(value, schema) {
-  if (!isRecord(schema)) return { ok: true };
-  if (schema.type === "object" && !isRecord(value)) {
+  if (!isRecord2(schema)) return { ok: true };
+  if (schema.type === "object" && !isRecord2(value)) {
     return { ok: false, message: "Expected provider JSON to be an object." };
   }
   if (Array.isArray(schema.required)) {
-    if (!isRecord(value)) {
+    if (!isRecord2(value)) {
       return {
         ok: false,
         message: "Expected provider JSON to be an object with required fields."
@@ -1481,9 +1731,9 @@ function validateSchemaSubset(value, schema) {
       }
     }
   }
-  if (isRecord(schema.properties) && isRecord(value)) {
+  if (isRecord2(schema.properties) && isRecord2(value)) {
     for (const [field, fieldSchema] of Object.entries(schema.properties)) {
-      if (!(field in value) || !isRecord(fieldSchema)) continue;
+      if (!(field in value) || !isRecord2(fieldSchema)) continue;
       const type = fieldSchema.type;
       if (typeof type === "string" && !matchesJsonType(value[field], type)) {
         return {
@@ -1495,19 +1745,19 @@ function validateSchemaSubset(value, schema) {
   }
   return { ok: true };
 }
-function isRecord(value) {
+function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function matchesJsonType(value, type) {
   if (type === "array") return Array.isArray(value);
-  if (type === "object") return isRecord(value);
+  if (type === "object") return isRecord2(value);
   if (type === "integer") return Number.isInteger(value);
   return typeof value === type;
 }
 
 // src/plugins/consensus/provider-cli/submit-capture.ts
-import { randomUUID as randomUUID2 } from "node:crypto";
-import path4 from "node:path";
+import { randomUUID as randomUUID3 } from "node:crypto";
+import path5 from "node:path";
 var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
 var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
 var CONSENSUS_SUBMIT_CAPTURE_DIR = ".consensus/submit";
@@ -1536,10 +1786,10 @@ function submitCaptureLimitMessage(bytes, maxBytes) {
   return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
 }
 function submitCaptureDirectory(cwd) {
-  return path4.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
+  return path5.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
 }
-function submitCaptureFilePath(cwd, id = randomUUID2()) {
-  return path4.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
+function submitCaptureFilePath(cwd, id = randomUUID3()) {
+  return path5.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts
@@ -1557,6 +1807,126 @@ function selectStructuredOutputStrategy(adapter, options = {}) {
   return "prompt_only";
 }
 async function runProviderTurn(request, dependencies = {}) {
+  const registry = dependencies.registry ?? providerRegistry();
+  const adapter = registry.get(request.provider);
+  const consultationId = consultationIdFor(request);
+  const mode = continuationMode(request);
+  const withReceipt = (envelope2, receiptMode, trace2, fallbackReason) => ({
+    ...envelope2,
+    continuation: continuationReceipt({
+      request,
+      adapter,
+      mode: receiptMode,
+      consultationId,
+      trace: trace2,
+      fallbackReason
+    })
+  });
+  const usageError = continuationUsageError(request);
+  if (usageError) {
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: usageError,
+        terminalReason: "continuation_usage"
+      }),
+      mode,
+      {}
+    );
+  }
+  const continuation = request.continuation;
+  const runReconstructed = async (packet, fallbackReason, rejected) => {
+    const trace2 = {};
+    const envelope2 = await runStructuredTurn(
+      {
+        ...request,
+        prompt: reconstructedContinuationPrompt(packet, fallbackReason)
+      },
+      dependencies,
+      trace2
+    );
+    return withReceipt(
+      rejected ? withRejectedResume(envelope2, rejected) : envelope2,
+      "reconstructed",
+      trace2,
+      fallbackReason
+    );
+  };
+  if (mode === "reconstructed") {
+    return runReconstructed(request.prompt);
+  }
+  if (mode !== "native-resume" || !continuation?.session_id) {
+    const trace2 = {};
+    const envelope2 = await runStructuredTurn(request, dependencies, trace2);
+    return withReceipt(envelope2, "new", trace2);
+  }
+  const requestedSessionId = continuation.session_id;
+  const fallbackPacket = continuation.fallback === "reconstructed" ? continuation.fallback_prompt : void 0;
+  const resumeStatus = adapter?.capabilities.continuation?.native_resume;
+  if (adapter && resumeStatus !== "verified") {
+    const reason = `native_resume_${resumeStatus ?? "unsupported"}`;
+    if (fallbackPacket) return runReconstructed(fallbackPacket, reason);
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: "PROVIDER_UNSUPPORTED_OPTION",
+        message: `Native resume is ${resumeStatus ?? "unsupported"} for provider ${request.provider}; use --resume-fallback reconstructed with a continuation packet, or --continuation reconstructed.`,
+        terminalReason: reason
+      }),
+      "native-resume",
+      {}
+    );
+  }
+  const trace = {};
+  const envelope = await runStructuredTurn(request, dependencies, trace, {
+    resumeSessionId: requestedSessionId
+  });
+  const receipt = continuationReceipt({
+    request,
+    adapter,
+    mode: "native-resume",
+    consultationId,
+    trace
+  });
+  if (!envelope.ok && envelope.code === "PROVIDER_SESSION_NOT_FOUND" && receipt.turn === "not_started" && fallbackPacket) {
+    return runReconstructed(fallbackPacket, "session_not_found", envelope);
+  }
+  if (receipt.turn === "completed" && receipt.session_id !== requestedSessionId) {
+    return {
+      ...failureEnvelope({
+        provider: request.provider,
+        code: "PROVIDER_SESSION_MISMATCH",
+        message: receipt.session_id ? `Provider reported session ${receipt.session_id} instead of the requested ${requestedSessionId}; the turn was not a native resume.` : `Provider output did not confirm the requested session ${requestedSessionId}.`,
+        retryable: false,
+        stdout: envelope.stdout,
+        stderr: envelope.stderr,
+        attempts: {
+          cli_attempts: envelope.attempts.cli_attempts,
+          terminal_reason: "provider_session_mismatch"
+        },
+        diagnostics: envelope.diagnostics
+      }),
+      continuation: receipt
+    };
+  }
+  return { ...envelope, continuation: receipt };
+}
+function withRejectedResume(envelope, rejected) {
+  const note = `Native resume was rejected (${rejected.ok ? "ok" : rejected.code}) before a turn started; a reconstructed session answered instead.`;
+  return {
+    ...envelope,
+    attempts: {
+      ...envelope.attempts,
+      cli_attempts: envelope.attempts.cli_attempts + rejected.attempts.cli_attempts
+    },
+    diagnostics: {
+      ...envelope.diagnostics,
+      warnings: [...envelope.diagnostics?.warnings ?? [], note]
+    }
+  };
+}
+async function runStructuredTurn(request, dependencies, trace, turnOptions = {}) {
   const registry = dependencies.registry ?? providerRegistry();
   const adapter = registry.get(request.provider);
   if (!adapter) {
@@ -1618,7 +1988,7 @@ async function runProviderTurn(request, dependencies = {}) {
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
-  const submitCaptureEnabled = (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && hasScopedToolAccess(request.runtime_policy));
+  const submitCaptureEnabled = (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && hasScopedToolAccess(request.runtime_policy)) && !(request.provider === "cursor" && request.runtime_policy?.permission_mode === "read-only");
   const strategy = selectStructuredOutputStrategy(adapter, {
     submitCaptureEnabled,
     strategy: dependencies.transport?.strategy
@@ -1645,7 +2015,7 @@ async function runProviderTurn(request, dependencies = {}) {
         CONSENSUS_SUBMIT_COMMAND: submitCommand,
         CONSENSUS_SUBMIT_FILE: submitCapturePath,
         [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path5.resolve(request.schema_path)
+        CONSENSUS_SUBMIT_SCHEMA: path6.resolve(request.schema_path)
       } : {}
     }
   });
@@ -1672,7 +2042,8 @@ async function runProviderTurn(request, dependencies = {}) {
         strategy,
         inlineJsonSchema,
         lastMessageFile: dependencies.transport?.lastMessageFile,
-        preserveLastMessageFile: dependencies.transport?.preserveLastMessageFile
+        preserveLastMessageFile: dependencies.transport?.preserveLastMessageFile,
+        resumeSessionId: turnOptions.resumeSessionId
       });
       lastInvocation = invocation2;
       const processResult = await runSubprocess(invocation2, {
@@ -1680,6 +2051,8 @@ async function runProviderTurn(request, dependencies = {}) {
         maxOutputBytes: request.max_output_bytes,
         timeoutSec: request.max_runtime_sec
       });
+      trace.process = processResult;
+      trace.failure_code = void 0;
       const diagnostics = mergeDiagnostics(
         {
           strategy_used: strategy,
@@ -1693,6 +2066,7 @@ async function runProviderTurn(request, dependencies = {}) {
       );
       if (!processResult.ok) {
         const classification = adapter.classifyRunFailure(processResult);
+        trace.failure_code = classification.code;
         exitClassification = classification.exit_classification;
         const failureDiagnostics = mergeDiagnostics(
           diagnostics,
@@ -1838,14 +2212,14 @@ function permissionDenialDiagnostics(provider, stdout) {
   } catch {
     return void 0;
   }
-  if (!isRecord(result) || !Array.isArray(result.permission_denials)) {
+  if (!isRecord2(result) || !Array.isArray(result.permission_denials)) {
     return void 0;
   }
   const denials = result.permission_denials;
   if (denials.length === 0) return void 0;
   const tools = [
     ...new Set(
-      denials.filter(isRecord).map((denial) => denial.tool_name).filter(
+      denials.filter(isRecord2).map((denial) => denial.tool_name).filter(
         (name) => typeof name === "string" && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name)
       )
     )
@@ -1918,7 +2292,7 @@ async function cleanupSubmitCaptureFile(filePath) {
   }
 }
 function extractStructuredJsonValue(value) {
-  if (!isRecord(value)) return value;
+  if (!isRecord2(value)) return value;
   if ("structured_output" in value) {
     return value.structured_output;
   }
@@ -2028,7 +2402,7 @@ function buildConsensusSubmitCommand(input = {}) {
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
 }
 function currentConsensusCliPath() {
-  if (process.argv[1]) return path5.resolve(process.argv[1]);
+  if (process.argv[1]) return path6.resolve(process.argv[1]);
   return fileURLToPath(import.meta.url);
 }
 function shellQuote(value) {
@@ -2037,10 +2411,10 @@ function shellQuote(value) {
 
 // src/plugins/consensus/shared/cli-helpers-core.ts
 import { lstat } from "node:fs/promises";
-import path6 from "node:path";
+import path7 from "node:path";
 function inside(root, target) {
-  const relative = path6.relative(root, target);
-  return relative === "" || !relative.startsWith("..") && !path6.isAbsolute(relative);
+  const relative = path7.relative(root, target);
+  return relative === "" || !relative.startsWith("..") && !path7.isAbsolute(relative);
 }
 function pathExists(targetPath) {
   return lstat(targetPath).then(() => true).catch((error) => {
@@ -2050,7 +2424,7 @@ function pathExists(targetPath) {
 }
 async function nearestExistingPath(targetPath) {
   if (await pathExists(targetPath)) return targetPath;
-  const parent = path6.dirname(targetPath);
+  const parent = path7.dirname(targetPath);
   if (parent === targetPath) return targetPath;
   return await nearestExistingPath(parent);
 }
@@ -2060,7 +2434,7 @@ function encodePromptBlockData(text) {
 
 // src/skills/consensus-review/src/scope.ts
 import { execFile } from "node:child_process";
-import { createHash, randomUUID as randomUUID3 } from "node:crypto";
+import { createHash, randomUUID as randomUUID4 } from "node:crypto";
 import {
   chmod,
   lstat as lstat2,
@@ -2071,7 +2445,7 @@ import {
   stat
 } from "node:fs/promises";
 import os from "node:os";
-import path7 from "node:path";
+import path8 from "node:path";
 import { promisify } from "node:util";
 var execFileAsync = promisify(execFile);
 var REVIEW_SCOPE_LIMITS = {
@@ -2277,15 +2651,15 @@ async function createReviewRunState(input) {
   const canonicalWorktree = await canonicalGitWorktree(input.cwd);
   const env = input.env ?? process.env;
   const configuredRoot = env.XDG_STATE_HOME;
-  if (configuredRoot && !path7.isAbsolute(configuredRoot)) {
+  if (configuredRoot && !path8.isAbsolute(configuredRoot)) {
     throw new Error("XDG_STATE_HOME must be absolute");
   }
   const home = env.HOME || os.homedir();
-  if (!configuredRoot && !path7.isAbsolute(home)) {
+  if (!configuredRoot && !path8.isAbsolute(home)) {
     throw new Error("HOME must resolve to an absolute path");
   }
-  const stateRoot = path7.resolve(
-    configuredRoot ?? path7.join(home, ".local", "state"),
+  const stateRoot = path8.resolve(
+    configuredRoot ?? path8.join(home, ".local", "state"),
     "consensus"
   );
   await mkdir(stateRoot, { recursive: true, mode: 448 });
@@ -2294,15 +2668,15 @@ async function createReviewRunState(input) {
     throw new Error("review_state_inside_worktree");
   }
   const worktreeKey = sha256(canonicalWorktree);
-  const reviews = path7.join(canonicalStateRoot, worktreeKey, "reviews");
+  const reviews = path8.join(canonicalStateRoot, worktreeKey, "reviews");
   await mkdir(reviews, { recursive: true, mode: 448 });
-  await chmod(path7.join(canonicalStateRoot, worktreeKey), 448);
+  await chmod(path8.join(canonicalStateRoot, worktreeKey), 448);
   await chmod(reviews, 448);
-  const runId = input.runId ?? randomUUID3();
+  const runId = input.runId ?? randomUUID4();
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(runId)) {
     throw new Error("run_id_invalid");
   }
-  const runDirectory = path7.join(reviews, runId);
+  const runDirectory = path8.join(reviews, runId);
   await mkdir(runDirectory, { mode: 448 });
   const canonicalRunDirectory = await realpath(runDirectory);
   if (canonicalRunDirectory !== runDirectory || !inside(canonicalStateRoot, canonicalRunDirectory) || inside(canonicalWorktree, canonicalRunDirectory)) {
@@ -2321,7 +2695,7 @@ async function createReviewRunState(input) {
   };
 }
 async function canonicalGitWorktree(cwd) {
-  const worktree = await gitText(path7.resolve(cwd), [
+  const worktree = await gitText(path8.resolve(cwd), [
     "rev-parse",
     "--show-toplevel"
   ]).catch(() => {
@@ -2367,7 +2741,7 @@ async function rejectUnresolvedMerges(cwd) {
 }
 async function captureWorktreeVersion(root, relativePath, requirePresent = false, includeText = true) {
   const normalized = normalizeRepositoryPath(relativePath);
-  const requested = path7.resolve(root, normalized);
+  const requested = path8.resolve(root, normalized);
   if (!inside(root, requested)) throw new Error(`path_escape: ${relativePath}`);
   let info;
   try {
@@ -2382,11 +2756,11 @@ async function captureWorktreeVersion(root, relativePath, requirePresent = false
     );
   }
   if (info.isSymbolicLink()) {
-    const canonicalParent = await realpath(path7.dirname(requested));
+    const canonicalParent = await realpath(path8.dirname(requested));
     if (!inside(root, canonicalParent)) {
       throw new Error(`path_escape: ${normalized}`);
     }
-    const canonicalLink = path7.join(canonicalParent, path7.basename(requested));
+    const canonicalLink = path8.join(canonicalParent, path8.basename(requested));
     const target = await readlink(canonicalLink, {
       encoding: "buffer"
     }).catch((error) => {
@@ -2452,14 +2826,14 @@ async function captureGitVersion(root, revision, relativePath) {
   );
 }
 async function resolveDocument(root, candidate) {
-  const requested = path7.isAbsolute(candidate) ? path7.resolve(candidate) : path7.resolve(root, candidate);
+  const requested = path8.isAbsolute(candidate) ? path8.resolve(candidate) : path8.resolve(root, candidate);
   const canonical = await realpath(requested).catch((error) => {
     throw new Error(`document_unreadable: ${fsMessage(error)}`);
   });
   const location = inside(root, canonical) ? "worktree" : "external";
   if (location === "worktree") {
     const relativePath = normalizeRepositoryPath(
-      path7.relative(root, canonical)
+      path8.relative(root, canonical)
     );
     return {
       location,
@@ -2596,14 +2970,14 @@ function assertRef(ref) {
   }
 }
 function normalizeRepositoryPath(candidate) {
-  if (!candidate || candidate.includes("\0") || path7.isAbsolute(candidate)) {
+  if (!candidate || candidate.includes("\0") || path8.isAbsolute(candidate)) {
     throw new Error(`scope_path_invalid: ${candidate}`);
   }
-  const normalized = path7.normalize(candidate);
-  if (normalized === "." || normalized === ".." || normalized.startsWith(`..${path7.sep}`)) {
+  const normalized = path8.normalize(candidate);
+  if (normalized === "." || normalized === ".." || normalized.startsWith(`..${path8.sep}`)) {
     throw new Error(`path_escape: ${candidate}`);
   }
-  return normalized.split(path7.sep).join("/");
+  return normalized.split(path8.sep).join("/");
 }
 function enforceFileCount(paths) {
   if (paths.length > REVIEW_SCOPE_LIMITS.maxSelectedFiles) {
@@ -2635,10 +3009,10 @@ function fsMessage(error) {
 
 // src/skills/consensus-review/src/selection.ts
 import { createHash as createHash2 } from "node:crypto";
-import path9 from "node:path";
+import path10 from "node:path";
 
 // src/plugins/consensus/config/consensus-config.ts
-import { randomUUID as randomUUID4 } from "node:crypto";
+import { randomUUID as randomUUID5 } from "node:crypto";
 import {
   access as access2,
   mkdir as mkdir2,
@@ -2647,7 +3021,7 @@ import {
   rm as rm3,
   writeFile
 } from "node:fs/promises";
-import path8 from "node:path";
+import path9 from "node:path";
 
 // src/plugins/consensus/provider-cli/types.ts
 var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
@@ -2665,7 +3039,7 @@ var DEFAULTS_KEYS = /* @__PURE__ */ new Set([
 var AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
 var ROLE_KEYS = /* @__PURE__ */ new Set(["panelist", "advisor", "synthesizer"]);
 function parseConsensusDefaultsConfig(value) {
-  if (!isRecord2(value)) {
+  if (!isRecord3(value)) {
     throw new Error("Consensus config must be an object");
   }
   assertKnownKeys(value, CONFIG_KEYS, "Consensus config");
@@ -2679,7 +3053,7 @@ function parseConsensusDefaultsConfig(value) {
   return config;
 }
 function parseConsensusDefaults(value) {
-  if (!isRecord2(value)) {
+  if (!isRecord3(value)) {
     throw new Error("Consensus config defaults must be an object");
   }
   assertKnownKeys(value, DEFAULTS_KEYS, "Consensus config defaults");
@@ -2733,7 +3107,7 @@ async function readConsensusConfig(input) {
 }
 async function consensusConfigPath(input) {
   if (input.scope === "user") {
-    return path8.join(userConfigDir(input.env), "consensus", "config.json");
+    return path9.join(userConfigDir(input.env), "consensus", "config.json");
   }
   return projectConsensusConfigPath(input.cwd);
 }
@@ -2743,7 +3117,7 @@ async function projectConsensusConfigPath(cwd) {
   return existing ?? fallback;
 }
 async function findNearestProjectConsensusConfig(cwd) {
-  let current = path8.resolve(cwd);
+  let current = path9.resolve(cwd);
   while (true) {
     const candidate = projectConsensusConfigPathAt(current);
     try {
@@ -2752,13 +3126,13 @@ async function findNearestProjectConsensusConfig(cwd) {
     } catch (error) {
       if (!isNodeError(error) || error.code !== "ENOENT") throw error;
     }
-    const parent = path8.dirname(current);
+    const parent = path9.dirname(current);
     if (parent === current) return null;
     current = parent;
   }
 }
 function projectConsensusConfigPathAt(cwd) {
-  return path8.join(path8.resolve(cwd), ".consensus", "config.json");
+  return path9.join(path9.resolve(cwd), ".consensus", "config.json");
 }
 async function resolveConsensusComposition(input) {
   const candidates = await loadCandidates(input);
@@ -2950,7 +3324,7 @@ function parseAgentList(value, options) {
   return agents;
 }
 function parseAgentRef(value, label) {
-  if (!isRecord2(value)) {
+  if (!isRecord3(value)) {
     throw new Error(`${label} must be an object`);
   }
   assertKnownKeys(value, AGENT_KEYS, label);
@@ -2984,7 +3358,7 @@ function parsePanelSize(value) {
   return Number(value);
 }
 function parseRolesConfig(value) {
-  if (!isRecord2(value)) {
+  if (!isRecord3(value)) {
     throw new Error("Consensus config roles must be an object");
   }
   assertKnownKeys(value, ROLE_KEYS, "Consensus config roles");
@@ -3033,14 +3407,14 @@ function isProviderId(value) {
 }
 function userConfigDir(env = {}) {
   const xdg = env.XDG_CONFIG_HOME ?? process.env.XDG_CONFIG_HOME;
-  if (xdg && xdg.length > 0) return path8.resolve(xdg);
+  if (xdg && xdg.length > 0) return path9.resolve(xdg);
   const home = env.HOME ?? process.env.HOME;
   if (!home) {
     throw new Error("HOME is required to resolve user consensus config");
   }
-  return path8.join(path8.resolve(home), ".config");
+  return path9.join(path9.resolve(home), ".config");
 }
-function isRecord2(value) {
+function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function isNodeError(error) {
@@ -3133,10 +3507,10 @@ function buildReviewPrompt(input) {
   if (requestBytes > REVIEW_REQUEST_MAX_BYTES) {
     throw new Error("review_request_too_large");
   }
-  if (!path9.isAbsolute(input.evidencePath)) {
+  if (!path10.isAbsolute(input.evidencePath)) {
     throw new Error("review_evidence_path_must_be_absolute");
   }
-  if (input.requestPath && !path9.isAbsolute(input.requestPath)) {
+  if (input.requestPath && !path10.isAbsolute(input.requestPath)) {
     throw new Error("review_request_path_must_be_absolute");
   }
   const manifest = input.scope.versions.map(
@@ -3389,10 +3763,10 @@ async function executeBoundedReview(input, dependencies = {}) {
       fsMessage2(error)
     );
   }
-  const requestPath = path10.join(runState.runDirectory, "request.txt");
-  const evidencePath = path10.join(runState.runDirectory, "evidence.json");
-  const resultPath = path10.join(runState.runDirectory, "result.json");
-  const diagnosticPath = path10.join(runState.runDirectory, "diagnostic.json");
+  const requestPath = path11.join(runState.runDirectory, "request.txt");
+  const evidencePath = path11.join(runState.runDirectory, "evidence.json");
+  const resultPath = path11.join(runState.runDirectory, "result.json");
+  const diagnosticPath = path11.join(runState.runDirectory, "diagnostic.json");
   const persist = dependencies.persist ?? persistPrivateJson;
   try {
     await persist(requestPath, input.request);
@@ -3492,7 +3866,7 @@ async function executeBoundedReview(input, dependencies = {}) {
       ...selected.reviewer.effort ? { effort: selected.reviewer.effort } : {},
       ...input.maxRuntimeSec !== void 0 ? { maxRuntimeSec: input.maxRuntimeSec } : {},
       ...selected.reviewer.provider === "codex" ? {
-        codexCapturePath: path10.join(
+        codexCapturePath: path11.join(
           runState.runDirectory,
           "last-message.json"
         )
@@ -3641,7 +4015,7 @@ async function executeBoundedReview(input, dependencies = {}) {
 }
 function validateReviewReply(value, scope) {
   const errors = [];
-  if (!isRecord3(value)) {
+  if (!isRecord4(value)) {
     return { ok: false, errors: ["reply must be an object"] };
   }
   assertKeys(
@@ -3681,7 +4055,7 @@ function validateReviewReply(value, scope) {
   const blockingFindings = findings.filter(
     (finding) => finding.severity === "critical" || finding.severity === "high"
   );
-  const failedChecks = Array.isArray(value.checks) ? value.checks.some((check) => isRecord3(check) && check.status === "failed") : false;
+  const failedChecks = Array.isArray(value.checks) ? value.checks.some((check) => isRecord4(check) && check.status === "failed") : false;
   if (value.verdict === "pass" && (blockingFindings.length > 0 || failedChecks)) {
     errors.push(
       "reply.verdict pass forbids critical/high findings and failed checks"
@@ -3756,7 +4130,7 @@ function normalizeAuthorEvidence(input, scope) {
   const allowedPaths = new Set(scopePaths);
   return input.map((entry, index) => {
     const label = `author evidence[${index}]`;
-    if (!isRecord3(entry)) throw new Error(`${label} must be an object`);
+    if (!isRecord4(entry)) throw new Error(`${label} must be an object`);
     const errors = [];
     assertKeys(
       entry,
@@ -3856,9 +4230,9 @@ function executeFailure(status, invocationCount, reason, message, details = {}) 
 async function persistPrivateJson(targetPath, value) {
   const contents = typeof value === "string" ? value : `${JSON.stringify(value, null, 2)}
 `;
-  const temporary = path10.join(
-    path10.dirname(targetPath),
-    `.${path10.basename(targetPath)}.${process.pid}.${randomUUID5()}.tmp`
+  const temporary = path11.join(
+    path11.dirname(targetPath),
+    `.${path11.basename(targetPath)}.${process.pid}.${randomUUID6()}.tmp`
   );
   let handle;
   try {
@@ -3884,7 +4258,7 @@ function validateFindings(value, scope, errors) {
   const findings = [];
   value.slice(0, 100).forEach((candidate, index) => {
     const label = `reply.findings[${index}]`;
-    if (!isRecord3(candidate)) {
+    if (!isRecord4(candidate)) {
       errors.push(`${label} must be an object`);
       return;
     }
@@ -3934,7 +4308,7 @@ function validateFindings(value, scope, errors) {
 }
 function validateLocation(value, scope, findingLabel, errors) {
   const label = `${findingLabel}.location`;
-  if (!isRecord3(value)) {
+  if (!isRecord4(value)) {
     errors.push(`${label} must be an object`);
     return;
   }
@@ -3952,7 +4326,7 @@ function validateLocation(value, scope, findingLabel, errors) {
     256,
     errors
   );
-  if (typeof value.path !== "string" || path10.isAbsolute(value.path) || value.path.split("/").includes("..") || !scope.selectedPaths.includes(value.path)) {
+  if (typeof value.path !== "string" || path11.isAbsolute(value.path) || value.path.split("/").includes("..") || !scope.selectedPaths.includes(value.path)) {
     errors.push(`${label}.path must be a complete selected repository path`);
   }
   if (!isPositiveInteger(value.start_line)) {
@@ -3988,7 +4362,7 @@ function validateInspectedContext(value, errors) {
   }
   value.slice(0, 200).forEach((candidate, index) => {
     const label = `reply.inspected_context[${index}]`;
-    if (!isRecord3(candidate)) {
+    if (!isRecord4(candidate)) {
       errors.push(`${label} must be an object`);
       return;
     }
@@ -4011,7 +4385,7 @@ function validateChecks(value, errors) {
   if (value.length > 100) errors.push("reply.checks exceeds 100 items");
   value.slice(0, 100).forEach((candidate, index) => {
     const label = `reply.checks[${index}]`;
-    if (!isRecord3(candidate)) {
+    if (!isRecord4(candidate)) {
       errors.push(`${label} must be an object`);
       return;
     }
@@ -4029,7 +4403,7 @@ function validateChecks(value, errors) {
   });
 }
 function validateReviewerIdentity(value, errors) {
-  if (!isRecord3(value)) {
+  if (!isRecord4(value)) {
     errors.push("reply.reviewer_identity must be an object");
     return;
   }
@@ -4096,7 +4470,7 @@ function requireEnum(value, allowed2, label, errors) {
 function requireEqual(value, expected, label, errors) {
   if (value !== expected) errors.push(`${label} must equal ${expected}`);
 }
-function isRecord3(value) {
+function isRecord4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function isPositiveInteger(value) {
@@ -4128,7 +4502,7 @@ async function reviewTransport(input) {
       }
     };
   }
-  if (!input.codexCapturePath || !path10.isAbsolute(input.codexCapturePath)) {
+  if (!input.codexCapturePath || !path11.isAbsolute(input.codexCapturePath)) {
     return {
       ok: false,
       reason: "capture_not_external",
@@ -4188,7 +4562,7 @@ async function claimReviewTransport(input, options) {
   };
 }
 async function validateCodexCapture(input) {
-  const capturePath = path10.resolve(input.codexCapturePath);
+  const capturePath = path11.resolve(input.codexCapturePath);
   let canonicalWorktree;
   try {
     canonicalWorktree = await realpath2(input.cwd);
@@ -4236,7 +4610,7 @@ async function validateCodexCapture(input) {
       "Codex review capture must not already exist."
     );
   }
-  const parent = path10.dirname(capturePath);
+  const parent = path11.dirname(capturePath);
   let existing;
   let canonicalExisting;
   let existingInfo;
@@ -4258,13 +4632,13 @@ async function validateCodexCapture(input) {
       "Codex review capture parent must be a directory."
     );
   }
-  const canonicalParent = path10.resolve(
+  const canonicalParent = path11.resolve(
     canonicalExisting,
-    path10.relative(existing, parent)
+    path11.relative(existing, parent)
   );
-  const canonicalCapture = path10.join(
+  const canonicalCapture = path11.join(
     canonicalParent,
-    path10.basename(capturePath)
+    path11.basename(capturePath)
   );
   if (inside(canonicalWorktree, canonicalCapture)) {
     return captureFailure(
@@ -4272,13 +4646,13 @@ async function validateCodexCapture(input) {
       "Codex review capture must remain outside the reviewed worktree."
     );
   }
-  if (path10.resolve(existing) !== canonicalExisting || path10.resolve(parent) !== canonicalParent) {
+  if (path11.resolve(existing) !== canonicalExisting || path11.resolve(parent) !== canonicalParent) {
     return captureFailure(
       "capture_destination_unsafe",
       "Codex review capture path must not contain symbolic-link aliases."
     );
   }
-  if (path10.resolve(existing) !== path10.resolve(parent)) {
+  if (path11.resolve(existing) !== path11.resolve(parent)) {
     return captureFailure(
       "capture_destination_unsafe",
       "Codex review capture requires an existing private run directory."
@@ -4412,7 +4786,7 @@ async function runReviewCli(argv, dependencies = {}) {
       human: USAGE
     };
   }
-  const cwd = path11.resolve(dependencies.cwd ?? process.cwd());
+  const cwd = path12.resolve(dependencies.cwd ?? process.cwd());
   const fileSystem = resolveFileSystem(dependencies.fileSystem);
   let parsed;
   try {
@@ -4450,7 +4824,7 @@ async function runReviewCli(argv, dependencies = {}) {
       human: "Review completed as an empty-scope no-op. Provider invocations: 0."
     };
   }
-  const canonicalMarkdown = path11.join(
+  const canonicalMarkdown = path12.join(
     result.runState.runDirectory,
     "review.md"
   );
@@ -4741,7 +5115,7 @@ async function parseReviewArgs(argv, cwd, fileSystem) {
     );
   }
   if (requestFile) {
-    request = await readBoundedText(path11.resolve(cwd, requestFile), fileSystem);
+    request = await readBoundedText(path12.resolve(cwd, requestFile), fileSystem);
   }
   const scope = baseRef ? { kind: "base_branch", ref: baseRef } : files ? { kind: "files", paths: files } : { kind: "document", path: document };
   return {
@@ -4850,7 +5224,7 @@ function diagnosticOutcome(result, json) {
     reason: result.reason,
     message: result.message,
     invocation_count: result.invocation_count,
-    ...result.diagnosticPath ? { artifacts: { diagnostic: path11.resolve(result.diagnosticPath) } } : {}
+    ...result.diagnosticPath ? { artifacts: { diagnostic: path12.resolve(result.diagnosticPath) } } : {}
   };
   return {
     exitCode: 1,
@@ -4859,21 +5233,21 @@ function diagnosticOutcome(result, json) {
     human: [
       `Review did not complete: ${result.status} (${result.reason}).`,
       result.message,
-      ...result.diagnosticPath ? [`Diagnostic artifact: ${path11.resolve(result.diagnosticPath)}`] : [],
+      ...result.diagnosticPath ? [`Diagnostic artifact: ${path12.resolve(result.diagnosticPath)}`] : [],
       `Provider invocations: ${result.invocation_count}.`
     ].join("\n")
   };
 }
 async function exportCompletedMarkdown(input, fileSystem) {
-  const requested = path11.resolve(input.cwd, input.requestedPath);
+  const requested = path12.resolve(input.cwd, input.requestedPath);
   try {
     await fileSystem.lstatPath(requested);
     throw new Error("output destination already exists");
   } catch (error) {
     if (!isMissing3(error)) throw error;
   }
-  const parent = await fileSystem.realpathPath(path11.dirname(requested));
-  const destination = path11.join(parent, path11.basename(requested));
+  const parent = await fileSystem.realpathPath(path12.dirname(requested));
+  const destination = path12.join(parent, path12.basename(requested));
   const protectedPaths = /* @__PURE__ */ new Set([
     input.canonicalMarkdown,
     input.aggregate.paths.request,
@@ -4881,7 +5255,7 @@ async function exportCompletedMarkdown(input, fileSystem) {
     input.aggregate.paths.result,
     ...input.aggregate.scope.externalDocuments,
     ...input.aggregate.scope.selectedPaths.map(
-      (candidate) => path11.join(input.aggregate.worktree_root, candidate)
+      (candidate) => path12.join(input.aggregate.worktree_root, candidate)
     )
   ]);
   if (protectedPaths.has(destination)) {
@@ -4891,9 +5265,9 @@ async function exportCompletedMarkdown(input, fileSystem) {
   return destination;
 }
 async function writeExclusive(targetPath, contents, mode, fileSystem) {
-  const temporaryPath = path11.join(
-    path11.dirname(targetPath),
-    `.${path11.basename(targetPath)}.${process.pid}.${randomUUID6()}.tmp`
+  const temporaryPath = path12.join(
+    path12.dirname(targetPath),
+    `.${path12.basename(targetPath)}.${process.pid}.${randomUUID7()}.tmp`
   );
   let handle = null;
   let failure2;
@@ -4922,7 +5296,7 @@ async function writeExclusive(targetPath, contents, mode, fileSystem) {
   if (failure2) throw failure2;
 }
 async function localOutputFailure(result, reason, message, json, fileSystem, markdown) {
-  const diagnosticPath = path11.join(
+  const diagnosticPath = path12.join(
     result.runState.runDirectory,
     "cli-diagnostic.json"
   );

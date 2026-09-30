@@ -185,6 +185,10 @@ Commands:
       [--allow-web-search] [--allow-web-fetch-domain <domain>] (Claude only; repeat grants)
       [--env-allow <name>] [--max-attempts <n>] [--timeout-sec <n>]
       [--max-output-bytes <n>] [--cwd <path>] [--max-depth <n>]
+      [--consultation-id <id>] [--round <n>]
+      [--resume <session-uuid> [--resume-fallback error|reconstructed]
+        [--fallback-prompt-file <path>]]
+      [--continuation new|reconstructed [--previous-session <id>]]
   run --request-json <path|-> --json
 `;
 }

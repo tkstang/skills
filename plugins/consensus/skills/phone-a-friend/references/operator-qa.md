@@ -121,3 +121,62 @@ Before sending a prompt that includes customer data, private incident details,
 credentials, proprietary strategy, or broad workspace context, stop and ask the
 user which exact context is approved for the peer. The correct outcome for a
 sensitive ambiguous request is a user confirmation question, not a peer call.
+
+## Scenario: follow-up rounds
+
+This pass confirms that a follow-up either natively resumes the exact peer
+session or honestly starts a reconstructed one. Use synthetic, non-sensitive
+prompts, a disposable workspace, and explicit read-only controls. Each run makes
+real provider calls.
+
+### Native resume proof
+
+1. Create a scratch workspace (`mktemp -d`) and keep prompts and the schema
+   outside it.
+2. Round 1, session A: a prompt containing a random marker (for example,
+   `kestrel-4f2a91`) and a rule ("when asked later, return the marker in
+   uppercase"). Pass `--consultation-id qa-a --round 1`. Record
+   `continuation.session_id`.
+3. Session B: the same prompt with a different marker, in the same workspace,
+   under `--consultation-id qa-b`.
+4. Resume A in a separate process with `--resume <session-A-id> --round 2`. The
+   follow-up asks for "the marker you were given earlier" without including it.
+5. Check the envelope:
+   - `ok` is true and `json` carries A's marker, uppercased.
+   - `continuation.mode` is `native-resume`, and `continuation.session_id`
+     equals `continuation.requested_session_id` (session A).
+   - The workspace has no new files (`git status --porcelain` is empty).
+6. Resume B the same way and confirm it returns B's marker, not A's.
+
+### Failure and fallback checks
+
+- `--resume <random-uuid>` returns `PROVIDER_SESSION_NOT_FOUND` with
+  `continuation.turn: not_started`, and the provider is called only once.
+- The same command plus `--resume-fallback reconstructed --fallback-prompt-file
+<packet>` returns `continuation.mode: reconstructed`, a new `session_id`,
+  `previous_session_id` set to the missing session, `fallback_reason:
+session_not_found`, and `attempts.cli_attempts: 2`.
+- `--resume my-session-title` is rejected with `CONSENSUS_CLI_USAGE` before
+  any provider call.
+- `--provider cursor --resume <uuid>` returns `PROVIDER_UNSUPPORTED_OPTION`
+  while Cursor resume is unverified. It is not reported as an authentication
+  failure.
+
+### Reconstructed continuation proof
+
+Run the continuation packet with `--continuation reconstructed
+--previous-session <session-A-id>`. The receipt must say `mode: reconstructed`
+with a session ID different from A's. The peer should state that it has no
+memory of the earlier conversation. This test covers the fallback path, not
+native memory.
+
+### Sample multi-round disposition
+
+> Round 2 of 3 (consultation `retry-policy`, revision r2, native resume of
+> session `0199…8c41`). Disposition: modified. The peer accepts r2 except for
+> retrying `429`. I narrowed that retry to `Retry-After` ≤ 200 ms and will ask
+> in round 3 whether r3 is acceptable as written.
+
+> Outcome: agreement on r3 between me and the peer (one peer, resumed session;
+> not independent review). This does not authorize merging; the change still
+> needs your approval.

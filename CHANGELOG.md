@@ -36,6 +36,47 @@
   `session-observer-collab` 1.0.73, and `session-fork-to-destination` 0.2.53;
   their own workflows are unchanged.
 
+- `consensus run` can continue one peer consultation across calls.
+  `--resume <session-uuid>` natively resumes an exact provider session.
+  Claude and Codex are verified by live same-session smokes on Claude Code
+  2.1.284 and codex-cli 0.157.1. Cursor stays unverified and refuses native
+  resume. `--continuation reconstructed` starts a new session from a
+  host-built packet, and the wrapper adds a disclosure that the peer has no
+  memory of earlier rounds. `--resume-fallback reconstructed` with
+  `--fallback-prompt-file` allows that fallback only after a definitive
+  session-not-found rejection or for an unverified adapter.
+  `--consultation-id` and `--round` label rounds. Envelopes gain a
+  `continuation` receipt beside the advisory `json`, and the error taxonomy
+  adds `PROVIDER_SESSION_NOT_FOUND` and `PROVIDER_SESSION_MISMATCH`. Native
+  resume accepts only session UUIDs, is single-attempt, and never falls back
+  or resubmits after a timeout, an authentication failure, or an ambiguous
+  exit. Existing one-shot calls are unchanged. Ships in the
+  `consensus` plugin 0.2.6.
+- `phone-a-friend` 0.2.0 adds bounded follow-up rounds. Explicit requests such
+  as "deliberate until you reach consensus" or "collaborate with <model> until
+  you agree" continue the same peer: natively where verified, otherwise by a
+  disclosed reconstructed continuation. The default budget is 3 calls and 10
+  minutes, each round asks about an exact candidate revision, and every
+  exchange ends in one honest outcome (agreement, evidence gap, impasse,
+  exhausted budget, or provider failure). New continuation-packet example and
+  operator QA scenario. One-shot advice remains the default.
+- Version bumps for the shared provider-CLI runtime change only; their own
+  content is unchanged:
+  - `consensus-review` 0.1.22
+  - `create` 0.1.20, `decide` 0.1.20, `evaluate` 0.1.24
+  - `panel` 0.1.17, `plan` 0.1.20, `refine` 0.1.23
+  - `session-observer` 1.0.86, `session-observer-collab` 1.0.74
+  - `session-fork-to-destination` 0.2.54
+
+- Cursor peers can run read-only: `consensus run --provider cursor
+--permission-mode read-only` invokes
+  `cursor-agent --print --output-format json --trust --mode ask --sandbox enabled`
+  instead of `--force`. Ask mode allows only read-only tools, including read-only
+  commands such as `ls`, and refuses writes. `consensus submit` writes a
+  file, so the peer answers through its final message instead. The default policy still uses `--force`, so existing
+  workflows are unchanged. Ships in the `consensus` plugin 0.2.6, and
+  `phone-a-friend` 0.2.0 uses it for Cursor follow-up rounds.
+
 ### Changed
 
 - Normalize `metadata.author` to `Thomas Stang` across all 18 canonical
@@ -122,6 +163,11 @@
   `phone-a-friend` 0.1.14, `session-observer` 1.0.83, and
   `session-fork-to-destination` 0.2.51 are version bumps for shared-runtime
   changes only; their own content is unchanged.
+
+- The consensus provider CLI now invokes Cursor as
+  `cursor-agent --print --output-format json --force`. It previously omitted
+  `--print`, and Cursor applies `--output-format` only in print mode. The
+  `--force` policy is unchanged. Ships in the `consensus` plugin 0.2.6.
 
 - Generated CLI scripts now run when invoked through a symlinked skill
   directory, such as `~/.claude/skills/<name>` pointing at

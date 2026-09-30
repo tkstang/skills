@@ -185,6 +185,31 @@ describe('structured provider output coordinator', () => {
     expect(subprocess.prompts[0]).toContain('final-message JSON fallback');
   });
 
+  it('answers read-only Cursor turns through the final message, not submit', async () => {
+    const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
+
+    const envelope = await runProviderTurn(
+      request({
+        provider: 'cursor',
+        runtime_policy: { permission_mode: 'read-only' },
+      }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+        submitCommand: 'node consensus.mjs submit --json -',
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      json: { verdict: 'accept' },
+      diagnostics: { verdict_source: 'final_message' },
+    });
+    expect(subprocess.invocations[0]?.argv).not.toContain('--force');
+    expect(subprocess.envs[0]).not.toHaveProperty('CONSENSUS_SUBMIT_COMMAND');
+    expect(subprocess.prompts[0]).not.toContain('CONSENSUS_SUBMIT_FILE');
+  });
+
   it('captures a verdict submitted through the advertised peer command', async () => {
     const tempDir = await mkdtemp(
       path.join(tmpdir(), 'consensus-submit-test-'),
@@ -824,6 +849,400 @@ describe('structured provider output coordinator', () => {
     expect(processExitForEnvelope(envelope)).toBe(0);
   });
 });
+
+describe('provider session continuation', () => {
+  it('records a new session from provider metadata beside the advisory JSON', async () => {
+    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([codexTurn(SESSION_A)]).run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      json: { verdict: 'accept' },
+      continuation: {
+        mode: 'new',
+        provider: 'codex',
+        session_id: SESSION_A,
+        round: 1,
+        turn: 'completed',
+      },
+    });
+    expect(envelope.continuation?.consultation_id).toEqual(expect.any(String));
+  });
+
+  it('resumes the exact requested session with schema and policy reapplied', async () => {
+    const subprocess = fakeSubprocess([codexTurn(SESSION_A)]);
+
+    const envelope = await runProviderTurn(resumeRequest(), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      json: { verdict: 'accept' },
+      continuation: {
+        mode: 'native-resume',
+        session_id: SESSION_A,
+        requested_session_id: SESSION_A,
+        consultation_id: 'consult-1',
+        round: 2,
+        turn: 'completed',
+        capability: { native_resume: 'verified' },
+      },
+    });
+    const argv = subprocess.invocations[0]?.argv ?? [];
+    expect(argv.slice(0, 2)).toEqual(['exec', 'resume']);
+    expect(argv.slice(-2)).toEqual([SESSION_A, '-']);
+    expect(argv).toEqual(
+      expect.arrayContaining(['-c', 'approval_policy="never"']),
+    );
+    expect(subprocess.prompts[0]).toContain('Follow-up question.');
+    expect(subprocess.prompts[0]).toContain('"required":["verdict"]');
+  });
+
+  it('refuses advice from a different session than the one resumed', async () => {
+    const subprocess = fakeSubprocess([codexTurn(SESSION_B)]);
+
+    const envelope = await runProviderTurn(resumeRequest(), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_SESSION_MISMATCH',
+      continuation: {
+        mode: 'native-resume',
+        session_id: SESSION_B,
+        requested_session_id: SESSION_A,
+      },
+    });
+    expect(envelope).not.toHaveProperty('json');
+    expect(subprocess.invocations).toHaveLength(1);
+  });
+
+  it('reports an unknown session without falling back unless allowed', async () => {
+    const subprocess = fakeSubprocess([sessionNotFound()]);
+
+    const envelope = await runProviderTurn(resumeRequest(), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_SESSION_NOT_FOUND',
+      continuation: { mode: 'native-resume', turn: 'not_started' },
+    });
+    expect(subprocess.invocations).toHaveLength(1);
+  });
+
+  it('falls back to a disclosed reconstructed session when explicitly allowed', async () => {
+    const subprocess = fakeSubprocess([
+      sessionNotFound(),
+      codexTurn(SESSION_B),
+    ]);
+
+    const envelope = await runProviderTurn(
+      resumeRequest({ fallback: 'reconstructed', fallback_prompt: 'PACKET' }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      continuation: {
+        mode: 'reconstructed',
+        session_id: SESSION_B,
+        previous_session_id: SESSION_A,
+        consultation_id: 'consult-1',
+        round: 2,
+        fallback_reason: 'session_not_found',
+      },
+    });
+    expect(subprocess.invocations[1]?.argv).not.toContain('resume');
+    expect(subprocess.prompts[1]).toContain('This is a NEW provider session');
+    expect(subprocess.prompts[1]).toContain('PACKET');
+    expect(subprocess.prompts[1]).not.toContain('Follow-up question.');
+    // The rejected resume stays visible instead of reading as one clean call.
+    expect(envelope.attempts.cli_attempts).toBe(2);
+    expect(envelope.diagnostics?.warnings).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('Native resume was rejected'),
+      ]),
+    );
+  });
+
+  it.each([
+    [
+      'a Codex turn quoting it',
+      'codex',
+      [
+        `{"type":"thread.started","thread_id":"${SESSION_A}"}`,
+        JSON.stringify({
+          type: 'item.completed',
+          item: {
+            type: 'agent_message',
+            text: `no rollout found for thread id ${SESSION_A}`,
+          },
+        }),
+      ].join('\n'),
+      `tool output: no rollout found for thread id ${SESSION_A}`,
+    ],
+    [
+      'unparseable Claude output',
+      'claude',
+      `${JSON.stringify({ type: 'result', session_id: SESSION_A })}\ntrailing noise`,
+      `tool output: No conversation found with session ID: ${SESSION_A}`,
+    ],
+  ] as const)(
+    'does not treat not-found text beside provider output (%s) as a rejection',
+    async (_label, provider, stdout, stderr) => {
+      const subprocess = fakeSubprocess([
+        processFailure('PROVIDER_EXIT', false, { stdout, stderr }),
+        codexTurn(SESSION_B),
+      ]);
+
+      const envelope = await runProviderTurn(
+        resumeRequest(
+          { fallback: 'reconstructed', fallback_prompt: 'PACKET' },
+          { provider },
+        ),
+        { readSchema: async () => schema(), runSubprocess: subprocess.run },
+      );
+
+      expect(envelope).toMatchObject({
+        ok: false,
+        continuation: { mode: 'native-resume', turn: 'unknown' },
+      });
+      expect(envelope).not.toMatchObject({
+        code: 'PROVIDER_SESSION_NOT_FOUND',
+      });
+      expect(subprocess.invocations).toHaveLength(1);
+    },
+  );
+
+  it.each([
+    [
+      'a timeout',
+      processFailure('PROVIDER_TIMEOUT', false),
+      'PROVIDER_TIMEOUT',
+      'unknown',
+    ],
+    [
+      'an auth failure',
+      processFailure('PROVIDER_EXIT', false, {
+        stderr: 'Error: not logged in',
+      }),
+      'PROVIDER_AUTH_REQUIRED',
+      'not_started',
+    ],
+  ] as const)(
+    'does not reconstruct or resubmit after %s',
+    async (_label, failure, code, turn) => {
+      const subprocess = fakeSubprocess([failure]);
+
+      const envelope = await runProviderTurn(
+        resumeRequest({ fallback: 'reconstructed', fallback_prompt: 'PACKET' }),
+        {
+          readSchema: async () => schema(),
+          runSubprocess: subprocess.run,
+        },
+      );
+
+      expect(envelope).toMatchObject({
+        ok: false,
+        code,
+        continuation: { mode: 'native-resume', turn },
+      });
+      expect(subprocess.invocations).toHaveLength(1);
+    },
+  );
+
+  it('does not re-prompt a resumed session after a schema failure', async () => {
+    const subprocess = fakeSubprocess([
+      codexTurn(SESSION_A, '{"other":"value"}'),
+    ]);
+
+    const envelope = await runProviderTurn(resumeRequest(), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_SCHEMA_VALIDATION',
+      continuation: { session_id: SESSION_A, turn: 'completed' },
+    });
+    expect(subprocess.invocations).toHaveLength(1);
+  });
+
+  it('separates an unverified resume capability from setup failures', async () => {
+    const refused = fakeSubprocess([]);
+    const refusedEnvelope = await runProviderTurn(
+      resumeRequest({}, { provider: 'cursor' }),
+      { readSchema: async () => schema(), runSubprocess: refused.run },
+    );
+
+    expect(refusedEnvelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_UNSUPPORTED_OPTION',
+      continuation: {
+        mode: 'native-resume',
+        turn: 'not_started',
+        capability: { native_resume: 'unverified' },
+      },
+    });
+    expect(refused.invocations).toHaveLength(0);
+
+    const fallback = fakeSubprocess([
+      processSuccess(
+        JSON.stringify({
+          session_id: SESSION_B,
+          result: '{"verdict":"accept"}',
+        }),
+      ),
+    ]);
+    const fallbackEnvelope = await runProviderTurn(
+      resumeRequest(
+        { fallback: 'reconstructed', fallback_prompt: 'PACKET' },
+        { provider: 'cursor' },
+      ),
+      { readSchema: async () => schema(), runSubprocess: fallback.run },
+    );
+
+    expect(fallbackEnvelope).toMatchObject({
+      ok: true,
+      continuation: {
+        mode: 'reconstructed',
+        session_id: SESSION_B,
+        previous_session_id: SESSION_A,
+        fallback_reason: 'native_resume_unverified',
+      },
+    });
+  });
+
+  it('labels an explicit reconstructed continuation as a new disclosed session', async () => {
+    const subprocess = fakeSubprocess([codexTurn(SESSION_B)]);
+
+    const envelope = await runProviderTurn(
+      request({
+        provider: 'codex',
+        prompt: 'PACKET',
+        continuation: {
+          mode: 'reconstructed',
+          previous_session_id: SESSION_A,
+          consultation_id: 'consult-1',
+          round: 3,
+        },
+      }),
+      { readSchema: async () => schema(), runSubprocess: subprocess.run },
+    );
+
+    expect(envelope.continuation).toMatchObject({
+      mode: 'reconstructed',
+      session_id: SESSION_B,
+      previous_session_id: SESSION_A,
+      round: 3,
+    });
+    expect(envelope.continuation).not.toHaveProperty('requested_session_id');
+    expect(subprocess.invocations[0]?.argv).not.toContain('resume');
+    expect(subprocess.prompts[0]).toContain('This is a NEW provider session');
+  });
+
+  it.each([
+    ['a session title', { session_id: 'my review session' }, {}],
+    ['a latest selector', { session_id: 'latest' }, {}],
+    ['an uppercase session UUID', { session_id: SESSION_A.toUpperCase() }, {}],
+    ['a multi-attempt budget', {}, { max_attempts: 2 }],
+    ['a fallback without a packet', { fallback: 'reconstructed' as const }, {}],
+  ])(
+    'rejects native resume with %s before spawning',
+    async (_label, continuation, overrides) => {
+      const subprocess = fakeSubprocess([]);
+
+      const envelope = await runProviderTurn(
+        resumeRequest(continuation, overrides),
+        { readSchema: async () => schema(), runSubprocess: subprocess.run },
+      );
+
+      expect(envelope).toMatchObject({
+        ok: false,
+        code: 'CONSENSUS_CLI_USAGE',
+        continuation: { turn: 'not_started' },
+      });
+      expect(subprocess.invocations).toHaveLength(0);
+    },
+  );
+
+  it('keeps the recursion guard on resumed turns', async () => {
+    const subprocess = fakeSubprocess([]);
+
+    const envelope = await runProviderTurn(
+      resumeRequest(
+        {},
+        {
+          host: {
+            runtime: 'codex',
+            cwd: '/workspace',
+            run_id: 'run-1',
+            depth: 1,
+            max_depth: 1,
+          },
+        },
+      ),
+      { readSchema: async () => schema(), runSubprocess: subprocess.run },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'HOST_RECURSION_BLOCKED',
+      continuation: { turn: 'not_started' },
+    });
+    expect(subprocess.invocations).toHaveLength(0);
+  });
+});
+
+const SESSION_A = '0199f3a2-7c1e-7d40-9a55-3b6f0e2d8c41';
+const SESSION_B = '5b1f7f9e-2c55-4a8e-9d0e-6c7a4f1e2b30';
+
+function resumeRequest(
+  continuation: Partial<
+    NonNullable<ConsensusCliRunRequest['continuation']>
+  > = {},
+  overrides: Partial<ConsensusCliRunRequest> = {},
+): ConsensusCliRunRequest {
+  return request({
+    provider: 'codex',
+    prompt: 'Follow-up question.',
+    max_attempts: 1,
+    ...overrides,
+    continuation: {
+      mode: 'native-resume',
+      session_id: SESSION_A,
+      consultation_id: 'consult-1',
+      round: 2,
+      ...continuation,
+    },
+  });
+}
+
+function codexTurn(threadId: string, lastMessage = '{"verdict":"accept"}') {
+  return processSuccess(
+    `{"type":"thread.started","thread_id":"${threadId}"}\n{"type":"turn.completed"}\n`,
+    { last_message: lastMessage },
+  );
+}
+
+function sessionNotFound() {
+  return processFailure('PROVIDER_EXIT', false, {
+    stderr: `Error: thread/resume failed: no rollout found for thread id ${SESSION_A}`,
+  });
+}
 
 function request(
   overrides: Partial<ConsensusCliRunRequest> = {},

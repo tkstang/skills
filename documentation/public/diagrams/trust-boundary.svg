@@ -76,7 +76,7 @@
   <rect x="40" y="760" width="750" height="118" rx="6" class="card"/>
   <text x="58" y="786" class="m">claude --print --output-format json</text>
   <text x="58" y="810" class="m">codex exec --json --output-last-message &lt;file&gt;</text>
-  <text x="58" y="834" class="m">cursor-agent --output-format json --force</text>
+  <text x="58" y="834" class="m">cursor-agent --print --output-format json --force</text>
   <text x="58" y="864" class="s">separate OS processes — wrapper path guards do not sandbox the child</text>
   <path class="e" d="M415,890 L415,916"/>
 

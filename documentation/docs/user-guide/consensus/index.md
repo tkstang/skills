@@ -1,14 +1,15 @@
 ---
 title: 'Consensus'
-description: 'How the consensus plugin uses provider-backed AI peers for converging artifacts, bounded review, panels, and one-shot advisory takes.'
+description: 'How the consensus plugin uses provider-backed AI peers for converging artifacts, bounded review, panels, and advisory takes.'
 ---
 
 # Consensus
 
 The consensus plugin uses provider-CLI-backed AI peers for four related
 workflows: converging artifacts through peer deliberation, one bounded read-only
-review, single-round panel responses with side-by-side attribution, and one-shot
-advisory takes that the host dispositions. It also packages `observer` and `observer-collab`, the
+review, single-round panel responses with side-by-side attribution, and
+advisory takes that the host dispositions (one-shot by default, with bounded
+follow-up rounds on request). It also packages `observer` and `observer-collab`, the
 plugin-local forms of the standalone session observation skills. The peers are invoked through the generated consensus CLI; the
 converging wrappers parse your document, run the peers through structured verdict
 rounds, and write a markdown deliberation artifact with the final output,
@@ -80,7 +81,7 @@ The wrapper emits JSONL status events while the generated CLI returns one JSON e
 
     ![Peers, not personas](/diagrams/consensus-host-peers-artifact.svg)
 
-    *SVG regenerated 2026-09-16*
+    *SVG regenerated 2026-09-29*
 
 === "Mermaid"
 
@@ -92,7 +93,7 @@ The wrapper emits JSONL status events while the generated CLI returns one JSON e
       subgraph peers["Independent peer subprocesses"]
         P1["claude --print --output-format json"]
         P2["codex exec --json<br/>--output-last-message &lt;file&gt;"]
-        P3["cursor-agent --output-format json --force"]
+        P3["cursor-agent --print --output-format json --force"]
       end
       ROUND["Structured verdict round<br/>schema-validated JSON"]
       IMP{"Any IMPASSE verdict?"}
@@ -131,11 +132,11 @@ The wrapper emits JSONL status events while the generated CLI returns one JSON e
       DEC --> A4
     ```
 
-    *Mermaid updated 2026-09-16*
+    *Mermaid updated 2026-09-29*
 
 ## Who decides: refine, panel, phone-a-friend
 
-The three shapes are not interchangeable. `refine` deliberates to convergence or a reported impasse, `panel` returns attributed takes and refuses to synthesize, and `phone-a-friend` returns one advisory take that the host must disposition.
+The three shapes are not interchangeable. `refine` deliberates to convergence or a reported impasse, `panel` returns attributed takes and refuses to synthesize, and `phone-a-friend` returns an advisory take that the host must disposition, with bounded follow-up rounds with the same peer when you ask for them.
 
 ```mermaid
 flowchart TB
@@ -166,7 +167,7 @@ flowchart TB
   subgraph phone["phone-a-friend · advisory"]
     direction TB
     F0["One question, one peer"]
-    F1["One provider turn"]
+    F1["One provider turn, or bounded follow-up rounds on request"]
     F2["Advisory payload"]
     F3["Host states a disposition (instruction, not code)"]
     FW["Decided by: the host agent"]
@@ -174,13 +175,13 @@ flowchart TB
   end
 ```
 
-_Mermaid updated 2026-09-16_
+_Mermaid updated 2026-09-28_
 
 The outcome determines who acts next:
 
 - **Refine** produces a converged artifact or reports an impasse. An impasse comes back to you; resume with `--user-direction`. Other escalation cases follow the [agency policy](configuration.md#agency).
 - **Panel** requires at least two successful responses. Panelists respond independently, and the host's instructions prohibit adding a synthesis, vote, or recommendation.
-- **Phone-a-friend** returns a take, recommendation, risks, follow-up questions, and confidence from one provider turn. The host must state whether it agrees, disagrees, applies, ignores, or follows up on that advice.
+- **Phone-a-friend** returns a take, recommendation, risks, follow-up questions, and confidence from one provider turn. The host must state whether it agrees, disagrees, applies, ignores, or follows up on that advice. When you ask for follow-up rounds, the host continues the same peer within a small call budget and reports agreement on a named revision, an evidence gap, an impasse, or an exhausted budget.
 
 ## Iteration modes
 
@@ -239,7 +240,7 @@ validation does not make their advice trustworthy or authorize following it.
 
     ![The provider process boundary](/diagrams/trust-boundary.svg)
 
-    *SVG regenerated 2026-09-16*
+    *SVG regenerated 2026-09-29*
 
 === "Mermaid"
 
@@ -258,7 +259,7 @@ validation does not make their advice trustworthy or authorize following it.
         CWD["Working directory and provider policy<br/>wrapper path guards do not sandbox the child"]
       end
       subgraph remote["Provider CLI subprocess"]
-        PEER["claude --print --output-format json<br/>codex exec --json --output-last-message &lt;file&gt;<br/>cursor-agent --output-format json --force"]
+        PEER["claude --print --output-format json<br/>codex exec --json --output-last-message &lt;file&gt;<br/>cursor-agent --print --output-format json --force"]
       end
       subgraph back["Comes back as untrusted data"]
         OUT["Schema-validated before use —<br/>a failure is PROVIDER_SCHEMA_VALIDATION"]
@@ -284,7 +285,7 @@ validation does not make their advice trustworthy or authorize following it.
       TR -.->|"untrusted input: prompt injection<br/>is mitigated, not solved"| GUARD
     ```
 
-    *Mermaid updated 2026-09-16*
+    *Mermaid updated 2026-09-29*
 
 ## Limitations
 

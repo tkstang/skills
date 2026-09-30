@@ -452,6 +452,102 @@ describe('provider CLI argument parsing', () => {
     ).toThrow(/--permission-mode/);
   });
 
+  it('normalizes explicit native resume with a reconstructed fallback packet', async () => {
+    const command = parseConsensusCliArgs([
+      'run',
+      '--provider',
+      'codex',
+      '--schema',
+      'schema.json',
+      '--json',
+      '--prompt-file',
+      'follow-up.md',
+      '--resume',
+      SESSION_ID,
+      '--consultation-id',
+      'model-selection',
+      '--round',
+      '2',
+      '--resume-fallback',
+      'reconstructed',
+      '--fallback-prompt-file',
+      'packet.md',
+    ]);
+
+    await expect(
+      normalizeRunRequest(
+        command,
+        testIo({
+          files: { 'follow-up.md': 'Follow-up.', 'packet.md': 'Packet.' },
+        }),
+      ),
+    ).resolves.toMatchObject({
+      prompt: 'Follow-up.',
+      continuation: {
+        mode: 'native-resume',
+        session_id: SESSION_ID,
+        consultation_id: 'model-selection',
+        round: 2,
+        fallback: 'reconstructed',
+        fallback_prompt: 'Packet.',
+      },
+    });
+  });
+
+  it('rejects contradictory or unknown continuation modes', () => {
+    const base = [
+      'run',
+      '--provider',
+      'codex',
+      '--schema',
+      'schema.json',
+      '--json',
+      '--prompt',
+      'p',
+    ];
+
+    expect(() =>
+      parseConsensusCliArgs([
+        ...base,
+        '--resume',
+        SESSION_ID,
+        '--continuation',
+        'reconstructed',
+      ]),
+    ).toThrow(/--resume cannot be combined with --continuation reconstructed/);
+    expect(() =>
+      parseConsensusCliArgs([...base, '--continuation', 'latest']),
+    ).toThrow(/Invalid --continuation: latest/);
+    expect(() =>
+      parseConsensusCliArgs([
+        'run',
+        '--request-json',
+        'request.json',
+        '--json',
+        '--resume',
+        SESSION_ID,
+      ]),
+    ).toThrow(/continuation flags/);
+  });
+
+  it('validates the request JSON continuation shape', async () => {
+    await expect(
+      normalizeRequestJson({
+        continuation: { mode: 'native-resume', session_id: SESSION_ID },
+      }),
+    ).resolves.toMatchObject({
+      continuation: { mode: 'native-resume', session_id: SESSION_ID },
+    });
+    await expect(
+      normalizeRequestJson({ continuation: { mode: 'latest' } }),
+    ).rejects.toThrow(/continuation.mode/);
+    await expect(
+      normalizeRequestJson({
+        continuation: { mode: 'native-resume', fallback: 'silent' },
+      }),
+    ).rejects.toThrow(/continuation.fallback/);
+  });
+
   it.each([
     ['--max-attempts', '0'],
     ['--timeout-sec', '-1'],
@@ -476,6 +572,8 @@ describe('provider CLI argument parsing', () => {
     );
   });
 });
+
+const SESSION_ID = '0199f3a2-7c1e-7d40-9a55-3b6f0e2d8c41';
 
 function normalizeRequestJson(overrides: Record<string, unknown>) {
   const command = parseConsensusCliArgs([

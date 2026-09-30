@@ -14,7 +14,8 @@ What ships today:
 - **Consensus plugin** — `create`, `decide`, and `plan` start from a brief,
   options, or goal; `refine` and `evaluate` converge or judge artifacts with
   audit trails; `panel` collects attributed perspectives; `phone-a-friend`
-  asks one peer for a one-shot advisory take;
+  asks one peer for an advisory take, one-shot by default with bounded
+  follow-up rounds on request;
   `observer` and `observer-collab` provide plugin-local session observation.
 - **Session plugin** — `messaging`, `retro`, `handoff`, `export-transcript`, and
   `fork-to-destination` cover addressed coordination, bounded review,
