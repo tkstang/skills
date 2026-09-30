@@ -6,8 +6,8 @@ compatibility: Agent Skills baseline; requires Node.js 22+ and a supported provi
 allowed-tools: Bash(node:*), Read
 argument-hint: base_branch=<ref> | --files <paths...> | --document <path> --host <runtime>
 metadata:
-  author: thomas.stang
-  version: '0.1.20'
+  author: Thomas Stang
+  version: '0.1.21'
 ---
 
 # Consensus Review

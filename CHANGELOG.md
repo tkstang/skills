@@ -2,7 +2,38 @@
 
 ## [Unreleased]
 
+### Added
+
+- `phone-a-friend` 0.1.15 and `consensus` plugin 0.2.5 add an opt-in,
+  Claude-only scoped research path: exact absolute Read/Edit file grants,
+  WebSearch, and domain-scoped WebFetch. The skill now routes tool-using peers
+  through a permission runbook while keeping advice-only calls short.
+
+### Fixed
+
+- `consensus` plugin 0.2.5 surfaces Claude `permission_denials` as redacted
+  count/tool-name diagnostics, avoids instructing a no-Bash scoped peer to
+  submit via Bash, and makes clear that schema-valid blocked replies are
+  transport success rather than task completion. No permission is elevated
+  without explicit flags. `consensus-review` 0.1.21 is a version bump for the
+  shared provider CLI bundle; its review workflow is unchanged. The same
+  shared provider CLI closure requires version-only bumps for `create` 0.1.19,
+  `decide` 0.1.19, `evaluate` 0.1.23, `panel` 0.1.16, `plan` 0.1.19,
+  `refine` 0.1.22, `session-observer` 1.0.85,
+  `session-observer-collab` 1.0.73, and `session-fork-to-destination` 0.2.53;
+  their own workflows are unchanged.
+
 ### Changed
+
+- Normalize `metadata.author` to `Thomas Stang` across all 18 canonical
+  skills and their generated distributions. Newly affected skills receive
+  patch bumps: `agent-messaging` 1.0.24, `complexity-review` 1.0.3,
+  `must-we` 1.0.1, `next-steps` 1.0.1,
+  `session-export-transcript` 2.0.38, `session-handoff` 1.1.3,
+  and `session-retro` 1.0.3. The `session` plugin advances to 0.3.5
+  so plugin consumers can receive the metadata update.
+  The remaining skills retain the unreleased bumps already in this change.
+  Preserve the existing single-quoted version style in `phone-a-friend`.
 
 - `session-observer` 1.0.84 prunes its test surface and the shared transcript
   runtime tests. The suites keep every contract, repair assertions that could

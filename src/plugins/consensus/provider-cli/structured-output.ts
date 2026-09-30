@@ -11,6 +11,7 @@ import type { ProviderInvocation } from './invocation.js';
 import {
   buildChildEnvironment,
   defaultRuntimePolicy,
+  hasScopedToolAccess,
   validateProviderOptions,
 } from './runtime-policy.js';
 import { isRecord, validateSchemaSubset } from './schema-validate.js';
@@ -145,7 +146,11 @@ export async function runProviderTurn(
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
   const submitCaptureEnabled =
-    dependencies.transport?.submitCaptureEnabled ?? true;
+    (dependencies.transport?.submitCaptureEnabled ?? true) &&
+    !(
+      request.provider === 'claude' &&
+      hasScopedToolAccess(request.runtime_policy)
+    );
   const strategy = selectStructuredOutputStrategy(adapter, {
     submitCaptureEnabled,
     strategy: dependencies.transport?.strategy,
@@ -223,6 +228,7 @@ export async function runProviderTurn(
         },
         hostGuard.diagnostics,
         processResult.diagnostics,
+        permissionDenialDiagnostics(request.provider, processResult.stdout),
         exitClassificationDiagnostics(exitClassification),
       );
 
@@ -378,6 +384,42 @@ export async function runProviderTurn(
       await cleanupSubmitCaptureFile(submitCapturePath);
     }
   }
+}
+
+function permissionDenialDiagnostics(
+  provider: string,
+  stdout: string,
+): ProviderDiagnostics | undefined {
+  if (provider !== 'claude') return undefined;
+  let result: unknown;
+  try {
+    result = JSON.parse(stdout);
+  } catch {
+    return undefined;
+  }
+  if (!isRecord(result) || !Array.isArray(result.permission_denials)) {
+    return undefined;
+  }
+  const denials = result.permission_denials;
+  if (denials.length === 0) return undefined;
+  const tools = [
+    ...new Set(
+      denials
+        .filter(isRecord)
+        .map((denial) => denial.tool_name)
+        .filter(
+          (name): name is string =>
+            typeof name === 'string' &&
+            /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name),
+        ),
+    ),
+  ];
+  return {
+    permission_denials: { count: denials.length, tools },
+    warnings: [
+      `Claude reported ${denials.length} denied tool call(s); verify task completeness independently of schema and transport success.`,
+    ],
+  };
 }
 
 async function readJsonSchema(schemaPath: string): Promise<unknown> {

@@ -3,15 +3,15 @@
 
 // src/skills/consensus-review/src/review.ts
 import { randomUUID as randomUUID6 } from "node:crypto";
-import { constants as constants2, realpathSync } from "node:fs";
+import { constants as constants2, realpathSync as realpathSync2 } from "node:fs";
 import { link as link2, lstat as lstat4, open as open4, realpath as realpath3, unlink as unlink2 } from "node:fs/promises";
-import path10 from "node:path";
+import path11 from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // src/skills/consensus-review/src/run.ts
 import { createHash as createHash3, randomUUID as randomUUID5 } from "node:crypto";
 import { link, lstat as lstat3, open as open3, realpath as realpath2, stat as stat2, unlink } from "node:fs/promises";
-import path9 from "node:path";
+import path10 from "node:path";
 
 // src/plugins/consensus/provider-cli/invocation.ts
 import { randomUUID } from "node:crypto";
@@ -52,6 +52,45 @@ var buildClaudeInvocation = (request, options = {}) => {
   if (claudePermissionMode) {
     argv.push("--permission-mode", claudePermissionMode);
     redactedArgv.push("--permission-mode", claudePermissionMode);
+  }
+  const policy = request.runtime_policy;
+  const scopedTools = [
+    ...(policy?.read_paths ?? []).map((filePath) => `Read(/${filePath})`),
+    ...(policy?.edit_paths ?? []).map((filePath) => `Edit(/${filePath})`),
+    ...policy?.web_search ? ["WebSearch"] : [],
+    ...(policy?.web_fetch_domains ?? []).map(
+      (domain) => `WebFetch(domain:${domain})`
+    )
+  ];
+  if (scopedTools.length > 0) {
+    const availableTools = [
+      ...policy?.read_paths?.length ? ["Read"] : [],
+      ...policy?.edit_paths?.length ? ["Edit", "Write"] : [],
+      ...policy?.web_search ? ["WebSearch"] : [],
+      ...policy?.web_fetch_domains?.length ? ["WebFetch"] : []
+    ];
+    argv.push(
+      "--allowedTools",
+      ...scopedTools,
+      "--tools",
+      availableTools.join(","),
+      "--permission-prompts",
+      "none",
+      "--permission-mode",
+      "dontAsk",
+      "--strict-mcp-config"
+    );
+    redactedArgv.push(
+      "--allowedTools",
+      "<scoped-tool-rules>",
+      "--tools",
+      availableTools.join(","),
+      "--permission-prompts",
+      "none",
+      "--permission-mode",
+      "dontAsk",
+      "--strict-mcp-config"
+    );
   }
   argv.push(request.prompt);
   redactedArgv.push("<prompt>");
@@ -940,9 +979,11 @@ function hasCursorHostMarker(env) {
 // src/plugins/consensus/provider-cli/probe.ts
 import { constants } from "node:fs";
 import { access } from "node:fs/promises";
-import path2 from "node:path";
+import path3 from "node:path";
 
 // src/plugins/consensus/provider-cli/runtime-policy.ts
+import { realpathSync, statSync } from "node:fs";
+import path2 from "node:path";
 var DEFAULT_RUNTIME_POLICY = {
   permission_mode: "non-interactive"
 };
@@ -995,14 +1036,80 @@ function validateProviderOptions(request, capabilities) {
       "Provider does not support child environment allowlist extension."
     );
   }
+  const hasScopedTools = hasScopedToolAccess(policy);
+  if (hasScopedTools && request.provider !== "claude") {
+    return unsupported(
+      "runtime_policy.scoped_tools",
+      "Scoped tool grants are supported only by the Claude provider."
+    );
+  }
+  if (hasScopedTools && policy.permission_mode !== "non-interactive") {
+    return unsupported(
+      "runtime_policy.permission_mode",
+      "Scoped Claude tool grants require non-interactive permission mode."
+    );
+  }
+  for (const [field, paths] of [
+    ["read_paths", policy.read_paths],
+    ["edit_paths", policy.edit_paths]
+  ]) {
+    for (const filePath of paths ?? []) {
+      if (!path2.isAbsolute(filePath) || path2.normalize(filePath) !== filePath || filePath.split(path2.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires exact absolute paths without parent traversal or glob characters.`
+        );
+      }
+      try {
+        const target = statSync(filePath, { throwIfNoEntry: false });
+        if (target) {
+          if (!target.isFile() || realpathSync(filePath) !== filePath) {
+            return unsupported(
+              `runtime_policy.${field}`,
+              `${field} requires canonical regular-file targets, not directories or symlinks.`
+            );
+          }
+        } else if (field === "read_paths" || realpathSync(path2.dirname(filePath)) !== path2.dirname(filePath)) {
+          return unsupported(
+            `runtime_policy.${field}`,
+            `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
+          );
+        }
+      } catch {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
+        );
+      }
+    }
+  }
+  for (const domain of policy.web_fetch_domains ?? []) {
+    if (domain.length > 253 || !/^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
+      domain
+    )) {
+      return unsupported(
+        "runtime_policy.web_fetch_domains",
+        "WebFetch grants require exact domain names without schemes, ports, or wildcards."
+      );
+    }
+  }
   return { ok: true };
+}
+function hasScopedToolAccess(policy = {}) {
+  return Boolean(
+    policy.read_paths?.length || policy.edit_paths?.length || policy.web_search || policy.web_fetch_domains?.length
+  );
 }
 function defaultRuntimePolicy(policy = {}) {
   return {
     permission_mode: policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode,
     ...policy.sandbox ? { sandbox: policy.sandbox } : {},
     ...policy.approval_policy ? { approval_policy: policy.approval_policy } : {},
-    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {}
+    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {},
+    ...policy.read_paths ? { read_paths: policy.read_paths } : {},
+    ...policy.edit_paths ? { edit_paths: policy.edit_paths } : {},
+    ...policy.web_search ? { web_search: true } : {},
+    ...policy.web_fetch_domains ? { web_fetch_domains: policy.web_fetch_domains } : {}
   };
 }
 function buildChildEnvironment({
@@ -1176,13 +1283,13 @@ function nodeProbeCommandRunner(env = process.env, options = {}) {
   };
 }
 async function findExecutable(command, env) {
-  if (command.includes(path2.sep)) {
+  if (command.includes(path3.sep)) {
     return canExecute(command).then((ok) => ok ? command : void 0);
   }
   const pathValue = env.PATH ?? "";
-  for (const searchPath of pathValue.split(path2.delimiter)) {
+  for (const searchPath of pathValue.split(path3.delimiter)) {
     if (!searchPath) continue;
-    const candidate = path2.join(searchPath, command);
+    const candidate = path3.join(searchPath, command);
     if (await canExecute(candidate)) return candidate;
   }
   return void 0;
@@ -1304,7 +1411,7 @@ function formatNumericVersion(version) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 import { readFile, rm as rm2 } from "node:fs/promises";
-import path4 from "node:path";
+import path5 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/plugins/consensus/provider-cli/envelope.ts
@@ -1400,7 +1507,7 @@ function matchesJsonType(value, type) {
 
 // src/plugins/consensus/provider-cli/submit-capture.ts
 import { randomUUID as randomUUID2 } from "node:crypto";
-import path3 from "node:path";
+import path4 from "node:path";
 var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
 var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
 var CONSENSUS_SUBMIT_CAPTURE_DIR = ".consensus/submit";
@@ -1429,10 +1536,10 @@ function submitCaptureLimitMessage(bytes, maxBytes) {
   return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
 }
 function submitCaptureDirectory(cwd) {
-  return path3.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
+  return path4.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
 }
 function submitCaptureFilePath(cwd, id = randomUUID2()) {
-  return path3.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
+  return path4.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts
@@ -1511,7 +1618,7 @@ async function runProviderTurn(request, dependencies = {}) {
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
-  const submitCaptureEnabled = dependencies.transport?.submitCaptureEnabled ?? true;
+  const submitCaptureEnabled = (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && hasScopedToolAccess(request.runtime_policy));
   const strategy = selectStructuredOutputStrategy(adapter, {
     submitCaptureEnabled,
     strategy: dependencies.transport?.strategy
@@ -1538,7 +1645,7 @@ async function runProviderTurn(request, dependencies = {}) {
         CONSENSUS_SUBMIT_COMMAND: submitCommand,
         CONSENSUS_SUBMIT_FILE: submitCapturePath,
         [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path4.resolve(request.schema_path)
+        CONSENSUS_SUBMIT_SCHEMA: path5.resolve(request.schema_path)
       } : {}
     }
   });
@@ -1581,6 +1688,7 @@ async function runProviderTurn(request, dependencies = {}) {
         },
         hostGuard.diagnostics,
         processResult.diagnostics,
+        permissionDenialDiagnostics(request.provider, processResult.stdout),
         exitClassificationDiagnostics(exitClassification)
       );
       if (!processResult.ok) {
@@ -1721,6 +1829,33 @@ async function runProviderTurn(request, dependencies = {}) {
       await cleanupSubmitCaptureFile(submitCapturePath);
     }
   }
+}
+function permissionDenialDiagnostics(provider, stdout) {
+  if (provider !== "claude") return void 0;
+  let result;
+  try {
+    result = JSON.parse(stdout);
+  } catch {
+    return void 0;
+  }
+  if (!isRecord(result) || !Array.isArray(result.permission_denials)) {
+    return void 0;
+  }
+  const denials = result.permission_denials;
+  if (denials.length === 0) return void 0;
+  const tools = [
+    ...new Set(
+      denials.filter(isRecord).map((denial) => denial.tool_name).filter(
+        (name) => typeof name === "string" && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name)
+      )
+    )
+  ];
+  return {
+    permission_denials: { count: denials.length, tools },
+    warnings: [
+      `Claude reported ${denials.length} denied tool call(s); verify task completeness independently of schema and transport success.`
+    ]
+  };
 }
 async function readJsonSchema(schemaPath) {
   return JSON.parse(await readFile(schemaPath, "utf8"));
@@ -1893,7 +2028,7 @@ function buildConsensusSubmitCommand(input = {}) {
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
 }
 function currentConsensusCliPath() {
-  if (process.argv[1]) return path4.resolve(process.argv[1]);
+  if (process.argv[1]) return path5.resolve(process.argv[1]);
   return fileURLToPath(import.meta.url);
 }
 function shellQuote(value) {
@@ -1902,10 +2037,10 @@ function shellQuote(value) {
 
 // src/plugins/consensus/shared/cli-helpers-core.ts
 import { lstat } from "node:fs/promises";
-import path5 from "node:path";
+import path6 from "node:path";
 function inside(root, target) {
-  const relative = path5.relative(root, target);
-  return relative === "" || !relative.startsWith("..") && !path5.isAbsolute(relative);
+  const relative = path6.relative(root, target);
+  return relative === "" || !relative.startsWith("..") && !path6.isAbsolute(relative);
 }
 function pathExists(targetPath) {
   return lstat(targetPath).then(() => true).catch((error) => {
@@ -1915,7 +2050,7 @@ function pathExists(targetPath) {
 }
 async function nearestExistingPath(targetPath) {
   if (await pathExists(targetPath)) return targetPath;
-  const parent = path5.dirname(targetPath);
+  const parent = path6.dirname(targetPath);
   if (parent === targetPath) return targetPath;
   return await nearestExistingPath(parent);
 }
@@ -1936,7 +2071,7 @@ import {
   stat
 } from "node:fs/promises";
 import os from "node:os";
-import path6 from "node:path";
+import path7 from "node:path";
 import { promisify } from "node:util";
 var execFileAsync = promisify(execFile);
 var REVIEW_SCOPE_LIMITS = {
@@ -2142,15 +2277,15 @@ async function createReviewRunState(input) {
   const canonicalWorktree = await canonicalGitWorktree(input.cwd);
   const env = input.env ?? process.env;
   const configuredRoot = env.XDG_STATE_HOME;
-  if (configuredRoot && !path6.isAbsolute(configuredRoot)) {
+  if (configuredRoot && !path7.isAbsolute(configuredRoot)) {
     throw new Error("XDG_STATE_HOME must be absolute");
   }
   const home = env.HOME || os.homedir();
-  if (!configuredRoot && !path6.isAbsolute(home)) {
+  if (!configuredRoot && !path7.isAbsolute(home)) {
     throw new Error("HOME must resolve to an absolute path");
   }
-  const stateRoot = path6.resolve(
-    configuredRoot ?? path6.join(home, ".local", "state"),
+  const stateRoot = path7.resolve(
+    configuredRoot ?? path7.join(home, ".local", "state"),
     "consensus"
   );
   await mkdir(stateRoot, { recursive: true, mode: 448 });
@@ -2159,15 +2294,15 @@ async function createReviewRunState(input) {
     throw new Error("review_state_inside_worktree");
   }
   const worktreeKey = sha256(canonicalWorktree);
-  const reviews = path6.join(canonicalStateRoot, worktreeKey, "reviews");
+  const reviews = path7.join(canonicalStateRoot, worktreeKey, "reviews");
   await mkdir(reviews, { recursive: true, mode: 448 });
-  await chmod(path6.join(canonicalStateRoot, worktreeKey), 448);
+  await chmod(path7.join(canonicalStateRoot, worktreeKey), 448);
   await chmod(reviews, 448);
   const runId = input.runId ?? randomUUID3();
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(runId)) {
     throw new Error("run_id_invalid");
   }
-  const runDirectory = path6.join(reviews, runId);
+  const runDirectory = path7.join(reviews, runId);
   await mkdir(runDirectory, { mode: 448 });
   const canonicalRunDirectory = await realpath(runDirectory);
   if (canonicalRunDirectory !== runDirectory || !inside(canonicalStateRoot, canonicalRunDirectory) || inside(canonicalWorktree, canonicalRunDirectory)) {
@@ -2186,7 +2321,7 @@ async function createReviewRunState(input) {
   };
 }
 async function canonicalGitWorktree(cwd) {
-  const worktree = await gitText(path6.resolve(cwd), [
+  const worktree = await gitText(path7.resolve(cwd), [
     "rev-parse",
     "--show-toplevel"
   ]).catch(() => {
@@ -2232,7 +2367,7 @@ async function rejectUnresolvedMerges(cwd) {
 }
 async function captureWorktreeVersion(root, relativePath, requirePresent = false, includeText = true) {
   const normalized = normalizeRepositoryPath(relativePath);
-  const requested = path6.resolve(root, normalized);
+  const requested = path7.resolve(root, normalized);
   if (!inside(root, requested)) throw new Error(`path_escape: ${relativePath}`);
   let info;
   try {
@@ -2247,11 +2382,11 @@ async function captureWorktreeVersion(root, relativePath, requirePresent = false
     );
   }
   if (info.isSymbolicLink()) {
-    const canonicalParent = await realpath(path6.dirname(requested));
+    const canonicalParent = await realpath(path7.dirname(requested));
     if (!inside(root, canonicalParent)) {
       throw new Error(`path_escape: ${normalized}`);
     }
-    const canonicalLink = path6.join(canonicalParent, path6.basename(requested));
+    const canonicalLink = path7.join(canonicalParent, path7.basename(requested));
     const target = await readlink(canonicalLink, {
       encoding: "buffer"
     }).catch((error) => {
@@ -2317,14 +2452,14 @@ async function captureGitVersion(root, revision, relativePath) {
   );
 }
 async function resolveDocument(root, candidate) {
-  const requested = path6.isAbsolute(candidate) ? path6.resolve(candidate) : path6.resolve(root, candidate);
+  const requested = path7.isAbsolute(candidate) ? path7.resolve(candidate) : path7.resolve(root, candidate);
   const canonical = await realpath(requested).catch((error) => {
     throw new Error(`document_unreadable: ${fsMessage(error)}`);
   });
   const location = inside(root, canonical) ? "worktree" : "external";
   if (location === "worktree") {
     const relativePath = normalizeRepositoryPath(
-      path6.relative(root, canonical)
+      path7.relative(root, canonical)
     );
     return {
       location,
@@ -2461,14 +2596,14 @@ function assertRef(ref) {
   }
 }
 function normalizeRepositoryPath(candidate) {
-  if (!candidate || candidate.includes("\0") || path6.isAbsolute(candidate)) {
+  if (!candidate || candidate.includes("\0") || path7.isAbsolute(candidate)) {
     throw new Error(`scope_path_invalid: ${candidate}`);
   }
-  const normalized = path6.normalize(candidate);
-  if (normalized === "." || normalized === ".." || normalized.startsWith(`..${path6.sep}`)) {
+  const normalized = path7.normalize(candidate);
+  if (normalized === "." || normalized === ".." || normalized.startsWith(`..${path7.sep}`)) {
     throw new Error(`path_escape: ${candidate}`);
   }
-  return normalized.split(path6.sep).join("/");
+  return normalized.split(path7.sep).join("/");
 }
 function enforceFileCount(paths) {
   if (paths.length > REVIEW_SCOPE_LIMITS.maxSelectedFiles) {
@@ -2500,7 +2635,7 @@ function fsMessage(error) {
 
 // src/skills/consensus-review/src/selection.ts
 import { createHash as createHash2 } from "node:crypto";
-import path8 from "node:path";
+import path9 from "node:path";
 
 // src/plugins/consensus/config/consensus-config.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
@@ -2512,7 +2647,7 @@ import {
   rm as rm3,
   writeFile
 } from "node:fs/promises";
-import path7 from "node:path";
+import path8 from "node:path";
 
 // src/plugins/consensus/provider-cli/types.ts
 var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
@@ -2598,7 +2733,7 @@ async function readConsensusConfig(input) {
 }
 async function consensusConfigPath(input) {
   if (input.scope === "user") {
-    return path7.join(userConfigDir(input.env), "consensus", "config.json");
+    return path8.join(userConfigDir(input.env), "consensus", "config.json");
   }
   return projectConsensusConfigPath(input.cwd);
 }
@@ -2608,7 +2743,7 @@ async function projectConsensusConfigPath(cwd) {
   return existing ?? fallback;
 }
 async function findNearestProjectConsensusConfig(cwd) {
-  let current = path7.resolve(cwd);
+  let current = path8.resolve(cwd);
   while (true) {
     const candidate = projectConsensusConfigPathAt(current);
     try {
@@ -2617,13 +2752,13 @@ async function findNearestProjectConsensusConfig(cwd) {
     } catch (error) {
       if (!isNodeError(error) || error.code !== "ENOENT") throw error;
     }
-    const parent = path7.dirname(current);
+    const parent = path8.dirname(current);
     if (parent === current) return null;
     current = parent;
   }
 }
 function projectConsensusConfigPathAt(cwd) {
-  return path7.join(path7.resolve(cwd), ".consensus", "config.json");
+  return path8.join(path8.resolve(cwd), ".consensus", "config.json");
 }
 async function resolveConsensusComposition(input) {
   const candidates = await loadCandidates(input);
@@ -2898,12 +3033,12 @@ function isProviderId(value) {
 }
 function userConfigDir(env = {}) {
   const xdg = env.XDG_CONFIG_HOME ?? process.env.XDG_CONFIG_HOME;
-  if (xdg && xdg.length > 0) return path7.resolve(xdg);
+  if (xdg && xdg.length > 0) return path8.resolve(xdg);
   const home = env.HOME ?? process.env.HOME;
   if (!home) {
     throw new Error("HOME is required to resolve user consensus config");
   }
-  return path7.join(path7.resolve(home), ".config");
+  return path8.join(path8.resolve(home), ".config");
 }
 function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -2998,10 +3133,10 @@ function buildReviewPrompt(input) {
   if (requestBytes > REVIEW_REQUEST_MAX_BYTES) {
     throw new Error("review_request_too_large");
   }
-  if (!path8.isAbsolute(input.evidencePath)) {
+  if (!path9.isAbsolute(input.evidencePath)) {
     throw new Error("review_evidence_path_must_be_absolute");
   }
-  if (input.requestPath && !path8.isAbsolute(input.requestPath)) {
+  if (input.requestPath && !path9.isAbsolute(input.requestPath)) {
     throw new Error("review_request_path_must_be_absolute");
   }
   const manifest = input.scope.versions.map(
@@ -3254,10 +3389,10 @@ async function executeBoundedReview(input, dependencies = {}) {
       fsMessage2(error)
     );
   }
-  const requestPath = path9.join(runState.runDirectory, "request.txt");
-  const evidencePath = path9.join(runState.runDirectory, "evidence.json");
-  const resultPath = path9.join(runState.runDirectory, "result.json");
-  const diagnosticPath = path9.join(runState.runDirectory, "diagnostic.json");
+  const requestPath = path10.join(runState.runDirectory, "request.txt");
+  const evidencePath = path10.join(runState.runDirectory, "evidence.json");
+  const resultPath = path10.join(runState.runDirectory, "result.json");
+  const diagnosticPath = path10.join(runState.runDirectory, "diagnostic.json");
   const persist = dependencies.persist ?? persistPrivateJson;
   try {
     await persist(requestPath, input.request);
@@ -3357,7 +3492,7 @@ async function executeBoundedReview(input, dependencies = {}) {
       ...selected.reviewer.effort ? { effort: selected.reviewer.effort } : {},
       ...input.maxRuntimeSec !== void 0 ? { maxRuntimeSec: input.maxRuntimeSec } : {},
       ...selected.reviewer.provider === "codex" ? {
-        codexCapturePath: path9.join(
+        codexCapturePath: path10.join(
           runState.runDirectory,
           "last-message.json"
         )
@@ -3721,9 +3856,9 @@ function executeFailure(status, invocationCount, reason, message, details = {}) 
 async function persistPrivateJson(targetPath, value) {
   const contents = typeof value === "string" ? value : `${JSON.stringify(value, null, 2)}
 `;
-  const temporary = path9.join(
-    path9.dirname(targetPath),
-    `.${path9.basename(targetPath)}.${process.pid}.${randomUUID5()}.tmp`
+  const temporary = path10.join(
+    path10.dirname(targetPath),
+    `.${path10.basename(targetPath)}.${process.pid}.${randomUUID5()}.tmp`
   );
   let handle;
   try {
@@ -3817,7 +3952,7 @@ function validateLocation(value, scope, findingLabel, errors) {
     256,
     errors
   );
-  if (typeof value.path !== "string" || path9.isAbsolute(value.path) || value.path.split("/").includes("..") || !scope.selectedPaths.includes(value.path)) {
+  if (typeof value.path !== "string" || path10.isAbsolute(value.path) || value.path.split("/").includes("..") || !scope.selectedPaths.includes(value.path)) {
     errors.push(`${label}.path must be a complete selected repository path`);
   }
   if (!isPositiveInteger(value.start_line)) {
@@ -3993,7 +4128,7 @@ async function reviewTransport(input) {
       }
     };
   }
-  if (!input.codexCapturePath || !path9.isAbsolute(input.codexCapturePath)) {
+  if (!input.codexCapturePath || !path10.isAbsolute(input.codexCapturePath)) {
     return {
       ok: false,
       reason: "capture_not_external",
@@ -4053,7 +4188,7 @@ async function claimReviewTransport(input, options) {
   };
 }
 async function validateCodexCapture(input) {
-  const capturePath = path9.resolve(input.codexCapturePath);
+  const capturePath = path10.resolve(input.codexCapturePath);
   let canonicalWorktree;
   try {
     canonicalWorktree = await realpath2(input.cwd);
@@ -4101,7 +4236,7 @@ async function validateCodexCapture(input) {
       "Codex review capture must not already exist."
     );
   }
-  const parent = path9.dirname(capturePath);
+  const parent = path10.dirname(capturePath);
   let existing;
   let canonicalExisting;
   let existingInfo;
@@ -4123,13 +4258,13 @@ async function validateCodexCapture(input) {
       "Codex review capture parent must be a directory."
     );
   }
-  const canonicalParent = path9.resolve(
+  const canonicalParent = path10.resolve(
     canonicalExisting,
-    path9.relative(existing, parent)
+    path10.relative(existing, parent)
   );
-  const canonicalCapture = path9.join(
+  const canonicalCapture = path10.join(
     canonicalParent,
-    path9.basename(capturePath)
+    path10.basename(capturePath)
   );
   if (inside(canonicalWorktree, canonicalCapture)) {
     return captureFailure(
@@ -4137,13 +4272,13 @@ async function validateCodexCapture(input) {
       "Codex review capture must remain outside the reviewed worktree."
     );
   }
-  if (path9.resolve(existing) !== canonicalExisting || path9.resolve(parent) !== canonicalParent) {
+  if (path10.resolve(existing) !== canonicalExisting || path10.resolve(parent) !== canonicalParent) {
     return captureFailure(
       "capture_destination_unsafe",
       "Codex review capture path must not contain symbolic-link aliases."
     );
   }
-  if (path9.resolve(existing) !== path9.resolve(parent)) {
+  if (path10.resolve(existing) !== path10.resolve(parent)) {
     return captureFailure(
       "capture_destination_unsafe",
       "Codex review capture requires an existing private run directory."
@@ -4277,7 +4412,7 @@ async function runReviewCli(argv, dependencies = {}) {
       human: USAGE
     };
   }
-  const cwd = path10.resolve(dependencies.cwd ?? process.cwd());
+  const cwd = path11.resolve(dependencies.cwd ?? process.cwd());
   const fileSystem = resolveFileSystem(dependencies.fileSystem);
   let parsed;
   try {
@@ -4315,7 +4450,7 @@ async function runReviewCli(argv, dependencies = {}) {
       human: "Review completed as an empty-scope no-op. Provider invocations: 0."
     };
   }
-  const canonicalMarkdown = path10.join(
+  const canonicalMarkdown = path11.join(
     result.runState.runDirectory,
     "review.md"
   );
@@ -4606,7 +4741,7 @@ async function parseReviewArgs(argv, cwd, fileSystem) {
     );
   }
   if (requestFile) {
-    request = await readBoundedText(path10.resolve(cwd, requestFile), fileSystem);
+    request = await readBoundedText(path11.resolve(cwd, requestFile), fileSystem);
   }
   const scope = baseRef ? { kind: "base_branch", ref: baseRef } : files ? { kind: "files", paths: files } : { kind: "document", path: document };
   return {
@@ -4715,7 +4850,7 @@ function diagnosticOutcome(result, json) {
     reason: result.reason,
     message: result.message,
     invocation_count: result.invocation_count,
-    ...result.diagnosticPath ? { artifacts: { diagnostic: path10.resolve(result.diagnosticPath) } } : {}
+    ...result.diagnosticPath ? { artifacts: { diagnostic: path11.resolve(result.diagnosticPath) } } : {}
   };
   return {
     exitCode: 1,
@@ -4724,21 +4859,21 @@ function diagnosticOutcome(result, json) {
     human: [
       `Review did not complete: ${result.status} (${result.reason}).`,
       result.message,
-      ...result.diagnosticPath ? [`Diagnostic artifact: ${path10.resolve(result.diagnosticPath)}`] : [],
+      ...result.diagnosticPath ? [`Diagnostic artifact: ${path11.resolve(result.diagnosticPath)}`] : [],
       `Provider invocations: ${result.invocation_count}.`
     ].join("\n")
   };
 }
 async function exportCompletedMarkdown(input, fileSystem) {
-  const requested = path10.resolve(input.cwd, input.requestedPath);
+  const requested = path11.resolve(input.cwd, input.requestedPath);
   try {
     await fileSystem.lstatPath(requested);
     throw new Error("output destination already exists");
   } catch (error) {
     if (!isMissing3(error)) throw error;
   }
-  const parent = await fileSystem.realpathPath(path10.dirname(requested));
-  const destination = path10.join(parent, path10.basename(requested));
+  const parent = await fileSystem.realpathPath(path11.dirname(requested));
+  const destination = path11.join(parent, path11.basename(requested));
   const protectedPaths = /* @__PURE__ */ new Set([
     input.canonicalMarkdown,
     input.aggregate.paths.request,
@@ -4746,7 +4881,7 @@ async function exportCompletedMarkdown(input, fileSystem) {
     input.aggregate.paths.result,
     ...input.aggregate.scope.externalDocuments,
     ...input.aggregate.scope.selectedPaths.map(
-      (candidate) => path10.join(input.aggregate.worktree_root, candidate)
+      (candidate) => path11.join(input.aggregate.worktree_root, candidate)
     )
   ]);
   if (protectedPaths.has(destination)) {
@@ -4756,9 +4891,9 @@ async function exportCompletedMarkdown(input, fileSystem) {
   return destination;
 }
 async function writeExclusive(targetPath, contents, mode, fileSystem) {
-  const temporaryPath = path10.join(
-    path10.dirname(targetPath),
-    `.${path10.basename(targetPath)}.${process.pid}.${randomUUID6()}.tmp`
+  const temporaryPath = path11.join(
+    path11.dirname(targetPath),
+    `.${path11.basename(targetPath)}.${process.pid}.${randomUUID6()}.tmp`
   );
   let handle = null;
   let failure2;
@@ -4787,7 +4922,7 @@ async function writeExclusive(targetPath, contents, mode, fileSystem) {
   if (failure2) throw failure2;
 }
 async function localOutputFailure(result, reason, message, json, fileSystem, markdown) {
-  const diagnosticPath = path10.join(
+  const diagnosticPath = path11.join(
     result.runState.runDirectory,
     "cli-diagnostic.json"
   );
@@ -4909,7 +5044,7 @@ function errorMessage2(error) {
 }
 function isEntrypointPath(argvPath) {
   try {
-    return realpathSync(argvPath) === realpathSync(fileURLToPath2(import.meta.url));
+    return realpathSync2(argvPath) === realpathSync2(fileURLToPath2(import.meta.url));
   } catch (error) {
     const code = error.code;
     if (code === "ENOENT" || code === "ENOTDIR") return false;

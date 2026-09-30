@@ -23,9 +23,16 @@ The host-facing skill flow is:
 2. Ask the user first when the topic is ambiguous or the prompt would include
    sensitive/private context.
 3. Compact only the relevant facts and constraints into a prompt file.
+   If the peer must use tools, read the shipped
+   `phone-a-friend/references/scoped-tool-access.md` runbook first and select
+   explicit grants for required files and web sources. An advice-only call
+   needs no tool grants.
 4. Select a ready peer provider, preferring one different from the host provider.
 5. Invoke `consensus run` once with the advisory schema and `--json`.
 6. Read the validated advisory payload.
+   For a tool-using turn, also inspect `diagnostics.permission_denials` and
+   independently verify the required research or output file. A valid JSON
+   reply can say the peer was blocked.
 7. Disposition the take as `agree`, `disagree`, `apply`, `ignore`, or
    `follow-up`, and explain what changed because of it.
 
@@ -58,6 +65,30 @@ task calls for a specific provider configuration. The skill's `--peer
 <provider-id>` argument hint is host-facing shorthand; translate it to
 `consensus run --provider <provider-id>`.
 
+For an explicitly approved Claude research turn, use only the grants needed:
+
+```bash
+consensus run --provider claude \
+  --schema ./schemas/advisory.schema.json \
+  --prompt-file "/absolute/path/to/question.md" \
+  --cwd "/absolute/path/to/empty-scratch" \
+  --allow-read "/absolute/path/to/approved-brief.md" \
+  --allow-web-search \
+  --allow-web-fetch-domain example.org \
+  --json --max-depth 1 --max-attempts 1
+```
+
+Add `--allow-edit "/absolute/path/to/answer.md"` only when that exact output
+file is authorized. The `--allow-read`, `--allow-edit`, `--allow-web-search`, and
+`--allow-web-fetch-domain` flags are Claude-only, opt-in, and reject unsupported
+providers. They use Claude's `dontAsk` mode, exact file/domain allow rules,
+limited built-in tools, and no ambient MCP servers; they do not bypass managed
+policies or create an OS sandbox. Claude can still read the working directory
+under its ordinary rules, and existing user/project allow rules may grant a
+selected tool more broadly. Keep unrelated private files out of the scratch
+cwd and inspect ambient settings for sensitive runs. See the shipped runbook for path canonicalization, permission-denial
+diagnostics, and the final-message JSON path when Bash is unavailable.
+
 ## Peer Selection
 
 Check inventory and readiness before spending a peer call:
@@ -70,6 +101,7 @@ consensus preflight --json --provider <selected-provider-id> --capability run
 Prefer a ready provider whose id differs from the current host. For example,
 when Codex is the host, try a ready Claude or Cursor provider first. Honor an
 explicit user-named provider after confirming it is usable.
+Preflight checks the executable, not the requested tool grants or path access.
 
 Use a same-provider fallback only when no different provider is available and
 the user accepts that tradeoff. `consensus run --max-depth 1` carries the

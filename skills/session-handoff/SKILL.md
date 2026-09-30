@@ -3,8 +3,8 @@ name: session-handoff
 description: Use when the user asks to hand off, transfer, or let another agent continue coding work. Produce concise evidence-grounded continuation context with an optional accepted sanitized transcript link.
 license: MIT
 metadata:
-  author: thomas.stang
-  version: '1.1.2'
+  author: Thomas Stang
+  version: '1.1.3'
 compatibility: Agent Skills baseline. Uses read-only repository inspection when a repository is in scope. An exact stateless observer review is optional and may be unavailable for the current session.
 argument-hint: '[successor or scope] [--out <path>]'
 disable-model-invocation: false

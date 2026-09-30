@@ -5,8 +5,8 @@ license: MIT
 compatibility: Agent Skills baseline; instruction-only, with no runtime or package dependencies. Optional analysis skills may be unavailable or manually invoked.
 user-invocable: true
 metadata:
-  author: thomas.stang
-  version: '1.0.0'
+  author: Thomas Stang
+  version: '1.0.1'
 ---
 
 # Must we do this?

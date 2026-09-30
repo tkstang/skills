@@ -8,8 +8,8 @@ disable-model-invocation: true
 user-invocable: true
 allowed-tools: Read Glob Grep Bash(git diff:*) Bash(git log:*) Bash(git show:*) Bash(git status:*) Bash(git ls-files:*) AskUserQuestion
 metadata:
-  author: thomas.stang
-  version: '1.0.2'
+  author: Thomas Stang
+  version: '1.0.3'
 ---
 
 # Complexity Review

@@ -8,8 +8,8 @@ disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
 metadata:
-  author: thomas.stang
-  version: '1.0.72'
+  author: Thomas Stang
+  version: '1.0.73'
 ---
 
 # observer-collab

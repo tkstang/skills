@@ -6,8 +6,8 @@ compatibility: Agent Skills baseline; requires Node.js 22+ and the generated con
 allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: --brief "<text>" | --brief-file <brief.md>
 metadata:
-  author: thomas.stang
-  version: '0.1.18'
+  author: Thomas Stang
+  version: '0.1.19'
 ---
 
 # Create

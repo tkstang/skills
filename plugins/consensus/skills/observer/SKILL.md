@@ -8,8 +8,8 @@ disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
-  author: thomas.stang
-  version: '1.0.84'
+  author: Thomas Stang
+  version: '1.0.85'
 ---
 
 # observer

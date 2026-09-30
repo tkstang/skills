@@ -1,3 +1,6 @@
+import { realpathSync, statSync } from 'node:fs';
+import path from 'node:path';
+
 import type {
   ConsensusCliRunRequest,
   ProviderCapabilities,
@@ -109,7 +112,87 @@ export function validateProviderOptions(
     );
   }
 
+  const hasScopedTools = hasScopedToolAccess(policy);
+  if (hasScopedTools && request.provider !== 'claude') {
+    return unsupported(
+      'runtime_policy.scoped_tools',
+      'Scoped tool grants are supported only by the Claude provider.',
+    );
+  }
+  if (hasScopedTools && policy.permission_mode !== 'non-interactive') {
+    return unsupported(
+      'runtime_policy.permission_mode',
+      'Scoped Claude tool grants require non-interactive permission mode.',
+    );
+  }
+  for (const [field, paths] of [
+    ['read_paths', policy.read_paths],
+    ['edit_paths', policy.edit_paths],
+  ] as const) {
+    for (const filePath of paths ?? []) {
+      if (
+        !path.isAbsolute(filePath) ||
+        path.normalize(filePath) !== filePath ||
+        filePath.split(path.sep).includes('..') ||
+        /[\r\n,*?]/.test(filePath) ||
+        filePath.includes('[') ||
+        filePath.includes(']')
+      ) {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires exact absolute paths without parent traversal or glob characters.`,
+        );
+      }
+      try {
+        const target = statSync(filePath, { throwIfNoEntry: false });
+        if (target) {
+          if (!target.isFile() || realpathSync(filePath) !== filePath) {
+            return unsupported(
+              `runtime_policy.${field}`,
+              `${field} requires canonical regular-file targets, not directories or symlinks.`,
+            );
+          }
+        } else if (
+          field === 'read_paths' ||
+          realpathSync(path.dirname(filePath)) !== path.dirname(filePath)
+        ) {
+          return unsupported(
+            `runtime_policy.${field}`,
+            `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`,
+          );
+        }
+      } catch {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`,
+        );
+      }
+    }
+  }
+  for (const domain of policy.web_fetch_domains ?? []) {
+    if (
+      domain.length > 253 ||
+      !/^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
+        domain,
+      )
+    ) {
+      return unsupported(
+        'runtime_policy.web_fetch_domains',
+        'WebFetch grants require exact domain names without schemes, ports, or wildcards.',
+      );
+    }
+  }
+
   return { ok: true };
+}
+
+export function hasScopedToolAccess(policy: ProviderRuntimePolicy = {}) {
+  return Boolean(
+    policy.read_paths?.length ||
+    policy.edit_paths?.length ||
+    policy.web_search ||
+    policy.web_fetch_domains?.length,
+  );
 }
 
 export function defaultRuntimePolicy(
@@ -123,6 +206,12 @@ export function defaultRuntimePolicy(
       ? { approval_policy: policy.approval_policy }
       : {}),
     ...(policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {}),
+    ...(policy.read_paths ? { read_paths: policy.read_paths } : {}),
+    ...(policy.edit_paths ? { edit_paths: policy.edit_paths } : {}),
+    ...(policy.web_search ? { web_search: true } : {}),
+    ...(policy.web_fetch_domains
+      ? { web_fetch_domains: policy.web_fetch_domains }
+      : {}),
   };
 }
 

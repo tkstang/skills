@@ -6,8 +6,8 @@ compatibility: Agent Skills baseline; requires Node.js 22+ and the generated con
 allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: <artifact.md> [--rubric <rubric.md>]
 metadata:
-  author: thomas.stang
-  version: '0.1.22'
+  author: Thomas Stang
+  version: '0.1.23'
 ---
 
 # Evaluate

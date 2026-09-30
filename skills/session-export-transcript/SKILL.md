@@ -8,8 +8,8 @@ disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Read
 metadata:
-  author: thomas.stang
-  version: '2.0.37'
+  author: Thomas Stang
+  version: '2.0.38'
 ---
 
 # session-export-transcript

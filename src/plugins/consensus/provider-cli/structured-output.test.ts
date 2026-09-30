@@ -1,7 +1,9 @@
 import { spawnSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -37,6 +39,43 @@ describe('structured provider output coordinator', () => {
     expect(selectStructuredOutputStrategy(registry.get('cursor')!)).toBe(
       'prompt_only',
     );
+  });
+
+  it('keeps a schema-valid blocked Claude reply as transport success with safe denial telemetry', async () => {
+    const privatePath = '/private/vault/brief.md';
+    const providerResult = JSON.stringify({
+      type: 'result',
+      structured_output: { verdict: 'accept' },
+      permission_denials: [
+        { tool_name: 'Read', tool_input: { file_path: privatePath } },
+        { tool_name: 'WebSearch', tool_input: { query: 'example' } },
+      ],
+    });
+    const subprocess = fakeSubprocess([processSuccess(providerResult)]);
+    const envelope = await runProviderTurn(
+      request({
+        provider: 'claude',
+        runtime_policy: {
+          read_paths: [realpathSync(fileURLToPath(import.meta.url))],
+          web_search: true,
+        },
+      }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      attempts: { terminal_reason: 'success' },
+      diagnostics: {
+        permission_denials: { count: 2, tools: ['Read', 'WebSearch'] },
+        warnings: [expect.stringContaining('verify task completeness')],
+      },
+    });
+    expect(JSON.stringify(envelope.diagnostics)).not.toContain(privatePath);
+    expect(subprocess.prompts[0]).not.toContain('Verdict submission:');
   });
 
   it('keeps submit-tool candidate reserved and unselected by default', () => {

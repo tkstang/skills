@@ -1,3 +1,7 @@
+import { realpathSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import { providerRegistry } from '../provider-cli/adapters.js';
@@ -79,6 +83,67 @@ describe('provider runtime policy validation', () => {
       permission_mode: 'non-interactive',
       sandbox: 'read-only',
     });
+  });
+
+  it('rejects scoped grants for other providers, broad paths, and incompatible modes', () => {
+    expect(
+      validateProviderOptions(
+        request({
+          provider: 'codex',
+          runtime_policy: { read_paths: ['/private/brief.md'] },
+        }),
+        capabilities('codex'),
+      ),
+    ).toMatchObject({ ok: false, option: 'runtime_policy.scoped_tools' });
+    expect(
+      validateProviderOptions(
+        request({
+          provider: 'claude',
+          runtime_policy: { read_paths: ['/private/**'] },
+        }),
+        capabilities('claude'),
+      ),
+    ).toMatchObject({ ok: false, option: 'runtime_policy.read_paths' });
+    expect(
+      validateProviderOptions(
+        request({
+          provider: 'claude',
+          runtime_policy: {
+            permission_mode: 'read-only',
+            web_search: true,
+          },
+        }),
+        capabilities('claude'),
+      ),
+    ).toMatchObject({ ok: false, option: 'runtime_policy.permission_mode' });
+  });
+
+  it('rejects directory grants while allowing a file and a new file in a canonical parent', () => {
+    const testFile = realpathSync(fileURLToPath(import.meta.url));
+    const directory = path.dirname(testFile);
+    for (const filePath of [directory, `${directory}/`, '/']) {
+      expect(
+        validateProviderOptions(
+          request({
+            provider: 'claude',
+            runtime_policy: { edit_paths: [filePath] },
+          }),
+          capabilities('claude'),
+        ),
+      ).toMatchObject({ ok: false, option: 'runtime_policy.edit_paths' });
+    }
+    expect(
+      validateProviderOptions(
+        request({
+          provider: 'claude',
+          runtime_policy: {
+            read_paths: [testFile],
+            edit_paths: [path.join(directory, 'new-advisory-output.md')],
+          },
+        }),
+        capabilities('claude'),
+      ),
+    ).toEqual({ ok: true });
   });
 
   it.each([

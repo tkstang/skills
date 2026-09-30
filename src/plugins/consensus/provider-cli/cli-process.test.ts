@@ -1,4 +1,11 @@
-import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -162,6 +169,63 @@ describe('generated consensus provider CLI process contract', () => {
       });
     } finally {
       await rm(binDir, { recursive: true, force: true });
+      await rm(path.dirname(schemaPath), { recursive: true, force: true });
+    }
+  });
+
+  it('passes scoped outside-cwd Claude grants and reports denied tools without claiming task success', async () => {
+    const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-bin-'));
+    const scratchDir = await mkdtemp(
+      path.join(os.tmpdir(), 'consensus-scratch-'),
+    );
+    const schemaPath = await writeSchemaFixture();
+    const canonicalBinDir = await realpath(binDir);
+    const readPath = path.join(canonicalBinDir, 'brief with spaces.md');
+    const editPath = path.join(canonicalBinDir, 'answer.md');
+    await writeFile(readPath, 'Approved brief.', 'utf8');
+    await writeExecutableFixture(
+      binDir,
+      'claude',
+      scopedClaudeFixture(readPath, editPath),
+    );
+
+    try {
+      const result = await runConsensusCli(
+        [
+          'run',
+          '--provider',
+          'claude',
+          '--schema',
+          schemaPath,
+          '--json',
+          '--prompt',
+          'Read the approved brief, search, fetch, then answer.',
+          '--cwd',
+          scratchDir,
+          '--allow-read',
+          readPath,
+          '--allow-edit',
+          editPath,
+          '--allow-web-search',
+          '--allow-web-fetch-domain',
+          'example.org',
+        ],
+        { env: { ...process.env, PATH: binDir } },
+      );
+      expect(result.code).toBe(0);
+      const envelope = parseSingleJsonDocument(result.stdout);
+      expect(envelope).toMatchObject({
+        ok: true,
+        json: { verdict: 'blocked' },
+        attempts: { terminal_reason: 'success' },
+        diagnostics: {
+          permission_denials: { count: 2, tools: ['Read', 'WebSearch'] },
+        },
+      });
+      expect(JSON.stringify(envelope.diagnostics)).not.toContain(readPath);
+    } finally {
+      await rm(binDir, { recursive: true, force: true });
+      await rm(scratchDir, { recursive: true, force: true });
       await rm(path.dirname(schemaPath), { recursive: true, force: true });
     }
   });
@@ -538,13 +602,76 @@ describe('generated consensus provider CLI process contract', () => {
 
 function runConsensusCli(
   args: string[],
-  options: { input?: string; env?: Record<string, string | undefined> } = {},
+  options: {
+    input?: string;
+    env?: Record<string, string | undefined>;
+  } = {},
 ) {
   return runNodeScriptResult(consensusCli, args, {
     cwd: repoRoot,
     input: options.input,
     env: options.env,
   });
+}
+
+function scopedClaudeFixture(readPath: string, editPath: string) {
+  const providerEnvelope = JSON.stringify({
+    type: 'result',
+    structured_output: { verdict: 'blocked' },
+    permission_denials: [
+      { tool_name: 'Read', tool_input: { file_path: '/private/secret.md' } },
+      { tool_name: 'WebSearch', tool_input: { query: 'private question' } },
+    ],
+  });
+  return `#!/bin/sh
+seen_read=0
+seen_edit=0
+seen_search=0
+seen_fetch=0
+seen_tools=0
+seen_mode=0
+seen_prompts=0
+seen_mcp=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --allowedTools)
+      shift
+      while [ "$#" -gt 0 ] && [ "$1" != "--tools" ]; do
+        case "$1" in
+          'Read(/${readPath})') seen_read=1 ;;
+          'Edit(/${editPath})') seen_edit=1 ;;
+          WebSearch) seen_search=1 ;;
+          'WebFetch(domain:example.org)') seen_fetch=1 ;;
+          *) exit 64 ;;
+        esac
+        shift
+      done
+      ;;
+    --tools)
+      [ "$2" = 'Read,Edit,Write,WebSearch,WebFetch' ] || exit 64
+      seen_tools=1
+      shift 2
+      ;;
+    --permission-mode)
+      [ "$2" = dontAsk ] || exit 64
+      seen_mode=1
+      shift 2
+      ;;
+    --permission-prompts)
+      [ "$2" = none ] || exit 64
+      seen_prompts=1
+      shift 2
+      ;;
+    --strict-mcp-config) seen_mcp=1; shift ;;
+    --output-format|--json-schema) shift 2 ;;
+    --print) shift ;;
+    -*) exit 64 ;;
+    *) shift ;;
+  esac
+done
+[ "$seen_read$seen_edit$seen_search$seen_fetch$seen_tools$seen_mode$seen_prompts$seen_mcp" = 11111111 ] || exit 64
+printf '%s\\n' '${providerEnvelope}'
+`;
 }
 
 function parseSingleJsonDocument(stdout: string) {

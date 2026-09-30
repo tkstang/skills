@@ -113,6 +113,10 @@ export interface ParsedRunCommand {
   sandbox?: string;
   approvalPolicy?: string;
   envAllow?: string[];
+  readPaths?: string[];
+  editPaths?: string[];
+  webSearch?: boolean;
+  webFetchDomains?: string[];
 }
 
 export interface ParsedSubmitCommand {
@@ -497,6 +501,10 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
       '--sandbox',
       '--approval-policy',
       '--env-allow',
+      '--allow-read',
+      '--allow-edit',
+      '--allow-web-search',
+      '--allow-web-fetch-domain',
       '--max-depth',
     ]),
     valueFlags: new Set([
@@ -515,6 +523,9 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
       '--sandbox',
       '--approval-policy',
       '--env-allow',
+      '--allow-read',
+      '--allow-edit',
+      '--allow-web-fetch-domain',
       '--max-depth',
     ]),
   });
@@ -548,6 +559,13 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
   );
   const envAllow = valuesFor(parsed.flags, '--env-allow');
   if (envAllow.length > 0) command.envAllow = envAllow;
+  const readPaths = valuesFor(parsed.flags, '--allow-read');
+  if (readPaths.length > 0) command.readPaths = readPaths;
+  const editPaths = valuesFor(parsed.flags, '--allow-edit');
+  if (editPaths.length > 0) command.editPaths = editPaths;
+  if (parsed.flags.has('--allow-web-search')) command.webSearch = true;
+  const webFetchDomains = valuesFor(parsed.flags, '--allow-web-fetch-domain');
+  if (webFetchDomains.length > 0) command.webFetchDomains = webFetchDomains;
 
   const prompt = singleValue(parsed.flags, '--prompt');
   const promptFile = singleValue(parsed.flags, '--prompt-file');
@@ -659,6 +677,10 @@ function assertNoRequestJsonConflicts(
     command.sandbox ? '--sandbox' : undefined,
     command.approvalPolicy ? '--approval-policy' : undefined,
     command.envAllow && command.envAllow.length > 0 ? '--env-allow' : undefined,
+    command.readPaths ? '--allow-read' : undefined,
+    command.editPaths ? '--allow-edit' : undefined,
+    command.webSearch ? '--allow-web-search' : undefined,
+    command.webFetchDomains ? '--allow-web-fetch-domain' : undefined,
     command.maxDepth !== undefined ? '--max-depth' : undefined,
     positionalCount > 0 ? 'positional prompt' : undefined,
   ].filter(Boolean);
@@ -682,6 +704,12 @@ function normalizeRuntimePolicy(command: ParsedRunCommand) {
   }
   if (command.envAllow && command.envAllow.length > 0) {
     runtimePolicy.env_allowlist = command.envAllow;
+  }
+  if (command.readPaths) runtimePolicy.read_paths = command.readPaths;
+  if (command.editPaths) runtimePolicy.edit_paths = command.editPaths;
+  if (command.webSearch) runtimePolicy.web_search = true;
+  if (command.webFetchDomains) {
+    runtimePolicy.web_fetch_domains = command.webFetchDomains;
   }
 
   return Object.keys(runtimePolicy).length > 0 ? runtimePolicy : undefined;
@@ -828,6 +856,24 @@ function validateRuntimePolicy(value: unknown) {
     throw new ConsensusCliUsageError(
       'Request JSON runtime_policy.env_allowlist must be a string array',
     );
+  }
+  for (const field of [
+    'read_paths',
+    'edit_paths',
+    'web_fetch_domains',
+  ] as const) {
+    if (value[field] !== undefined && !isStringArray(value[field])) {
+      throw new ConsensusCliUsageError(
+        `Request JSON runtime_policy.${field} must be a string array`,
+      );
+    }
+  }
+  for (const field of ['web_search'] as const) {
+    if (value[field] !== undefined && typeof value[field] !== 'boolean') {
+      throw new ConsensusCliUsageError(
+        `Request JSON runtime_policy.${field} must be a boolean`,
+      );
+    }
   }
 }
 

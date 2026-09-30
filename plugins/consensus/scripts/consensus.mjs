@@ -3,7 +3,7 @@
 // Source: src/plugins/consensus/provider-cli/cli.ts
 
 // src/plugins/consensus/provider-cli/cli.ts
-import { realpathSync } from "node:fs";
+import { realpathSync as realpathSync2 } from "node:fs";
 import { readFile as readFile3, stat } from "node:fs/promises";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
@@ -511,6 +511,45 @@ var buildClaudeInvocation = (request, options = {}) => {
   if (claudePermissionMode) {
     argv.push("--permission-mode", claudePermissionMode);
     redactedArgv.push("--permission-mode", claudePermissionMode);
+  }
+  const policy = request.runtime_policy;
+  const scopedTools = [
+    ...(policy?.read_paths ?? []).map((filePath) => `Read(/${filePath})`),
+    ...(policy?.edit_paths ?? []).map((filePath) => `Edit(/${filePath})`),
+    ...policy?.web_search ? ["WebSearch"] : [],
+    ...(policy?.web_fetch_domains ?? []).map(
+      (domain) => `WebFetch(domain:${domain})`
+    )
+  ];
+  if (scopedTools.length > 0) {
+    const availableTools = [
+      ...policy?.read_paths?.length ? ["Read"] : [],
+      ...policy?.edit_paths?.length ? ["Edit", "Write"] : [],
+      ...policy?.web_search ? ["WebSearch"] : [],
+      ...policy?.web_fetch_domains?.length ? ["WebFetch"] : []
+    ];
+    argv.push(
+      "--allowedTools",
+      ...scopedTools,
+      "--tools",
+      availableTools.join(","),
+      "--permission-prompts",
+      "none",
+      "--permission-mode",
+      "dontAsk",
+      "--strict-mcp-config"
+    );
+    redactedArgv.push(
+      "--allowedTools",
+      "<scoped-tool-rules>",
+      "--tools",
+      availableTools.join(","),
+      "--permission-prompts",
+      "none",
+      "--permission-mode",
+      "dontAsk",
+      "--strict-mcp-config"
+    );
   }
   argv.push(request.prompt);
   redactedArgv.push("<prompt>");
@@ -1645,6 +1684,10 @@ function parseRunCommand(tokens) {
       "--sandbox",
       "--approval-policy",
       "--env-allow",
+      "--allow-read",
+      "--allow-edit",
+      "--allow-web-search",
+      "--allow-web-fetch-domain",
       "--max-depth"
     ]),
     valueFlags: /* @__PURE__ */ new Set([
@@ -1663,6 +1706,9 @@ function parseRunCommand(tokens) {
       "--sandbox",
       "--approval-policy",
       "--env-allow",
+      "--allow-read",
+      "--allow-edit",
+      "--allow-web-fetch-domain",
       "--max-depth"
     ])
   });
@@ -1694,6 +1740,13 @@ function parseRunCommand(tokens) {
   );
   const envAllow = valuesFor(parsed.flags, "--env-allow");
   if (envAllow.length > 0) command.envAllow = envAllow;
+  const readPaths = valuesFor(parsed.flags, "--allow-read");
+  if (readPaths.length > 0) command.readPaths = readPaths;
+  const editPaths = valuesFor(parsed.flags, "--allow-edit");
+  if (editPaths.length > 0) command.editPaths = editPaths;
+  if (parsed.flags.has("--allow-web-search")) command.webSearch = true;
+  const webFetchDomains = valuesFor(parsed.flags, "--allow-web-fetch-domain");
+  if (webFetchDomains.length > 0) command.webFetchDomains = webFetchDomains;
   const prompt = singleValue(parsed.flags, "--prompt");
   const promptFile = singleValue(parsed.flags, "--prompt-file");
   const stdinMarkers = parsed.positionals.filter((value) => value === "-");
@@ -1788,6 +1841,10 @@ function assertNoRequestJsonConflicts(command, positionalCount) {
     command.sandbox ? "--sandbox" : void 0,
     command.approvalPolicy ? "--approval-policy" : void 0,
     command.envAllow && command.envAllow.length > 0 ? "--env-allow" : void 0,
+    command.readPaths ? "--allow-read" : void 0,
+    command.editPaths ? "--allow-edit" : void 0,
+    command.webSearch ? "--allow-web-search" : void 0,
+    command.webFetchDomains ? "--allow-web-fetch-domain" : void 0,
     command.maxDepth !== void 0 ? "--max-depth" : void 0,
     positionalCount > 0 ? "positional prompt" : void 0
   ].filter(Boolean);
@@ -1808,6 +1865,12 @@ function normalizeRuntimePolicy(command) {
   }
   if (command.envAllow && command.envAllow.length > 0) {
     runtimePolicy.env_allowlist = command.envAllow;
+  }
+  if (command.readPaths) runtimePolicy.read_paths = command.readPaths;
+  if (command.editPaths) runtimePolicy.edit_paths = command.editPaths;
+  if (command.webSearch) runtimePolicy.web_search = true;
+  if (command.webFetchDomains) {
+    runtimePolicy.web_fetch_domains = command.webFetchDomains;
   }
   return Object.keys(runtimePolicy).length > 0 ? runtimePolicy : void 0;
 }
@@ -1917,6 +1980,24 @@ function validateRuntimePolicy(value) {
     throw new ConsensusCliUsageError(
       "Request JSON runtime_policy.env_allowlist must be a string array"
     );
+  }
+  for (const field of [
+    "read_paths",
+    "edit_paths",
+    "web_fetch_domains"
+  ]) {
+    if (value[field] !== void 0 && !isStringArray(value[field])) {
+      throw new ConsensusCliUsageError(
+        `Request JSON runtime_policy.${field} must be a string array`
+      );
+    }
+  }
+  for (const field of ["web_search"]) {
+    if (value[field] !== void 0 && typeof value[field] !== "boolean") {
+      throw new ConsensusCliUsageError(
+        `Request JSON runtime_policy.${field} must be a boolean`
+      );
+    }
   }
 }
 function validateHostContext(value) {
@@ -2127,9 +2208,11 @@ function buildAttemptSummary(attempts, retryable) {
 // src/plugins/consensus/provider-cli/probe.ts
 import { constants } from "node:fs";
 import { access as access2 } from "node:fs/promises";
-import path3 from "node:path";
+import path4 from "node:path";
 
 // src/plugins/consensus/provider-cli/runtime-policy.ts
+import { realpathSync, statSync } from "node:fs";
+import path3 from "node:path";
 var DEFAULT_RUNTIME_POLICY = {
   permission_mode: "non-interactive"
 };
@@ -2182,14 +2265,80 @@ function validateProviderOptions(request, capabilities) {
       "Provider does not support child environment allowlist extension."
     );
   }
+  const hasScopedTools = hasScopedToolAccess(policy);
+  if (hasScopedTools && request.provider !== "claude") {
+    return unsupported(
+      "runtime_policy.scoped_tools",
+      "Scoped tool grants are supported only by the Claude provider."
+    );
+  }
+  if (hasScopedTools && policy.permission_mode !== "non-interactive") {
+    return unsupported(
+      "runtime_policy.permission_mode",
+      "Scoped Claude tool grants require non-interactive permission mode."
+    );
+  }
+  for (const [field, paths] of [
+    ["read_paths", policy.read_paths],
+    ["edit_paths", policy.edit_paths]
+  ]) {
+    for (const filePath of paths ?? []) {
+      if (!path3.isAbsolute(filePath) || path3.normalize(filePath) !== filePath || filePath.split(path3.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires exact absolute paths without parent traversal or glob characters.`
+        );
+      }
+      try {
+        const target = statSync(filePath, { throwIfNoEntry: false });
+        if (target) {
+          if (!target.isFile() || realpathSync(filePath) !== filePath) {
+            return unsupported(
+              `runtime_policy.${field}`,
+              `${field} requires canonical regular-file targets, not directories or symlinks.`
+            );
+          }
+        } else if (field === "read_paths" || realpathSync(path3.dirname(filePath)) !== path3.dirname(filePath)) {
+          return unsupported(
+            `runtime_policy.${field}`,
+            `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
+          );
+        }
+      } catch {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
+        );
+      }
+    }
+  }
+  for (const domain of policy.web_fetch_domains ?? []) {
+    if (domain.length > 253 || !/^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
+      domain
+    )) {
+      return unsupported(
+        "runtime_policy.web_fetch_domains",
+        "WebFetch grants require exact domain names without schemes, ports, or wildcards."
+      );
+    }
+  }
   return { ok: true };
+}
+function hasScopedToolAccess(policy = {}) {
+  return Boolean(
+    policy.read_paths?.length || policy.edit_paths?.length || policy.web_search || policy.web_fetch_domains?.length
+  );
 }
 function defaultRuntimePolicy(policy = {}) {
   return {
     permission_mode: policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode,
     ...policy.sandbox ? { sandbox: policy.sandbox } : {},
     ...policy.approval_policy ? { approval_policy: policy.approval_policy } : {},
-    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {}
+    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {},
+    ...policy.read_paths ? { read_paths: policy.read_paths } : {},
+    ...policy.edit_paths ? { edit_paths: policy.edit_paths } : {},
+    ...policy.web_search ? { web_search: true } : {},
+    ...policy.web_fetch_domains ? { web_fetch_domains: policy.web_fetch_domains } : {}
   };
 }
 function buildChildEnvironment({
@@ -2363,13 +2512,13 @@ function nodeProbeCommandRunner(env = process.env, options = {}) {
   };
 }
 async function findExecutable(command, env) {
-  if (command.includes(path3.sep)) {
+  if (command.includes(path4.sep)) {
     return canExecute(command).then((ok) => ok ? command : void 0);
   }
   const pathValue = env.PATH ?? "";
-  for (const searchPath of pathValue.split(path3.delimiter)) {
+  for (const searchPath of pathValue.split(path4.delimiter)) {
     if (!searchPath) continue;
-    const candidate = path3.join(searchPath, command);
+    const candidate = path4.join(searchPath, command);
     if (await canExecute(candidate)) return candidate;
   }
   return void 0;
@@ -2537,12 +2686,12 @@ function matchesJsonType(value, type) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 import { readFile as readFile2, rm as rm3 } from "node:fs/promises";
-import path5 from "node:path";
+import path6 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/plugins/consensus/provider-cli/submit-capture.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
-import path4 from "node:path";
+import path5 from "node:path";
 var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
 var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
 var CONSENSUS_SUBMIT_CAPTURE_DIR = ".consensus/submit";
@@ -2581,10 +2730,10 @@ function submitCaptureLimitMessage(bytes, maxBytes) {
   return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
 }
 function submitCaptureDirectory(cwd) {
-  return path4.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
+  return path5.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
 }
 function submitCaptureFilePath(cwd, id = randomUUID3()) {
-  return path4.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
+  return path5.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts
@@ -2663,7 +2812,7 @@ async function runProviderTurn(request, dependencies = {}) {
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
-  const submitCaptureEnabled = dependencies.transport?.submitCaptureEnabled ?? true;
+  const submitCaptureEnabled = (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && hasScopedToolAccess(request.runtime_policy));
   const strategy = selectStructuredOutputStrategy(adapter, {
     submitCaptureEnabled,
     strategy: dependencies.transport?.strategy
@@ -2690,7 +2839,7 @@ async function runProviderTurn(request, dependencies = {}) {
         CONSENSUS_SUBMIT_COMMAND: submitCommand,
         CONSENSUS_SUBMIT_FILE: submitCapturePath,
         [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path5.resolve(request.schema_path)
+        CONSENSUS_SUBMIT_SCHEMA: path6.resolve(request.schema_path)
       } : {}
     }
   });
@@ -2733,6 +2882,7 @@ async function runProviderTurn(request, dependencies = {}) {
         },
         hostGuard.diagnostics,
         processResult.diagnostics,
+        permissionDenialDiagnostics(request.provider, processResult.stdout),
         exitClassificationDiagnostics(exitClassification)
       );
       if (!processResult.ok) {
@@ -2873,6 +3023,33 @@ async function runProviderTurn(request, dependencies = {}) {
       await cleanupSubmitCaptureFile(submitCapturePath);
     }
   }
+}
+function permissionDenialDiagnostics(provider, stdout) {
+  if (provider !== "claude") return void 0;
+  let result;
+  try {
+    result = JSON.parse(stdout);
+  } catch {
+    return void 0;
+  }
+  if (!isRecord3(result) || !Array.isArray(result.permission_denials)) {
+    return void 0;
+  }
+  const denials = result.permission_denials;
+  if (denials.length === 0) return void 0;
+  const tools = [
+    ...new Set(
+      denials.filter(isRecord3).map((denial) => denial.tool_name).filter(
+        (name) => typeof name === "string" && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name)
+      )
+    )
+  ];
+  return {
+    permission_denials: { count: denials.length, tools },
+    warnings: [
+      `Claude reported ${denials.length} denied tool call(s); verify task completeness independently of schema and transport success.`
+    ]
+  };
 }
 async function readJsonSchema(schemaPath) {
   return JSON.parse(await readFile2(schemaPath, "utf8"));
@@ -3045,7 +3222,7 @@ function buildConsensusSubmitCommand(input = {}) {
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
 }
 function currentConsensusCliPath() {
-  if (process.argv[1]) return path5.resolve(process.argv[1]);
+  if (process.argv[1]) return path6.resolve(process.argv[1]);
   return fileURLToPath(import.meta.url);
 }
 function shellQuote(value) {
@@ -3068,6 +3245,8 @@ Commands:
   run --provider <id> --schema <path> --json [-|--prompt <text>|--prompt-file <path>]
       [--model <name>] [--effort <level>]
       [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
+      [--allow-read <absolute-file>] [--allow-edit <absolute-file>]
+      [--allow-web-search] [--allow-web-fetch-domain <domain>] (Claude only; repeat grants)
       [--env-allow <name>] [--max-attempts <n>] [--timeout-sec <n>]
       [--max-output-bytes <n>] [--cwd <path>] [--max-depth <n>]
   run --request-json <path|-> --json
@@ -3643,7 +3822,7 @@ function readAllStdin(stdin, maxBytes) {
 }
 function isEntrypointPath(argvPath) {
   try {
-    return realpathSync(argvPath) === realpathSync(fileURLToPath2(import.meta.url));
+    return realpathSync2(argvPath) === realpathSync2(fileURLToPath2(import.meta.url));
   } catch (error) {
     const code = error.code;
     if (code === "ENOENT" || code === "ENOTDIR") return false;
