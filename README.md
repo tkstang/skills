@@ -57,7 +57,7 @@ but its skills are not. See
 **Consensus** asks provider-backed peers for independent work, rather than
 assigning several personas to one conversation. It offers artifact creation,
 planning, decisions, refinement, evaluation, one bounded independent review,
-panels without synthesis, and one-shot advice. Disagreement is preserved, and an impasse is a valid outcome.
+panels without synthesis, and advice from one peer (one-shot, or bounded follow-up rounds). Disagreement is preserved, and an impasse is a valid outcome.
 It also includes Observer and Collaborative Observer.
 
 **Session** offers addressed messaging, portable handoffs, sanitized transcript

@@ -27,6 +27,9 @@ export interface BuildProviderInvocationOptions {
   inlineJsonSchema?: string;
   lastMessageFile?: string;
   preserveLastMessageFile?: boolean;
+  // Continue this exact provider session. Callers validate the id and the
+  // adapter's verified continuation capability before building.
+  resumeSessionId?: string;
 }
 
 export type ProviderInvocationBuilder = (
@@ -44,6 +47,7 @@ export function buildProviderInvocation(
     inlineJsonSchema: options.inlineJsonSchema,
     lastMessageFile: options.lastMessageFile,
     preserveLastMessageFile: options.preserveLastMessageFile,
+    resumeSessionId: options.resumeSessionId,
   });
 }
 
@@ -77,6 +81,12 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
   if (claudePermissionMode) {
     argv.push('--permission-mode', claudePermissionMode);
     redactedArgv.push('--permission-mode', claudePermissionMode);
+  }
+  // Explicit same-session resume. Never `--continue` (latest in cwd) or
+  // `--fork-session` (new id); never `--no-session-persistence`.
+  if (options.resumeSessionId) {
+    argv.push('--resume', options.resumeSessionId);
+    redactedArgv.push('--resume', options.resumeSessionId);
   }
 
   const policy = request.runtime_policy;
@@ -139,7 +149,14 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
 ) => {
   const strategy = options.strategy ?? 'prompt_only';
   const lastMessageFile = options.lastMessageFile ?? codexLastMessageFile();
-  const argv = ['exec', '--json', '--output-last-message', lastMessageFile];
+  const resumeSessionId = options.resumeSessionId;
+  const argv = [
+    'exec',
+    ...(resumeSessionId ? ['resume'] : []),
+    '--json',
+    '--output-last-message',
+    lastMessageFile,
+  ];
   if (strategy === 'constrained_native') {
     argv.push('--output-schema', request.schema_path);
   }
@@ -151,7 +168,16 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
     );
   }
   if (request.runtime_policy?.sandbox) {
-    argv.push('--sandbox', request.runtime_policy.sandbox);
+    // `codex exec resume` rejects `--sandbox` (codex-cli 0.157.1), so resumed
+    // turns reapply the same policy through the config override.
+    if (resumeSessionId) {
+      argv.push(
+        '-c',
+        codexConfigOverride('sandbox_mode', request.runtime_policy.sandbox),
+      );
+    } else {
+      argv.push('--sandbox', request.runtime_policy.sandbox);
+    }
   }
   const approvalPolicy =
     request.runtime_policy?.approval_policy ??
@@ -161,6 +187,8 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
   if (approvalPolicy) {
     argv.push('-c', codexConfigOverride('approval_policy', approvalPolicy));
   }
+  // Resume takes the session positionally; `-` keeps the prompt on stdin.
+  if (resumeSessionId) argv.push(resumeSessionId, '-');
 
   return invocation({
     executable: 'codex',
@@ -177,11 +205,18 @@ export const buildCursorInvocation: ProviderInvocationBuilder = (
   request,
   options = {},
 ) => {
+  if (options.resumeSessionId) {
+    throw new Error(
+      'Cursor native resume is not verified for this adapter; use a reconstructed continuation.',
+    );
+  }
   const strategy =
     options.strategy === 'submit_tool_candidate'
       ? 'prompt_only'
       : (options.strategy ?? 'prompt_only');
-  const argv = ['--output-format', 'json', '--force'];
+  // `--output-format` only takes effect with `--print` (cursor-agent
+  // 2026.09.28 help); without it the CLI is not in headless JSON mode.
+  const argv = ['--print', '--output-format', 'json', '--force'];
 
   return invocation({
     executable: 'cursor-agent',

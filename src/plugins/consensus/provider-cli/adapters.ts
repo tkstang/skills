@@ -22,8 +22,20 @@ export interface ProviderAdapter {
   probe: ProviderProbeDefinition;
   classifyRunFailure: ProviderRunFailureClassifier;
   buildInvocation: ProviderInvocationBuilder;
+  extractSession: ProviderSessionExtractor;
   capabilities: ProviderCapabilities;
 }
+
+export interface ProviderSessionObservation {
+  session_id?: string;
+  observed_models?: string[];
+}
+
+// Reads provider machine output (JSON result or JSONL events). Never inspects
+// model-authored text, and never looks up a "latest" session.
+export type ProviderSessionExtractor = (
+  stdout: string,
+) => ProviderSessionObservation;
 
 export interface ProviderAdapterRegistry {
   list(): ProviderAdapter[];
@@ -77,6 +89,19 @@ const COMMON_UNSUPPORTED_OPTION_PATTERNS = [
   /invalid (?:option|flag|argument)/i,
 ] as const;
 
+const CLAUDE_SESSION_NOT_FOUND_PATTERNS = [
+  // Evidence: Claude Code 2.1.284 `--print --resume <unknown-uuid>` exits 1
+  // with this message (live check, 2026-09-28).
+  /No conversation found with session ID/i,
+] as const;
+
+const CODEX_SESSION_NOT_FOUND_PATTERNS = [
+  // Evidence: codex-cli 0.157.1 `exec resume <unknown-uuid> -` exits 1 with
+  // "thread/resume failed: no rollout found for thread id" (live check,
+  // 2026-09-28).
+  /no rollout found for thread id/i,
+] as const;
+
 const COMMON_TRANSIENT_EXIT_PATTERNS = [
   /\b429\b/i,
   /rate limit/i,
@@ -119,7 +144,9 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     display_name: 'Claude',
     executable: 'claude',
     buildInvocation: buildClaudeInvocation,
+    extractSession: extractJsonResultSession,
     classifyRunFailure: defaultRunFailureClassifier({
+      session_not_found_patterns: CLAUDE_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
       unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
@@ -156,6 +183,12 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       supports_submit_tool: false,
       supports_same_host_subprocess: true,
       supports_host_native_dispatch: false,
+      continuation: {
+        native_resume: 'verified',
+        session_id_source: 'stdout_json.session_id',
+        evidence:
+          'Live same-session smoke 2026-09-28 with Claude Code 2.1.284: `--print --output-format json --json-schema --resume <uuid>` recalled an unseen marker, preserved session_id, model, and schema. `--resume` also accepts a session title, so the wrapper requires a UUID.',
+      },
     },
   },
   {
@@ -163,7 +196,9 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     display_name: 'Codex',
     executable: 'codex',
     buildInvocation: buildCodexInvocation,
+    extractSession: extractCodexJsonlSession,
     classifyRunFailure: defaultRunFailureClassifier({
+      session_not_found_patterns: CODEX_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
       unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
@@ -206,6 +241,12 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       supports_submit_tool: false,
       supports_same_host_subprocess: true,
       supports_host_native_dispatch: false,
+      continuation: {
+        native_resume: 'verified',
+        session_id_source: 'jsonl.thread.started.thread_id',
+        evidence:
+          'Live same-session smoke 2026-09-28 with codex-cli 0.157.1: `exec resume --json --output-schema -c sandbox_mode=... <uuid> -` recalled an unseen marker with read-only sandbox and approval never. `exec resume` rejects `--sandbox`, and a non-UUID that matches no thread name silently starts a new thread, so the wrapper requires a UUID and verifies the returned thread_id.',
+      },
     },
   },
   {
@@ -213,7 +254,9 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     display_name: 'Cursor',
     executable: 'cursor-agent',
     buildInvocation: buildCursorInvocation,
+    extractSession: extractJsonResultSession,
     classifyRunFailure: defaultRunFailureClassifier({
+      session_not_found_patterns: [],
       auth_required_patterns: [
         ...COMMON_AUTH_REQUIRED_PATTERNS,
         /credential.*locked/i,
@@ -256,6 +299,12 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       supports_submit_tool: false,
       supports_same_host_subprocess: true,
       supports_host_native_dispatch: false,
+      continuation: {
+        native_resume: 'unverified',
+        session_id_source: 'stdout_json.session_id',
+        evidence:
+          'Cursor documents `--resume [chatId]` and a JSON result `session_id`. Raw CLI resume passed a same-session marker smoke on 2026-09-29 (cursor-agent 2026.09.28, cursor-grok-4.6-high, `--print --mode ask --sandbox enabled`, run by the user because agent shells cannot read the Cursor login). During that smoke a transport reconnect replayed each resumed turn, so its result held two answers. The wrapper path is not implemented, and the one-shot adapter runs with `--force`, which is not a safe continuation policy.',
+      },
     },
   },
 ];
@@ -287,6 +336,7 @@ export function defaultSchemaStrategy(
 }
 
 interface RunFailureClassifierPatterns {
+  session_not_found_patterns: readonly RegExp[];
   auth_required_patterns: readonly RegExp[];
   unavailable_patterns: readonly RegExp[];
   unsupported_option_patterns: readonly RegExp[];
@@ -316,6 +366,23 @@ function defaultRunFailureClassifier(
         retryable: true,
         terminal_reason: 'provider_exit_interrupted',
         exit_classification: 'interrupted',
+      };
+    }
+
+    // Checked before auth: an unknown session is a definitive pre-turn
+    // rejection, which is what makes a reconstructed fallback safe. Both CLIs
+    // print it to stderr with empty stdout; any stdout means the turn may have
+    // started, so peer text quoting the phrase never counts as a rejection.
+    if (
+      failure.stdout.trim() === '' &&
+      matchesAny(failure.stderr, patterns.session_not_found_patterns)
+    ) {
+      return {
+        code: 'PROVIDER_SESSION_NOT_FOUND',
+        message: outputLine ?? 'Provider could not find the requested session.',
+        retryable: false,
+        terminal_reason: 'provider_session_not_found',
+        exit_classification: 'terminal',
       };
     }
 
@@ -367,6 +434,55 @@ function defaultRunFailureClassifier(
       exit_classification: 'unknown',
     };
   };
+}
+
+export function extractJsonResultSession(
+  stdout: string,
+): ProviderSessionObservation {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stdout.trim());
+  } catch {
+    return {};
+  }
+  if (!isRecord(parsed)) return {};
+  const observation: ProviderSessionObservation = {};
+  if (typeof parsed.session_id === 'string' && parsed.session_id) {
+    observation.session_id = parsed.session_id;
+  }
+  if (isRecord(parsed.modelUsage)) {
+    const models = Object.keys(parsed.modelUsage);
+    if (models.length > 0) observation.observed_models = models;
+  }
+  return observation;
+}
+
+export function extractCodexJsonlSession(
+  stdout: string,
+): ProviderSessionObservation {
+  for (const line of stdout.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('{')) continue;
+    let event: unknown;
+    try {
+      event = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (
+      isRecord(event) &&
+      event.type === 'thread.started' &&
+      typeof event.thread_id === 'string' &&
+      event.thread_id
+    ) {
+      return { session_id: event.thread_id };
+    }
+  }
+  return {};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function terminalReasonForNonExitFailure(

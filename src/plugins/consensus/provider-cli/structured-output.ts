@@ -4,6 +4,14 @@ import { fileURLToPath } from 'node:url';
 
 import { providerRegistry } from './adapters.js';
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
+import {
+  consultationIdFor,
+  continuationMode,
+  continuationReceipt,
+  continuationUsageError,
+  reconstructedContinuationPrompt,
+} from './continuation.js';
+import type { ProviderTurnTrace } from './continuation.js';
 import { failureEnvelope, successEnvelope } from './envelope.js';
 import { evaluateHostGuard } from './host-guard.js';
 import { buildProviderInvocation } from './invocation.js';
@@ -27,6 +35,7 @@ import type { ProviderProcessResult } from './subprocess.js';
 import type {
   ConsensusCliRunEnvelope,
   ConsensusCliRunRequest,
+  ContinuationMode,
   ProviderDiagnostics,
   ProviderErrorCode,
   StructuredOutputStrategy,
@@ -79,6 +88,175 @@ export function selectStructuredOutputStrategy(
 export async function runProviderTurn(
   request: ConsensusCliRunRequest,
   dependencies: RunProviderTurnDependencies = {},
+): Promise<ConsensusCliRunEnvelope> {
+  const registry = dependencies.registry ?? providerRegistry();
+  const adapter = registry.get(request.provider);
+  const consultationId = consultationIdFor(request);
+  const mode = continuationMode(request);
+  const withReceipt = (
+    envelope: ConsensusCliRunEnvelope,
+    receiptMode: ContinuationMode,
+    trace: ProviderTurnTrace,
+    fallbackReason?: string,
+  ): ConsensusCliRunEnvelope => ({
+    ...envelope,
+    continuation: continuationReceipt({
+      request,
+      adapter,
+      mode: receiptMode,
+      consultationId,
+      trace,
+      fallbackReason,
+    }),
+  });
+
+  const usageError = continuationUsageError(request);
+  if (usageError) {
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: 'CONSENSUS_CLI_USAGE',
+        message: usageError,
+        terminalReason: 'continuation_usage',
+      }),
+      mode,
+      {},
+    );
+  }
+
+  const continuation = request.continuation;
+  const runReconstructed = async (
+    packet: string,
+    fallbackReason?: string,
+    rejected?: ConsensusCliRunEnvelope,
+  ) => {
+    const trace: ProviderTurnTrace = {};
+    const envelope = await runStructuredTurn(
+      {
+        ...request,
+        prompt: reconstructedContinuationPrompt(packet, fallbackReason),
+      },
+      dependencies,
+      trace,
+    );
+    return withReceipt(
+      rejected ? withRejectedResume(envelope, rejected) : envelope,
+      'reconstructed',
+      trace,
+      fallbackReason,
+    );
+  };
+
+  if (mode === 'reconstructed') {
+    return runReconstructed(request.prompt);
+  }
+  if (mode !== 'native-resume' || !continuation?.session_id) {
+    const trace: ProviderTurnTrace = {};
+    const envelope = await runStructuredTurn(request, dependencies, trace);
+    return withReceipt(envelope, 'new', trace);
+  }
+
+  const requestedSessionId = continuation.session_id;
+  const fallbackPacket =
+    continuation.fallback === 'reconstructed'
+      ? continuation.fallback_prompt
+      : undefined;
+  const resumeStatus = adapter?.capabilities.continuation?.native_resume;
+  if (adapter && resumeStatus !== 'verified') {
+    const reason = `native_resume_${resumeStatus ?? 'unsupported'}`;
+    if (fallbackPacket) return runReconstructed(fallbackPacket, reason);
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: 'PROVIDER_UNSUPPORTED_OPTION',
+        message: `Native resume is ${resumeStatus ?? 'unsupported'} for provider ${request.provider}; use --resume-fallback reconstructed with a continuation packet, or --continuation reconstructed.`,
+        terminalReason: reason,
+      }),
+      'native-resume',
+      {},
+    );
+  }
+
+  const trace: ProviderTurnTrace = {};
+  const envelope = await runStructuredTurn(request, dependencies, trace, {
+    resumeSessionId: requestedSessionId,
+  });
+  const receipt = continuationReceipt({
+    request,
+    adapter,
+    mode: 'native-resume',
+    consultationId,
+    trace,
+  });
+  // Only a definitive pre-turn rejection may fall back; anything that could
+  // have reached the session is reported instead of resubmitted.
+  if (
+    !envelope.ok &&
+    envelope.code === 'PROVIDER_SESSION_NOT_FOUND' &&
+    receipt.turn === 'not_started' &&
+    fallbackPacket
+  ) {
+    return runReconstructed(fallbackPacket, 'session_not_found', envelope);
+  }
+
+  // A resumed turn that did not report the requested session did not continue
+  // it (for example, a provider that silently opens a new thread). Refuse to
+  // present that advice as same-session continuation.
+  if (
+    receipt.turn === 'completed' &&
+    receipt.session_id !== requestedSessionId
+  ) {
+    return {
+      ...failureEnvelope({
+        provider: request.provider,
+        code: 'PROVIDER_SESSION_MISMATCH',
+        message: receipt.session_id
+          ? `Provider reported session ${receipt.session_id} instead of the requested ${requestedSessionId}; the turn was not a native resume.`
+          : `Provider output did not confirm the requested session ${requestedSessionId}.`,
+        retryable: false,
+        stdout: envelope.stdout,
+        stderr: envelope.stderr,
+        attempts: {
+          cli_attempts: envelope.attempts.cli_attempts,
+          terminal_reason: 'provider_session_mismatch',
+        },
+        diagnostics: envelope.diagnostics,
+      }),
+      continuation: receipt,
+    };
+  }
+  return { ...envelope, continuation: receipt };
+}
+
+// Keeps the rejected resume visible in attempt accounting and diagnostics.
+function withRejectedResume(
+  envelope: ConsensusCliRunEnvelope,
+  rejected: ConsensusCliRunEnvelope,
+): ConsensusCliRunEnvelope {
+  const note = `Native resume was rejected (${rejected.ok ? 'ok' : rejected.code}) before a turn started; a reconstructed session answered instead.`;
+  return {
+    ...envelope,
+    attempts: {
+      ...envelope.attempts,
+      cli_attempts:
+        envelope.attempts.cli_attempts + rejected.attempts.cli_attempts,
+    },
+    diagnostics: {
+      ...envelope.diagnostics,
+      warnings: [...(envelope.diagnostics?.warnings ?? []), note],
+    },
+  };
+}
+
+interface StructuredTurnOptions {
+  resumeSessionId?: string;
+}
+
+async function runStructuredTurn(
+  request: ConsensusCliRunRequest,
+  dependencies: RunProviderTurnDependencies,
+  trace: ProviderTurnTrace,
+  turnOptions: StructuredTurnOptions = {},
 ): Promise<ConsensusCliRunEnvelope> {
   const registry = dependencies.registry ?? providerRegistry();
   const adapter = registry.get(request.provider);
@@ -213,6 +391,7 @@ export async function runProviderTurn(
         lastMessageFile: dependencies.transport?.lastMessageFile,
         preserveLastMessageFile:
           dependencies.transport?.preserveLastMessageFile,
+        resumeSessionId: turnOptions.resumeSessionId,
       });
       lastInvocation = invocation;
       const processResult = await runSubprocess(invocation, {
@@ -220,6 +399,8 @@ export async function runProviderTurn(
         maxOutputBytes: request.max_output_bytes,
         timeoutSec: request.max_runtime_sec,
       });
+      trace.process = processResult;
+      trace.failure_code = undefined;
       const diagnostics = mergeDiagnostics(
         {
           strategy_used: strategy,
@@ -234,6 +415,7 @@ export async function runProviderTurn(
 
       if (!processResult.ok) {
         const classification = adapter.classifyRunFailure(processResult);
+        trace.failure_code = classification.code;
         exitClassification = classification.exit_classification;
         const failureDiagnostics = mergeDiagnostics(
           diagnostics,

@@ -55,6 +55,23 @@ export interface ProviderOptionCapabilities {
   runtime_policy: ProviderRuntimePolicyCapabilities;
 }
 
+export const NATIVE_RESUME_STATUSES = [
+  'verified',
+  'unverified',
+  'unsupported',
+] as const;
+
+export type NativeResumeStatus = (typeof NATIVE_RESUME_STATUSES)[number];
+
+// Evidence levels stay distinct: documented by the provider, accepted by the
+// installed CLI, and proven by a live same-session smoke through this wrapper.
+// Only `verified` lets `consensus run --resume` reach the provider.
+export interface ProviderContinuationCapability {
+  native_resume: NativeResumeStatus;
+  session_id_source: string;
+  evidence: string;
+}
+
 export interface ProviderCapabilities {
   schema_strategies: StructuredOutputStrategy[];
   output_modes: OutputMode[];
@@ -62,6 +79,7 @@ export interface ProviderCapabilities {
   supports_submit_tool: boolean;
   supports_same_host_subprocess: boolean;
   supports_host_native_dispatch: boolean;
+  continuation?: ProviderContinuationCapability;
   future_extension_kind?:
     | 'custom_command'
     | 'openai_compatible_base_url'
@@ -99,6 +117,32 @@ export interface ProviderRuntimePolicy {
   web_fetch_domains?: string[];
 }
 
+export const CONTINUATION_MODES = [
+  'new',
+  'native-resume',
+  'reconstructed',
+] as const;
+
+export type ContinuationMode = (typeof CONTINUATION_MODES)[number];
+
+export const RESUME_FALLBACK_POLICIES = ['error', 'reconstructed'] as const;
+
+export type ResumeFallbackPolicy = (typeof RESUME_FALLBACK_POLICIES)[number];
+
+export interface ContinuationRequest {
+  // `new` opens a consultation (round 1) under a caller-chosen consultation_id.
+  mode: ContinuationMode;
+  // native-resume: the exact provider session to continue. Never "latest".
+  session_id?: string;
+  // reconstructed: the predecessor provider session, when one exists.
+  previous_session_id?: string;
+  consultation_id?: string;
+  round?: number;
+  // native-resume only. `reconstructed` requires fallback_prompt.
+  fallback?: ResumeFallbackPolicy;
+  fallback_prompt?: string;
+}
+
 export interface ConsensusCliRunRequest {
   schema_version: 'v1';
   provider: ProviderId;
@@ -109,6 +153,7 @@ export interface ConsensusCliRunRequest {
   model?: string;
   effort?: string;
   runtime_policy?: ProviderRuntimePolicy;
+  continuation?: ContinuationRequest;
   max_attempts?: number;
   max_runtime_sec?: number;
   max_output_bytes?: number;
@@ -169,11 +214,38 @@ export const PROVIDER_ERROR_CODES = [
   'PROVIDER_SCHEMA_VALIDATION',
   'PROVIDER_TIMEOUT',
   'PROVIDER_OUTPUT_CAP_EXCEEDED',
+  'PROVIDER_SESSION_NOT_FOUND',
+  'PROVIDER_SESSION_MISMATCH',
   'HOST_RECURSION_BLOCKED',
   'CONSENSUS_CLI_USAGE',
 ] as const;
 
 export type ProviderErrorCode = (typeof PROVIDER_ERROR_CODES)[number];
+
+// `not_started`: the provider never received the turn. `completed`: the
+// provider process finished the turn (its output may still be unusable).
+// `unknown`: the process started but ended ambiguously (timeout, signal,
+// nonzero exit); do not resubmit before checking whether the turn landed.
+export type ContinuationTurnState = 'not_started' | 'completed' | 'unknown';
+
+export interface ContinuationReceipt {
+  mode: ContinuationMode;
+  provider: ProviderId;
+  // Captured from provider machine output only, never from model text.
+  session_id?: string;
+  requested_session_id?: string;
+  previous_session_id?: string;
+  consultation_id: string;
+  round?: number;
+  cwd: string;
+  requested_model?: string;
+  requested_effort?: string;
+  observed_models?: string[];
+  runtime_policy?: ProviderRuntimePolicy;
+  turn: ContinuationTurnState;
+  fallback_reason?: string;
+  capability?: ProviderContinuationCapability;
+}
 
 export interface ConsensusCliRunSuccess {
   schema_version: 'v1';
@@ -185,6 +257,7 @@ export interface ConsensusCliRunSuccess {
   json: unknown;
   attempts: AttemptSummary;
   diagnostics?: ProviderDiagnostics;
+  continuation?: ContinuationReceipt;
 }
 
 export interface ConsensusCliRunFailure {
@@ -198,6 +271,7 @@ export interface ConsensusCliRunFailure {
   stdout?: string;
   stderr?: string;
   diagnostics?: ProviderDiagnostics;
+  continuation?: ContinuationReceipt;
 }
 
 export type ConsensusCliRunEnvelope =

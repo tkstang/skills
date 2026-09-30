@@ -1,7 +1,14 @@
 import { detectHostRuntime, hostContextFromEnv } from './host-guard.js';
-import { PROVIDER_PREFLIGHT_CAPABILITIES } from './types.js';
+import {
+  CONTINUATION_MODES,
+  PROVIDER_PREFLIGHT_CAPABILITIES,
+  RESUME_FALLBACK_POLICIES,
+} from './types.js';
 import type {
   ConsensusCliRunRequest,
+  ContinuationMode,
+  ContinuationRequest,
+  ResumeFallbackPolicy,
   ProviderId,
   ProviderPreflightCapability,
 } from './types.js';
@@ -117,6 +124,17 @@ export interface ParsedRunCommand {
   editPaths?: string[];
   webSearch?: boolean;
   webFetchDomains?: string[];
+  continuation?: ParsedRunContinuation;
+}
+
+export interface ParsedRunContinuation {
+  mode: ContinuationMode;
+  sessionId?: string;
+  previousSessionId?: string;
+  consultationId?: string;
+  round?: number;
+  fallback?: ResumeFallbackPolicy;
+  fallbackPromptFile?: string;
 }
 
 export interface ParsedSubmitCommand {
@@ -221,8 +239,35 @@ export async function normalizeRunRequest(
   if (command.maxOutputBytes !== undefined) {
     request.max_output_bytes = command.maxOutputBytes;
   }
+  if (command.continuation) {
+    request.continuation = await normalizeContinuation(
+      command.continuation,
+      io,
+    );
+  }
 
   return request;
+}
+
+async function normalizeContinuation(
+  parsed: ParsedRunContinuation,
+  io: NormalizeRunRequestIo,
+): Promise<ContinuationRequest> {
+  const continuation: ContinuationRequest = { mode: parsed.mode };
+  if (parsed.sessionId !== undefined)
+    continuation.session_id = parsed.sessionId;
+  if (parsed.previousSessionId !== undefined) {
+    continuation.previous_session_id = parsed.previousSessionId;
+  }
+  if (parsed.consultationId !== undefined) {
+    continuation.consultation_id = parsed.consultationId;
+  }
+  if (parsed.round !== undefined) continuation.round = parsed.round;
+  if (parsed.fallback !== undefined) continuation.fallback = parsed.fallback;
+  if (parsed.fallbackPromptFile !== undefined) {
+    continuation.fallback_prompt = await io.readFile(parsed.fallbackPromptFile);
+  }
+  return continuation;
 }
 
 function parseProviderCommand(
@@ -506,6 +551,13 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
       '--allow-web-search',
       '--allow-web-fetch-domain',
       '--max-depth',
+      '--resume',
+      '--continuation',
+      '--previous-session',
+      '--consultation-id',
+      '--round',
+      '--resume-fallback',
+      '--fallback-prompt-file',
     ]),
     valueFlags: new Set([
       '--provider',
@@ -527,6 +579,13 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
       '--allow-edit',
       '--allow-web-fetch-domain',
       '--max-depth',
+      '--resume',
+      '--continuation',
+      '--previous-session',
+      '--consultation-id',
+      '--round',
+      '--resume-fallback',
+      '--fallback-prompt-file',
     ]),
   });
   requireJson(parsed.flags);
@@ -609,12 +668,85 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
   if (maxDepth) {
     command.maxDepth = parsePositiveInteger('--max-depth', maxDepth);
   }
+  const continuation = parseRunContinuation(parsed.flags);
+  if (continuation) command.continuation = continuation;
 
   if (command.requestJson) {
     assertNoRequestJsonConflicts(command, parsed.positionals.length);
   }
 
   return command;
+}
+
+// Continuation is explicit: `--resume <session-id>` targets one provider
+// session, `--continuation reconstructed` opens a new session from a
+// host-built packet. Nothing here selects a "latest" session.
+function parseRunContinuation(
+  flags: Map<string, string[]>,
+): ParsedRunContinuation | undefined {
+  const sessionId = singleValue(flags, '--resume');
+  const modeValue = singleValue(flags, '--continuation');
+  const previousSessionId = singleValue(flags, '--previous-session');
+  const consultationId = singleValue(flags, '--consultation-id');
+  const round = singleValue(flags, '--round');
+  const fallback = singleValue(flags, '--resume-fallback');
+  const fallbackPromptFile = singleValue(flags, '--fallback-prompt-file');
+  if (
+    [
+      sessionId,
+      modeValue,
+      previousSessionId,
+      consultationId,
+      round,
+      fallback,
+      fallbackPromptFile,
+    ].every((value) => value === undefined)
+  ) {
+    return undefined;
+  }
+
+  let mode: ContinuationMode;
+  if (modeValue === undefined) {
+    mode = sessionId === undefined ? 'new' : 'native-resume';
+  } else {
+    mode = parseContinuationMode(modeValue);
+    if (sessionId !== undefined && mode !== 'native-resume') {
+      throw new ConsensusCliUsageError(
+        `--resume cannot be combined with --continuation ${mode}`,
+      );
+    }
+  }
+
+  const continuation: ParsedRunContinuation = { mode };
+  assignIfDefined(continuation, 'sessionId', sessionId);
+  assignIfDefined(continuation, 'previousSessionId', previousSessionId);
+  assignIfDefined(continuation, 'consultationId', consultationId);
+  if (round !== undefined) {
+    continuation.round = parsePositiveInteger('--round', round);
+  }
+  if (fallback !== undefined) {
+    continuation.fallback = parseResumeFallback(fallback);
+  }
+  assignIfDefined(continuation, 'fallbackPromptFile', fallbackPromptFile);
+  return continuation;
+}
+
+function parseContinuationMode(value: string): ContinuationMode {
+  if (CONTINUATION_MODES.includes(value as ContinuationMode)) {
+    return value as ContinuationMode;
+  }
+  throw new ConsensusCliUsageError(
+    `Invalid --continuation: ${value} (expected ${CONTINUATION_MODES.join(', ')})`,
+  );
+}
+
+function parseResumeFallback(value: string): ResumeFallbackPolicy {
+  if (RESUME_FALLBACK_POLICIES.includes(value as ResumeFallbackPolicy)) {
+    return value as ResumeFallbackPolicy;
+  }
+  throw new ConsensusCliUsageError(
+    `Invalid --resume-fallback: ${value} (expected ${RESUME_FALLBACK_POLICIES.join(', ')})`,
+  );
 }
 
 function parseSubmitCommand(tokens: readonly string[]): ParsedSubmitCommand {
@@ -682,6 +814,7 @@ function assertNoRequestJsonConflicts(
     command.webSearch ? '--allow-web-search' : undefined,
     command.webFetchDomains ? '--allow-web-fetch-domain' : undefined,
     command.maxDepth !== undefined ? '--max-depth' : undefined,
+    command.continuation ? 'continuation flags' : undefined,
     positionalCount > 0 ? 'positional prompt' : undefined,
   ].filter(Boolean);
 
@@ -819,6 +952,7 @@ function parseRequestJson(contents: string): ConsensusCliRunRequest {
     'Request JSON max_output_bytes',
   );
   validateRuntimePolicy(parsed.runtime_policy);
+  validateContinuation(parsed.continuation);
   validateHostContext(parsed.host);
   validateRedaction(parsed.redaction);
 
@@ -874,6 +1008,43 @@ function validateRuntimePolicy(value: unknown) {
         `Request JSON runtime_policy.${field} must be a boolean`,
       );
     }
+  }
+}
+
+// Shape only; continuationUsageError owns cross-field rules for both CLI
+// flags and request JSON.
+function validateContinuation(value: unknown) {
+  if (value === undefined) return;
+  if (!isRecord(value)) {
+    throw new ConsensusCliUsageError(
+      'Request JSON continuation must be an object',
+    );
+  }
+  if (!CONTINUATION_MODES.includes(value.mode as ContinuationMode)) {
+    throw new ConsensusCliUsageError(
+      `Request JSON continuation.mode must be one of: ${CONTINUATION_MODES.join(', ')}`,
+    );
+  }
+  for (const key of [
+    'session_id',
+    'previous_session_id',
+    'consultation_id',
+    'fallback_prompt',
+  ]) {
+    validateOptionalStringField(value, key, `Request JSON continuation.${key}`);
+  }
+  validateOptionalPositiveInteger(
+    value,
+    'round',
+    'Request JSON continuation.round',
+  );
+  if (
+    value.fallback !== undefined &&
+    !RESUME_FALLBACK_POLICIES.includes(value.fallback as ResumeFallbackPolicy)
+  ) {
+    throw new ConsensusCliUsageError(
+      `Request JSON continuation.fallback must be one of: ${RESUME_FALLBACK_POLICIES.join(', ')}`,
+    );
   }
 }
 

@@ -8,7 +8,7 @@ import { readFile as readFile3, stat } from "node:fs/promises";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // src/plugins/consensus/provider-cli/commands.ts
-import { randomUUID as randomUUID4 } from "node:crypto";
+import { randomUUID as randomUUID5 } from "node:crypto";
 import { mkdir as mkdir2, rename as rename2, writeFile as writeFile2 } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
@@ -27,6 +27,12 @@ import path from "node:path";
 // src/plugins/consensus/provider-cli/types.ts
 var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
 var PROVIDER_PREFLIGHT_CAPABILITIES = ["run"];
+var CONTINUATION_MODES = [
+  "new",
+  "native-resume",
+  "reconstructed"
+];
+var RESUME_FALLBACK_POLICIES = ["error", "reconstructed"];
 
 // src/plugins/consensus/config/consensus-config.ts
 var BUILT_IN_PROVIDER_ORDER = ["claude", "codex"];
@@ -481,7 +487,8 @@ function buildProviderInvocation(adapter, request, options = {}) {
     strategy: options.strategy ?? defaultStrategy(adapter),
     inlineJsonSchema: options.inlineJsonSchema,
     lastMessageFile: options.lastMessageFile,
-    preserveLastMessageFile: options.preserveLastMessageFile
+    preserveLastMessageFile: options.preserveLastMessageFile,
+    resumeSessionId: options.resumeSessionId
   });
 }
 var buildClaudeInvocation = (request, options = {}) => {
@@ -511,6 +518,10 @@ var buildClaudeInvocation = (request, options = {}) => {
   if (claudePermissionMode) {
     argv.push("--permission-mode", claudePermissionMode);
     redactedArgv.push("--permission-mode", claudePermissionMode);
+  }
+  if (options.resumeSessionId) {
+    argv.push("--resume", options.resumeSessionId);
+    redactedArgv.push("--resume", options.resumeSessionId);
   }
   const policy = request.runtime_policy;
   const scopedTools = [
@@ -566,7 +577,14 @@ var buildClaudeInvocation = (request, options = {}) => {
 var buildCodexInvocation = (request, options = {}) => {
   const strategy = options.strategy ?? "prompt_only";
   const lastMessageFile = options.lastMessageFile ?? codexLastMessageFile();
-  const argv = ["exec", "--json", "--output-last-message", lastMessageFile];
+  const resumeSessionId = options.resumeSessionId;
+  const argv = [
+    "exec",
+    ...resumeSessionId ? ["resume"] : [],
+    "--json",
+    "--output-last-message",
+    lastMessageFile
+  ];
   if (strategy === "constrained_native") {
     argv.push("--output-schema", request.schema_path);
   }
@@ -578,12 +596,20 @@ var buildCodexInvocation = (request, options = {}) => {
     );
   }
   if (request.runtime_policy?.sandbox) {
-    argv.push("--sandbox", request.runtime_policy.sandbox);
+    if (resumeSessionId) {
+      argv.push(
+        "-c",
+        codexConfigOverride("sandbox_mode", request.runtime_policy.sandbox)
+      );
+    } else {
+      argv.push("--sandbox", request.runtime_policy.sandbox);
+    }
   }
   const approvalPolicy = request.runtime_policy?.approval_policy ?? (request.runtime_policy?.permission_mode === "non-interactive" ? "never" : void 0);
   if (approvalPolicy) {
     argv.push("-c", codexConfigOverride("approval_policy", approvalPolicy));
   }
+  if (resumeSessionId) argv.push(resumeSessionId, "-");
   return invocation({
     executable: "codex",
     argv,
@@ -595,8 +621,13 @@ var buildCodexInvocation = (request, options = {}) => {
   });
 };
 var buildCursorInvocation = (request, options = {}) => {
+  if (options.resumeSessionId) {
+    throw new Error(
+      "Cursor native resume is not verified for this adapter; use a reconstructed continuation."
+    );
+  }
   const strategy = options.strategy === "submit_tool_candidate" ? "prompt_only" : options.strategy ?? "prompt_only";
-  const argv = ["--output-format", "json", "--force"];
+  const argv = ["--print", "--output-format", "json", "--force"];
   return invocation({
     executable: "cursor-agent",
     argv,
@@ -1002,6 +1033,17 @@ var COMMON_UNSUPPORTED_OPTION_PATTERNS = [
   /unsupported (?:option|flag|argument)/i,
   /invalid (?:option|flag|argument)/i
 ];
+var CLAUDE_SESSION_NOT_FOUND_PATTERNS = [
+  // Evidence: Claude Code 2.1.284 `--print --resume <unknown-uuid>` exits 1
+  // with this message (live check, 2026-09-28).
+  /No conversation found with session ID/i
+];
+var CODEX_SESSION_NOT_FOUND_PATTERNS = [
+  // Evidence: codex-cli 0.157.1 `exec resume <unknown-uuid> -` exits 1 with
+  // "thread/resume failed: no rollout found for thread id" (live check,
+  // 2026-09-28).
+  /no rollout found for thread id/i
+];
 var COMMON_TRANSIENT_EXIT_PATTERNS = [
   /\b429\b/i,
   /rate limit/i,
@@ -1040,7 +1082,9 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     display_name: "Claude",
     executable: "claude",
     buildInvocation: buildClaudeInvocation,
+    extractSession: extractJsonResultSession,
     classifyRunFailure: defaultRunFailureClassifier({
+      session_not_found_patterns: CLAUDE_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
       unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
@@ -1076,7 +1120,12 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       },
       supports_submit_tool: false,
       supports_same_host_subprocess: true,
-      supports_host_native_dispatch: false
+      supports_host_native_dispatch: false,
+      continuation: {
+        native_resume: "verified",
+        session_id_source: "stdout_json.session_id",
+        evidence: "Live same-session smoke 2026-09-28 with Claude Code 2.1.284: `--print --output-format json --json-schema --resume <uuid>` recalled an unseen marker, preserved session_id, model, and schema. `--resume` also accepts a session title, so the wrapper requires a UUID."
+      }
     }
   },
   {
@@ -1084,7 +1133,9 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     display_name: "Codex",
     executable: "codex",
     buildInvocation: buildCodexInvocation,
+    extractSession: extractCodexJsonlSession,
     classifyRunFailure: defaultRunFailureClassifier({
+      session_not_found_patterns: CODEX_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
       unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
@@ -1126,7 +1177,12 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       },
       supports_submit_tool: false,
       supports_same_host_subprocess: true,
-      supports_host_native_dispatch: false
+      supports_host_native_dispatch: false,
+      continuation: {
+        native_resume: "verified",
+        session_id_source: "jsonl.thread.started.thread_id",
+        evidence: "Live same-session smoke 2026-09-28 with codex-cli 0.157.1: `exec resume --json --output-schema -c sandbox_mode=... <uuid> -` recalled an unseen marker with read-only sandbox and approval never. `exec resume` rejects `--sandbox`, and a non-UUID that matches no thread name silently starts a new thread, so the wrapper requires a UUID and verifies the returned thread_id."
+      }
     }
   },
   {
@@ -1134,7 +1190,9 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     display_name: "Cursor",
     executable: "cursor-agent",
     buildInvocation: buildCursorInvocation,
+    extractSession: extractJsonResultSession,
     classifyRunFailure: defaultRunFailureClassifier({
+      session_not_found_patterns: [],
       auth_required_patterns: [
         ...COMMON_AUTH_REQUIRED_PATTERNS,
         /credential.*locked/i
@@ -1176,7 +1234,12 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       },
       supports_submit_tool: false,
       supports_same_host_subprocess: true,
-      supports_host_native_dispatch: false
+      supports_host_native_dispatch: false,
+      continuation: {
+        native_resume: "unverified",
+        session_id_source: "stdout_json.session_id",
+        evidence: "Cursor documents `--resume [chatId]` and a JSON result `session_id`. Raw CLI resume passed a same-session marker smoke on 2026-09-29 (cursor-agent 2026.09.28, cursor-grok-4.6-high, `--print --mode ask --sandbox enabled`, run by the user because agent shells cannot read the Cursor login). During that smoke a transport reconnect replayed each resumed turn, so its result held two answers. The wrapper path is not implemented, and the one-shot adapter runs with `--force`, which is not a safe continuation policy."
+      }
     }
   }
 ];
@@ -1214,6 +1277,15 @@ ${failure2.message}`;
         retryable: true,
         terminal_reason: "provider_exit_interrupted",
         exit_classification: "interrupted"
+      };
+    }
+    if (failure2.stdout.trim() === "" && matchesAny(failure2.stderr, patterns.session_not_found_patterns)) {
+      return {
+        code: "PROVIDER_SESSION_NOT_FOUND",
+        message: outputLine ?? "Provider could not find the requested session.",
+        retryable: false,
+        terminal_reason: "provider_session_not_found",
+        exit_classification: "terminal"
       };
     }
     if (matchesAny(output, patterns.auth_required_patterns)) {
@@ -1260,6 +1332,43 @@ ${failure2.message}`;
       exit_classification: "unknown"
     };
   };
+}
+function extractJsonResultSession(stdout) {
+  let parsed;
+  try {
+    parsed = JSON.parse(stdout.trim());
+  } catch {
+    return {};
+  }
+  if (!isRecord2(parsed)) return {};
+  const observation = {};
+  if (typeof parsed.session_id === "string" && parsed.session_id) {
+    observation.session_id = parsed.session_id;
+  }
+  if (isRecord2(parsed.modelUsage)) {
+    const models = Object.keys(parsed.modelUsage);
+    if (models.length > 0) observation.observed_models = models;
+  }
+  return observation;
+}
+function extractCodexJsonlSession(stdout) {
+  for (const line of stdout.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("{")) continue;
+    let event;
+    try {
+      event = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (isRecord2(event) && event.type === "thread.started" && typeof event.thread_id === "string" && event.thread_id) {
+      return { session_id: event.thread_id };
+    }
+  }
+  return {};
+}
+function isRecord2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function terminalReasonForNonExitFailure(code) {
   if (code === "PROVIDER_MISSING") return "provider_missing";
@@ -1459,7 +1568,30 @@ async function normalizeRunRequest(command, io) {
   if (command.maxOutputBytes !== void 0) {
     request.max_output_bytes = command.maxOutputBytes;
   }
+  if (command.continuation) {
+    request.continuation = await normalizeContinuation(
+      command.continuation,
+      io
+    );
+  }
   return request;
+}
+async function normalizeContinuation(parsed, io) {
+  const continuation = { mode: parsed.mode };
+  if (parsed.sessionId !== void 0)
+    continuation.session_id = parsed.sessionId;
+  if (parsed.previousSessionId !== void 0) {
+    continuation.previous_session_id = parsed.previousSessionId;
+  }
+  if (parsed.consultationId !== void 0) {
+    continuation.consultation_id = parsed.consultationId;
+  }
+  if (parsed.round !== void 0) continuation.round = parsed.round;
+  if (parsed.fallback !== void 0) continuation.fallback = parsed.fallback;
+  if (parsed.fallbackPromptFile !== void 0) {
+    continuation.fallback_prompt = await io.readFile(parsed.fallbackPromptFile);
+  }
+  return continuation;
 }
 function parseProviderCommand(tokens) {
   const [subcommand, ...rest] = tokens;
@@ -1688,7 +1820,14 @@ function parseRunCommand(tokens) {
       "--allow-edit",
       "--allow-web-search",
       "--allow-web-fetch-domain",
-      "--max-depth"
+      "--max-depth",
+      "--resume",
+      "--continuation",
+      "--previous-session",
+      "--consultation-id",
+      "--round",
+      "--resume-fallback",
+      "--fallback-prompt-file"
     ]),
     valueFlags: /* @__PURE__ */ new Set([
       "--provider",
@@ -1709,7 +1848,14 @@ function parseRunCommand(tokens) {
       "--allow-read",
       "--allow-edit",
       "--allow-web-fetch-domain",
-      "--max-depth"
+      "--max-depth",
+      "--resume",
+      "--continuation",
+      "--previous-session",
+      "--consultation-id",
+      "--round",
+      "--resume-fallback",
+      "--fallback-prompt-file"
     ])
   });
   requireJson(parsed.flags);
@@ -1786,10 +1932,71 @@ function parseRunCommand(tokens) {
   if (maxDepth) {
     command.maxDepth = parsePositiveInteger("--max-depth", maxDepth);
   }
+  const continuation = parseRunContinuation(parsed.flags);
+  if (continuation) command.continuation = continuation;
   if (command.requestJson) {
     assertNoRequestJsonConflicts(command, parsed.positionals.length);
   }
   return command;
+}
+function parseRunContinuation(flags) {
+  const sessionId = singleValue(flags, "--resume");
+  const modeValue = singleValue(flags, "--continuation");
+  const previousSessionId2 = singleValue(flags, "--previous-session");
+  const consultationId = singleValue(flags, "--consultation-id");
+  const round = singleValue(flags, "--round");
+  const fallback = singleValue(flags, "--resume-fallback");
+  const fallbackPromptFile = singleValue(flags, "--fallback-prompt-file");
+  if ([
+    sessionId,
+    modeValue,
+    previousSessionId2,
+    consultationId,
+    round,
+    fallback,
+    fallbackPromptFile
+  ].every((value) => value === void 0)) {
+    return void 0;
+  }
+  let mode;
+  if (modeValue === void 0) {
+    mode = sessionId === void 0 ? "new" : "native-resume";
+  } else {
+    mode = parseContinuationMode(modeValue);
+    if (sessionId !== void 0 && mode !== "native-resume") {
+      throw new ConsensusCliUsageError(
+        `--resume cannot be combined with --continuation ${mode}`
+      );
+    }
+  }
+  const continuation = { mode };
+  assignIfDefined(continuation, "sessionId", sessionId);
+  assignIfDefined(continuation, "previousSessionId", previousSessionId2);
+  assignIfDefined(continuation, "consultationId", consultationId);
+  if (round !== void 0) {
+    continuation.round = parsePositiveInteger("--round", round);
+  }
+  if (fallback !== void 0) {
+    continuation.fallback = parseResumeFallback(fallback);
+  }
+  assignIfDefined(continuation, "fallbackPromptFile", fallbackPromptFile);
+  return continuation;
+}
+function parseContinuationMode(value) {
+  if (CONTINUATION_MODES.includes(value)) {
+    return value;
+  }
+  throw new ConsensusCliUsageError(
+    `Invalid --continuation: ${value} (expected ${CONTINUATION_MODES.join(", ")})`
+  );
+}
+function parseResumeFallback(value) {
+  if (RESUME_FALLBACK_POLICIES.includes(value)) {
+    return value;
+  }
+  throw new ConsensusCliUsageError(
+    `Invalid --resume-fallback: ${value} (expected ${RESUME_FALLBACK_POLICIES.join(", ")})`
+  );
 }
 function parseSubmitCommand(tokens) {
   const parsed = parseOptionTokens(tokens, {
@@ -1846,6 +2053,7 @@ function assertNoRequestJsonConflicts(command, positionalCount) {
     command.webSearch ? "--allow-web-search" : void 0,
     command.webFetchDomains ? "--allow-web-fetch-domain" : void 0,
     command.maxDepth !== void 0 ? "--max-depth" : void 0,
+    command.continuation ? "continuation flags" : void 0,
     positionalCount > 0 ? "positional prompt" : void 0
   ].filter(Boolean);
   if (conflicts.length > 0) {
@@ -1912,7 +2120,7 @@ function parseRequestJson(contents) {
       cause: String(error)
     });
   }
-  if (!isRecord2(parsed)) {
+  if (!isRecord3(parsed)) {
     throw new ConsensusCliUsageError("Request JSON must be an object");
   }
   if (parsed.schema_version !== "v1") {
@@ -1950,13 +2158,14 @@ function parseRequestJson(contents) {
     "Request JSON max_output_bytes"
   );
   validateRuntimePolicy(parsed.runtime_policy);
+  validateContinuation(parsed.continuation);
   validateHostContext(parsed.host);
   validateRedaction(parsed.redaction);
   return parsed;
 }
 function validateRuntimePolicy(value) {
   if (value === void 0) return;
-  if (!isRecord2(value)) {
+  if (!isRecord3(value)) {
     throw new ConsensusCliUsageError(
       "Request JSON runtime_policy must be an object"
     );
@@ -2000,9 +2209,40 @@ function validateRuntimePolicy(value) {
     }
   }
 }
+function validateContinuation(value) {
+  if (value === void 0) return;
+  if (!isRecord3(value)) {
+    throw new ConsensusCliUsageError(
+      "Request JSON continuation must be an object"
+    );
+  }
+  if (!CONTINUATION_MODES.includes(value.mode)) {
+    throw new ConsensusCliUsageError(
+      `Request JSON continuation.mode must be one of: ${CONTINUATION_MODES.join(", ")}`
+    );
+  }
+  for (const key of [
+    "session_id",
+    "previous_session_id",
+    "consultation_id",
+    "fallback_prompt"
+  ]) {
+    validateOptionalStringField(value, key, `Request JSON continuation.${key}`);
+  }
+  validateOptionalPositiveInteger(
+    value,
+    "round",
+    "Request JSON continuation.round"
+  );
+  if (value.fallback !== void 0 && !RESUME_FALLBACK_POLICIES.includes(value.fallback)) {
+    throw new ConsensusCliUsageError(
+      `Request JSON continuation.fallback must be one of: ${RESUME_FALLBACK_POLICIES.join(", ")}`
+    );
+  }
+}
 function validateHostContext(value) {
   if (value === void 0) return;
-  if (!isRecord2(value)) {
+  if (!isRecord3(value)) {
     throw new ConsensusCliUsageError("Request JSON host must be an object");
   }
   validateRequiredStringField(value, "runtime", "Request JSON host.runtime");
@@ -2017,7 +2257,7 @@ function validateHostContext(value) {
 }
 function validateRedaction(value) {
   if (value === void 0) return;
-  if (!isRecord2(value)) {
+  if (!isRecord3(value)) {
     throw new ConsensusCliUsageError(
       "Request JSON redaction must be an object"
     );
@@ -2138,7 +2378,7 @@ function parsePositiveInteger(flag, value) {
   }
   return Number(value);
 }
-function isRecord2(value) {
+function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -2378,6 +2618,15 @@ function buildProviderProbeEnvironment({
 }
 function providerEnvAllowlist(provider) {
   return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
+}
+function redactedRuntimePolicyDiagnostics(policy = {}) {
+  const effectivePolicy = defaultRuntimePolicy(policy);
+  return {
+    permission_mode: effectivePolicy.permission_mode,
+    ...effectivePolicy.sandbox ? { sandbox: effectivePolicy.sandbox } : {},
+    ...effectivePolicy.approval_policy ? { approval_policy: effectivePolicy.approval_policy } : {},
+    ...effectivePolicy.env_allowlist ? { env_allowlist: [...effectivePolicy.env_allowlist] } : {}
+  };
 }
 function validateOptionValue(option, value, supportedValues) {
   if (!value) return void 0;
@@ -2640,12 +2889,12 @@ function formatNumericVersion(version) {
 
 // src/plugins/consensus/provider-cli/schema-validate.ts
 function validateSchemaSubset(value, schema) {
-  if (!isRecord3(schema)) return { ok: true };
-  if (schema.type === "object" && !isRecord3(value)) {
+  if (!isRecord4(schema)) return { ok: true };
+  if (schema.type === "object" && !isRecord4(value)) {
     return { ok: false, message: "Expected provider JSON to be an object." };
   }
   if (Array.isArray(schema.required)) {
-    if (!isRecord3(value)) {
+    if (!isRecord4(value)) {
       return {
         ok: false,
         message: "Expected provider JSON to be an object with required fields."
@@ -2660,9 +2909,9 @@ function validateSchemaSubset(value, schema) {
       }
     }
   }
-  if (isRecord3(schema.properties) && isRecord3(value)) {
+  if (isRecord4(schema.properties) && isRecord4(value)) {
     for (const [field, fieldSchema] of Object.entries(schema.properties)) {
-      if (!(field in value) || !isRecord3(fieldSchema)) continue;
+      if (!(field in value) || !isRecord4(fieldSchema)) continue;
       const type = fieldSchema.type;
       if (typeof type === "string" && !matchesJsonType(value[field], type)) {
         return {
@@ -2674,24 +2923,153 @@ function validateSchemaSubset(value, schema) {
   }
   return { ok: true };
 }
-function isRecord3(value) {
+function isRecord4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function matchesJsonType(value, type) {
   if (type === "array") return Array.isArray(value);
-  if (type === "object") return isRecord3(value);
+  if (type === "object") return isRecord4(value);
   if (type === "integer") return Number.isInteger(value);
   return typeof value === type;
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 import { readFile as readFile2, rm as rm3 } from "node:fs/promises";
-import path6 from "node:path";
+import path7 from "node:path";
 import { fileURLToPath } from "node:url";
 
-// src/plugins/consensus/provider-cli/submit-capture.ts
+// src/plugins/consensus/provider-cli/continuation.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
 import path5 from "node:path";
+var UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var NOT_STARTED_FAILURE_CODES = [
+  "PROVIDER_MISSING",
+  "PROVIDER_AUTH_REQUIRED",
+  "PROVIDER_UNSUPPORTED_OPTION",
+  "PROVIDER_SESSION_NOT_FOUND"
+];
+function isProviderSessionId(value) {
+  return UUID_PATTERN.test(value);
+}
+function continuationMode(request) {
+  return request.continuation?.mode ?? "new";
+}
+function continuationUsageError(request) {
+  const continuation = request.continuation;
+  if (!continuation) return void 0;
+  const { mode } = continuation;
+  if (continuation.round !== void 0) {
+    if (!Number.isInteger(continuation.round) || continuation.round < 1) {
+      return "Continuation round must be a positive integer.";
+    }
+    if (mode === "new" && continuation.round !== 1) {
+      return "A new consultation starts at round 1; use --resume or --continuation reconstructed for later rounds.";
+    }
+    if (mode !== "new" && continuation.round < 2) {
+      return "A continuation round must be 2 or greater.";
+    }
+  }
+  if (continuation.consultation_id !== void 0 && continuation.consultation_id.trim() === "") {
+    return "Continuation consultation_id must be a non-empty string.";
+  }
+  if (mode !== "native-resume") {
+    if (continuation.session_id !== void 0) {
+      return `A ${mode} run cannot target an existing session; use --resume for native resume.`;
+    }
+    if (continuation.fallback !== void 0 || continuation.fallback_prompt !== void 0) {
+      return "Resume fallback options apply only to native resume (--resume).";
+    }
+  }
+  if (mode === "new" && continuation.previous_session_id !== void 0) {
+    return "A predecessor session implies a continuation; use --continuation reconstructed.";
+  }
+  if (mode === "reconstructed" && continuation.previous_session_id !== void 0 && continuation.previous_session_id.trim() === "") {
+    return "Previous session id must be a non-empty string.";
+  }
+  if (mode !== "native-resume") return void 0;
+  if (!continuation.session_id) {
+    return "Native resume requires an explicit provider session id.";
+  }
+  if (!isProviderSessionId(continuation.session_id)) {
+    return 'Native resume requires a provider session UUID; titles, names, and "latest" selectors are not accepted.';
+  }
+  if (continuation.previous_session_id !== void 0) {
+    return "Native resume continues the --resume session itself; --previous-session applies only to reconstructed continuation.";
+  }
+  if ((request.max_attempts ?? 1) > 1) {
+    return "Native resume is single-attempt: a failed or malformed turn may already be recorded in the session, so the wrapper never resubmits it.";
+  }
+  const fallback = continuation.fallback ?? "error";
+  const fallbackPrompt = continuation.fallback_prompt;
+  if (fallback === "error" && fallbackPrompt !== void 0) {
+    return "A fallback prompt requires --resume-fallback reconstructed.";
+  }
+  if (fallback === "reconstructed") {
+    if (!fallbackPrompt || fallbackPrompt.trim() === "") {
+      return "Reconstructed fallback requires a continuation packet (--fallback-prompt-file).";
+    }
+    if (fallbackPrompt.trim() === request.prompt.trim()) {
+      return "The fallback continuation packet must carry reconstructed context, not repeat the native follow-up prompt.";
+    }
+  }
+  return void 0;
+}
+function reconstructedContinuationPrompt(packet, fallbackReason) {
+  return [
+    "Continuation notice (added by the consensus wrapper):",
+    "- This is a NEW provider session. You have no memory of earlier rounds, and no earlier transcript is available to you.",
+    "- The host reconstructed the context below from earlier rounds. It is a summary, may be incomplete, and is not the original transcript.",
+    ...fallbackReason ? [
+      `- A native resume of the earlier session was requested but unavailable (${fallbackReason}).`
+    ] : [],
+    "- Judge the current candidate on its merits. Name material blockers, explain any disagreement, and state whether the exact candidate is acceptable. You are not obligated to agree.",
+    "",
+    packet
+  ].join("\n");
+}
+function turnStateFor(trace) {
+  if (!trace.process) return "not_started";
+  if (trace.process.ok) return "completed";
+  if (trace.process.stdout.trim() === "" && trace.failure_code && NOT_STARTED_FAILURE_CODES.includes(trace.failure_code)) {
+    return "not_started";
+  }
+  return "unknown";
+}
+function continuationReceipt(input) {
+  const { request, adapter, mode, trace } = input;
+  const observation = adapter && trace.process ? adapter.extractSession(trace.process.stdout) : {};
+  const continuation = request.continuation;
+  const round = continuation?.round ?? (mode === "new" && !input.fallbackReason ? 1 : void 0);
+  return {
+    mode,
+    provider: request.provider,
+    ...observation.session_id ? { session_id: observation.session_id } : {},
+    ...continuation?.mode === "native-resume" && continuation.session_id ? { requested_session_id: continuation.session_id } : {},
+    ...mode === "reconstructed" && previousSessionId(request) ? { previous_session_id: previousSessionId(request) } : {},
+    consultation_id: input.consultationId,
+    ...round !== void 0 ? { round } : {},
+    cwd: path5.resolve(request.cwd ?? process.cwd()),
+    ...request.model ? { requested_model: request.model } : {},
+    ...request.effort ? { requested_effort: request.effort } : {},
+    ...observation.observed_models ? { observed_models: observation.observed_models } : {},
+    runtime_policy: redactedRuntimePolicyDiagnostics(request.runtime_policy),
+    turn: turnStateFor(trace),
+    ...input.fallbackReason ? { fallback_reason: input.fallbackReason } : {},
+    ...adapter?.capabilities.continuation ? { capability: adapter.capabilities.continuation } : {}
+  };
+}
+function consultationIdFor(request) {
+  return request.continuation?.consultation_id ?? randomUUID3();
+}
+function previousSessionId(request) {
+  const continuation = request.continuation;
+  if (!continuation) return void 0;
+  return continuation.mode === "native-resume" ? continuation.session_id : continuation.previous_session_id;
+}
+
+// src/plugins/consensus/provider-cli/submit-capture.ts
+import { randomUUID as randomUUID4 } from "node:crypto";
+import path6 from "node:path";
 var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
 var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
 var CONSENSUS_SUBMIT_CAPTURE_DIR = ".consensus/submit";
@@ -2730,10 +3108,10 @@ function submitCaptureLimitMessage(bytes, maxBytes) {
   return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
 }
 function submitCaptureDirectory(cwd) {
-  return path5.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
+  return path6.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
 }
-function submitCaptureFilePath(cwd, id = randomUUID3()) {
-  return path5.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
+function submitCaptureFilePath(cwd, id = randomUUID4()) {
+  return path6.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts
@@ -2751,6 +3129,126 @@ function selectStructuredOutputStrategy(adapter, options = {}) {
   return "prompt_only";
 }
 async function runProviderTurn(request, dependencies = {}) {
+  const registry = dependencies.registry ?? providerRegistry();
+  const adapter = registry.get(request.provider);
+  const consultationId = consultationIdFor(request);
+  const mode = continuationMode(request);
+  const withReceipt = (envelope2, receiptMode, trace2, fallbackReason) => ({
+    ...envelope2,
+    continuation: continuationReceipt({
+      request,
+      adapter,
+      mode: receiptMode,
+      consultationId,
+      trace: trace2,
+      fallbackReason
+    })
+  });
+  const usageError = continuationUsageError(request);
+  if (usageError) {
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: usageError,
+        terminalReason: "continuation_usage"
+      }),
+      mode,
+      {}
+    );
+  }
+  const continuation = request.continuation;
+  const runReconstructed = async (packet, fallbackReason, rejected) => {
+    const trace2 = {};
+    const envelope2 = await runStructuredTurn(
+      {
+        ...request,
+        prompt: reconstructedContinuationPrompt(packet, fallbackReason)
+      },
+      dependencies,
+      trace2
+    );
+    return withReceipt(
+      rejected ? withRejectedResume(envelope2, rejected) : envelope2,
+      "reconstructed",
+      trace2,
+      fallbackReason
+    );
+  };
+  if (mode === "reconstructed") {
+    return runReconstructed(request.prompt);
+  }
+  if (mode !== "native-resume" || !continuation?.session_id) {
+    const trace2 = {};
+    const envelope2 = await runStructuredTurn(request, dependencies, trace2);
+    return withReceipt(envelope2, "new", trace2);
+  }
+  const requestedSessionId = continuation.session_id;
+  const fallbackPacket = continuation.fallback === "reconstructed" ? continuation.fallback_prompt : void 0;
+  const resumeStatus = adapter?.capabilities.continuation?.native_resume;
+  if (adapter && resumeStatus !== "verified") {
+    const reason = `native_resume_${resumeStatus ?? "unsupported"}`;
+    if (fallbackPacket) return runReconstructed(fallbackPacket, reason);
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: "PROVIDER_UNSUPPORTED_OPTION",
+        message: `Native resume is ${resumeStatus ?? "unsupported"} for provider ${request.provider}; use --resume-fallback reconstructed with a continuation packet, or --continuation reconstructed.`,
+        terminalReason: reason
+      }),
+      "native-resume",
+      {}
+    );
+  }
+  const trace = {};
+  const envelope = await runStructuredTurn(request, dependencies, trace, {
+    resumeSessionId: requestedSessionId
+  });
+  const receipt = continuationReceipt({
+    request,
+    adapter,
+    mode: "native-resume",
+    consultationId,
+    trace
+  });
+  if (!envelope.ok && envelope.code === "PROVIDER_SESSION_NOT_FOUND" && receipt.turn === "not_started" && fallbackPacket) {
+    return runReconstructed(fallbackPacket, "session_not_found", envelope);
+  }
+  if (receipt.turn === "completed" && receipt.session_id !== requestedSessionId) {
+    return {
+      ...failureEnvelope({
+        provider: request.provider,
+        code: "PROVIDER_SESSION_MISMATCH",
+        message: receipt.session_id ? `Provider reported session ${receipt.session_id} instead of the requested ${requestedSessionId}; the turn was not a native resume.` : `Provider output did not confirm the requested session ${requestedSessionId}.`,
+        retryable: false,
+        stdout: envelope.stdout,
+        stderr: envelope.stderr,
+        attempts: {
+          cli_attempts: envelope.attempts.cli_attempts,
+          terminal_reason: "provider_session_mismatch"
+        },
+        diagnostics: envelope.diagnostics
+      }),
+      continuation: receipt
+    };
+  }
+  return { ...envelope, continuation: receipt };
+}
+function withRejectedResume(envelope, rejected) {
+  const note = `Native resume was rejected (${rejected.ok ? "ok" : rejected.code}) before a turn started; a reconstructed session answered instead.`;
+  return {
+    ...envelope,
+    attempts: {
+      ...envelope.attempts,
+      cli_attempts: envelope.attempts.cli_attempts + rejected.attempts.cli_attempts
+    },
+    diagnostics: {
+      ...envelope.diagnostics,
+      warnings: [...envelope.diagnostics?.warnings ?? [], note]
+    }
+  };
+}
+async function runStructuredTurn(request, dependencies, trace, turnOptions = {}) {
   const registry = dependencies.registry ?? providerRegistry();
   const adapter = registry.get(request.provider);
   if (!adapter) {
@@ -2839,7 +3337,7 @@ async function runProviderTurn(request, dependencies = {}) {
         CONSENSUS_SUBMIT_COMMAND: submitCommand,
         CONSENSUS_SUBMIT_FILE: submitCapturePath,
         [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path6.resolve(request.schema_path)
+        CONSENSUS_SUBMIT_SCHEMA: path7.resolve(request.schema_path)
       } : {}
     }
   });
@@ -2866,7 +3364,8 @@ async function runProviderTurn(request, dependencies = {}) {
         strategy,
         inlineJsonSchema,
         lastMessageFile: dependencies.transport?.lastMessageFile,
-        preserveLastMessageFile: dependencies.transport?.preserveLastMessageFile
+        preserveLastMessageFile: dependencies.transport?.preserveLastMessageFile,
+        resumeSessionId: turnOptions.resumeSessionId
       });
       lastInvocation = invocation2;
       const processResult = await runSubprocess(invocation2, {
@@ -2874,6 +3373,8 @@ async function runProviderTurn(request, dependencies = {}) {
         maxOutputBytes: request.max_output_bytes,
         timeoutSec: request.max_runtime_sec
       });
+      trace.process = processResult;
+      trace.failure_code = void 0;
       const diagnostics = mergeDiagnostics(
         {
           strategy_used: strategy,
@@ -2887,6 +3388,7 @@ async function runProviderTurn(request, dependencies = {}) {
       );
       if (!processResult.ok) {
         const classification = adapter.classifyRunFailure(processResult);
+        trace.failure_code = classification.code;
         exitClassification = classification.exit_classification;
         const failureDiagnostics = mergeDiagnostics(
           diagnostics,
@@ -3032,14 +3534,14 @@ function permissionDenialDiagnostics(provider, stdout) {
   } catch {
     return void 0;
   }
-  if (!isRecord3(result) || !Array.isArray(result.permission_denials)) {
+  if (!isRecord4(result) || !Array.isArray(result.permission_denials)) {
     return void 0;
   }
   const denials = result.permission_denials;
   if (denials.length === 0) return void 0;
   const tools = [
     ...new Set(
-      denials.filter(isRecord3).map((denial) => denial.tool_name).filter(
+      denials.filter(isRecord4).map((denial) => denial.tool_name).filter(
         (name) => typeof name === "string" && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name)
       )
     )
@@ -3112,7 +3614,7 @@ async function cleanupSubmitCaptureFile(filePath) {
   }
 }
 function extractStructuredJsonValue(value) {
-  if (!isRecord3(value)) return value;
+  if (!isRecord4(value)) return value;
   if ("structured_output" in value) {
     return value.structured_output;
   }
@@ -3222,7 +3724,7 @@ function buildConsensusSubmitCommand(input = {}) {
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
 }
 function currentConsensusCliPath() {
-  if (process.argv[1]) return path6.resolve(process.argv[1]);
+  if (process.argv[1]) return path7.resolve(process.argv[1]);
   return fileURLToPath(import.meta.url);
 }
 function shellQuote(value) {
@@ -3249,6 +3751,10 @@ Commands:
       [--allow-web-search] [--allow-web-fetch-domain <domain>] (Claude only; repeat grants)
       [--env-allow <name>] [--max-attempts <n>] [--timeout-sec <n>]
       [--max-output-bytes <n>] [--cwd <path>] [--max-depth <n>]
+      [--consultation-id <id>] [--round <n>]
+      [--resume <session-uuid> [--resume-fallback error|reconstructed]
+        [--fallback-prompt-file <path>]]
+      [--continuation new|reconstructed [--previous-session <id>]]
   run --request-json <path|-> --json
 `;
 }
@@ -3677,7 +4183,7 @@ async function writeJsonFileAtomic(filePath, contents) {
   await mkdir2(directory, { recursive: true });
   const tempPath = join(
     directory,
-    `.${basename(filePath)}.${process.pid}.${randomUUID4()}.tmp`
+    `.${basename(filePath)}.${process.pid}.${randomUUID5()}.tmp`
   );
   await writeFile2(tempPath, contents, "utf8");
   await rename2(tempPath, filePath);

@@ -227,6 +227,74 @@ describe('provider adapter registry', () => {
     });
   });
 
+  it('reads session identity from provider machine output, not model text', () => {
+    const registry = providerRegistry();
+    const codexStdout = [
+      '{"type":"thread.started","thread_id":"0199f3a2-7c1e-7d40-9a55-3b6f0e2d8c41"}',
+      '{"type":"item.completed","item":{"type":"agent_message","text":"{\\"thread_id\\":\\"forged\\"}"}}',
+      '{"type":"turn.completed"}',
+    ].join('\n');
+    const claudeStdout = JSON.stringify({
+      type: 'result',
+      session_id: '5b1f7f9e-2c55-4a8e-9d0e-6c7a4f1e2b30',
+      result: '{"session_id":"forged"}',
+      modelUsage: { 'claude-fable-5-1': { inputTokens: 1 } },
+    });
+
+    expect(registry.get('codex')!.extractSession(codexStdout)).toEqual({
+      session_id: '0199f3a2-7c1e-7d40-9a55-3b6f0e2d8c41',
+    });
+    expect(registry.get('claude')!.extractSession(claudeStdout)).toEqual({
+      session_id: '5b1f7f9e-2c55-4a8e-9d0e-6c7a4f1e2b30',
+      observed_models: ['claude-fable-5-1'],
+    });
+    // A model that prints a session-shaped object is not provider metadata.
+    expect(
+      registry.get('codex')!.extractSession('{"session_id":"forged"}'),
+    ).toEqual({});
+  });
+
+  it.each([
+    [
+      'claude',
+      'Error: No conversation found with session ID: 0199f3a2-7c1e-7d40-9a55-3b6f0e2d8c41',
+    ],
+    [
+      'codex',
+      'Error: thread/resume failed: no rollout found for thread id 0199f3a2-7c1e-7d40-9a55-3b6f0e2d8c41',
+    ],
+  ] as const)(
+    'classifies a %s unknown-session rejection apart from auth failure',
+    (id, stderr) => {
+      const classify = providerRegistry().get(id)!.classifyRunFailure;
+
+      expect(classify(providerExitFailure({ stderr }))).toMatchObject({
+        code: 'PROVIDER_SESSION_NOT_FOUND',
+        retryable: false,
+      });
+      expect(
+        classify(providerExitFailure({ stderr: 'Error: not logged in' })).code,
+      ).toBe('PROVIDER_AUTH_REQUIRED');
+    },
+  );
+
+  it('verifies native resume only where a live same-session smoke passed', () => {
+    const status = Object.fromEntries(
+      providerRegistry()
+        .list()
+        .map((adapter) => [
+          adapter.id,
+          adapter.capabilities.continuation?.native_resume,
+        ]),
+    );
+
+    expect(status).toEqual({
+      claude: 'verified',
+      codex: 'verified',
+      cursor: 'unverified',
+    });
+  });
+
   it('uses adapter capabilities for default provider inventory entries', async () => {
     const envelope = await runProviderList();
 

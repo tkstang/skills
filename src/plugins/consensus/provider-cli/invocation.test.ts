@@ -210,9 +210,84 @@ describe('provider invocation builders', () => {
       output_mode: 'stdout_json',
       strategy: 'prompt_only',
     });
-    expect(invocation.argv).toEqual(['--output-format', 'json', '--force']);
+    expect(invocation.argv).toEqual([
+      '--print',
+      '--output-format',
+      'json',
+      '--force',
+    ]);
     expect(invocation.argv.join(' ')).not.toContain('ignored-model');
     expect(invocation.argv.join(' ')).not.toContain('ignored-effort');
+  });
+
+  it('resumes an exact Codex thread with stdin prompt and config-override sandbox', () => {
+    const invocation = buildInvocation(
+      'codex',
+      'constrained_native',
+      { runtime_policy: { sandbox: 'read-only', approval_policy: 'never' } },
+      { resumeSessionId: SESSION_ID },
+    );
+
+    // `codex exec resume` rejects `--sandbox` and takes the thread positionally.
+    expect(invocation.argv.slice(0, 2)).toEqual(['exec', 'resume']);
+    expect(invocation.argv.slice(-2)).toEqual([SESSION_ID, '-']);
+    expect(invocation.argv).not.toContain('--sandbox');
+    expect(invocation.argv).not.toContain('--last');
+    expect(invocation.argv).toEqual(
+      expect.arrayContaining([
+        '--json',
+        '--output-schema',
+        'schema.json',
+        '-c',
+        'sandbox_mode="read-only"',
+        '-c',
+        'approval_policy="never"',
+      ]),
+    );
+    expect(invocation.stdin).toBe('Sensitive prompt text.');
+  });
+
+  it('resumes an exact Claude session without latest, fork, or ephemeral flags', () => {
+    const invocation = buildInvocation(
+      'claude',
+      'provider_validated',
+      {
+        model: 'claude-fable-5-1',
+        runtime_policy: { permission_mode: 'read-only' },
+      },
+      { resumeSessionId: SESSION_ID },
+    );
+
+    expect(argumentAfter(invocation.argv, '--resume')).toBe(SESSION_ID);
+    expect(invocation.argv).toEqual(
+      expect.arrayContaining([
+        '--json-schema',
+        '--model',
+        'claude-fable-5-1',
+        '--permission-mode',
+        'plan',
+      ]),
+    );
+    for (const flag of [
+      '--continue',
+      '-c',
+      '--fork-session',
+      '--no-session-persistence',
+    ]) {
+      expect(invocation.argv).not.toContain(flag);
+    }
+    expect(invocation.argv.at(-1)).toBe('Sensitive prompt text.');
+  });
+
+  it('refuses to build an unverified Cursor resume', () => {
+    expect(() =>
+      buildInvocation(
+        'cursor',
+        'prompt_only',
+        {},
+        { resumeSessionId: SESSION_ID },
+      ),
+    ).toThrow(/not verified/);
   });
 
   it('keeps host-native dispatch unsupported for every first-scope invocation', () => {
@@ -228,6 +303,7 @@ function buildInvocation(
   id: 'claude' | 'codex' | 'cursor',
   strategy: StructuredOutputStrategy,
   overrides: Partial<ConsensusCliRunRequest> = {},
+  builderOptions: { resumeSessionId?: string } = {},
 ): ProviderInvocation {
   const adapter = providerRegistry().get(id);
   if (!adapter) throw new Error(`Missing adapter fixture: ${id}`);
@@ -247,9 +323,12 @@ function buildInvocation(
         id === 'claude' && strategy === 'provider_validated'
           ? schemaJson()
           : undefined,
+      ...builderOptions,
     },
   );
 }
+
+const SESSION_ID = '0199f3a2-7c1e-7d40-9a55-3b6f0e2d8c41';
 
 function argumentAfter(argv: string[], flag: string): string {
   const index = argv.indexOf(flag);

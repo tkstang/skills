@@ -14,7 +14,9 @@ The peer-workflow scope is intentionally narrow: eight peer skills, three
 iteration modes selected with `--iteration`, a configurable synthesizer, an
 agency-gated escalation ladder, sequential sections by default for refine,
 opt-in host-mediated parallel section orchestration, single-round neutral panel
-questions, and one-shot advisory consultation. The two observer skills are
+questions, and advisory consultation (one-shot by default, with bounded
+follow-up rounds that natively resume the peer session where verified or use a
+disclosed reconstructed continuation). The two observer skills are
 grouped here because observing and collaborating across providers is consensus
 behavior; they do not invoke the peer-deliberation loop. Future work may add
 `consensus-research`, a whole-document harmonization pass, multi-round panel
@@ -249,6 +251,14 @@ does not run a deliberation loop. The host infers or confirms the advisory
 question, compacts relevant context into a prompt file, prefers a peer provider
 different from the host, reads the schema-validated advisory payload, and
 dispositions the take before acting. Peer output is advisory only.
+
+When the user explicitly asks to keep going with the peer, for example "deliberate
+until you reach consensus", the host runs bounded follow-up rounds (3 calls and
+10 minutes by default). It continues the exact peer session with
+`consensus run --resume <session-uuid>` where native resume is verified (Claude
+and Codex). Otherwise it starts a disclosed reconstructed session with
+`--continuation reconstructed`. Each envelope carries a `continuation` receipt
+beside the advisory `json`.
 
 For the full host-facing workflow, see `skills/phone-a-friend/SKILL.md`. For the
 schema contract and manual QA walkthrough, see
