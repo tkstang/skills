@@ -42,6 +42,17 @@ export const pluginReleaseTargets: readonly PluginReleaseTarget[] = [
 // under src/skills. Generated payloads remain derivative build output.
 export const distributions: readonly DistributionDeclaration[] = [
   {
+    owner: 'author-skill',
+    source: 'src/skills/author-skill',
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'author-skill',
+        output: 'skills/author-skill',
+      },
+    ],
+  },
+  {
     owner: 'consensus-review',
     source: 'src/skills/consensus-review',
     allowedSourceRoots: [

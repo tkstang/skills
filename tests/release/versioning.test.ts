@@ -37,6 +37,7 @@ const MARKETPLACE_FILES_WITH_VERSIONS = [
   '.agents/plugins/marketplace.json',
 ];
 const skillFiles = [
+  'src/skills/author-skill/SKILL.md',
   'src/skills/session-fork-to-destination/SKILL.md',
   'src/skills/session-handoff/SKILL.md',
   'src/skills/complexity-review/SKILL.md',
@@ -55,6 +56,7 @@ const skillFiles = [
   'src/skills/phone-a-friend/SKILL.md',
 ];
 const generatedSkillFiles = [
+  'skills/author-skill/SKILL.md',
   'plugins/consensus/skills/refine/SKILL.md',
   'plugins/session/skills/export-transcript/SKILL.md',
   'plugins/session/skills/fork-to-destination/SKILL.md',
@@ -314,6 +316,7 @@ describe('release-versioning', () => {
   it('SKILL_FILES pins the current shipped skill set (update deliberately on change)', () => {
     expect([...SKILL_FILES].toSorted()).toEqual([
       'src/skills/agent-messaging/SKILL.md',
+      'src/skills/author-skill/SKILL.md',
       'src/skills/complexity-review/SKILL.md',
       'src/skills/consensus-review/SKILL.md',
       'src/skills/create/SKILL.md',

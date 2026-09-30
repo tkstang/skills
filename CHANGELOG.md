@@ -9,7 +9,16 @@
   WebSearch, and domain-scoped WebFetch. The skill now routes tool-using peers
   through a permission runbook while keeping advice-only calls short.
 
+- `author-skill` 1.3.1 standalone, instruction-only skill for creating,
+  revising, migrating, and reviewing agent skills using the target repository’s
+  authoring, versioning, distribution, and verification conventions. Promoted
+  from the 1.2.1 source while preserving its version history.
+
 ### Fixed
+
+- Refresh the `session` plugin manifest assertion for 0.3.5 and the copied
+  `agent-messaging` payload assertion for 1.0.25. The `agent-messaging` version
+  bump covers its colocated test edit; its runtime behavior is unchanged.
 
 - `consensus` plugin 0.2.5 surfaces Claude `permission_denials` as redacted
   count/tool-name diagnostics, avoids instructing a no-Bash scoped peer to

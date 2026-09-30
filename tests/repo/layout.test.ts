@@ -52,6 +52,7 @@ describe('repo-layout', () => {
 
     expect(standaloneSkills).toEqual([
       'agent-messaging',
+      'author-skill',
       'complexity-review',
       'consensus-review',
       'must-we',
@@ -80,6 +81,7 @@ describe('repo-layout', () => {
       'skills',
       path.posix.join('skills', 'session-observer-collab'),
       path.posix.join('skills', 'agent-messaging'),
+      path.posix.join('skills', 'author-skill'),
       path.posix.join('skills', 'session-observer-collab', 'references'),
       path.posix.join('skills', 'session-observer-collab', 'scripts'),
       path.posix.join('skills', 'session-export-transcript'),

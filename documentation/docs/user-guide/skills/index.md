@@ -8,8 +8,8 @@ description: 'Find independently installable skills by capability, including mem
 Session skills have canonical descriptive names and may be installed as
 standalone Agent Skills or through a plugin-local short name. Observation and
 collaboration live in the consensus plugin; retro, handoff, export, and
-destination fork guidance live in the session plugin. `next-steps`,
-`must-we`, and `complexity-review` are standalone only.
+destination fork guidance live in the session plugin. `author-skill`,
+`next-steps`, `must-we`, and `complexity-review` are standalone only.
 
 Choose by what the next session needs:
 
@@ -17,6 +17,7 @@ Choose by what the next session needs:
 | ----------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Understand what to do next and why                                            | [Next Steps](next-steps.md)                                   | A contextual recommendation that identifies the next justified action and who can take it, without executing it.                                                        |
 | Decide whether a requirement or proposal is necessary                         | [Must We?](must-we.md)                                        | An evidence-based verdict, consequence of skipping, and the smallest sufficient path.                                                                                   |
+| Create, revise, migrate, or review an agent skill                             | [Author Skill](author-skill.md)                               | A skill shaped by the target repository’s conventions, with focused verification and explicit live-evidence limits.                                                     |
 | Review one bounded branch diff, file set, or document independently           | [Consensus Review](../consensus/review.md)                    | Validated JSON and OAT-compatible Markdown with findings, provenance, checks, and explicit detection limits; no automatic fixes.                                        |
 | Learn from one skill invocation or a bounded session episode                  | [Session Retro](session-retro.md)                             | Evidence-backed findings and validation proposals; the review does not apply its own changes.                                                                           |
 | Let any agent or person continue the work                                     | [Session Handoff](session-handoff.md)                         | A concise, portable packet of goal, state, decisions, evidence, remaining work, and approval boundaries. It does not preserve native provider history or runtime state. |
@@ -33,6 +34,8 @@ and standalone choices.
   actions without executing them.
 - **must-we** — evaluate whether a blocker, requirement, or proposed action is
   necessary and identify a smaller path when warranted.
+- **author-skill** — create, revise, migrate, or review a skill using the target
+  repository’s source, distribution, version, and verification conventions.
 - **session-retro** (session-local `retro`) — review a bounded episode and
   report evidence-backed findings; the complete workflow requires
   **session-export-transcript** (session-local `export-transcript`).
@@ -72,6 +75,7 @@ and standalone choices.
 
 ### Review and improve
 
+- [Author Skill](author-skill.md) - Create, revise, migrate, or review a skill using the target repository’s conventions.
 - [Consensus Review](../consensus/review.md) - Review a branch diff, selected files, or one document through one independent provider invocation.
 - [Complexity Review](complexity-review.md) - Decide whether each piece of machinery in a plan or implementation is justified by the contract, and get the minimum sufficient version.
 - [Session Retro](session-retro.md) - Review one invocation or bounded episode without applying findings; requires Session Export Transcript and is available standalone or as Session `retro`.

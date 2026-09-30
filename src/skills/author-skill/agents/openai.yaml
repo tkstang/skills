@@ -1,0 +1,6 @@
+interface:
+  display_name: "Author Skill"
+  short_description: "Create, revise, and review repository skills"
+  default_prompt: "Use $author-skill to author or review this skill using the repository's conventions."
+policy:
+  allow_implicit_invocation: true

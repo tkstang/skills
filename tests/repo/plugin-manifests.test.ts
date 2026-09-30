@@ -28,7 +28,7 @@ const plugins = [
   },
   {
     name: 'session',
-    version: '0.3.4',
+    version: '0.3.5',
     description:
       'Session messaging, retrospective, handoff, transcript export, and destination-fork guidance for coding-agent conversations.',
     skills: [

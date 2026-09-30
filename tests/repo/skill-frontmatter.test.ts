@@ -33,6 +33,14 @@ const collaborationSkillPath = new URL(
   '../../src/skills/session-observer-collab/SKILL.md',
   import.meta.url,
 );
+const authorSkillPath = new URL(
+  '../../skills/author-skill/SKILL.md',
+  import.meta.url,
+);
+const authorSkillOpenAiPath = new URL(
+  '../../skills/author-skill/agents/openai.yaml',
+  import.meta.url,
+);
 const skillPaths = [
   refineSkillPath,
   evaluateSkillPath,
@@ -76,6 +84,20 @@ function expectSoleMetadataVersion(block: string) {
 }
 
 describe('skill-frontmatter', () => {
+  it('generated author-skill allows implicit and explicit invocation', async () => {
+    const block = frontmatter(await readFile(authorSkillPath, 'utf8'));
+    const openAiConfig = await readFile(authorSkillOpenAiPath, 'utf8');
+    const policy = openAiConfig.match(/^policy:\s*\n((?:[ \t]+[^\n]*\n?)*)/m);
+
+    expect(field(block, 'disable-model-invocation')).toBe('false');
+    expect(field(block, 'user-invocable')).toBe('true');
+    expect(
+      policy,
+      'agents/openai.yaml should have a top-level policy',
+    ).toBeTruthy();
+    expect(policy![1]).toMatch(/^  allow_implicit_invocation:\s*true\s*$/m);
+  });
+
   it.each(skillPaths)(
     '%s frontmatter is portable, provider-cli aware, and versioned',
     async (skillPath) => {

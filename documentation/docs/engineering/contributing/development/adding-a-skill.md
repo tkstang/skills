@@ -5,6 +5,11 @@ description: 'A practical recipe for adding canonical prompt-only or executable 
 
 # Adding a skill or distribution
 
+Use [Author Skill](../../../user-guide/skills/author-skill.md) when creating,
+revising, migrating, or reviewing a skill. It first identifies the target
+repository’s conventions. The steps below are the concrete source and build
+rules for this repository.
+
 Start with one editable owner under `src/skills/<canonical-name>/`. The
 distribution catalog then declares each installation form that the repository
 actually supports. Do not create a second authored copy under `skills/` or
