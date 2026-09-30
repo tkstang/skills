@@ -30,7 +30,7 @@ import {
 // in `./cli-helpers-core.js` and is re-exported below, so this module's export
 // surface is unchanged for existing consumers. Panel imports the loop-free core
 // directly to keep its own `PanelError`/`PANEL_EXIT_CODES` decoupling; see
-// `src/skills/panel/src/consensus-panel.ts` and
+// `src/skills/consensus-panel/src/consensus-panel.ts` and
 // `tests/tooling/shared-cli-helpers-guard.test.ts`.
 export {
   encodePromptBlockData,

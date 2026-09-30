@@ -1,6 +1,6 @@
-// GENERATED skill payload for panel.
+// GENERATED skill payload for consensus-panel.
 
-// src/skills/panel/src/consensus-panel.ts
+// src/skills/consensus-panel/src/consensus-panel.ts
 import { spawn } from "node:child_process";
 import { randomUUID as randomUUID2 } from "node:crypto";
 import { existsSync, realpathSync } from "node:fs";
@@ -488,7 +488,7 @@ function providerInventoryEntries(envelope) {
   );
 }
 
-// src/skills/panel/src/consensus-panel.ts
+// src/skills/consensus-panel/src/consensus-panel.ts
 var PANEL_QUESTION_SIZE_CAP_BYTES = 1024 * 1024;
 var PANEL_EXIT_CODES = Object.freeze({
   USAGE: 64,

@@ -15,7 +15,7 @@ Run commands from the repository root unless noted otherwise.
   changed.
 - After changing the generated provider CLI at
   `plugins/consensus/scripts/consensus.mjs` or canonical source under
-  `src/plugins/consensus/`, `src/skills/refine/`, or `src/skills/evaluate/`.
+  `src/plugins/consensus/`, `src/skills/consensus-refine/`, or `src/skills/consensus-evaluate/`.
 
 ## Prerequisites
 

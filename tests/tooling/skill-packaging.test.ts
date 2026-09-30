@@ -168,6 +168,111 @@ function documentedObserverPreflight(
 }
 
 describe('declared skill packaging', () => {
+  it('runs the standalone Phone provider helper from an isolated install', async () => {
+    const declaration = distributions.find(
+      (entry) => entry.owner === 'phone-a-friend',
+    );
+    expect(declaration).toBeDefined();
+    const built = await buildDeclaredDistributions({
+      repoRoot: repositoryRoot,
+      declarations: [declaration!],
+    });
+    try {
+      const standalone = built.find(
+        (unit) => unit.target.kind === 'standalone',
+      );
+      expect(standalone).toBeDefined();
+      const root = await fixtureRoot();
+      const installed = path.join(root, 'installed/phone-a-friend');
+      const project = path.join(root, 'project');
+      const home = path.join(root, 'home');
+      const bin = path.join(root, 'bin');
+      await Promise.all(
+        [project, home, bin].map((directory) =>
+          mkdir(directory, { recursive: true }),
+        ),
+      );
+      await cp(standalone!.stagedPath, installed, { recursive: true });
+      await write(
+        root,
+        'bin/codex',
+        `#!/usr/bin/env node
+import { writeFileSync } from 'node:fs';
+const args = process.argv.slice(2);
+if (args[0] === '--version') {
+  process.stdout.write('codex 9.9.9\\n');
+} else if (args[0] === 'exec' && args[1] === '--help') {
+  process.stdout.write('--json --output-last-message --output-schema\\n');
+} else if (args[0] === 'exec') {
+  const capture = args[args.indexOf('--output-last-message') + 1];
+  if (!capture || args.includes('--output-schema')) process.exit(64);
+  writeFileSync(capture, JSON.stringify({
+    schema_version: 'v1',
+    understood_question: 'Where should cache ownership live?',
+    take: 'Keep it with the registry loader.',
+    recommendation: 'Keep cache ownership with the registry loader.',
+    risks: [],
+    follow_up_questions: [],
+    confidence: 'high'
+  }));
+  process.stdout.write('{"type":"turn.completed"}\\n');
+} else {
+  process.exit(2);
+}
+`,
+      );
+      await chmod(path.join(bin, 'codex'), 0o755);
+      const env = {
+        HOME: home,
+        PATH: `${bin}${path.delimiter}${path.dirname(process.execPath)}`,
+        CONSENSUS_PARENT_HOST: 'claude',
+        CONSENSUS_DEPTH: '0',
+      };
+      const helper = path.join(installed, 'scripts/consensus.mjs');
+      const inventory = JSON.parse(
+        (
+          await execFileAsync(
+            process.execPath,
+            [helper, 'provider', 'ls', '--json'],
+            { cwd: project, env },
+          )
+        ).stdout,
+      ) as { providers: Array<{ id: string; status: string }> };
+      expect(
+        inventory.providers.find((provider) => provider.id === 'codex'),
+      ).toMatchObject({ id: 'codex', status: 'ready' });
+      const advisory = JSON.parse(
+        (
+          await execFileAsync(
+            process.execPath,
+            [
+              helper,
+              'run',
+              '--provider',
+              'codex',
+              '--schema',
+              path.join(installed, 'schemas/advisory.schema.json'),
+              '--prompt',
+              'Where should cache ownership live?',
+              '--json',
+              '--max-depth',
+              '1',
+            ],
+            { cwd: project, env },
+          )
+        ).stdout,
+      ) as { ok: boolean; json?: { recommendation?: string } };
+      expect(advisory).toMatchObject({
+        ok: true,
+        json: {
+          recommendation: 'Keep cache ownership with the registry loader.',
+        },
+      });
+    } finally {
+      await cleanupBuiltDistributions(built);
+    }
+  });
+
   it('renders prompt-only standalone and plugin names without build machinery', async () => {
     const root = await fixtureRoot();
     await promptSkill(root, 'example');
@@ -1193,17 +1298,17 @@ process.stdout.write(JSON.stringify(result));
     }
     await write(
       root,
-      'src/skills/create/build.json',
+      'src/skills/consensus-create/build.json',
       '{"runtime":["src/consensus-create-cli.ts","src/consensus.ts"]}\n',
     );
     await write(
       root,
-      'src/skills/create/src/consensus-create-cli.ts',
+      'src/skills/consensus-create/src/consensus-create-cli.ts',
       "import { runCreateCli } from './consensus-create.js';\nprocess.exitCode = await runCreateCli(process.argv.slice(2));\n",
     );
     await write(
       root,
-      'src/skills/create/src/consensus.ts',
+      'src/skills/consensus-create/src/consensus.ts',
       "import { readFile } from 'node:fs/promises';\nimport { runConsensusCli } from '../../../plugins/consensus/provider-cli/commands.js';\nconst io = { stdout: process.stdout, stderr: process.stderr, stdin: process.stdin, cwd: process.cwd(), env: process.env, readFile: (filePath: string) => readFile(filePath, 'utf8'), readStdin: async () => '' };\nprocess.exitCode = await runConsensusCli(process.argv.slice(2), io);\n",
     );
 
@@ -1238,7 +1343,7 @@ process.stdout.write(JSON.stringify(result));
           allowedSourceRoots: declaration.allowedSourceRoots,
           requiredSkills: declaration.requiredSkills,
           targets: [
-            ...(declaration.owner === 'create'
+            ...(declaration.owner === 'consensus-create'
               ? [
                   {
                     kind: 'standalone' as const,

@@ -6,13 +6,13 @@ import { expect, it } from 'vitest';
 const repoRoot = path.resolve(new URL('../../../..', import.meta.url).pathname);
 
 const loopUsingSkills = [
-  'create',
-  'decide',
-  'evaluate',
-  'plan',
-  'refine',
+  'consensus-create',
+  'consensus-decide',
+  'consensus-evaluate',
+  'consensus-plan',
+  'consensus-refine',
 ] as const;
-const canonicalSkill = 'refine';
+const canonicalSkill = 'consensus-refine';
 
 function schemasDir(skill: (typeof loopUsingSkills)[number]) {
   return path.join(repoRoot, 'src/skills', skill, 'schemas');

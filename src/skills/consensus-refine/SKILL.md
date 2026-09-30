@@ -1,5 +1,5 @@
 ---
-name: refine
+name: consensus-refine
 description: Use when refining a draft and you want two AI peers to deliberate to convergence with structured verdicts, a final artifact, and a readable audit trail.
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: <input-artifact.md> [--goal "<refinement goal>"]
 metadata:
   author: Thomas Stang
-  version: '0.1.23'
+  version: '0.1.24'
 ---
 
 # Refine

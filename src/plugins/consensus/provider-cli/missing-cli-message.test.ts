@@ -4,11 +4,11 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { runConsensusCreate } from '../../../skills/create/src/consensus-create.js';
-import { runConsensusDecide } from '../../../skills/decide/src/consensus-decide.js';
-import { runConsensusEvaluate } from '../../../skills/evaluate/src/consensus-evaluate.js';
-import { runConsensusPlan } from '../../../skills/plan/src/consensus-plan.js';
-import { runSequential } from '../../../skills/refine/src/consensus-refine.js';
+import { runConsensusCreate } from '../../../skills/consensus-create/src/consensus-create.js';
+import { runConsensusDecide } from '../../../skills/consensus-decide/src/consensus-decide.js';
+import { runConsensusEvaluate } from '../../../skills/consensus-evaluate/src/consensus-evaluate.js';
+import { runConsensusPlan } from '../../../skills/consensus-plan/src/consensus-plan.js';
+import { runSequential } from '../../../skills/consensus-refine/src/consensus-refine.js';
 import {
   consensusProviderCliMissingError,
   consensusSharedCliPath,

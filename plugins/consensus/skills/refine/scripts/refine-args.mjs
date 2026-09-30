@@ -1,4 +1,4 @@
-// GENERATED skill payload for refine.
+// GENERATED skill payload for consensus-refine.
 
 // src/plugins/consensus/core/consensus-loop.ts
 import { mkdir as mkdir3, readFile as readFile2 } from "node:fs/promises";
@@ -152,7 +152,7 @@ var BASE_DECISION_KINDS = Object.freeze([
   "extend_budget"
 ]);
 
-// src/skills/refine/src/refine-shared.ts
+// src/skills/consensus-refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
   lstat as lstat3,
@@ -171,7 +171,7 @@ function isJsonRecord3(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-// src/skills/refine/src/refine-args.ts
+// src/skills/consensus-refine/src/refine-args.ts
 var PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/u;
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;

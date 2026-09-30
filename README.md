@@ -19,7 +19,9 @@ installation and available capabilities vary by host.
 | Observe another session or collaborate across two sessions                 | [Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer/) or [Collaborative Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer-collab/) |
 
 Plugins group related capabilities; standalone skills let you install one
-capability. Where both forms exist, they share one implementation and one guide.
+capability. Consensus `phone-a-friend` and `review` also have standalone forms;
+the other six peer workflows are plugin-only. Where both forms exist, they
+share one implementation and one guide.
 Choose one form of a skill to avoid duplicate entries in your agent.
 
 ## Try one skill

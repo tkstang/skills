@@ -320,7 +320,7 @@ describe('generated output drift guard', () => {
       }
       // The collapsed globs must not swallow authored source.
       for (const authored of [
-        'src/skills/panel/src/consensus-panel.ts',
+        'src/skills/consensus-panel/src/consensus-panel.ts',
         'src/plugins/consensus/provider-cli/submit.ts',
         'plugins/consensus/scripts/authored-example.mjs',
       ]) {

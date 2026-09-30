@@ -12,7 +12,9 @@ describe('generated consensus-evaluate import', () => {
       'utf8',
     );
 
-    expect(source).toContain('// GENERATED skill payload for evaluate.');
+    expect(source).toContain(
+      '// GENERATED skill payload for consensus-evaluate.',
+    );
     expect(source).not.toMatch(/from\s+['"]\.\.?\//);
     expect(source).not.toContain('../core/');
   });

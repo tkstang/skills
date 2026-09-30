@@ -1,6 +1,6 @@
-// GENERATED skill payload for create.
+// GENERATED skill payload for consensus-create.
 
-// src/skills/create/src/consensus-create.ts
+// src/skills/consensus-create/src/consensus-create.ts
 import { realpathSync } from "node:fs";
 import { lstat as lstat3, readFile as readFile4, realpath as realpath2, stat } from "node:fs/promises";
 import path7 from "node:path";
@@ -3417,7 +3417,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
   };
 }
 
-// src/skills/create/src/consensus-create.ts
+// src/skills/consensus-create/src/consensus-create.ts
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 var DEFAULT_CREATE_GOAL = "Create a new artifact from the brief.";
 function parseAgency(value) {

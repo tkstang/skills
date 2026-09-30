@@ -39,6 +39,9 @@ does not establish live provider discovery or permission behavior.
 - Verify the intended standalone skills through `npx skills add <username>/skills`
   discovery and an isolated install. Do not infer every authored skill is
   standalone; only declarations in `src/distributions.ts` produce that form.
+  Check `phone-a-friend` separately as a standalone skill and as a Consensus
+  plugin member, including its bundled helper, external provider CLI, and
+  host-specific invocation. The other six deliberation workflows are plugin-only.
 - In an isolated project, verify the README quick start:
   `npx skills add https://github.com/tkstang/skills/tree/main/skills/next-steps --agent codex`.
   Record installer selection, project-scoped placement, fresh-session discovery,

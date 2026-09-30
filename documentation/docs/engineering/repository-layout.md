@@ -25,6 +25,8 @@ infrastructure.
   for explicitly declared skills only.
 - `plugins/consensus/` — generated complete consensus installation unit,
   including peer workflows plus local `observer` and `observer-collab` skills.
+- `skills/phone-a-friend/` — generated standalone advisory skill with its
+  bundled provider helper and schema; the Consensus plugin also contains it.
 - `plugins/session/` — generated complete session installation unit with local
   `retro`, `handoff`, `export-transcript`, and `fork-to-destination` skills.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` — repo-root marketplace entries.

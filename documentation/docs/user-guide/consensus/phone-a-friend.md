@@ -10,6 +10,12 @@ advisory take on a focused question. There is no peer-vs-peer artifact and no
 automatic application of the result. The host agent owns the final judgment and
 dispositions the peer's take before continuing.
 
+Install it as the standalone `phone-a-friend` skill or use the Consensus
+plugin-local skill of the same name. Claude Code invokes the standalone form as
+`/phone-a-friend` and the plugin form as `/consensus:phone-a-friend`; Codex uses
+`$phone-a-friend` and `$consensus:phone-a-friend`, respectively. Cursor's local
+plugin load exposes its local name without a universal namespace promise.
+
 Use it when you want a second opinion on a design choice, bug hypothesis,
 implementation risk, review concern, or another narrow question that can be
 answered in one provider turn. One call is the default. When you explicitly ask
@@ -26,8 +32,8 @@ The host-facing skill flow is:
 2. Ask the user first when the topic is ambiguous or the prompt would include
    sensitive/private context.
 3. Compact only the relevant facts and constraints into a prompt file.
-   If the peer must use tools, read the shipped
-   `phone-a-friend/references/scoped-tool-access.md` runbook first and select
+   If the peer must use tools, read the installed skill's
+   `references/scoped-tool-access.md` runbook first and select
    explicit grants for required files and web sources. An advice-only call
    needs no tool grants.
 4. Select a ready peer provider, preferring one different from the host provider.
@@ -41,12 +47,29 @@ The host-facing skill flow is:
 
 ## Invocation
 
-From an installed plugin, run the provider CLI with the advisory schema:
+The standalone skill bundles its provider helper and advisory schema; it does
+not require the Consensus plugin or a shared helper in the user's home
+directory. Node.js 22+ and the selected external provider CLI must be installed
+and authenticated. Resolve `<skill-dir>` to the absolute directory containing
+the loaded `SKILL.md`, then run from the caller project:
 
 ```bash
-consensus run \
+node <skill-dir>/scripts/consensus.mjs run \
   --provider <peer> \
-  --schema ./schemas/advisory.schema.json \
+  --schema <skill-dir>/schemas/advisory.schema.json \
+  --prompt-file <prompt> \
+  --json \
+  --max-depth 1
+```
+
+The plugin-local skill uses the same script and schema layout under its own
+`<skill-dir>` (the loaded plugin-local skill directory). Its provider CLI may
+also be exposed as `consensus`:
+
+```bash
+node <skill-dir>/scripts/consensus.mjs run \
+  --provider <peer> \
+  --schema <skill-dir>/schemas/advisory.schema.json \
   --prompt-file <prompt> \
   --json \
   --max-depth 1
@@ -66,13 +89,13 @@ node plugins/consensus/scripts/consensus.mjs run \
 Optional `--model` and `--effort` values can be passed through when the user or
 task calls for a specific provider configuration. The skill's `--peer
 <provider-id>` argument hint is host-facing shorthand; translate it to
-`consensus run --provider <provider-id>`.
+`--provider <provider-id>` for either helper.
 
 For an explicitly approved Claude research turn, use only the grants needed:
 
 ```bash
-consensus run --provider claude \
-  --schema ./schemas/advisory.schema.json \
+node <skill-dir>/scripts/consensus.mjs run --provider claude \
+  --schema <skill-dir>/schemas/advisory.schema.json \
   --prompt-file "/absolute/path/to/question.md" \
   --cwd "/absolute/path/to/empty-scratch" \
   --allow-read "/absolute/path/to/approved-brief.md" \
@@ -94,12 +117,16 @@ diagnostics, and the final-message JSON path when Bash is unavailable.
 
 ## Peer Selection
 
-Check inventory and readiness before spending a peer call:
+Check the selected provider before spending a peer call. Standalone Phone uses
+its bundled helper:
 
 ```bash
-consensus provider ls --json
-consensus preflight --json --provider <selected-provider-id> --capability run
+node <skill-dir>/scripts/consensus.mjs preflight --json --provider <selected-provider-id> --capability run
 ```
+
+For the plugin, use `consensus preflight --json --provider
+<selected-provider-id> --capability run` when that command is exposed. Do not
+require an unscoped inventory probe of providers the run will not use.
 
 Prefer a ready provider whose id differs from the current host. For example,
 when Codex is the host, try a ready Claude or Cursor provider first. Honor an
@@ -131,7 +158,8 @@ instead of inventing an advisory take.
 
 A follow-up exchange is the host plus one peer working on a focused decision. It
 is not a multi-peer convergence workflow: use `refine` when two peers must
-repeatedly revise a draft.
+repeatedly revise a draft. Run each round through the bundled helper with
+`node <skill-dir>/scripts/consensus.mjs run` from the caller project.
 
 - **Triggers.** Explicit iteration requests start it: "deliberate until you
   reach consensus", "collaborate with <model> until you agree", "go back and
@@ -146,8 +174,7 @@ repeatedly revise a draft.
   It never asks the peer to agree.
 - **Native resume.** Where the provider's resume support is verified (Claude
   and Codex), the host continues the exact peer session with
-  `consensus run --resume <session-uuid>`. It never uses the "latest" session
-  or a fork.
+  `--resume <session-uuid>`. It never uses the "latest" session or a fork.
 - **Reconstructed continuation.** Otherwise the host starts a new session with a
   compact continuation packet (`--continuation reconstructed`). The wrapper
   tells the peer it has no memory of earlier rounds, and the receipt says

@@ -8,7 +8,7 @@ import type { ProviderInventoryEntry } from '../provider-cli/types.js';
 // encoding, and JSON-envelope reading. Nothing in this module imports
 // `consensus-loop.js`, so it carries no `ConsensusError`/`EXIT_CODES` edge and
 // can be shared with owners that are deliberately decoupled from the loop
-// (notably `src/skills/panel`, which keeps its own `PanelError` and
+// (notably `src/skills/consensus-panel`, which keeps its own `PanelError` and
 // `PANEL_EXIT_CODES`). The single import is a type-only provider type, which
 // creates no runtime edge.
 //

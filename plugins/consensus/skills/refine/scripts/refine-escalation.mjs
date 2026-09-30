@@ -1,4 +1,4 @@
-// GENERATED skill payload for refine.
+// GENERATED skill payload for consensus-refine.
 
 // src/plugins/consensus/core/consensus-loop.ts
 import { mkdir as mkdir3, readFile as readFile2 } from "node:fs/promises";
@@ -142,7 +142,7 @@ var BASE_DECISION_KINDS = Object.freeze([
   "extend_budget"
 ]);
 
-// src/skills/refine/src/refine-escalation.ts
+// src/skills/consensus-refine/src/refine-escalation.ts
 function lastTwoPeerRevisionRecords(records) {
   const peers = records.filter(
     (record) => record?.agent !== "user" && record?.agent !== "host-orchestrator" && record?.verdict !== "USER_INTERVENTION" && record?.verdict !== "HOST_DECISION" && record?.record_type !== "synthesis" && record?.record_type !== "synthesis-error"

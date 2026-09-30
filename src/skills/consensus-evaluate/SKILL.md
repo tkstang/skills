@@ -1,5 +1,5 @@
 ---
-name: evaluate
+name: consensus-evaluate
 description: Use when evaluating an artifact against a rubric with two AI peers, unified findings, per-peer reasoning, and dissent preserved in the deliberation log.
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: <artifact.md> [--rubric <rubric.md>]
 metadata:
   author: Thomas Stang
-  version: '0.1.24'
+  version: '0.1.25'
 ---
 
 # Evaluate

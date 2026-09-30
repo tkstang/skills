@@ -1,6 +1,6 @@
-// GENERATED skill payload for refine.
+// GENERATED skill payload for consensus-refine.
 
-// src/skills/refine/src/refine-manifest.ts
+// src/skills/consensus-refine/src/refine-manifest.ts
 import { realpath as realpath3 } from "node:fs/promises";
 import path7 from "node:path";
 
@@ -146,7 +146,7 @@ var BASE_DECISION_KINDS = Object.freeze([
   "extend_budget"
 ]);
 
-// src/skills/refine/src/refine-shared.ts
+// src/skills/consensus-refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
   lstat as lstat3,
@@ -190,7 +190,7 @@ async function nearestExistingPath2(targetPath) {
   return current;
 }
 
-// src/skills/refine/src/refine-manifest.ts
+// src/skills/consensus-refine/src/refine-manifest.ts
 function manifestError(message, details = {}) {
   return new ConsensusError(message, {
     code: typeof details.code === "string" ? details.code : "INVALID_MANIFEST",

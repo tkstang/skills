@@ -85,29 +85,39 @@ export const distributions: readonly DistributionDeclaration[] = [
       },
     ],
   },
-  ...(
-    [
-      'create',
-      'decide',
-      'evaluate',
-      'panel',
-      'phone-a-friend',
-      'plan',
-      'refine',
-    ] as const
-  ).map((owner) => ({
-    owner,
-    source: `src/skills/${owner}`,
+  ...(['create', 'decide', 'evaluate', 'panel', 'plan', 'refine'] as const).map(
+    (name) => ({
+      owner: `consensus-${name}`,
+      source: `src/skills/consensus-${name}`,
+      allowedSourceRoots: ['src/plugins/consensus'],
+      targets: [
+        {
+          kind: 'plugin' as const,
+          plugin: 'consensus',
+          name,
+          output: `plugins/consensus/skills/${name}`,
+        },
+      ],
+    }),
+  ),
+  {
+    owner: 'phone-a-friend',
+    source: 'src/skills/phone-a-friend',
     allowedSourceRoots: ['src/plugins/consensus'],
     targets: [
       {
-        kind: 'plugin' as const,
+        kind: 'standalone',
+        name: 'phone-a-friend',
+        output: 'skills/phone-a-friend',
+      },
+      {
+        kind: 'plugin',
         plugin: 'consensus',
-        name: owner,
-        output: `plugins/consensus/skills/${owner}`,
+        name: 'phone-a-friend',
+        output: 'plugins/consensus/skills/phone-a-friend',
       },
     ],
-  })),
+  },
   {
     owner: 'complexity-review',
     source: 'src/skills/complexity-review',

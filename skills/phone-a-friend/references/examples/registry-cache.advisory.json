@@ -1,0 +1,21 @@
+{
+  "schema_version": "v1",
+  "understood_question": "Whether registry lookup caching should be centralized in the registry loader or left to each caller.",
+  "take": "Centralizing the cache in the loader is cleaner because it gives all callers one freshness policy and one invalidation path.",
+  "recommendation": "Put a short-TTL cache in the loader, expose an explicit cache-bust hook for tests and provider refreshes, and avoid caller-level caches unless a caller has a documented freshness exception.",
+  "risks": [
+    "A loader cache can return stale provider data until the TTL expires.",
+    "A global invalidation hook can become an accidental public API if it is not scoped clearly.",
+    "Callers with stricter freshness needs may need an opt-out."
+  ],
+  "follow_up_questions": [
+    "How often can provider metadata change during one host session?",
+    "Do any callers need strongly fresh reads after a user-triggered sync?",
+    "Is there already a lifecycle event that can bust the loader cache?"
+  ],
+  "confidence": "medium",
+  "assumptions": [
+    "Registry lookups are read-heavy.",
+    "Most callers should share one freshness policy."
+  ]
+}

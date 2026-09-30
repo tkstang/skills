@@ -44,7 +44,8 @@ belong with consensus behavior.
   neutral moderator.
 - **[`phone-a-friend`](phone-a-friend.md)** — asks one other provider-backed peer
   for a structured advisory take, then leaves the host responsible for agreeing,
-  applying, ignoring, or following up.
+  applying, ignoring, or following up. It also ships standalone under the same
+  name.
 - **`observer`** — plugin-local form of
   [`session-observer`](../skills/session-observer.md).
 - **`observer-collab`** — plugin-local form of
@@ -290,8 +291,9 @@ validation does not make their advice trustworthy or authorize following it.
 ## Limitations
 
 - The plugin ships `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`,
-  `phone-a-friend`, `observer`, and `observer-collab`. The two observer skills
-  also have declared standalone forms with their full `session-*` names.
+  `phone-a-friend`, `review`, `observer`, and `observer-collab`. Phone and Review
+  also have declared standalone forms; the two observer skills use their full
+  `session-*` names standalone. The other six peer workflows are plugin-only.
 - Remaining consensus-family skills are future work: `consensus-research`.
 - Three iteration modes ship (`alternating`, `parallel_revision`,
   `parallel_synthesized`); `parallel_revision` and `parallel_synthesized`
@@ -326,7 +328,7 @@ validation does not make their advice trustworthy or authorize following it.
 - [Refine](refine.md) - `refine` usage: sequential default, iteration modes, resume, escalation, and host-mediated parallel sections.
 - [Evaluate](evaluate.md) - `evaluate` usage: artifact-vs-rubric command, defaults, output contract, and guided rubric creation.
 - [Review](review.md) - `review` usage: three bounded selectors, one read-only reviewer invocation, OAT-compatible artifacts, and detection limits.
-- [Phone-a-friend](phone-a-friend.md) - `phone-a-friend` usage: one-shot advisory peer call, provider selection, advisory schema, and host disposition.
+- [Phone-a-friend](phone-a-friend.md) - `phone-a-friend` usage: advisory peer call, optional bounded follow-up, provider selection, and host disposition.
 - [Panel](panel.md) - `panel` usage: single-round multi-peer questions, panelist selection, JSONL status, output contract, and neutral moderation.
 - [Observer](../skills/session-observer.md) - Read and watch a pinned peer session; also available standalone as `session-observer`.
 - [Collaborative Observer](../skills/session-observer-collab.md) - Coordinate two sessions with explicit authority boundaries; also available standalone as `session-observer-collab`.

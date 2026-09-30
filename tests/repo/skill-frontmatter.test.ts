@@ -6,27 +6,27 @@ import { describe, expect, it } from 'vitest';
 import { SKILL_FILES } from '../../scripts/bump-version.js';
 
 const refineSkillPath = new URL(
-  '../../src/skills/refine/SKILL.md',
+  '../../src/skills/consensus-refine/SKILL.md',
   import.meta.url,
 );
 const evaluateSkillPath = new URL(
-  '../../src/skills/evaluate/SKILL.md',
+  '../../src/skills/consensus-evaluate/SKILL.md',
   import.meta.url,
 );
 const createSkillPath = new URL(
-  '../../src/skills/create/SKILL.md',
+  '../../src/skills/consensus-create/SKILL.md',
   import.meta.url,
 );
 const decideSkillPath = new URL(
-  '../../src/skills/decide/SKILL.md',
+  '../../src/skills/consensus-decide/SKILL.md',
   import.meta.url,
 );
 const planSkillPath = new URL(
-  '../../src/skills/plan/SKILL.md',
+  '../../src/skills/consensus-plan/SKILL.md',
   import.meta.url,
 );
 const panelSkillPath = new URL(
-  '../../src/skills/panel/SKILL.md',
+  '../../src/skills/consensus-panel/SKILL.md',
   import.meta.url,
 );
 const collaborationSkillPath = new URL(
@@ -106,12 +106,12 @@ describe('skill-frontmatter', () => {
       const name = field(block, 'name');
 
       expect([
-        'refine',
-        'evaluate',
-        'create',
-        'decide',
-        'plan',
-        'panel',
+        'consensus-refine',
+        'consensus-evaluate',
+        'consensus-create',
+        'consensus-decide',
+        'consensus-plan',
+        'consensus-panel',
       ]).toContain(name);
       expect(path.basename(path.dirname(skillPath.pathname))).toBe(name);
       expect(field(block, 'description').length > 40).toBeTruthy();
@@ -160,7 +160,7 @@ describe('skill-frontmatter', () => {
     const block = frontmatter(markdown);
     const name = field(block, 'name');
 
-    expect(name).toBe('evaluate');
+    expect(name).toBe('consensus-evaluate');
     expect(path.basename(path.dirname(evaluateSkillPath.pathname))).toBe(name);
     expect(field(block, 'description').length > 40).toBeTruthy();
     expect(field(block, 'license')).toBe('MIT');
@@ -263,7 +263,7 @@ describe('skill-frontmatter', () => {
     const block = frontmatter(markdown);
     const name = field(block, 'name');
 
-    expect(name).toBe('panel');
+    expect(name).toBe('consensus-panel');
     expect(path.basename(path.dirname(panelSkillPath.pathname))).toBe(name);
     expect(field(block, 'description')).toMatch(/multi-peer|panel/i);
     expect(field(block, 'license')).toBe('MIT');
@@ -325,7 +325,7 @@ describe('skill-frontmatter', () => {
   it('standalone and plugin skills are included in version bump tooling', () => {
     // SKILL_FILES is derived from disk (scripts/lib/discover-skills.js), so
     // this checks the resulting set rather than grepping the script source.
-    expect(SKILL_FILES).toContain('src/skills/panel/SKILL.md');
+    expect(SKILL_FILES).toContain('src/skills/consensus-panel/SKILL.md');
     expect(SKILL_FILES).toContain(
       'src/skills/session-observer-collab/SKILL.md',
     );

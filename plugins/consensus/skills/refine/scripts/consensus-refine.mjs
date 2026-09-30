@@ -1,6 +1,6 @@
-// GENERATED skill payload for refine.
+// GENERATED skill payload for consensus-refine.
 
-// src/skills/refine/src/consensus-refine.ts
+// src/skills/consensus-refine/src/consensus-refine.ts
 import { execFile } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { readFile as readFile6 } from "node:fs/promises";
@@ -3267,7 +3267,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
   };
 }
 
-// src/skills/refine/src/refine-shared.ts
+// src/skills/consensus-refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
   lstat as lstat3,
@@ -3470,7 +3470,7 @@ async function resolveResumePath(options = {}) {
   return await confineWrite(target, root);
 }
 
-// src/skills/refine/src/refine-args.ts
+// src/skills/consensus-refine/src/refine-args.ts
 var PROVIDER_ID_PATTERN2 = /^[a-z][a-z0-9-]{0,31}$/u;
 var MAX_ROUNDS_MIN2 = 1;
 var MAX_ROUNDS_MAX2 = 100;
@@ -3798,7 +3798,7 @@ function resolveSynthesizer(options = {}, providerInventory = []) {
   return { synthesizer, warnings };
 }
 
-// src/skills/refine/src/refine-sections.ts
+// src/skills/consensus-refine/src/refine-sections.ts
 import path8 from "node:path";
 function markdownLines(markdown) {
   const normalized = String(markdown ?? "").replace(/\r\n?/g, "\n");
@@ -4000,7 +4000,7 @@ function dispatchInstructions(manifest) {
   };
 }
 
-// src/skills/refine/src/refine-render.ts
+// src/skills/consensus-refine/src/refine-render.ts
 import path9 from "node:path";
 function dynamicFence(contents, info = "") {
   const text = String(contents ?? "");
@@ -4382,7 +4382,7 @@ function renderDeliberationArtifact(runResult) {
 `;
 }
 
-// src/skills/refine/src/refine-resume.ts
+// src/skills/consensus-refine/src/refine-resume.ts
 import { mkdir as mkdir6, readFile as readFile5, stat as stat2, writeFile as writeFile5 } from "node:fs/promises";
 import path10 from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -4907,7 +4907,7 @@ async function parseDeliberationArtifactForResume(pathOrText, options = {}) {
   };
 }
 
-// src/skills/refine/src/refine-escalation.ts
+// src/skills/consensus-refine/src/refine-escalation.ts
 function lastTwoPeerRevisionRecords(records) {
   const peers = records.filter(
     (record) => record?.agent !== "user" && record?.agent !== "host-orchestrator" && record?.verdict !== "USER_INTERVENTION" && record?.verdict !== "HOST_DECISION" && record?.record_type !== "synthesis" && record?.record_type !== "synthesis-error"
@@ -5007,7 +5007,7 @@ function failingSections(sections) {
   }));
 }
 
-// src/skills/refine/src/refine-manifest.ts
+// src/skills/consensus-refine/src/refine-manifest.ts
 import { realpath as realpath3 } from "node:fs/promises";
 import path11 from "node:path";
 function manifestError(message, details = {}) {
@@ -5234,7 +5234,7 @@ async function normalizeParallelManifest(manifest, options) {
   };
 }
 
-// src/skills/refine/src/consensus-refine.ts
+// src/skills/consensus-refine/src/consensus-refine.ts
 var execFileAsync = promisify(execFile);
 function asLoopInitialRecords(records) {
   return records ?? [];

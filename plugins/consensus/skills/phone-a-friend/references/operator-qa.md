@@ -11,21 +11,13 @@ provider CLIs and may cost real API spend.
 ## Prerequisites
 
 ```bash
-# From the repo root
+# From the caller project directory
 node --version
-node plugins/consensus/scripts/consensus.mjs provider ls --json
-node plugins/consensus/scripts/consensus.mjs preflight --json --provider <id> --capability run
-```
-
-For an installed plugin, the same checks may be exposed as:
-
-```bash
-consensus provider ls --json
-consensus preflight --json --provider <id> --capability run
+node <skill-dir>/scripts/consensus.mjs preflight --json --provider <id> --capability run
 ```
 
 Confirm at least one peer provider is `ready`, preferably a provider different
-from the current host. Provider inventory uses provider-neutral statuses such as
+from the current host. Scoped preflight uses provider-neutral statuses such as
 `missing`, `auth_required`, `unavailable`, and `unsupported`; treat these as
 local setup diagnostics, not consensus failures.
 
@@ -42,10 +34,10 @@ Run the one-shot advisory call from the repo root, replacing `<peer>` with a
 ready provider id:
 
 ```bash
-node plugins/consensus/scripts/consensus.mjs run \
+node <skill-dir>/scripts/consensus.mjs run \
   --provider <peer> \
-  --schema plugins/consensus/skills/phone-a-friend/schemas/advisory.schema.json \
-  --prompt-file plugins/consensus/skills/phone-a-friend/references/examples/registry-cache.prompt.md \
+  --schema <skill-dir>/schemas/advisory.schema.json \
+  --prompt-file <skill-dir>/references/examples/registry-cache.prompt.md \
   --json \
   --max-depth 1
 ```
@@ -53,10 +45,10 @@ node plugins/consensus/scripts/consensus.mjs run \
 Installed-plugin form:
 
 ```bash
-consensus run \
+node <skill-dir>/scripts/consensus.mjs run \
   --provider <peer> \
-  --schema ./schemas/advisory.schema.json \
-  --prompt-file ./references/examples/registry-cache.prompt.md \
+  --schema <skill-dir>/schemas/advisory.schema.json \
+  --prompt-file <skill-dir>/references/examples/registry-cache.prompt.md \
   --json \
   --max-depth 1
 ```
