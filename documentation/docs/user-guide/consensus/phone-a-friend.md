@@ -37,7 +37,9 @@ The host-facing skill flow is:
    explicit grants for required files and web sources. An advice-only call
    needs no tool grants.
 4. Select a ready peer provider, preferring one different from the host provider.
-5. Invoke `consensus run` once with the advisory schema and `--json`.
+5. Invoke `node <skill-dir>/scripts/consensus.mjs run` once with the advisory
+   schema and `--json`, using the absolute installed skill directory as shown
+   in [Invocation](#invocation). Plugin installs may also expose `consensus run`.
 6. Read the validated advisory payload.
    For a tool-using turn, also inspect `diagnostics.permission_denials` and
    independently verify the required research or output file. A valid JSON

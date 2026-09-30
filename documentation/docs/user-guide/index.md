@@ -23,8 +23,9 @@ What ships today:
 - **Optional standalone skills** — the session capabilities retain descriptive
   `session-*` names except for `agent-messaging`; `align`, `author-skill`,
   `next-steps`, `must-we`, and `complexity-review` remain standalone only.
-  Consensus `phone-a-friend` and `review` also have standalone forms; its six
-  other peer workflows remain plugin-only.
+  Consensus `phone-a-friend` and `review` are also available as the standalone
+  skills `phone-a-friend` and `consensus-review`; its six other peer workflows
+  remain plugin-only.
 
 Plugin and standalone entries share canonical guides rather than duplicate
 documentation. Pick by the task you want to accomplish, then use the guide's

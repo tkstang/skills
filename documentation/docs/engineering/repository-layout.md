@@ -77,7 +77,7 @@ Inside `plugins/consensus/`:
 - `skills/evaluate/` — implementation directory for the shipped `evaluate` skill.
   - `skills/evaluate/references/operator-qa.md` — manual QA walkthrough of artifact/rubric evaluation and dissent review.
   - `skills/evaluate/references/examples/` — four ready-to-adapt example rubrics (general-purpose, code review, technical writing, design/architecture) used by guided rubric creation.
-- `skills/phone-a-friend/` — instruction-only advisory peer consultation skill.
+- `skills/phone-a-friend/` — advisory peer consultation skill with a bundled executable provider helper.
   - `skills/phone-a-friend/schemas/advisory.schema.json` — structured advisory response contract.
   - `skills/phone-a-friend/references/operator-qa.md` — manual QA walkthrough of one-shot advisory calls, expected JSON, and host disposition.
   - `skills/phone-a-friend/references/examples/` — example advisory prompt and response payload.
