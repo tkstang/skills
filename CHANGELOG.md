@@ -25,6 +25,16 @@
 
 ### Changed
 
+- Normalize `metadata.author` to `Thomas Stang` across all 18 canonical
+  skills and their generated distributions. Newly affected skills receive
+  patch bumps: `agent-messaging` 1.0.24, `complexity-review` 1.0.3,
+  `must-we` 1.0.1, `next-steps` 1.0.1,
+  `session-export-transcript` 2.0.38, `session-handoff` 1.1.3,
+  and `session-retro` 1.0.3. The `session` plugin advances to 0.3.5
+  so plugin consumers can receive the metadata update.
+  The remaining skills retain the unreleased bumps already in this change.
+  Preserve the existing single-quoted version style in `phone-a-friend`.
+
 - `session-observer` 1.0.84 prunes its test surface and the shared transcript
   runtime tests. The suites keep every contract, repair assertions that could
   not fail, and remove only test-only production hooks: the `realpathSafe`

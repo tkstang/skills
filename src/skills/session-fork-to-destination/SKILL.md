@@ -8,7 +8,7 @@ disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Bash(node <skill-dir>/scripts/session-fork-to-destination.mjs:*)
 metadata:
-  author: thomas.stang
+  author: Thomas Stang
   version: '0.2.53'
 ---
 

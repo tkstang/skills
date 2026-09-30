@@ -6,7 +6,7 @@ compatibility: Agent Skills baseline; requires Node.js 22+ and the generated con
 allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: --options <options.md>
 metadata:
-  author: thomas.stang
+  author: Thomas Stang
   version: '0.1.19'
 ---
 

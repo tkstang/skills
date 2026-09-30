@@ -5,8 +5,8 @@ license: MIT
 compatibility: Agent Skills baseline; instruction-only. Complete review requires the installed Session Export Transcript capability and an exact target session.
 user-invocable: true
 metadata:
-  author: thomas.stang
-  version: '1.0.2'
+  author: Thomas Stang
+  version: '1.0.3'
 ---
 
 # session-retro
