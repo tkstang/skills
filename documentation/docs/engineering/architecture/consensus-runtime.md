@@ -124,9 +124,10 @@ combination.
 
 By default Cursor runs with `--force`, which trusts the workspace and
 auto-approves every command. `--permission-mode read-only` runs it with
-`--trust --mode ask --sandbox enabled` instead: the peer can read files but
-cannot write or run commands, and it answers through its final message rather
-than `consensus submit`.
+`--trust --mode ask --sandbox enabled` instead. Ask mode allows only read-only
+tools, including read-only shell commands (a live check ran `ls` but refused a
+file write), and the peer answers through its final message rather than
+`consensus submit`.
 
 ## From provider output to a verdict
 

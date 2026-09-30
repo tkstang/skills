@@ -71,9 +71,9 @@
 - Cursor peers can run read-only: `consensus run --provider cursor
 --permission-mode read-only` invokes
   `cursor-agent --print --output-format json --trust --mode ask --sandbox enabled`
-  instead of `--force`. The peer can read files but cannot write or run
-  commands, so it answers through its final message rather than
-  `consensus submit`. The default policy still uses `--force`, so existing
+  instead of `--force`. Ask mode allows only read-only tools, including read-only
+  commands such as `ls`, and refuses writes. `consensus submit` writes a
+  file, so the peer answers through its final message instead. The default policy still uses `--force`, so existing
   workflows are unchanged. Ships in the `consensus` plugin 0.2.6, and
   `phone-a-friend` 0.2.0 uses it for Cursor follow-up rounds.
 

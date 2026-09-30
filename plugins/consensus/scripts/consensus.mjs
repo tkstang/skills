@@ -2950,7 +2950,7 @@ import { fileURLToPath } from "node:url";
 // src/plugins/consensus/provider-cli/continuation.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
 import path5 from "node:path";
-var UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 var NOT_STARTED_FAILURE_CODES = [
   "PROVIDER_MISSING",
   "PROVIDER_AUTH_REQUIRED",
@@ -3000,7 +3000,7 @@ function continuationUsageError(request) {
     return "Native resume requires an explicit provider session id.";
   }
   if (!isProviderSessionId(continuation.session_id)) {
-    return 'Native resume requires a provider session UUID; titles, names, and "latest" selectors are not accepted.';
+    return 'Native resume requires a lowercase provider session UUID, as reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
   }
   if (continuation.previous_session_id !== void 0) {
     return "Native resume continues the --resume session itself; --previous-session applies only to reconstructed continuation.";

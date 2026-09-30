@@ -14,8 +14,11 @@ import type {
   ProviderErrorCode,
 } from './types.js';
 
+// Lowercase only: providers report lowercase IDs, and the post-turn identity
+// check compares exactly, so an uppercase ID would be resolved, run, and then
+// rejected as a mismatch.
 const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 // Provider failures that reject a turn before it is accepted. Anything else
 // after spawn (timeout, signal, unknown nonzero exit) is ambiguous.
@@ -88,7 +91,7 @@ export function continuationUsageError(
     return 'Native resume requires an explicit provider session id.';
   }
   if (!isProviderSessionId(continuation.session_id)) {
-    return 'Native resume requires a provider session UUID; titles, names, and "latest" selectors are not accepted.';
+    return 'Native resume requires a lowercase provider session UUID, as reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
   }
   if (continuation.previous_session_id !== undefined) {
     return 'Native resume continues the --resume session itself; --previous-session applies only to reconstructed continuation.';

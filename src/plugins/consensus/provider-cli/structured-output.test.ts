@@ -1157,6 +1157,7 @@ describe('provider session continuation', () => {
   it.each([
     ['a session title', { session_id: 'my review session' }, {}],
     ['a latest selector', { session_id: 'latest' }, {}],
+    ['an uppercase session UUID', { session_id: SESSION_A.toUpperCase() }, {}],
     ['a multi-attempt budget', {}, { max_attempts: 2 }],
     ['a fallback without a packet', { fallback: 'reconstructed' as const }, {}],
   ])(
