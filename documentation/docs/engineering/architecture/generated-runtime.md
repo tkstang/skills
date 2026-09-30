@@ -74,6 +74,7 @@ plugin by itself.
 | `src/skills/session-fork-to-destination`                                               | `skills/session-fork-to-destination/` and `plugins/session/skills/fork-to-destination/` |
 | `src/skills/complexity-review`                                                         | `skills/complexity-review/` only                                                        |
 | `src/skills/author-skill`                                                              | `skills/author-skill/` only                                                             |
+| `src/skills/align`                                                                     | `skills/align/` only                                                                    |
 | `src/skills/next-steps`                                                                | `skills/next-steps/` only                                                               |
 | `src/skills/must-we`                                                                   | `skills/must-we/` only                                                                  |
 

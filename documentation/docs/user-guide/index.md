@@ -20,8 +20,8 @@ What ships today:
   `fork-to-destination` cover addressed coordination, bounded review,
   continuation, sanitized export, and alpha destination-side fork guidance.
 - **Optional standalone skills** — the session capabilities retain descriptive
-  `session-*` names except for `agent-messaging`; `author-skill`, `next-steps`,
-  `must-we`, and `complexity-review` remain standalone only.
+  `session-*` names except for `agent-messaging`; `align`, `author-skill`,
+  `next-steps`, `must-we`, and `complexity-review` remain standalone only.
 
 Plugin and standalone entries share canonical guides rather than duplicate
 documentation. Pick by the task you want to accomplish, then use the guide's

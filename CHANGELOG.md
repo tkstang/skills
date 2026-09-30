@@ -4,6 +4,10 @@
 
 ### Added
 
+- `align` 1.0.1 standalone instruction-only skill for explicitly checking
+  shared understanding of the user's goal, underlying problem, and success
+  criteria before or during work.
+
 - `phone-a-friend` 0.1.15 and `consensus` plugin 0.2.5 add an opt-in,
   Claude-only scoped research path: exact absolute Read/Edit file grants,
   WebSearch, and domain-scoped WebFetch. The skill now routes tool-using peers

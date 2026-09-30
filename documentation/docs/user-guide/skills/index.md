@@ -8,13 +8,14 @@ description: 'Find independently installable skills by capability, including mem
 Session skills have canonical descriptive names and may be installed as
 standalone Agent Skills or through a plugin-local short name. Observation and
 collaboration live in the consensus plugin; retro, handoff, export, and
-destination fork guidance live in the session plugin. `author-skill`,
+destination fork guidance live in the session plugin. `align`, `author-skill`,
 `next-steps`, `must-we`, and `complexity-review` are standalone only.
 
 Choose by what the next session needs:
 
 | Goal                                                                          | Use                                                           | What carries forward                                                                                                                                                    |
 | ----------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Check shared understanding of the goal, problem, and success criteria         | [Align](align.md)                                             | A revised restatement, material unknowns, and any correction to the current direction; no project changes.                                                              |
 | Understand what to do next and why                                            | [Next Steps](next-steps.md)                                   | A contextual recommendation that identifies the next justified action and who can take it, without executing it.                                                        |
 | Decide whether a requirement or proposal is necessary                         | [Must We?](must-we.md)                                        | An evidence-based verdict, consequence of skipping, and the smallest sufficient path.                                                                                   |
 | Create, revise, migrate, or review an agent skill                             | [Author Skill](author-skill.md)                               | A skill shaped by the target repository’s conventions, with focused verification and explicit live-evidence limits.                                                     |
@@ -30,6 +31,8 @@ that they share one implementation, and it does not require installing an
 entire plugin: see [Installation](../installation.md) for the supported plugin
 and standalone choices.
 
+- **align** — check shared understanding at the start of work or when its
+  direction feels off, through a focused exchange you can correct or end.
 - **next-steps** — explain the current situation and recommend justified
   actions without executing them.
 - **must-we** — evaluate whether a blocker, requirement, or proposed action is
@@ -70,6 +73,7 @@ and standalone choices.
 
 ### Decide what to do
 
+- [Align](align.md) - Check shared understanding of the goal, problem, and success criteria before or during work.
 - [Next Steps](next-steps.md) - Explain the current state and recommend justified actions without executing them.
 - [Must We?](must-we.md) - Decide whether a blocker or proposal is necessary and find the smallest sufficient path.
 

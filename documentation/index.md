@@ -58,6 +58,7 @@
   - Skills
     - [Standalone Skills](user-guide/skills/index.md) — Find independently installable skills by capability, including members also available through Consensus or Session.
     - [Agent Messaging](user-guide/skills/agent-messaging.md) — Exchange durable addressed messages among local coding-agent sessions without sharing transcripts.
+    - [Align](user-guide/skills/align.md) — Check that the agent understands your goal, underlying problem, and success criteria before or during work.
     - [Author Skill](user-guide/skills/author-skill.md) — Create, revise, migrate, or review agent skills using the target repository’s own authoring and distribution conventions.
     - [Complexity Review](user-guide/skills/complexity-review.md) — Judge whether each schema, script, test, harness, agent pass, or abstraction in a plan or implementation earns its ongoing cost, and get the minimum sufficient version.
     - [Must We?](user-guide/skills/must-we.md) — Decide whether a blocker, requirement, or proposed action is necessary and identify the smallest sufficient path.
