@@ -216,7 +216,22 @@ export const buildCursorInvocation: ProviderInvocationBuilder = (
       : (options.strategy ?? 'prompt_only');
   // `--output-format` only takes effect with `--print` (cursor-agent
   // 2026.09.28 help); without it the CLI is not in headless JSON mode.
-  const argv = ['--print', '--output-format', 'json', '--force'];
+  // Print mode refuses an untrusted workspace unless `--trust` or `--force`
+  // is passed. `--force` also auto-approves every command, so read-only runs
+  // use `--trust` with ask mode (read-only tools) and the sandbox instead.
+  const argv =
+    request.runtime_policy?.permission_mode === 'read-only'
+      ? [
+          '--print',
+          '--output-format',
+          'json',
+          '--trust',
+          '--mode',
+          'ask',
+          '--sandbox',
+          'enabled',
+        ]
+      : ['--print', '--output-format', 'json', '--force'];
 
   return invocation({
     executable: 'cursor-agent',

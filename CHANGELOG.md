@@ -68,6 +68,15 @@
   - `session-observer` 1.0.86, `session-observer-collab` 1.0.74
   - `session-fork-to-destination` 0.2.54
 
+- Cursor peers can run read-only: `consensus run --provider cursor
+--permission-mode read-only` invokes
+  `cursor-agent --print --output-format json --trust --mode ask --sandbox enabled`
+  instead of `--force`. The peer can read files but cannot write or run
+  commands, so it answers through its final message rather than
+  `consensus submit`. The default policy still uses `--force`, so existing
+  workflows are unchanged. Ships in the `consensus` plugin 0.2.6, and
+  `phone-a-friend` 0.2.0 uses it for Cursor follow-up rounds.
+
 ### Changed
 
 - Normalize `metadata.author` to `Thomas Stang` across all 18 canonical

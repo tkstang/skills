@@ -189,21 +189,21 @@ consensus run --provider <peer> <peer-controls> \
 
 `<peer-controls>` are the same provider-specific controls every round, including round 1:
 
-| Provider | Controls                                                                                 |
-| -------- | ---------------------------------------------------------------------------------------- |
-| Codex    | `--model <model> --effort <effort> --sandbox read-only`                                  |
-| Claude   | `--model <model> --effort <effort> --permission-mode read-only`                          |
-| Cursor   | none; the adapter accepts no model, effort, or read-only control and runs with `--force` |
+| Provider | Controls                                                                                                    |
+| -------- | ----------------------------------------------------------------------------------------------------------- |
+| Codex    | `--model <model> --effort <effort> --sandbox read-only`                                                     |
+| Claude   | `--model <model> --effort <effort> --permission-mode read-only`                                             |
+| Cursor   | `--permission-mode read-only`; the adapter accepts no model or effort, so the account default model answers |
 
-The default non-interactive policy is not read-only, so pass the read-only control on every round. Cursor has no read-only mode through this wrapper; tell the user before continuing a Cursor consultation. Start round 1 with `--consultation-id <id> --round 1` so every receipt carries the same consultation label.
+The default non-interactive policy is not read-only, so pass the read-only control on every round. Start round 1 with `--consultation-id <id> --round 1` so every receipt carries the same consultation label.
 
 Confirm that the receipt shows `mode: native-resume` and a `session_id` equal to the one you requested. Native resume is available only where the adapter's capability is `verified`:
 
-| Provider | Native resume | Evidence                                                     |
-| -------- | ------------- | ------------------------------------------------------------ |
-| Claude   | verified      | Live same-session smoke, Claude Code 2.1.284, 2026-09-28     |
-| Codex    | verified      | Live same-session smoke, codex-cli 0.157.1, 2026-09-28       |
-| Cursor   | unverified    | Documented by Cursor; not yet exercised through this wrapper |
+| Provider | Native resume | Evidence                                                                                                                   |
+| -------- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Claude   | verified      | Live same-session smoke, Claude Code 2.1.284, 2026-09-28                                                                   |
+| Codex    | verified      | Live same-session smoke, codex-cli 0.157.1, 2026-09-28                                                                     |
+| Cursor   | unverified    | Raw CLI resume worked 2026-09-29, but a transport reconnect replayed resumed turns; the wrapper does not resume Cursor yet |
 
 To allow an automatic reconstructed fallback when the session no longer exists, add `--resume-fallback reconstructed --fallback-prompt-file <packet>`. Without that flag, a missing session is an error. One invocation can then make two provider calls, each with the full `--timeout-sec`. Enable the fallback only when at least two calls remain in the budget, and set `--timeout-sec` to half the remaining time. Otherwise leave it off: on `PROVIDER_SESSION_NOT_FOUND`, check the remaining budget, then run an explicit reconstructed continuation.
 

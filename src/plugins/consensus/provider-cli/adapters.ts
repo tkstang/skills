@@ -292,7 +292,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
         model: false,
         effort: null,
         runtime_policy: {
-          permission_modes: ['non-interactive'],
+          permission_modes: ['non-interactive', 'read-only'],
           env_allowlist: true,
         },
       },
@@ -303,7 +303,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
         native_resume: 'unverified',
         session_id_source: 'stdout_json.session_id',
         evidence:
-          'Cursor documents `--resume [chatId]` and a JSON result `session_id`. Raw CLI resume passed a same-session marker smoke on 2026-09-29 (cursor-agent 2026.09.28, cursor-grok-4.6-high, `--print --mode ask --sandbox enabled`, run by the user because agent shells cannot read the Cursor login). During that smoke a transport reconnect replayed each resumed turn, so its result held two answers. The wrapper path is not implemented, and the one-shot adapter runs with `--force`, which is not a safe continuation policy.',
+          'Cursor documents `--resume [chatId]` and a JSON result `session_id`. Raw CLI resume passed a same-session marker smoke on 2026-09-29 (cursor-agent 2026.09.28, cursor-grok-4.6-high, `--print --mode ask --sandbox enabled`, run by the user because agent shells cannot read the Cursor login). During that smoke a transport reconnect replayed each resumed turn, so its result held two answers. The wrapper resume path is not implemented; a future one should require the read-only policy (`--trust --mode ask --sandbox enabled`), not the default `--force`.',
       },
     },
   },

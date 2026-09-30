@@ -290,6 +290,26 @@ describe('provider invocation builders', () => {
     ).toThrow(/not verified/);
   });
 
+  it('runs read-only Cursor with trust, ask mode, and sandbox instead of force', () => {
+    const invocation = buildInvocation('cursor', 'prompt_only', {
+      runtime_policy: { permission_mode: 'read-only' },
+    });
+
+    // Live check 2026-09-29 (cursor-agent 2026.09.28): print mode refuses an
+    // untrusted workspace without `--trust` or `--force`; ask mode ran `ls`
+    // but refused a file write.
+    expect(invocation.argv).toEqual([
+      '--print',
+      '--output-format',
+      'json',
+      '--trust',
+      '--mode',
+      'ask',
+      '--sandbox',
+      'enabled',
+    ]);
+  });
+
   it('keeps host-native dispatch unsupported for every first-scope invocation', () => {
     expect(
       providerRegistry()

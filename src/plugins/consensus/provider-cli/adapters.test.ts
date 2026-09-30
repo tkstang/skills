@@ -56,7 +56,7 @@ describe('provider adapter registry', () => {
       model: false,
       effort: null,
       runtime_policy: {
-        permission_modes: ['non-interactive'],
+        permission_modes: ['non-interactive', 'read-only'],
         env_allowlist: true,
       },
     });

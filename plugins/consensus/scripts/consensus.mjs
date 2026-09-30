@@ -627,7 +627,16 @@ var buildCursorInvocation = (request, options = {}) => {
     );
   }
   const strategy = options.strategy === "submit_tool_candidate" ? "prompt_only" : options.strategy ?? "prompt_only";
-  const argv = ["--print", "--output-format", "json", "--force"];
+  const argv = request.runtime_policy?.permission_mode === "read-only" ? [
+    "--print",
+    "--output-format",
+    "json",
+    "--trust",
+    "--mode",
+    "ask",
+    "--sandbox",
+    "enabled"
+  ] : ["--print", "--output-format", "json", "--force"];
   return invocation({
     executable: "cursor-agent",
     argv,
@@ -1228,7 +1237,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
         model: false,
         effort: null,
         runtime_policy: {
-          permission_modes: ["non-interactive"],
+          permission_modes: ["non-interactive", "read-only"],
           env_allowlist: true
         }
       },
@@ -1238,7 +1247,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       continuation: {
         native_resume: "unverified",
         session_id_source: "stdout_json.session_id",
-        evidence: "Cursor documents `--resume [chatId]` and a JSON result `session_id`. Raw CLI resume passed a same-session marker smoke on 2026-09-29 (cursor-agent 2026.09.28, cursor-grok-4.6-high, `--print --mode ask --sandbox enabled`, run by the user because agent shells cannot read the Cursor login). During that smoke a transport reconnect replayed each resumed turn, so its result held two answers. The wrapper path is not implemented, and the one-shot adapter runs with `--force`, which is not a safe continuation policy."
+        evidence: "Cursor documents `--resume [chatId]` and a JSON result `session_id`. Raw CLI resume passed a same-session marker smoke on 2026-09-29 (cursor-agent 2026.09.28, cursor-grok-4.6-high, `--print --mode ask --sandbox enabled`, run by the user because agent shells cannot read the Cursor login). During that smoke a transport reconnect replayed each resumed turn, so its result held two answers. The wrapper resume path is not implemented; a future one should require the read-only policy (`--trust --mode ask --sandbox enabled`), not the default `--force`."
       }
     }
   }
@@ -3310,7 +3319,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
-  const submitCaptureEnabled = (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && hasScopedToolAccess(request.runtime_policy));
+  const submitCaptureEnabled = (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && hasScopedToolAccess(request.runtime_policy)) && !(request.provider === "cursor" && request.runtime_policy?.permission_mode === "read-only");
   const strategy = selectStructuredOutputStrategy(adapter, {
     submitCaptureEnabled,
     strategy: dependencies.transport?.strategy

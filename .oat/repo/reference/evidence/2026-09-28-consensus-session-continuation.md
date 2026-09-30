@@ -145,3 +145,21 @@ advisory schema.
   Cursor peer reads the workspace freely. That is expected for this policy, but
   it means one-shot Cursor advice is not limited to the prompt, and the
   workspace is not read-only.
+
+## Cursor read-only policy (2026-09-29)
+
+The user ran `/tmp/cursor-trust-test.sh`, where each case gets a brand-new git
+workspace. All cases used `--print --output-format json --mode ask --sandbox
+enabled`, with no `--force`:
+
+1. Without `--trust`: exit 1 after 0 s. The error was "Workspace Trust
+   Required… Pass --trust, --yolo, or -f". Print mode fails fast; it does not
+   hang.
+2. With `--trust`, a ping: `pong`, and the workspace was unchanged.
+3. With `--trust`, a list-then-write prompt: the peer ran `ls -la` and
+   refused to create `probe.txt` ("Ask mode only allows read-only tools").
+   There was no hang and the workspace was unchanged.
+
+So `--force` bypasses the trust check only as a side effect, and `--trust
+--mode ask --sandbox enabled` works as a read-only replacement. It now ships
+as the opt-in `--permission-mode read-only` for Cursor.

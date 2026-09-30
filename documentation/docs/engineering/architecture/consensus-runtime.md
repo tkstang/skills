@@ -122,8 +122,11 @@ combination.
 | Codex    | yes                       | codex-cli 0.157.1                        | passed 2026-09-28                                     | passed 2026-09-28    | `verified`   |
 | Cursor   | yes (`--resume [chatId]`) | cursor-agent 2026.09.28 lists `--resume` | passed 2026-09-29 (answer replayed once on reconnect) | refused (unverified) | `unverified` |
 
-The Cursor one-shot adapter runs with `--force`, so a reconstructed Cursor
-fallback is not read-only.
+By default Cursor runs with `--force`, which trusts the workspace and
+auto-approves every command. `--permission-mode read-only` runs it with
+`--trust --mode ask --sandbox enabled` instead: the peer can read files but
+cannot write or run commands, and it answers through its final message rather
+than `consensus submit`.
 
 ## From provider output to a verdict
 

@@ -185,6 +185,31 @@ describe('structured provider output coordinator', () => {
     expect(subprocess.prompts[0]).toContain('final-message JSON fallback');
   });
 
+  it('answers read-only Cursor turns through the final message, not submit', async () => {
+    const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
+
+    const envelope = await runProviderTurn(
+      request({
+        provider: 'cursor',
+        runtime_policy: { permission_mode: 'read-only' },
+      }),
+      {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+        submitCommand: 'node consensus.mjs submit --json -',
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      json: { verdict: 'accept' },
+      diagnostics: { verdict_source: 'final_message' },
+    });
+    expect(subprocess.invocations[0]?.argv).not.toContain('--force');
+    expect(subprocess.envs[0]).not.toHaveProperty('CONSENSUS_SUBMIT_COMMAND');
+    expect(subprocess.prompts[0]).not.toContain('CONSENSUS_SUBMIT_FILE');
+  });
+
   it('captures a verdict submitted through the advertised peer command', async () => {
     const tempDir = await mkdtemp(
       path.join(tmpdir(), 'consensus-submit-test-'),

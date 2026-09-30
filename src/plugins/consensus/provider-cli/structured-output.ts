@@ -323,11 +323,17 @@ async function runStructuredTurn(
     runtime_policy: defaultRuntimePolicy(request.runtime_policy),
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
+  // Peers that cannot run a shell command cannot call `consensus submit`, so
+  // they answer through the final message instead.
   const submitCaptureEnabled =
     (dependencies.transport?.submitCaptureEnabled ?? true) &&
     !(
       request.provider === 'claude' &&
       hasScopedToolAccess(request.runtime_policy)
+    ) &&
+    !(
+      request.provider === 'cursor' &&
+      request.runtime_policy?.permission_mode === 'read-only'
     );
   const strategy = selectStructuredOutputStrategy(adapter, {
     submitCaptureEnabled,
