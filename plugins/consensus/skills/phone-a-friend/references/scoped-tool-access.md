@@ -27,8 +27,8 @@ context already in the prompt. Do not grant tools just because they exist.
    together with these grants; the wrapper uses Claude's `dontAsk` mode.
 
 ```bash
-consensus run --provider claude \
-  --schema ./schemas/advisory.schema.json \
+node <skill-dir>/scripts/consensus.mjs run --provider claude \
+  --schema <skill-dir>/schemas/advisory.schema.json \
   --prompt-file "/absolute/path/to/question.md" \
   --cwd "/absolute/path/to/empty-scratch" \
   --allow-read "/absolute/path/to/approved-brief.md" \

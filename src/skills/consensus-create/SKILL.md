@@ -1,5 +1,5 @@
 ---
-name: create
+name: consensus-create
 description: Use when creating a new artifact from a brief with two AI peers, independent drafts, synthesis, and a readable audit trail.
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+ and the generated consensus CLI.
@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: --brief "<text>" | --brief-file <brief.md>
 metadata:
   author: Thomas Stang
-  version: '0.1.20'
+  version: '0.1.21'
 ---
 
 # Create

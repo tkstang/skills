@@ -9,7 +9,9 @@ layouts and provider adapters.
   its instructions, references, assets, runtime source, and skill-owned tests.
 - Declare standalone and plugin membership in `src/distributions.ts`. A plugin
   may expose a short local name while the canonical/standalone name stays
-  descriptive.
+  descriptive. For example, `src/skills/consensus-create` produces only the
+  Consensus plugin-local `create` skill; `src/skills/phone-a-friend` produces
+  both `phone-a-friend` forms.
 - Treat `skills/` and `plugins/<plugin-name>/skills/` as generated installation
   units. Run `pnpm run build`; never hand-edit generated payloads.
 - Keep plugin manifests plugin-root-relative; do not reference `.oat/` or generated local paths.

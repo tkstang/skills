@@ -28,14 +28,14 @@ import { describe, expect, it } from 'vitest';
 
 const CORE = 'src/plugins/consensus/shared/cli-helpers-core.ts';
 const SHARED = 'src/plugins/consensus/shared/cli-helpers.ts';
-const PANEL = 'src/skills/panel/src/consensus-panel.ts';
+const PANEL = 'src/skills/consensus-panel/src/consensus-panel.ts';
 
 // Modules that consume the shared module and must not redeclare its exports.
 const CONSUMERS = [
-  'src/skills/create/src/consensus-create.ts',
-  'src/skills/decide/src/consensus-decide.ts',
-  'src/skills/plan/src/consensus-plan.ts',
-  'src/skills/evaluate/src/consensus-evaluate.ts',
+  'src/skills/consensus-create/src/consensus-create.ts',
+  'src/skills/consensus-decide/src/consensus-decide.ts',
+  'src/skills/consensus-plan/src/consensus-plan.ts',
+  'src/skills/consensus-evaluate/src/consensus-evaluate.ts',
 ];
 
 // The loop only imports the reconciled parser pair from the shared module.

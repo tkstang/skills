@@ -45,7 +45,9 @@ async function createValidTempRepository() {
   await mkdir(path.join(tempRoot, 'src/skills/session-fork-to-destination'), {
     recursive: true,
   });
-  await mkdir(path.join(tempRoot, 'src/skills/refine'), { recursive: true });
+  await mkdir(path.join(tempRoot, 'src/skills/consensus-refine'), {
+    recursive: true,
+  });
   await mkdir(
     path.join(tempRoot, 'skills/session-fork-to-destination/references'),
     {
@@ -169,7 +171,7 @@ metadata:
   );
 
   const skillFrontmatter = `---
-name: refine
+name: consensus-refine
 description: Test skill
 license: MIT
 compatibility: codex
@@ -179,7 +181,7 @@ metadata:
 # Consensus Refine
 `;
   await writeFile(
-    path.join(tempRoot, 'src/skills/refine/SKILL.md'),
+    path.join(tempRoot, 'src/skills/consensus-refine/SKILL.md'),
     skillFrontmatter,
   );
 
@@ -355,7 +357,7 @@ describe('validate-script', () => {
     );
 
     expect(manifest.name).toBe('consensus');
-    expect(manifest.version).toBe('0.2.6');
+    expect(manifest.version).toBe('0.2.7');
   });
 
   it('individual validators reject escaping paths and missing install docs', async () => {
@@ -490,9 +492,9 @@ name: bad-skill
   it('validation rejects a top-level version even when metadata matches', async () => {
     const tempRoot = await createValidTempRepository();
     await writeFile(
-      path.join(tempRoot, 'src/skills/refine/SKILL.md'),
+      path.join(tempRoot, 'src/skills/consensus-refine/SKILL.md'),
       `---
-name: refine
+name: consensus-refine
 description: Test skill
 license: MIT
 compatibility: codex
@@ -514,9 +516,9 @@ metadata:
   it('validation accepts quoted stable metadata.version as sole authority', async () => {
     const tempRoot = await createValidTempRepository();
     await writeFile(
-      path.join(tempRoot, 'src/skills/refine/SKILL.md'),
+      path.join(tempRoot, 'src/skills/consensus-refine/SKILL.md'),
       `---
-name: refine
+name: consensus-refine
 description: Test skill
 license: MIT
 compatibility: codex
@@ -534,9 +536,9 @@ metadata:
   it('validation rejects conflicting historical-style version fields', async () => {
     const tempRoot = await createValidTempRepository();
     await writeFile(
-      path.join(tempRoot, 'src/skills/refine/SKILL.md'),
+      path.join(tempRoot, 'src/skills/consensus-refine/SKILL.md'),
       `---
-name: refine
+name: consensus-refine
 description: Test skill
 license: MIT
 compatibility: codex
@@ -558,9 +560,9 @@ metadata:
   it('validation rejects malformed or nonstable metadata.version with a clear message', async () => {
     const tempRoot = await createValidTempRepository();
     await writeFile(
-      path.join(tempRoot, 'src/skills/refine/SKILL.md'),
+      path.join(tempRoot, 'src/skills/consensus-refine/SKILL.md'),
       `---
-name: refine
+name: consensus-refine
 description: Test skill
 license: MIT
 compatibility: codex
@@ -579,9 +581,9 @@ metadata:
   it('validation rejects an unquoted metadata.version', async () => {
     const tempRoot = await createValidTempRepository();
     await writeFile(
-      path.join(tempRoot, 'src/skills/refine/SKILL.md'),
+      path.join(tempRoot, 'src/skills/consensus-refine/SKILL.md'),
       `---
-name: refine
+name: consensus-refine
 description: Test skill
 license: MIT
 compatibility: codex

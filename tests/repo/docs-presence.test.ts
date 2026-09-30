@@ -48,13 +48,13 @@ describe('docs-presence', () => {
     const resources = await Promise.all(
       [
         'plugins/consensus/references/live-e2e.md',
-        'src/skills/evaluate/references/operator-qa.md',
+        'src/skills/consensus-evaluate/references/operator-qa.md',
         'src/skills/session-observer-collab/references/runtime-claude-code.md',
         'src/skills/session-observer-collab/references/runtime-codex.md',
         'src/skills/session-observer-collab/references/runtime-cursor.md',
         'src/skills/session-observer/references/transcript-formats.md',
         'src/skills/session-export-transcript/references/transcript-formats.md',
-        'src/skills/panel/src/consensus-panel.ts',
+        'src/skills/consensus-panel/src/consensus-panel.ts',
         'src/plugins/consensus/core/loop-provider.ts',
         'src/skills/session-observer/src/lib/state.ts',
         'src/skills/session-observer/src/fixtures/README.md',
@@ -65,13 +65,13 @@ describe('docs-presence', () => {
       /(?:tests\/(?:consensus|session-observer|session-observer-collab|transcript-core)|src\/(?:consensus\/|transcript\/core)|scripts\/build-generated\.mjs)/u,
     );
     expect(resources[0]).toContain('src/plugins/consensus/');
-    expect(resources[0]).toContain('src/skills/refine/');
-    expect(resources[0]).toContain('src/skills/evaluate/');
+    expect(resources[0]).toContain('src/skills/consensus-refine/');
+    expect(resources[0]).toContain('src/skills/consensus-evaluate/');
 
     const executablePaths = [
-      'src/skills/evaluate/src/provider-cli-integration.test.ts',
-      'src/skills/evaluate/src/wrapper.test.ts',
-      'src/skills/evaluate/src/output.test.ts',
+      'src/skills/consensus-evaluate/src/provider-cli-integration.test.ts',
+      'src/skills/consensus-evaluate/src/wrapper.test.ts',
+      'src/skills/consensus-evaluate/src/output.test.ts',
       'src/skills/session-observer/src/watch.test.ts',
       'src/skills/session-observer-collab/src/codex-hook.test.ts',
       'src/skills/session-observer-collab/src/control.test.ts',

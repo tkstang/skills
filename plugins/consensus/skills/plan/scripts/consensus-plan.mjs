@@ -1,6 +1,6 @@
-// GENERATED skill payload for plan.
+// GENERATED skill payload for consensus-plan.
 
-// src/skills/plan/src/consensus-plan.ts
+// src/skills/consensus-plan/src/consensus-plan.ts
 import { realpathSync } from "node:fs";
 import path7 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
@@ -3416,7 +3416,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
   };
 }
 
-// src/skills/plan/src/consensus-plan.ts
+// src/skills/consensus-plan/src/consensus-plan.ts
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 function parseAgency(value) {
   if (value === "minimal" || value === "moderate" || value === "maximum") {

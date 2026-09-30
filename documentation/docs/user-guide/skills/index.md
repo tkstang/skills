@@ -20,6 +20,7 @@ Choose by what the next session needs:
 | Decide whether a requirement or proposal is necessary                         | [Must We?](must-we.md)                                        | An evidence-based verdict, consequence of skipping, and the smallest sufficient path.                                                                                   |
 | Create, revise, migrate, or review an agent skill                             | [Author Skill](author-skill.md)                               | A skill shaped by the target repository’s conventions, with focused verification and explicit live-evidence limits.                                                     |
 | Review one bounded branch diff, file set, or document independently           | [Consensus Review](../consensus/review.md)                    | Validated JSON and OAT-compatible Markdown with findings, provenance, checks, and explicit detection limits; no automatic fixes.                                        |
+| Ask one provider-backed peer for a focused second opinion                     | [Phone-a-friend](../consensus/phone-a-friend.md)              | A structured advisory take the host dispositions, with bounded follow-up on request; no automatic application.                                                          |
 | Learn from one skill invocation or a bounded session episode                  | [Session Retro](session-retro.md)                             | Evidence-backed findings and validation proposals; the review does not apply its own changes.                                                                           |
 | Let any agent or person continue the work                                     | [Session Handoff](session-handoff.md)                         | A concise, portable packet of goal, state, decisions, evidence, remaining work, and approval boundaries. It does not preserve native provider history or runtime state. |
 | Keep a durable record of the conversation                                     | [Session Export Transcript](session-export-transcript.md)     | A sanitized Markdown transcript for reference. It is an archive, not a continuation packet or a session transfer.                                                       |
@@ -68,6 +69,9 @@ and standalone choices.
 - **consensus-review** (consensus-local `review`) — run one bounded,
   provider-backed read-only review and render receivable findings without
   applying them.
+- **phone-a-friend** (consensus-local `phone-a-friend`) — ask one peer for a
+  structured second opinion, optionally follow up within a bound, and explain
+  the host's disposition.
 
 ## Contents
 
@@ -81,6 +85,7 @@ and standalone choices.
 
 - [Author Skill](author-skill.md) - Create, revise, migrate, or review a skill using the target repository’s conventions.
 - [Consensus Review](../consensus/review.md) - Review a branch diff, selected files, or one document through one independent provider invocation.
+- [Phone-a-friend](../consensus/phone-a-friend.md) - Get one structured advisory take from another provider and decide what to do with it.
 - [Complexity Review](complexity-review.md) - Decide whether each piece of machinery in a plan or implementation is justified by the contract, and get the minimum sufficient version.
 - [Session Retro](session-retro.md) - Review one invocation or bounded episode without applying findings; requires Session Export Transcript and is available standalone or as Session `retro`.
 

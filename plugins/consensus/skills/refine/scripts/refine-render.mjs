@@ -1,9 +1,9 @@
-// GENERATED skill payload for refine.
+// GENERATED skill payload for consensus-refine.
 
-// src/skills/refine/src/refine-render.ts
+// src/skills/consensus-refine/src/refine-render.ts
 import path2 from "node:path";
 
-// src/skills/refine/src/refine-shared.ts
+// src/skills/consensus-refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
   lstat,
@@ -25,7 +25,7 @@ function asErrorLike(error) {
   return isJsonRecord(error) ? error : {};
 }
 
-// src/skills/refine/src/refine-render.ts
+// src/skills/consensus-refine/src/refine-render.ts
 function dynamicFence(contents, info = "") {
   const text = String(contents ?? "");
   const maxRun = Math.max(

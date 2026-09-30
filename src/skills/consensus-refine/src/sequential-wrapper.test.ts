@@ -128,7 +128,9 @@ it('consensus-refine bundles the consensus-loop runtime', async () => {
   const wrapperSource = await readFile(refineScript, 'utf8');
   const generatedLoop = await readFile(generatedLoopScript, 'utf8');
 
-  expect(wrapperSource).toContain('// GENERATED skill payload for refine.');
+  expect(wrapperSource).toContain(
+    '// GENERATED skill payload for consensus-refine.',
+  );
   expect(wrapperSource).not.toMatch(/from\s+['"]\.\.?\//);
   expect(wrapperSource).not.toMatch(/src\/consensus-loop\.ts/);
   expect(generatedLoop).toMatch(

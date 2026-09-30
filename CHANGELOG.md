@@ -4,6 +4,10 @@
 
 ### Added
 
+- `phone-a-friend` 0.3.0 standalone distribution, with its bundled provider CLI
+  and advisory schema. Its standalone and Consensus plugin names both remain
+  `phone-a-friend`; external provider CLIs must be installed and authenticated.
+
 - `align` 1.0.1 standalone instruction-only skill for explicitly checking
   shared understanding of the user's goal, underlying problem, and success
   criteria before or during work.
@@ -78,6 +82,18 @@
   `phone-a-friend` 0.2.0 uses it for Cursor follow-up rounds.
 
 ### Changed
+
+- Prefix the canonical source directories and names for `consensus-create`
+  0.1.21, `consensus-decide` 0.1.21, `consensus-evaluate` 0.1.25,
+  `consensus-panel` 0.1.18, `consensus-plan` 0.1.21, and `consensus-refine`
+  0.1.24. They remain plugin-only with short plugin names such as `plan`.
+  `consensus` plugin 0.2.7 carries these metadata updates and the standalone-capable
+  Phone-a-Friend payload.
+- Correct shared source references to the renamed Consensus owners.
+  `consensus-review` 0.1.23, `session-observer` 1.0.87,
+  `session-observer-collab` 1.0.75, and `session-fork-to-destination` 0.2.55
+  receive the required source-closure version bumps without workflow changes.
+  `session` plugin 0.3.6 carries the updated destination-fork metadata.
 
 - Normalize `metadata.author` to `Thomas Stang` across all 18 canonical
   skills and their generated distributions. Newly affected skills receive

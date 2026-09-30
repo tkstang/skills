@@ -1,6 +1,6 @@
-// GENERATED skill payload for refine.
+// GENERATED skill payload for consensus-refine.
 
-// src/skills/refine/src/refine-resume.ts
+// src/skills/consensus-refine/src/refine-resume.ts
 import { mkdir as mkdir5, readFile as readFile4, stat as stat2, writeFile as writeFile4 } from "node:fs/promises";
 import path7 from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -176,7 +176,7 @@ var BASE_DECISION_KINDS = Object.freeze([
   "extend_budget"
 ]);
 
-// src/skills/refine/src/refine-shared.ts
+// src/skills/consensus-refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
   lstat as lstat3,
@@ -222,7 +222,7 @@ function consensusBlockPattern(label) {
   return new RegExp(`<!-- consensus:${label}\\n([\\s\\S]*?)\\n-->`, "g");
 }
 
-// src/skills/refine/src/refine-resume.ts
+// src/skills/consensus-refine/src/refine-resume.ts
 var STRICT_RESUME_HASH_OPTIONS = Object.freeze({
   normalizeLineEndings: false,
   trimTrailingWhitespace: false,

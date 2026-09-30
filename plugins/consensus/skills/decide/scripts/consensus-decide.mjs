@@ -1,6 +1,6 @@
-// GENERATED skill payload for decide.
+// GENERATED skill payload for consensus-decide.
 
-// src/skills/decide/src/consensus-decide.ts
+// src/skills/consensus-decide/src/consensus-decide.ts
 import { realpathSync } from "node:fs";
 import { lstat as lstat3, readFile as readFile4, realpath as realpath2, stat } from "node:fs/promises";
 import path7 from "node:path";
@@ -3417,7 +3417,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
   };
 }
 
-// src/skills/decide/src/consensus-decide.ts
+// src/skills/consensus-decide/src/consensus-decide.ts
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 var DEFAULT_DECIDE_GOAL = "Choose between the supplied options.";
 function parseAgency(value) {

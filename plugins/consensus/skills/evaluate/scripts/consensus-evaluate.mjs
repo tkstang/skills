@@ -1,6 +1,6 @@
-// GENERATED skill payload for evaluate.
+// GENERATED skill payload for consensus-evaluate.
 
-// src/skills/evaluate/src/consensus-evaluate.ts
+// src/skills/consensus-evaluate/src/consensus-evaluate.ts
 import { realpathSync } from "node:fs";
 import { readFile as readFile4, stat } from "node:fs/promises";
 import path7 from "node:path";
@@ -3417,7 +3417,7 @@ function routeEscalation(trigger, agency = "moderate", records = []) {
   };
 }
 
-// src/skills/evaluate/src/consensus-evaluate.ts
+// src/skills/consensus-evaluate/src/consensus-evaluate.ts
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 async function preflightEvaluateProviderCli({
   env,

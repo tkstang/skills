@@ -94,18 +94,22 @@ availability claim.
 ## Prerequisites
 
 - Node.js 22 or newer.
-- Consensus plugin only: the generated consensus CLI from this plugin, used for
-  provider inventory, preflight, and peer invocation.
-- Consensus plugin only: local provider CLIs for the requested peers. The first
-  supported provider floor is `claude`, `codex`, and `cursor`.
+- Consensus plugin workflows: the generated consensus CLI from the plugin,
+  used for provider inventory, preflight, and peer invocation. Standalone
+  `phone-a-friend` bundles its own helper; standalone `consensus-review` carries
+  its own review runtime. Neither standalone skill needs the plugin installed.
+- Provider-backed workflows: authenticated local provider CLIs for the selected
+  peers. The first supported provider floor is `claude`, `codex`, and `cursor`;
+  these external CLIs are not bundled.
 - `observer-collab` / `session-observer-collab`: the `session-observer`
   workflow must be present, either as standalone `session-observer` or as the
   consensus plugin-local `observer`. The collaboration skill checks the local
   inventory and stops with the canonical install link when neither identity is
   available; it never installs the dependency automatically.
 
-The consensus wrappers always invoke peers through the generated provider CLI.
-There is no alternate backend selector in v0.1.
+The consensus wrappers invoke peers through their generated provider helper.
+Review uses its own bundled review runtime. There is no alternate backend
+selector in v0.1.
 
 Shared TypeScript/runtime imports are a packaging concern rather than an
 installed-skill prerequisite. The build materializes each skill's shared runtime
@@ -234,11 +238,13 @@ under `skills/`:
 | `session-export-transcript`   | session `export-transcript`   | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-export-transcript)   |
 | `session-fork-to-destination` | session `fork-to-destination` | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-fork-to-destination) |
 | `complexity-review`           | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/complexity-review)           |
+| `phone-a-friend`              | consensus `phone-a-friend`    | [standalone source](https://github.com/tkstang/skills/tree/main/skills/phone-a-friend)              |
 | `consensus-review`            | consensus `review`            | [standalone source](https://github.com/tkstang/skills/tree/main/skills/consensus-review)            |
 
 Qualified invocation syntax depends on the host. Claude Code and Codex include
 the plugin namespace; Cursor's local `--plugin-dir` load exposes the local name
-without a universal namespace promise.
+without a universal namespace promise. Standalone `phone-a-friend` uses the
+same name as its plugin-local form, but no plugin namespace.
 
 ## Updating an install
 
@@ -459,10 +465,16 @@ on the branch you expect to be installed.
 
 ## Standalone consensus recovery
 
-Use the full consensus plugin install when possible. If a consensus skill was
-installed standalone through skills.sh without the plugin tree, the wrapper will
-look for a shared provider CLI at `~/.consensus/consensus.mjs`. Provision it with
-the pinned installer:
+This shared-helper recovery applies to copied plugin wrappers that depend on
+the plugin tree. Standalone `phone-a-friend` bundles
+`<skill-dir>/scripts/consensus.mjs` and its advisory schema; standalone
+`consensus-review` has its own bundled review runtime. For either declared
+standalone skill, compare an incomplete installation with its generated
+`skills/<name>/` payload and update that skill. Neither uses the shared helper
+under `~/.consensus/`.
+
+For a copied plugin wrapper that looks for `~/.consensus/consensus.mjs`,
+provision the shared helper with the pinned installer:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/tkstang/skills/v0.1.2/install.sh | bash
@@ -481,16 +493,24 @@ updating the checkout if the consensus runtime changes.
 
 ## Check provider readiness
 
-Check provider inventory and readiness before an expensive run:
+Check the selected provider before an expensive run:
 
 ```bash
-node plugins/consensus/scripts/consensus.mjs provider ls --json
 node plugins/consensus/scripts/consensus.mjs preflight --json --provider <selected-provider-id> --capability run
 ```
 
 In an installed plugin environment, the same provider CLI may be exposed as
-`consensus` — for example `consensus provider ls --json` and
-`consensus preflight --json --provider <selected-provider-id> --capability run`.
+`consensus`. Standalone Phone uses its bundled helper from the caller project:
+
+```bash
+node <skill-dir>/scripts/consensus.mjs preflight --json --provider <selected-provider-id> --capability run
+```
+
+Here `<skill-dir>` is the absolute directory containing the loaded Phone
+`SKILL.md`. Check each provider that the run will invoke. An unscoped
+`provider ls` probes unselected CLIs and is not a prerequisite. These checks
+do not establish live provider behavior; follow [Review](consensus/review.md)
+for its separate invocation and limits.
 
 Next: head to [Consensus](consensus/index.md) to run peer workflows and the
 plugin-local observer skills, or [Skills](skills/index.md) for the session plugin

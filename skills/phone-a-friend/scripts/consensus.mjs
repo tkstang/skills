@@ -1,0 +1,4349 @@
+// GENERATED skill payload for phone-a-friend.
+
+// src/plugins/consensus/provider-cli/cli.ts
+import { realpathSync as realpathSync2 } from "node:fs";
+import { readFile as readFile3, stat } from "node:fs/promises";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
+
+// src/plugins/consensus/provider-cli/commands.ts
+import { randomUUID as randomUUID5 } from "node:crypto";
+import { mkdir as mkdir2, rename as rename2, writeFile as writeFile2 } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
+
+// src/plugins/consensus/config/consensus-config.ts
+import { randomUUID } from "node:crypto";
+import {
+  access,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  writeFile
+} from "node:fs/promises";
+import path from "node:path";
+
+// src/plugins/consensus/provider-cli/types.ts
+var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
+var PROVIDER_PREFLIGHT_CAPABILITIES = ["run"];
+var CONTINUATION_MODES = [
+  "new",
+  "native-resume",
+  "reconstructed"
+];
+var RESUME_FALLBACK_POLICIES = ["error", "reconstructed"];
+
+// src/plugins/consensus/config/consensus-config.ts
+var BUILT_IN_PROVIDER_ORDER = ["claude", "codex"];
+var CONFIG_KEYS = /* @__PURE__ */ new Set(["schema_version", "defaults"]);
+var DEFAULTS_KEYS = /* @__PURE__ */ new Set([
+  "peers",
+  "panelists",
+  "panel_size",
+  "reviewers",
+  "roles"
+]);
+var AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
+var ROLE_KEYS = /* @__PURE__ */ new Set(["panelist", "advisor", "synthesizer"]);
+function parseConsensusDefaultsConfig(value) {
+  if (!isRecord(value)) {
+    throw new Error("Consensus config must be an object");
+  }
+  assertKnownKeys(value, CONFIG_KEYS, "Consensus config");
+  if (value.schema_version !== "v1") {
+    throw new Error('Consensus config schema_version must be "v1"');
+  }
+  const config = { schema_version: "v1" };
+  if (value.defaults !== void 0) {
+    config.defaults = parseConsensusDefaults(value.defaults);
+  }
+  return config;
+}
+function parseConsensusDefaults(value) {
+  if (!isRecord(value)) {
+    throw new Error("Consensus config defaults must be an object");
+  }
+  assertKnownKeys(value, DEFAULTS_KEYS, "Consensus config defaults");
+  const defaults = {};
+  if (value.peers !== void 0) {
+    defaults.peers = parseAgentList(value.peers, {
+      label: "Consensus config peers",
+      exactLength: 2
+    });
+  }
+  if (value.panelists !== void 0) {
+    defaults.panelists = parseAgentList(value.panelists, {
+      label: "Consensus config panelists",
+      minLength: 2
+    });
+  }
+  if (value.panel_size !== void 0) {
+    defaults.panel_size = parsePanelSize(value.panel_size);
+  }
+  if (value.reviewers !== void 0) {
+    defaults.reviewers = parseAgentList(value.reviewers, {
+      label: "Consensus config reviewers",
+      minLength: 1,
+      knownProvidersOnly: true
+    });
+  }
+  if (value.roles !== void 0) {
+    defaults.roles = parseRolesConfig(value.roles);
+  }
+  return defaults;
+}
+async function readConsensusConfig(input) {
+  const configPath = await consensusConfigPath(input);
+  let contents;
+  try {
+    contents = await readFile(configPath, "utf8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return null;
+    throw error;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(contents);
+  } catch (error) {
+    throw new Error(
+      `Could not parse consensus config at ${configPath}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    );
+  }
+  return parseConsensusDefaultsConfig(parsed);
+}
+async function writeConsensusConfig(input) {
+  const configPath = await consensusConfigPath(input);
+  const config = parseConsensusDefaultsConfig(input.config);
+  await writeJsonAtomic(configPath, config);
+}
+async function clearConsensusConfig(input) {
+  const key = input.key ?? "all";
+  const configPath = await consensusConfigPath(input);
+  if (key === "all") {
+    await rm(configPath, { force: true });
+    return;
+  }
+  const existing = await readConsensusConfig(input);
+  if (!existing) return;
+  const defaults = { ...existing.defaults };
+  if (key === "peers") {
+    delete defaults.peers;
+  } else if (key === "panelists") {
+    delete defaults.panelists;
+  } else if (key === "panel-size") {
+    delete defaults.panel_size;
+  } else if (key === "reviewers") {
+    delete defaults.reviewers;
+  } else if (key === "roles") {
+    delete defaults.roles;
+  } else {
+    assertNever(key);
+  }
+  const next = { schema_version: "v1" };
+  if (hasConsensusDefaults(defaults)) next.defaults = defaults;
+  await writeJsonAtomic(configPath, next);
+}
+async function consensusConfigPath(input) {
+  if (input.scope === "user") {
+    return path.join(userConfigDir(input.env), "consensus", "config.json");
+  }
+  return projectConsensusConfigPath(input.cwd);
+}
+async function projectConsensusConfigPath(cwd) {
+  const fallback = projectConsensusConfigPathAt(cwd);
+  const existing = await findNearestProjectConsensusConfig(cwd);
+  return existing ?? fallback;
+}
+async function findNearestProjectConsensusConfig(cwd) {
+  let current = path.resolve(cwd);
+  while (true) {
+    const candidate = projectConsensusConfigPathAt(current);
+    try {
+      await access(candidate);
+      return candidate;
+    } catch (error) {
+      if (!isNodeError(error) || error.code !== "ENOENT") throw error;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+function projectConsensusConfigPathAt(cwd) {
+  return path.join(path.resolve(cwd), ".consensus", "config.json");
+}
+async function resolveConsensusComposition(input) {
+  const candidates = await loadCandidates(input);
+  if (input.workflow === "convergence") {
+    return resolveConvergenceComposition(input, candidates);
+  }
+  if (input.workflow === "review") {
+    return resolveReviewComposition(input, candidates);
+  }
+  return resolvePanelComposition(input, candidates);
+}
+function resolveReviewComposition(input, candidates) {
+  const candidate = candidates.find(
+    ({ config }) => config.defaults?.reviewers !== void 0
+  );
+  const reviewers = candidate?.config.defaults?.reviewers ?? [
+    { provider: "claude" },
+    { provider: "codex" }
+  ];
+  return {
+    source: candidate?.source ?? "built-in",
+    workflow: "review",
+    agents: reviewers,
+    warnings: inventoryWarnings(reviewers, input.inventory)
+  };
+}
+async function loadCandidates(input) {
+  const candidates = [];
+  if (input.invocation && hasConsensusDefaults(input.invocation)) {
+    candidates.push({
+      source: "invocation",
+      config: {
+        schema_version: "v1",
+        defaults: parseConsensusDefaults(input.invocation)
+      }
+    });
+  }
+  const project = await readConsensusConfig({
+    scope: "project",
+    cwd: input.cwd,
+    env: input.env
+  });
+  if (project) candidates.push({ source: "project", config: project });
+  const user = await readConsensusConfig({
+    scope: "user",
+    cwd: input.cwd,
+    env: input.env
+  });
+  if (user) candidates.push({ source: "user", config: user });
+  return candidates;
+}
+function resolveConvergenceComposition(input, candidates) {
+  const candidate = candidates.find(
+    ({ config }) => config.defaults?.peers !== void 0
+  );
+  const peers = candidate?.config.defaults?.peers;
+  if (peers) {
+    return {
+      source: candidate.source,
+      workflow: "convergence",
+      agents: peers,
+      warnings: inventoryWarnings(peers, input.inventory)
+    };
+  }
+  return {
+    source: "built-in",
+    workflow: "convergence",
+    agents: builtInConvergenceAgents(2),
+    warnings: []
+  };
+}
+function resolvePanelComposition(input, candidates) {
+  const panelistsCandidate = candidates.find(
+    ({ config }) => config.defaults?.panelists !== void 0
+  );
+  const firstPanelSizeCandidate = candidates.find(
+    ({ config }) => config.defaults?.panel_size !== void 0
+  );
+  const panelSizeCandidate = panelistsCandidate?.source === "invocation" && firstPanelSizeCandidate?.source !== "invocation" ? void 0 : firstPanelSizeCandidate;
+  const source = panelistsCandidate?.source ?? panelSizeCandidate?.source;
+  const configuredPanelists = panelistsCandidate?.config.defaults?.panelists;
+  const targetSize = panelSizeCandidate?.config.defaults?.panel_size ?? configuredPanelists?.length ?? 2;
+  const selected = selectPanelAgents(
+    configuredPanelists ?? builtInAgents(input.inventory, 2),
+    targetSize,
+    input.inventory
+  );
+  const warnings = [
+    ...inventoryWarnings(configuredPanelists ?? [], input.inventory)
+  ];
+  if (selected.length < targetSize) {
+    warnings.push(
+      `Only ${selected.length} panelists are available for requested panel_size ${targetSize}.`
+    );
+  }
+  if (selected.length < 2) {
+    selected.push(
+      ...missingBuiltInAgents(selected).slice(0, 2 - selected.length)
+    );
+  }
+  return {
+    source: source ?? "built-in",
+    workflow: "panel",
+    agents: selected,
+    warnings
+  };
+}
+function selectPanelAgents(configuredPanelists, targetSize, inventory) {
+  const selected = configuredPanelists.slice(0, targetSize);
+  if (selected.length >= targetSize) return selected;
+  const seen = new Set(selected.map((agent) => agent.provider));
+  for (const entry of inventory ?? []) {
+    if (selected.length >= targetSize) break;
+    if (entry.status !== "ready" || seen.has(entry.id)) continue;
+    selected.push({ provider: entry.id });
+    seen.add(entry.id);
+  }
+  if (selected.length < 2) {
+    for (const agent of missingBuiltInAgents(selected)) {
+      selected.push(agent);
+      if (selected.length >= 2) break;
+    }
+  }
+  return selected;
+}
+function builtInAgents(inventory, count) {
+  const ready = (inventory ?? []).filter((entry) => entry.status === "ready").map((entry) => ({ provider: entry.id }));
+  const selected = ready.slice(0, count);
+  for (const agent of missingBuiltInAgents(selected)) {
+    if (selected.length >= count) break;
+    selected.push(agent);
+  }
+  return selected;
+}
+function builtInConvergenceAgents(count) {
+  return BUILT_IN_PROVIDER_ORDER.slice(0, count).map((provider) => ({
+    provider
+  }));
+}
+function missingBuiltInAgents(current) {
+  const seen = new Set(current.map((agent) => agent.provider));
+  return BUILT_IN_PROVIDER_ORDER.filter((provider) => !seen.has(provider)).map(
+    (provider) => ({ provider })
+  );
+}
+function inventoryWarnings(agents, inventory) {
+  if (!inventory || inventory.length === 0) return [];
+  const byId = new Map(inventory.map((entry) => [entry.id, entry]));
+  const warnings = [];
+  for (const agent of agents) {
+    const entry = byId.get(agent.provider);
+    if (!entry) {
+      warnings.push(`Configured provider is not registered: ${agent.provider}`);
+    } else if (entry.status !== "ready") {
+      warnings.push(
+        `Configured provider is not ready: ${agent.provider} (${entry.status})`
+      );
+    }
+  }
+  return warnings;
+}
+function parseAgentList(value, options) {
+  if (!Array.isArray(value)) {
+    throw new Error(`${options.label} must be an array`);
+  }
+  if (options.exactLength !== void 0 && value.length !== options.exactLength) {
+    throw new Error(
+      `${options.label} must contain exactly ${formatCount(options.exactLength)} agents`
+    );
+  }
+  if (options.minLength !== void 0 && value.length < options.minLength) {
+    throw new Error(
+      `${options.label} must contain at least ${formatCount(options.minLength)} agents`
+    );
+  }
+  const agents = value.map(
+    (item, index) => parseAgentRef(item, `${options.label}[${index}]`)
+  );
+  if (options.knownProvidersOnly) {
+    for (const agent of agents) {
+      if (!FIRST_SCOPE_PROVIDER_IDS.some((id) => id === agent.provider)) {
+        throw new Error(
+          `${options.label} contains unsupported provider: ${agent.provider}`
+        );
+      }
+    }
+  }
+  assertUniqueProviders(agents, options.label);
+  return agents;
+}
+function parseAgentRef(value, label) {
+  if (!isRecord(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  assertKnownKeys(value, AGENT_KEYS, label);
+  if (typeof value.provider !== "string" || value.provider.length === 0) {
+    throw new Error(`${label}.provider must be a non-empty string`);
+  }
+  if (!isProviderId(value.provider)) {
+    throw new Error(`${label}.provider must be a provider id`);
+  }
+  const agent = { provider: value.provider };
+  if (value.model !== void 0) {
+    if (typeof value.model !== "string" || value.model.length === 0) {
+      throw new Error(`${label}.model must be a non-empty string`);
+    }
+    agent.model = value.model;
+  }
+  if (value.effort !== void 0) {
+    if (typeof value.effort !== "string" || value.effort.length === 0) {
+      throw new Error(`${label}.effort must be a non-empty string`);
+    }
+    agent.effort = value.effort;
+  }
+  return agent;
+}
+function parsePanelSize(value) {
+  if (!Number.isInteger(value) || Number(value) < 2) {
+    throw new Error(
+      "Consensus config panel_size must be an integer greater than 1"
+    );
+  }
+  return Number(value);
+}
+function parseRolesConfig(value) {
+  if (!isRecord(value)) {
+    throw new Error("Consensus config roles must be an object");
+  }
+  assertKnownKeys(value, ROLE_KEYS, "Consensus config roles");
+  const roles = {};
+  if (value.panelist !== void 0) {
+    roles.panelist = parseAgentList(value.panelist, {
+      label: "Consensus config roles.panelist",
+      minLength: 1
+    });
+  }
+  if (value.advisor !== void 0) {
+    roles.advisor = parseAgentRef(
+      value.advisor,
+      "Consensus config roles.advisor"
+    );
+  }
+  if (value.synthesizer !== void 0) {
+    roles.synthesizer = parseAgentRef(
+      value.synthesizer,
+      "Consensus config roles.synthesizer"
+    );
+  }
+  return roles;
+}
+function assertUniqueProviders(agents, label) {
+  const seen = /* @__PURE__ */ new Set();
+  for (const agent of agents) {
+    if (seen.has(agent.provider)) {
+      throw new Error(`${label} must not contain duplicate providers`);
+    }
+    seen.add(agent.provider);
+  }
+}
+function assertKnownKeys(record, knownKeys, label) {
+  for (const key of Object.keys(record)) {
+    if (!knownKeys.has(key)) {
+      throw new Error(`${label} has unknown key: ${key}`);
+    }
+  }
+}
+function hasConsensusDefaults(value) {
+  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.reviewers !== void 0 || value.roles !== void 0;
+}
+function isProviderId(value) {
+  return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
+}
+function userConfigDir(env = {}) {
+  const xdg = env.XDG_CONFIG_HOME ?? process.env.XDG_CONFIG_HOME;
+  if (xdg && xdg.length > 0) return path.resolve(xdg);
+  const home = env.HOME ?? process.env.HOME;
+  if (!home) {
+    throw new Error("HOME is required to resolve user consensus config");
+  }
+  return path.join(path.resolve(home), ".config");
+}
+async function writeJsonAtomic(filePath, config) {
+  const directory = path.dirname(filePath);
+  await mkdir(directory, { recursive: true });
+  const tempPath = path.join(
+    directory,
+    `.${path.basename(filePath)}.${process.pid}.${randomUUID()}.tmp`
+  );
+  await writeFile(tempPath, `${JSON.stringify(config, null, 2)}
+`, "utf8");
+  await rename(tempPath, filePath);
+}
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isNodeError(error) {
+  return error instanceof Error && "code" in error;
+}
+function formatCount(count) {
+  return count === 2 ? "two" : String(count);
+}
+function assertNever(value) {
+  throw new Error(`Unexpected consensus config key: ${String(value)}`);
+}
+
+// src/plugins/consensus/provider-cli/invocation.ts
+import { randomUUID as randomUUID2 } from "node:crypto";
+import { tmpdir } from "node:os";
+import path2 from "node:path";
+function buildProviderInvocation(adapter, request, options = {}) {
+  return adapter.buildInvocation(request, {
+    strategy: options.strategy ?? defaultStrategy(adapter),
+    inlineJsonSchema: options.inlineJsonSchema,
+    lastMessageFile: options.lastMessageFile,
+    preserveLastMessageFile: options.preserveLastMessageFile,
+    resumeSessionId: options.resumeSessionId
+  });
+}
+var buildClaudeInvocation = (request, options = {}) => {
+  const strategy = options.strategy ?? "prompt_only";
+  const argv = ["--print", "--output-format", "json"];
+  const redactedArgv = ["--print", "--output-format", "json"];
+  if (strategy === "provider_validated") {
+    if (!options.inlineJsonSchema) {
+      throw new Error(
+        "Claude provider-validated invocation requires an inline JSON schema."
+      );
+    }
+    argv.push("--json-schema", options.inlineJsonSchema);
+    redactedArgv.push("--json-schema", "<inline-json-schema>");
+  }
+  if (request.model) {
+    argv.push("--model", request.model);
+    redactedArgv.push("--model", request.model);
+  }
+  if (request.effort) {
+    argv.push("--effort", request.effort);
+    redactedArgv.push("--effort", request.effort);
+  }
+  const claudePermissionMode = mapClaudePermissionMode(
+    request.runtime_policy?.permission_mode
+  );
+  if (claudePermissionMode) {
+    argv.push("--permission-mode", claudePermissionMode);
+    redactedArgv.push("--permission-mode", claudePermissionMode);
+  }
+  if (options.resumeSessionId) {
+    argv.push("--resume", options.resumeSessionId);
+    redactedArgv.push("--resume", options.resumeSessionId);
+  }
+  const policy = request.runtime_policy;
+  const scopedTools = [
+    ...(policy?.read_paths ?? []).map((filePath) => `Read(/${filePath})`),
+    ...(policy?.edit_paths ?? []).map((filePath) => `Edit(/${filePath})`),
+    ...policy?.web_search ? ["WebSearch"] : [],
+    ...(policy?.web_fetch_domains ?? []).map(
+      (domain) => `WebFetch(domain:${domain})`
+    )
+  ];
+  if (scopedTools.length > 0) {
+    const availableTools = [
+      ...policy?.read_paths?.length ? ["Read"] : [],
+      ...policy?.edit_paths?.length ? ["Edit", "Write"] : [],
+      ...policy?.web_search ? ["WebSearch"] : [],
+      ...policy?.web_fetch_domains?.length ? ["WebFetch"] : []
+    ];
+    argv.push(
+      "--allowedTools",
+      ...scopedTools,
+      "--tools",
+      availableTools.join(","),
+      "--permission-prompts",
+      "none",
+      "--permission-mode",
+      "dontAsk",
+      "--strict-mcp-config"
+    );
+    redactedArgv.push(
+      "--allowedTools",
+      "<scoped-tool-rules>",
+      "--tools",
+      availableTools.join(","),
+      "--permission-prompts",
+      "none",
+      "--permission-mode",
+      "dontAsk",
+      "--strict-mcp-config"
+    );
+  }
+  argv.push(request.prompt);
+  redactedArgv.push("<prompt>");
+  return invocation({
+    executable: "claude",
+    argv,
+    redactedArgv,
+    request,
+    strategy,
+    outputMode: "stdout_json",
+    stdin: ""
+  });
+};
+var buildCodexInvocation = (request, options = {}) => {
+  const strategy = options.strategy ?? "prompt_only";
+  const lastMessageFile = options.lastMessageFile ?? codexLastMessageFile();
+  const resumeSessionId = options.resumeSessionId;
+  const argv = [
+    "exec",
+    ...resumeSessionId ? ["resume"] : [],
+    "--json",
+    "--output-last-message",
+    lastMessageFile
+  ];
+  if (strategy === "constrained_native") {
+    argv.push("--output-schema", request.schema_path);
+  }
+  if (request.model) argv.push("--model", request.model);
+  if (request.effort) {
+    argv.push(
+      "-c",
+      codexConfigOverride("model_reasoning_effort", request.effort)
+    );
+  }
+  if (request.runtime_policy?.sandbox) {
+    if (resumeSessionId) {
+      argv.push(
+        "-c",
+        codexConfigOverride("sandbox_mode", request.runtime_policy.sandbox)
+      );
+    } else {
+      argv.push("--sandbox", request.runtime_policy.sandbox);
+    }
+  }
+  const approvalPolicy = request.runtime_policy?.approval_policy ?? (request.runtime_policy?.permission_mode === "non-interactive" ? "never" : void 0);
+  if (approvalPolicy) {
+    argv.push("-c", codexConfigOverride("approval_policy", approvalPolicy));
+  }
+  if (resumeSessionId) argv.push(resumeSessionId, "-");
+  return invocation({
+    executable: "codex",
+    argv,
+    request,
+    strategy,
+    outputMode: "last_message_file",
+    lastMessageFile,
+    cleanupLastMessageFile: !options.preserveLastMessageFile
+  });
+};
+var buildCursorInvocation = (request, options = {}) => {
+  if (options.resumeSessionId) {
+    throw new Error(
+      "Cursor native resume is not verified for this adapter; use a reconstructed continuation."
+    );
+  }
+  const strategy = options.strategy === "submit_tool_candidate" ? "prompt_only" : options.strategy ?? "prompt_only";
+  const argv = request.runtime_policy?.permission_mode === "read-only" ? [
+    "--print",
+    "--output-format",
+    "json",
+    "--trust",
+    "--mode",
+    "ask",
+    "--sandbox",
+    "enabled"
+  ] : ["--print", "--output-format", "json", "--force"];
+  return invocation({
+    executable: "cursor-agent",
+    argv,
+    request,
+    strategy,
+    outputMode: "stdout_json"
+  });
+};
+function invocation(input) {
+  return {
+    executable: input.executable,
+    argv: input.argv,
+    stdin: input.stdin ?? input.request.prompt,
+    ...input.request.cwd ? { cwd: input.request.cwd } : {},
+    output_mode: input.outputMode,
+    strategy: input.strategy,
+    redacted_command: [input.executable, ...input.redactedArgv ?? input.argv],
+    ...input.lastMessageFile ? {
+      last_message_file: input.lastMessageFile,
+      cleanup_last_message_file: input.cleanupLastMessageFile ?? true
+    } : {},
+    shell: false
+  };
+}
+function mapClaudePermissionMode(permissionMode) {
+  if (!permissionMode || permissionMode === "non-interactive") {
+    return void 0;
+  }
+  if (permissionMode === "read-only") {
+    return "plan";
+  }
+  return permissionMode;
+}
+function codexConfigOverride(key, value) {
+  return `${key}=${JSON.stringify(value)}`;
+}
+function codexLastMessageFile() {
+  return path2.join(
+    tmpdir(),
+    `consensus-codex-last-message-${randomUUID2()}.txt`
+  );
+}
+function defaultStrategy(adapter) {
+  return adapter.capabilities.schema_strategies.find(
+    (strategy) => strategy !== "submit_tool_candidate"
+  ) ?? "prompt_only";
+}
+
+// src/plugins/consensus/provider-cli/subprocess.ts
+import { spawn } from "node:child_process";
+import { open, rm as rm2 } from "node:fs/promises";
+var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
+var DEFAULT_TIMEOUT_SEC = 300;
+var DEFAULT_TERMINATION_GRACE_MS = 250;
+var DEFAULT_FINAL_RESOLUTION_MS = 1e3;
+function isReliableExternalInterrupt(input) {
+  return input.code === "PROVIDER_EXIT" && input.signal !== null && input.exit_code === null;
+}
+function runProviderSubprocess(invocation2, options = {}) {
+  const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
+  const timeoutSec = options.timeoutSec ?? DEFAULT_TIMEOUT_SEC;
+  const terminationGraceMs = options.terminationGraceMs ?? DEFAULT_TERMINATION_GRACE_MS;
+  const finalResolutionMs = options.finalResolutionMs ?? DEFAULT_FINAL_RESOLUTION_MS;
+  return new Promise((resolve) => {
+    let stdout = "";
+    let stderr = "";
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let outputCaptureClosed = false;
+    let exitCode = null;
+    let exitSignal = null;
+    let settled = false;
+    let terminal;
+    const child = spawn(invocation2.executable, invocation2.argv, {
+      cwd: invocation2.cwd,
+      env: options.env,
+      shell: false,
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+    let killEscalation;
+    let finalResolution;
+    const timeout = setTimeout(() => {
+      terminate("timeout");
+    }, timeoutSec * 1e3);
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("error", () => {
+    });
+    child.stderr.on("error", () => {
+    });
+    child.stdout.on("data", (chunk) => {
+      captureOutput("stdout", chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      captureOutput("stderr", chunk);
+    });
+    child.on("error", () => {
+      terminal = terminal ?? "spawn_error";
+      void finish();
+    });
+    child.on("close", (exitCode2, signal) => {
+      void finish(exitCode2, signal);
+    });
+    child.stdin.on("error", () => {
+    });
+    child.stdin.end(invocation2.stdin);
+    function terminate(reason) {
+      terminal = terminal ?? reason;
+      if (reason === "output_cap") {
+        closeOutputCapture();
+      }
+      child.kill("SIGTERM");
+      if (!killEscalation) {
+        killEscalation = setTimeout(() => {
+          child.kill("SIGKILL");
+          finalResolution = setTimeout(() => {
+            void finish(null, "SIGKILL");
+          }, finalResolutionMs);
+        }, terminationGraceMs);
+      }
+    }
+    function captureOutput(stream, chunk) {
+      if (outputCaptureClosed) return;
+      const remaining = maxOutputBytes - stdoutBytes - stderrBytes;
+      if (remaining <= 0) {
+        terminate("output_cap");
+        return;
+      }
+      const chunkBytes = Buffer.byteLength(chunk);
+      if (chunkBytes <= remaining) {
+        appendOutput(stream, chunk, chunkBytes);
+        return;
+      }
+      const retained = takeUtf8Prefix(chunk, remaining);
+      if (retained.bytes > 0) {
+        appendOutput(stream, retained.text, retained.bytes);
+      }
+      terminate("output_cap");
+    }
+    function appendOutput(stream, chunk, chunkBytes) {
+      if (stream === "stdout") {
+        stdout += chunk;
+        stdoutBytes += chunkBytes;
+      } else {
+        stderr += chunk;
+        stderrBytes += chunkBytes;
+      }
+    }
+    function closeOutputCapture() {
+      if (outputCaptureClosed) return;
+      outputCaptureClosed = true;
+      child.stdout.destroy();
+      child.stderr.destroy();
+    }
+    async function finish(closeExitCode = exitCode, closeSignal = exitSignal) {
+      if (settled) return;
+      settled = true;
+      exitCode = closeExitCode;
+      exitSignal = closeSignal;
+      clearTimeout(timeout);
+      if (killEscalation) clearTimeout(killEscalation);
+      if (finalResolution) clearTimeout(finalResolution);
+      const diagnostics = diagnosticsFor({
+        invocation: invocation2,
+        stdoutBytes,
+        stderrBytes,
+        maxOutputBytes,
+        timeoutSec,
+        exitCode,
+        signal: exitSignal
+      });
+      if (terminal === "spawn_error") {
+        await cleanupInvocationFiles(invocation2);
+        resolve(
+          failure({
+            code: "PROVIDER_MISSING",
+            message: `Provider executable not found: ${invocation2.executable}`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics
+          })
+        );
+        return;
+      }
+      if (terminal === "timeout") {
+        await cleanupInvocationFiles(invocation2);
+        resolve(
+          failure({
+            code: "PROVIDER_TIMEOUT",
+            message: `Provider subprocess timed out after ${timeoutSec} seconds.`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics
+          })
+        );
+        return;
+      }
+      if (terminal === "output_cap") {
+        await cleanupInvocationFiles(invocation2);
+        resolve(
+          failure({
+            code: "PROVIDER_OUTPUT_CAP_EXCEEDED",
+            message: `Provider subprocess exceeded output cap of ${maxOutputBytes} bytes.`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics
+          })
+        );
+        return;
+      }
+      if (exitCode !== 0) {
+        await cleanupInvocationFiles(invocation2);
+        resolve(
+          failure({
+            code: "PROVIDER_EXIT",
+            message: `Provider subprocess exited with code ${exitCode ?? "null"}.`,
+            retryable: true,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics
+          })
+        );
+        return;
+      }
+      const lastMessage = await readLastMessage(invocation2, maxOutputBytes);
+      if (lastMessage.tooLarge) {
+        await cleanupInvocationFiles(invocation2);
+        resolve(
+          failure({
+            code: "PROVIDER_OUTPUT_CAP_EXCEEDED",
+            message: `Provider last-message capture exceeded output cap of ${maxOutputBytes} bytes.`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics
+          })
+        );
+        return;
+      }
+      await cleanupInvocationFiles(invocation2);
+      resolve({
+        ok: true,
+        stdout,
+        stderr,
+        ...lastMessage.contents !== void 0 ? { last_message: lastMessage.contents } : {},
+        exit_code: exitCode,
+        signal: exitSignal,
+        diagnostics: lastMessage.warning ? {
+          ...diagnostics,
+          warnings: [...diagnostics.warnings ?? [], lastMessage.warning]
+        } : diagnostics
+      });
+    }
+  });
+}
+async function readLastMessage(invocation2, maxBytes = DEFAULT_MAX_OUTPUT_BYTES) {
+  if (!invocation2.last_message_file) return {};
+  const result = await readBoundedRegularFile(
+    invocation2.last_message_file,
+    maxBytes
+  );
+  if (result.ok) return { contents: result.contents };
+  if (result.reason === "too_large") return { tooLarge: true };
+  return {
+    warning: `Could not read provider last-message file: ${result.message}`
+  };
+}
+async function cleanupInvocationFiles(invocation2) {
+  if (!invocation2.last_message_file || invocation2.cleanup_last_message_file === false) {
+    return;
+  }
+  try {
+    await rm2(invocation2.last_message_file, { force: true });
+  } catch {
+  }
+}
+async function readBoundedRegularFile(filePath, maxBytes, options = {}) {
+  let handle;
+  try {
+    handle = await open(filePath, "r");
+    const info = await handle.stat();
+    if (!info.isFile()) {
+      return {
+        ok: false,
+        reason: "not_regular",
+        message: "capture is not a regular file"
+      };
+    }
+    if (info.size > maxBytes) {
+      return {
+        ok: false,
+        reason: "too_large",
+        message: `capture exceeds ${maxBytes} bytes`
+      };
+    }
+    await options.afterStat?.();
+    const chunks = [];
+    let total = 0;
+    let position = 0;
+    while (total <= maxBytes) {
+      const remaining = maxBytes + 1 - total;
+      const buffer = Buffer.allocUnsafe(Math.min(64 * 1024, remaining));
+      const { bytesRead } = await handle.read(
+        buffer,
+        0,
+        buffer.length,
+        position
+      );
+      if (bytesRead === 0) break;
+      chunks.push(buffer.subarray(0, bytesRead));
+      total += bytesRead;
+      position += bytesRead;
+    }
+    if (total > maxBytes) {
+      return {
+        ok: false,
+        reason: "too_large",
+        message: `capture exceeds ${maxBytes} bytes`
+      };
+    }
+    return {
+      ok: true,
+      contents: Buffer.concat(chunks, total).toString("utf8"),
+      bytes: total
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: "read_failed",
+      message: error instanceof Error ? error.message : String(error)
+    };
+  } finally {
+    await handle?.close();
+  }
+}
+function takeUtf8Prefix(input, maxBytes) {
+  let bytes = 0;
+  let text = "";
+  for (const character of input) {
+    const characterBytes = Buffer.byteLength(character);
+    if (bytes + characterBytes > maxBytes) break;
+    text += character;
+    bytes += characterBytes;
+  }
+  return { text, bytes };
+}
+function diagnosticsFor(input) {
+  return {
+    strategy_used: input.invocation.strategy,
+    output_mode: input.invocation.output_mode,
+    redacted_command: input.invocation.redacted_command,
+    provider_exit_code: input.exitCode,
+    provider_signal: input.signal,
+    output_bytes: {
+      stdout: input.stdoutBytes,
+      stderr: input.stderrBytes,
+      max: input.maxOutputBytes
+    },
+    timeout_sec: input.timeoutSec
+  };
+}
+function failure(input) {
+  return {
+    ok: false,
+    code: input.code,
+    message: input.message,
+    retryable: input.retryable,
+    stdout: input.stdout,
+    stderr: input.stderr,
+    exit_code: input.exitCode,
+    signal: input.signal,
+    diagnostics: input.diagnostics
+  };
+}
+
+// src/plugins/consensus/provider-cli/adapters.ts
+var COMMON_AUTH_REQUIRED_PATTERNS = [
+  /auth(?:entication)? required/i,
+  /not logged in/i,
+  /login required/i,
+  /keychain.*locked/i
+];
+var COMMON_UNAVAILABLE_PATTERNS = [
+  /unsupported platform/i,
+  /not configured/i
+];
+var COMMON_UNSUPPORTED_OPTION_PATTERNS = [
+  /unknown (?:option|flag|argument)/i,
+  /unrecognized (?:option|flag|argument)/i,
+  /unsupported (?:option|flag|argument)/i,
+  /invalid (?:option|flag|argument)/i
+];
+var CLAUDE_SESSION_NOT_FOUND_PATTERNS = [
+  // Evidence: Claude Code 2.1.284 `--print --resume <unknown-uuid>` exits 1
+  // with this message (live check, 2026-09-28).
+  /No conversation found with session ID/i
+];
+var CODEX_SESSION_NOT_FOUND_PATTERNS = [
+  // Evidence: codex-cli 0.157.1 `exec resume <unknown-uuid> -` exits 1 with
+  // "thread/resume failed: no rollout found for thread id" (live check,
+  // 2026-09-28).
+  /no rollout found for thread id/i
+];
+var COMMON_TRANSIENT_EXIT_PATTERNS = [
+  /\b429\b/i,
+  /rate limit/i,
+  /temporar(?:y|ily) unavailable/i,
+  /try again/i,
+  /econnreset/i,
+  /etimedout/i
+];
+var CLAUDE_TRANSIENT_EXIT_PATTERNS = [
+  // Evidence: Claude Code error reference documents this exact repeated 529
+  // overload message as temporary capacity exhaustion:
+  // https://code.claude.com/docs/en/errors
+  /API Error: Repeated 529 Overloaded errors/i
+];
+var CODEX_TRANSIENT_EXIT_PATTERNS = [
+  // Evidence: installed codex-cli 0.142.5 binary strings include these
+  // rate-limit and overload messages in provider-facing error paths.
+  /rate limiter has requested a/i,
+  /failed to fetch codex rate limits/i,
+  /unknown rate limit reached type/i,
+  /dropping overload response for connection/i,
+  /try again at/i
+];
+var CURSOR_TRANSIENT_EXIT_PATTERNS = [
+  // Evidence: installed cursor-agent 2026.07.01 bundle contains these
+  // connection/session terminal reasons and network errors.
+  /connection_timeout/i,
+  /stream_error/i,
+  /session_error/i,
+  /session_aborted/i,
+  /network error/i
+];
+var DEFAULT_PROVIDER_ADAPTERS = [
+  {
+    id: "claude",
+    display_name: "Claude",
+    executable: "claude",
+    buildInvocation: buildClaudeInvocation,
+    extractSession: extractJsonResultSession,
+    classifyRunFailure: defaultRunFailureClassifier({
+      session_not_found_patterns: CLAUDE_SESSION_NOT_FOUND_PATTERNS,
+      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
+      unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
+      transient_exit_patterns: [
+        ...COMMON_TRANSIENT_EXIT_PATTERNS,
+        ...CLAUDE_TRANSIENT_EXIT_PATTERNS
+      ]
+    }),
+    probe: {
+      version_args: ["--version"],
+      // Release verification established the provider-validated run surface at
+      // Claude Code 2.1.185 (RELEASING.md).
+      minimum_version: "2.1.185",
+      capabilities: {
+        run: {
+          args: ["--help"],
+          required_output_patterns: [/--print\b/, /--output-format\b/]
+        }
+      },
+      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
+    },
+    capabilities: {
+      schema_strategies: ["provider_validated", "prompt_only"],
+      output_modes: ["stdout_json"],
+      options: {
+        model: true,
+        effort: "effort",
+        runtime_policy: {
+          permission_modes: ["non-interactive", "read-only"],
+          env_allowlist: true
+        }
+      },
+      supports_submit_tool: false,
+      supports_same_host_subprocess: true,
+      supports_host_native_dispatch: false,
+      continuation: {
+        native_resume: "verified",
+        session_id_source: "stdout_json.session_id",
+        evidence: "Live same-session smoke 2026-09-28 with Claude Code 2.1.284: `--print --output-format json --json-schema --resume <uuid>` recalled an unseen marker, preserved session_id, model, and schema. `--resume` also accepts a session title, so the wrapper requires a UUID."
+      }
+    }
+  },
+  {
+    id: "codex",
+    display_name: "Codex",
+    executable: "codex",
+    buildInvocation: buildCodexInvocation,
+    extractSession: extractCodexJsonlSession,
+    classifyRunFailure: defaultRunFailureClassifier({
+      session_not_found_patterns: CODEX_SESSION_NOT_FOUND_PATTERNS,
+      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
+      unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
+      transient_exit_patterns: [
+        ...COMMON_TRANSIENT_EXIT_PATTERNS,
+        ...CODEX_TRANSIENT_EXIT_PATTERNS
+      ]
+    }),
+    probe: {
+      version_args: ["--version"],
+      // Release verification established the provider-validated run surface at
+      // Codex CLI 0.139.0 (RELEASING.md).
+      minimum_version: "0.139.0",
+      capabilities: {
+        run: {
+          args: ["exec", "--help"],
+          required_output_patterns: [
+            /--json\b/,
+            /--output-last-message\b/,
+            /--output-schema\b/
+          ]
+        }
+      },
+      auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
+    },
+    capabilities: {
+      schema_strategies: ["constrained_native", "prompt_only"],
+      output_modes: ["last_message_file"],
+      options: {
+        model: true,
+        effort: "reasoning_effort",
+        runtime_policy: {
+          permission_modes: ["non-interactive"],
+          sandboxes: ["read-only", "workspace-write"],
+          approval_policies: ["never", "on-request"],
+          env_allowlist: true
+        }
+      },
+      supports_submit_tool: false,
+      supports_same_host_subprocess: true,
+      supports_host_native_dispatch: false,
+      continuation: {
+        native_resume: "verified",
+        session_id_source: "jsonl.thread.started.thread_id",
+        evidence: "Live same-session smoke 2026-09-28 with codex-cli 0.157.1: `exec resume --json --output-schema -c sandbox_mode=... <uuid> -` recalled an unseen marker with read-only sandbox and approval never. `exec resume` rejects `--sandbox`, and a non-UUID that matches no thread name silently starts a new thread, so the wrapper requires a UUID and verifies the returned thread_id."
+      }
+    }
+  },
+  {
+    id: "cursor",
+    display_name: "Cursor",
+    executable: "cursor-agent",
+    buildInvocation: buildCursorInvocation,
+    extractSession: extractJsonResultSession,
+    classifyRunFailure: defaultRunFailureClassifier({
+      session_not_found_patterns: [],
+      auth_required_patterns: [
+        ...COMMON_AUTH_REQUIRED_PATTERNS,
+        /credential.*locked/i
+      ],
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
+      unsupported_option_patterns: COMMON_UNSUPPORTED_OPTION_PATTERNS,
+      transient_exit_patterns: [
+        ...COMMON_TRANSIENT_EXIT_PATTERNS,
+        ...CURSOR_TRANSIENT_EXIT_PATTERNS
+      ]
+    }),
+    probe: {
+      version_args: ["--version"],
+      // Release verification established the prompt-only run surface at the
+      // 2026.06.19 Cursor agent build (RELEASING.md).
+      minimum_version: "2026.6.19",
+      capabilities: {
+        run: {
+          args: ["--help"],
+          required_output_patterns: [/--output-format\b/, /--force\b/]
+        }
+      },
+      auth_required_patterns: [
+        ...COMMON_AUTH_REQUIRED_PATTERNS,
+        /credential.*locked/i
+      ],
+      unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
+    },
+    capabilities: {
+      schema_strategies: ["prompt_only", "submit_tool_candidate"],
+      output_modes: ["stdout_json"],
+      options: {
+        model: false,
+        effort: null,
+        runtime_policy: {
+          permission_modes: ["non-interactive", "read-only"],
+          env_allowlist: true
+        }
+      },
+      supports_submit_tool: false,
+      supports_same_host_subprocess: true,
+      supports_host_native_dispatch: false,
+      continuation: {
+        native_resume: "unverified",
+        session_id_source: "stdout_json.session_id",
+        evidence: "Cursor documents `--resume [chatId]` and a JSON result `session_id`. Raw CLI resume passed a same-session marker smoke on 2026-09-29 (cursor-agent 2026.09.28, cursor-grok-4.6-high, `--print --mode ask --sandbox enabled`, run by the user because agent shells cannot read the Cursor login). During that smoke a transport reconnect replayed each resumed turn, so its result held two answers. The wrapper resume path is not implemented; a future one should require the read-only policy (`--trust --mode ask --sandbox enabled`), not the default `--force`."
+      }
+    }
+  }
+];
+function providerRegistry(adapters = DEFAULT_PROVIDER_ADAPTERS) {
+  const byId = /* @__PURE__ */ new Map();
+  for (const adapter of adapters) byId.set(adapter.id, adapter);
+  return {
+    list() {
+      return [...adapters];
+    },
+    get(id) {
+      return byId.get(id);
+    }
+  };
+}
+function defaultRunFailureClassifier(patterns) {
+  return (failure2) => {
+    if (failure2.code !== "PROVIDER_EXIT") {
+      return {
+        code: failure2.code,
+        message: failure2.message,
+        retryable: failure2.retryable,
+        terminal_reason: terminalReasonForNonExitFailure(failure2.code),
+        exit_classification: "terminal"
+      };
+    }
+    const output = `${failure2.stdout}
+${failure2.stderr}
+${failure2.message}`;
+    const outputLine = firstNonEmptyLine(output);
+    if (isReliableExternalInterrupt(failure2)) {
+      return {
+        code: "PROVIDER_EXIT",
+        message: `Provider subprocess was interrupted by signal ${failure2.signal}.`,
+        retryable: true,
+        terminal_reason: "provider_exit_interrupted",
+        exit_classification: "interrupted"
+      };
+    }
+    if (failure2.stdout.trim() === "" && matchesAny(failure2.stderr, patterns.session_not_found_patterns)) {
+      return {
+        code: "PROVIDER_SESSION_NOT_FOUND",
+        message: outputLine ?? "Provider could not find the requested session.",
+        retryable: false,
+        terminal_reason: "provider_session_not_found",
+        exit_classification: "terminal"
+      };
+    }
+    if (matchesAny(output, patterns.auth_required_patterns)) {
+      return {
+        code: "PROVIDER_AUTH_REQUIRED",
+        message: outputLine ?? "Provider authentication is required.",
+        retryable: false,
+        terminal_reason: "provider_auth_required",
+        exit_classification: "terminal"
+      };
+    }
+    if (matchesAny(output, patterns.unsupported_option_patterns)) {
+      return {
+        code: "PROVIDER_UNSUPPORTED_OPTION",
+        message: outputLine ?? "Provider rejected an unsupported option.",
+        retryable: false,
+        terminal_reason: "provider_unsupported_option",
+        exit_classification: "terminal"
+      };
+    }
+    if (matchesAny(output, patterns.unavailable_patterns)) {
+      return {
+        code: "PROVIDER_EXIT",
+        message: outputLine ?? failure2.message,
+        retryable: false,
+        terminal_reason: "provider_unavailable_exit",
+        exit_classification: "terminal"
+      };
+    }
+    if (matchesAny(output, patterns.transient_exit_patterns)) {
+      return {
+        code: "PROVIDER_EXIT",
+        message: outputLine ?? failure2.message,
+        retryable: true,
+        terminal_reason: "provider_exit_transient",
+        exit_classification: "transient"
+      };
+    }
+    return {
+      code: "PROVIDER_EXIT",
+      message: outputLine ?? failure2.message,
+      retryable: false,
+      terminal_reason: "provider_exit_terminal",
+      exit_classification: "unknown"
+    };
+  };
+}
+function extractJsonResultSession(stdout) {
+  let parsed;
+  try {
+    parsed = JSON.parse(stdout.trim());
+  } catch {
+    return {};
+  }
+  if (!isRecord2(parsed)) return {};
+  const observation = {};
+  if (typeof parsed.session_id === "string" && parsed.session_id) {
+    observation.session_id = parsed.session_id;
+  }
+  if (isRecord2(parsed.modelUsage)) {
+    const models = Object.keys(parsed.modelUsage);
+    if (models.length > 0) observation.observed_models = models;
+  }
+  return observation;
+}
+function extractCodexJsonlSession(stdout) {
+  for (const line of stdout.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("{")) continue;
+    let event;
+    try {
+      event = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (isRecord2(event) && event.type === "thread.started" && typeof event.thread_id === "string" && event.thread_id) {
+      return { session_id: event.thread_id };
+    }
+  }
+  return {};
+}
+function isRecord2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function terminalReasonForNonExitFailure(code) {
+  if (code === "PROVIDER_MISSING") return "provider_missing";
+  if (code === "PROVIDER_TIMEOUT") return "provider_timeout";
+  return "output_cap_exceeded";
+}
+function matchesAny(value, patterns) {
+  return patterns.some((pattern) => pattern.test(value));
+}
+function firstNonEmptyLine(value) {
+  return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+}
+
+// src/plugins/consensus/provider-cli/host-guard.ts
+function detectHostRuntime(env) {
+  const declaredParent = knownHostRuntime(env.CONSENSUS_PARENT_HOST);
+  if (declaredParent) return declaredParent;
+  if (hasClaudeHostMarker(env)) return "claude";
+  if (hasCodexHostMarker(env)) return "codex";
+  if (hasCursorHostMarker(env)) return "cursor";
+  return "unknown";
+}
+function hostContextFromEnv(env, cwd, maxDepth = 1) {
+  return {
+    runtime: detectHostRuntime(env),
+    cwd,
+    run_id: env.CONSENSUS_RUN_ID ?? "local",
+    depth: parseNonNegativeInteger(env.CONSENSUS_DEPTH) ?? 0,
+    max_depth: maxDepth
+  };
+}
+function buildChildHostEnv(context) {
+  return {
+    CONSENSUS_RUN_ID: context.run_id,
+    CONSENSUS_PARENT_HOST: context.runtime,
+    CONSENSUS_DEPTH: String(context.depth + 1)
+  };
+}
+function evaluateHostGuard(input) {
+  const { host, provider } = input;
+  if (!host || host.runtime === "unknown") {
+    return allowed("unknown", "none");
+  }
+  if (host.runtime !== provider) {
+    const crossDepth = host.depth + 1;
+    if (crossDepth > host.max_depth) {
+      return {
+        allowed: false,
+        code: "HOST_RECURSION_BLOCKED",
+        message: `Blocked cross-provider peer spawn (${host.runtime}\u2192${provider}) at depth ${crossDepth}; max_depth is ${host.max_depth}.`,
+        host_relation: "different_host",
+        guard: "blocked",
+        diagnostics: {
+          host_relation: "different_host",
+          guard: "blocked",
+          warnings: [
+            `HOST_RECURSION_BLOCKED: cross-provider ${host.runtime}\u2192${provider} peer would exceed max_depth ${host.max_depth}`
+          ]
+        }
+      };
+    }
+    return allowed(
+      "different_host",
+      "subprocess_isolated",
+      buildChildHostEnv(host)
+    );
+  }
+  const childDepth = host.depth + 1;
+  if (childDepth > host.max_depth) {
+    return {
+      allowed: false,
+      code: "HOST_RECURSION_BLOCKED",
+      message: `Blocked recursive ${provider} peer spawn at depth ${childDepth}; max_depth is ${host.max_depth}.`,
+      host_relation: "same_host",
+      guard: "blocked",
+      diagnostics: {
+        host_relation: "same_host",
+        guard: "blocked",
+        warnings: [
+          `HOST_RECURSION_BLOCKED: ${provider} peer would exceed max_depth ${host.max_depth}`
+        ]
+      }
+    };
+  }
+  return allowed("same_host", "subprocess_isolated", buildChildHostEnv(host));
+}
+function allowed(hostRelation, guard, childEnv) {
+  return {
+    allowed: true,
+    host_relation: hostRelation,
+    guard,
+    ...childEnv ? { child_env: childEnv } : {},
+    diagnostics: {
+      host_relation: hostRelation,
+      guard
+    }
+  };
+}
+function parseNonNegativeInteger(value) {
+  if (value === void 0 || !/^\d+$/.test(value)) return void 0;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : void 0;
+}
+function knownHostRuntime(value) {
+  return value === "claude" || value === "codex" || value === "cursor" ? value : void 0;
+}
+function hasClaudeHostMarker(env) {
+  return Boolean(
+    env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT || env.CLAUDE_CODE_SESSION_ID || env.CLAUDE_SESSION_ID
+  );
+}
+function hasCodexHostMarker(env) {
+  return Boolean(
+    env.CODEX_SESSION_ID || env.CODEX_SANDBOX || env.OPENAI_CODEX_SESSION_ID
+  );
+}
+function hasCursorHostMarker(env) {
+  return Boolean(
+    env.CURSOR_TRACE_ID || env.CURSOR_AGENT || env.CURSOR_SESSION_ID || env.CURSOR
+  );
+}
+
+// src/plugins/consensus/provider-cli/args.ts
+var ConsensusCliUsageError = class extends Error {
+  code = "CONSENSUS_CLI_USAGE";
+  details;
+  constructor(message, details) {
+    super(message);
+    this.name = "ConsensusCliUsageError";
+    this.details = details;
+  }
+};
+function parseConsensusCliArgs(argv) {
+  const tokens = [...argv];
+  const command = tokens.shift();
+  if (!command || command === "--help" || command === "-h") {
+    requireNoExtraTokens(tokens);
+    return { kind: "help" };
+  }
+  if (command === "provider") {
+    return parseProviderCommand(tokens);
+  }
+  if (command === "config") {
+    return parseConfigCommand(tokens);
+  }
+  if (command === "preflight") {
+    return parsePreflightCommand(tokens);
+  }
+  if (command === "run") {
+    return parseRunCommand(tokens);
+  }
+  if (command === "submit") {
+    return parseSubmitCommand(tokens);
+  }
+  throw new ConsensusCliUsageError(`Unknown command: ${command}`);
+}
+async function normalizeRunRequest(command, io) {
+  if (command.kind !== "run") {
+    throw new ConsensusCliUsageError("Expected a run command");
+  }
+  if (command.requestJson) {
+    const source = command.requestJson === "-" ? await io.readStdin() : await io.readFile(command.requestJson);
+    return attachHostContextWhenDetected(parseRequestJson(source), io);
+  }
+  if (!command.provider) {
+    throw new ConsensusCliUsageError("Missing required --provider");
+  }
+  if (!command.schemaPath) {
+    throw new ConsensusCliUsageError("Missing required --schema");
+  }
+  if (!command.promptSource) {
+    throw new ConsensusCliUsageError(
+      "Missing prompt source: use -, --prompt, --prompt-file, or --request-json"
+    );
+  }
+  const prompt = await readPromptSource(command.promptSource, io);
+  const request = {
+    schema_version: "v1",
+    provider: command.provider,
+    schema_path: command.schemaPath,
+    prompt
+  };
+  if (command.cwd) request.cwd = command.cwd;
+  if (command.model) request.model = command.model;
+  if (command.effort) request.effort = command.effort;
+  const runtimePolicy = normalizeRuntimePolicy(command);
+  if (runtimePolicy) request.runtime_policy = runtimePolicy;
+  if (command.maxDepth !== void 0 || shouldAttachHostContext(io.env)) {
+    request.host = normalizeHostContext(command.maxDepth, command, io);
+  }
+  if (command.maxAttempts !== void 0) {
+    request.max_attempts = command.maxAttempts;
+  }
+  if (command.timeoutSec !== void 0) {
+    request.max_runtime_sec = command.timeoutSec;
+  }
+  if (command.maxOutputBytes !== void 0) {
+    request.max_output_bytes = command.maxOutputBytes;
+  }
+  if (command.continuation) {
+    request.continuation = await normalizeContinuation(
+      command.continuation,
+      io
+    );
+  }
+  return request;
+}
+async function normalizeContinuation(parsed, io) {
+  const continuation = { mode: parsed.mode };
+  if (parsed.sessionId !== void 0)
+    continuation.session_id = parsed.sessionId;
+  if (parsed.previousSessionId !== void 0) {
+    continuation.previous_session_id = parsed.previousSessionId;
+  }
+  if (parsed.consultationId !== void 0) {
+    continuation.consultation_id = parsed.consultationId;
+  }
+  if (parsed.round !== void 0) continuation.round = parsed.round;
+  if (parsed.fallback !== void 0) continuation.fallback = parsed.fallback;
+  if (parsed.fallbackPromptFile !== void 0) {
+    continuation.fallback_prompt = await io.readFile(parsed.fallbackPromptFile);
+  }
+  return continuation;
+}
+function parseProviderCommand(tokens) {
+  const [subcommand, ...rest] = tokens;
+  if (subcommand !== "ls") {
+    throw new ConsensusCliUsageError(
+      "Expected provider subcommand: provider ls --json"
+    );
+  }
+  const parsed = parseOptionTokens(rest, {
+    allowedFlags: /* @__PURE__ */ new Set(["--json"]),
+    valueFlags: /* @__PURE__ */ new Set()
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+  return { kind: "provider-list", json: true };
+}
+function parseConfigCommand(tokens) {
+  const [subcommand, ...rest] = tokens;
+  if (subcommand === "get") return parseConfigGetCommand(rest);
+  if (subcommand === "list") return parseConfigListCommand(rest);
+  if (subcommand === "set") return parseConfigSetCommand(rest);
+  if (subcommand === "clear") return parseConfigClearCommand(rest);
+  throw new ConsensusCliUsageError(
+    "Expected config subcommand: get, list, set, or clear"
+  );
+}
+function parseConfigGetCommand(tokens) {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: /* @__PURE__ */ new Set(["--json", "--scope", "--cwd", "--workflow"]),
+    valueFlags: /* @__PURE__ */ new Set(["--scope", "--cwd", "--workflow"])
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+  const scope = parseConfigReadScope(
+    singleValue(parsed.flags, "--scope") ?? "effective"
+  );
+  const command = {
+    kind: "config-get",
+    json: true,
+    scope
+  };
+  assignIfDefined(command, "cwd", singleValue(parsed.flags, "--cwd"));
+  const workflow = singleValue(parsed.flags, "--workflow");
+  if (workflow !== void 0) {
+    command.workflow = parseConfigWorkflow(workflow);
+  }
+  return command;
+}
+function parseConfigListCommand(tokens) {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: /* @__PURE__ */ new Set(["--json", "--cwd"]),
+    valueFlags: /* @__PURE__ */ new Set(["--cwd"])
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+  const command = {
+    kind: "config-list",
+    json: true
+  };
+  assignIfDefined(command, "cwd", singleValue(parsed.flags, "--cwd"));
+  return command;
+}
+function parseConfigSetCommand(tokens) {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: /* @__PURE__ */ new Set([
+      "--json",
+      "--scope",
+      "--cwd",
+      "--peers",
+      "--panelists",
+      "--panel-size",
+      "--reviewers",
+      "--from-file"
+    ]),
+    valueFlags: /* @__PURE__ */ new Set([
+      "--scope",
+      "--cwd",
+      "--peers",
+      "--panelists",
+      "--panel-size",
+      "--reviewers",
+      "--from-file"
+    ])
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+  const command = {
+    kind: "config-set",
+    json: true,
+    scope: parseConfigWriteScope(singleValue(parsed.flags, "--scope"))
+  };
+  assignIfDefined(command, "cwd", singleValue(parsed.flags, "--cwd"));
+  assignIfDefined(command, "peers", singleValue(parsed.flags, "--peers"));
+  assignIfDefined(
+    command,
+    "panelists",
+    singleValue(parsed.flags, "--panelists")
+  );
+  assignIfDefined(
+    command,
+    "reviewers",
+    singleValue(parsed.flags, "--reviewers")
+  );
+  assignIfDefined(
+    command,
+    "fromFile",
+    singleValue(parsed.flags, "--from-file")
+  );
+  const panelSize = singleValue(parsed.flags, "--panel-size");
+  if (panelSize !== void 0) {
+    command.panelSize = parsePositiveInteger("--panel-size", panelSize);
+  }
+  return command;
+}
+function parseConfigClearCommand(tokens) {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: /* @__PURE__ */ new Set(["--json", "--scope", "--cwd", "--key"]),
+    valueFlags: /* @__PURE__ */ new Set(["--scope", "--cwd", "--key"])
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+  const command = {
+    kind: "config-clear",
+    json: true,
+    scope: parseConfigWriteScope(singleValue(parsed.flags, "--scope")),
+    key: parseConfigKey(singleValue(parsed.flags, "--key") ?? "all")
+  };
+  assignIfDefined(command, "cwd", singleValue(parsed.flags, "--cwd"));
+  return command;
+}
+function parseConfigReadScope(value) {
+  if (value === "user" || value === "project" || value === "effective") {
+    return value;
+  }
+  throw new ConsensusCliUsageError(`Invalid config scope: ${value}`);
+}
+function parseConfigWriteScope(value) {
+  if (value === "user" || value === "project") return value;
+  if (value === void 0) {
+    throw new ConsensusCliUsageError(
+      "Missing required config --scope user|project"
+    );
+  }
+  throw new ConsensusCliUsageError(`Invalid config scope: ${value}`);
+}
+function parseConfigKey(value) {
+  if (value === "peers" || value === "panelists" || value === "panel-size" || value === "reviewers" || value === "roles" || value === "all") {
+    return value;
+  }
+  throw new ConsensusCliUsageError(`Invalid config key: ${value}`);
+}
+function parseConfigWorkflow(value) {
+  if (value === "convergence" || value === "panel" || value === "review") {
+    return value;
+  }
+  throw new ConsensusCliUsageError(`Unsupported config workflow: ${value}`);
+}
+function parsePreflightCommand(tokens) {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: /* @__PURE__ */ new Set([
+      "--json",
+      "--provider",
+      "--capability",
+      "--max-depth"
+    ]),
+    valueFlags: /* @__PURE__ */ new Set(["--provider", "--capability", "--max-depth"])
+  });
+  requireJson(parsed.flags);
+  requireNoPositionals(parsed.positionals);
+  const provider = singleValue(parsed.flags, "--provider");
+  if (!provider) {
+    throw new ConsensusCliUsageError(
+      "Preflight requires exactly one --provider."
+    );
+  }
+  const capabilities = valuesFor(parsed.flags, "--capability").map(
+    parsePreflightCapability
+  );
+  if (capabilities.length === 0) {
+    throw new ConsensusCliUsageError(
+      "Preflight requires at least one --capability."
+    );
+  }
+  const command = {
+    kind: "preflight",
+    json: true,
+    provider,
+    capabilities: [...new Set(capabilities)]
+  };
+  const maxDepth = singleValue(parsed.flags, "--max-depth");
+  if (maxDepth) {
+    command.maxDepth = parsePositiveInteger("--max-depth", maxDepth);
+  }
+  return command;
+}
+function parsePreflightCapability(value) {
+  if (PROVIDER_PREFLIGHT_CAPABILITIES.includes(
+    value
+  )) {
+    return value;
+  }
+  throw new ConsensusCliUsageError(
+    `Unsupported preflight capability: ${value}`
+  );
+}
+function parseRunCommand(tokens) {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: /* @__PURE__ */ new Set([
+      "--json",
+      "--provider",
+      "--schema",
+      "--prompt",
+      "--prompt-file",
+      "--request-json",
+      "--max-attempts",
+      "--timeout-sec",
+      "--max-output-bytes",
+      "--model",
+      "--effort",
+      "--cwd",
+      "--permission-mode",
+      "--sandbox",
+      "--approval-policy",
+      "--env-allow",
+      "--allow-read",
+      "--allow-edit",
+      "--allow-web-search",
+      "--allow-web-fetch-domain",
+      "--max-depth",
+      "--resume",
+      "--continuation",
+      "--previous-session",
+      "--consultation-id",
+      "--round",
+      "--resume-fallback",
+      "--fallback-prompt-file"
+    ]),
+    valueFlags: /* @__PURE__ */ new Set([
+      "--provider",
+      "--schema",
+      "--prompt",
+      "--prompt-file",
+      "--request-json",
+      "--max-attempts",
+      "--timeout-sec",
+      "--max-output-bytes",
+      "--model",
+      "--effort",
+      "--cwd",
+      "--permission-mode",
+      "--sandbox",
+      "--approval-policy",
+      "--env-allow",
+      "--allow-read",
+      "--allow-edit",
+      "--allow-web-fetch-domain",
+      "--max-depth",
+      "--resume",
+      "--continuation",
+      "--previous-session",
+      "--consultation-id",
+      "--round",
+      "--resume-fallback",
+      "--fallback-prompt-file"
+    ])
+  });
+  requireJson(parsed.flags);
+  const command = {
+    kind: "run",
+    json: true
+  };
+  assignIfDefined(command, "provider", singleValue(parsed.flags, "--provider"));
+  assignIfDefined(command, "schemaPath", singleValue(parsed.flags, "--schema"));
+  assignIfDefined(
+    command,
+    "requestJson",
+    singleValue(parsed.flags, "--request-json")
+  );
+  assignIfDefined(command, "model", singleValue(parsed.flags, "--model"));
+  assignIfDefined(command, "effort", singleValue(parsed.flags, "--effort"));
+  assignIfDefined(command, "cwd", singleValue(parsed.flags, "--cwd"));
+  assignIfDefined(
+    command,
+    "permissionMode",
+    singleValue(parsed.flags, "--permission-mode")
+  );
+  assignIfDefined(command, "sandbox", singleValue(parsed.flags, "--sandbox"));
+  assignIfDefined(
+    command,
+    "approvalPolicy",
+    singleValue(parsed.flags, "--approval-policy")
+  );
+  const envAllow = valuesFor(parsed.flags, "--env-allow");
+  if (envAllow.length > 0) command.envAllow = envAllow;
+  const readPaths = valuesFor(parsed.flags, "--allow-read");
+  if (readPaths.length > 0) command.readPaths = readPaths;
+  const editPaths = valuesFor(parsed.flags, "--allow-edit");
+  if (editPaths.length > 0) command.editPaths = editPaths;
+  if (parsed.flags.has("--allow-web-search")) command.webSearch = true;
+  const webFetchDomains = valuesFor(parsed.flags, "--allow-web-fetch-domain");
+  if (webFetchDomains.length > 0) command.webFetchDomains = webFetchDomains;
+  const prompt = singleValue(parsed.flags, "--prompt");
+  const promptFile = singleValue(parsed.flags, "--prompt-file");
+  const stdinMarkers = parsed.positionals.filter((value) => value === "-");
+  const unknownPositionals = parsed.positionals.filter(
+    (value) => value !== "-"
+  );
+  if (unknownPositionals.length > 0) {
+    throw new ConsensusCliUsageError(
+      `Unexpected positional argument: ${unknownPositionals[0]}`
+    );
+  }
+  const promptSources = [
+    prompt === void 0 ? void 0 : { kind: "prompt", value: prompt },
+    promptFile === void 0 ? void 0 : { kind: "file", path: promptFile },
+    ...stdinMarkers.map(() => ({ kind: "stdin" }))
+  ].filter((source) => source !== void 0);
+  if (promptSources.length > 1) {
+    throw new ConsensusCliUsageError("Use only one prompt source");
+  }
+  command.promptSource = promptSources[0];
+  const maxAttempts = singleValue(parsed.flags, "--max-attempts");
+  if (maxAttempts) {
+    command.maxAttempts = parsePositiveInteger("--max-attempts", maxAttempts);
+  }
+  const timeoutSec = singleValue(parsed.flags, "--timeout-sec");
+  if (timeoutSec) {
+    command.timeoutSec = parsePositiveInteger("--timeout-sec", timeoutSec);
+  }
+  const maxOutputBytes = singleValue(parsed.flags, "--max-output-bytes");
+  if (maxOutputBytes) {
+    command.maxOutputBytes = parsePositiveInteger(
+      "--max-output-bytes",
+      maxOutputBytes
+    );
+  }
+  const maxDepth = singleValue(parsed.flags, "--max-depth");
+  if (maxDepth) {
+    command.maxDepth = parsePositiveInteger("--max-depth", maxDepth);
+  }
+  const continuation = parseRunContinuation(parsed.flags);
+  if (continuation) command.continuation = continuation;
+  if (command.requestJson) {
+    assertNoRequestJsonConflicts(command, parsed.positionals.length);
+  }
+  return command;
+}
+function parseRunContinuation(flags) {
+  const sessionId = singleValue(flags, "--resume");
+  const modeValue = singleValue(flags, "--continuation");
+  const previousSessionId2 = singleValue(flags, "--previous-session");
+  const consultationId = singleValue(flags, "--consultation-id");
+  const round = singleValue(flags, "--round");
+  const fallback = singleValue(flags, "--resume-fallback");
+  const fallbackPromptFile = singleValue(flags, "--fallback-prompt-file");
+  if ([
+    sessionId,
+    modeValue,
+    previousSessionId2,
+    consultationId,
+    round,
+    fallback,
+    fallbackPromptFile
+  ].every((value) => value === void 0)) {
+    return void 0;
+  }
+  let mode;
+  if (modeValue === void 0) {
+    mode = sessionId === void 0 ? "new" : "native-resume";
+  } else {
+    mode = parseContinuationMode(modeValue);
+    if (sessionId !== void 0 && mode !== "native-resume") {
+      throw new ConsensusCliUsageError(
+        `--resume cannot be combined with --continuation ${mode}`
+      );
+    }
+  }
+  const continuation = { mode };
+  assignIfDefined(continuation, "sessionId", sessionId);
+  assignIfDefined(continuation, "previousSessionId", previousSessionId2);
+  assignIfDefined(continuation, "consultationId", consultationId);
+  if (round !== void 0) {
+    continuation.round = parsePositiveInteger("--round", round);
+  }
+  if (fallback !== void 0) {
+    continuation.fallback = parseResumeFallback(fallback);
+  }
+  assignIfDefined(continuation, "fallbackPromptFile", fallbackPromptFile);
+  return continuation;
+}
+function parseContinuationMode(value) {
+  if (CONTINUATION_MODES.includes(value)) {
+    return value;
+  }
+  throw new ConsensusCliUsageError(
+    `Invalid --continuation: ${value} (expected ${CONTINUATION_MODES.join(", ")})`
+  );
+}
+function parseResumeFallback(value) {
+  if (RESUME_FALLBACK_POLICIES.includes(value)) {
+    return value;
+  }
+  throw new ConsensusCliUsageError(
+    `Invalid --resume-fallback: ${value} (expected ${RESUME_FALLBACK_POLICIES.join(", ")})`
+  );
+}
+function parseSubmitCommand(tokens) {
+  const parsed = parseOptionTokens(tokens, {
+    allowedFlags: /* @__PURE__ */ new Set(["--json", "--schema", "--out", "--verdict-file"]),
+    valueFlags: /* @__PURE__ */ new Set(["--schema", "--out", "--verdict-file"])
+  });
+  requireJson(parsed.flags);
+  const command = {
+    kind: "submit",
+    json: true
+  };
+  assignIfDefined(command, "schemaPath", singleValue(parsed.flags, "--schema"));
+  assignIfDefined(command, "outPath", singleValue(parsed.flags, "--out"));
+  const verdictFile = singleValue(parsed.flags, "--verdict-file");
+  const stdinMarkers = parsed.positionals.filter((value) => value === "-");
+  const unknownPositionals = parsed.positionals.filter(
+    (value) => value !== "-"
+  );
+  if (unknownPositionals.length > 0) {
+    throw new ConsensusCliUsageError(
+      `Unexpected positional argument: ${unknownPositionals[0]}`
+    );
+  }
+  const verdictSources = [];
+  if (verdictFile !== void 0) {
+    verdictSources.push({ kind: "file", path: verdictFile });
+  }
+  for (let index = 0; index < stdinMarkers.length; index += 1) {
+    verdictSources.push({ kind: "stdin" });
+  }
+  if (verdictSources.length > 1) {
+    throw new ConsensusCliUsageError("Use only one verdict source");
+  }
+  command.verdictSource = verdictSources[0];
+  return command;
+}
+function assertNoRequestJsonConflicts(command, positionalCount) {
+  const conflicts = [
+    command.provider ? "--provider" : void 0,
+    command.schemaPath ? "--schema" : void 0,
+    command.promptSource ? "prompt source" : void 0,
+    command.maxAttempts !== void 0 ? "--max-attempts" : void 0,
+    command.timeoutSec !== void 0 ? "--timeout-sec" : void 0,
+    command.maxOutputBytes !== void 0 ? "--max-output-bytes" : void 0,
+    command.model ? "--model" : void 0,
+    command.effort ? "--effort" : void 0,
+    command.cwd ? "--cwd" : void 0,
+    command.permissionMode ? "--permission-mode" : void 0,
+    command.sandbox ? "--sandbox" : void 0,
+    command.approvalPolicy ? "--approval-policy" : void 0,
+    command.envAllow && command.envAllow.length > 0 ? "--env-allow" : void 0,
+    command.readPaths ? "--allow-read" : void 0,
+    command.editPaths ? "--allow-edit" : void 0,
+    command.webSearch ? "--allow-web-search" : void 0,
+    command.webFetchDomains ? "--allow-web-fetch-domain" : void 0,
+    command.maxDepth !== void 0 ? "--max-depth" : void 0,
+    command.continuation ? "continuation flags" : void 0,
+    positionalCount > 0 ? "positional prompt" : void 0
+  ].filter(Boolean);
+  if (conflicts.length > 0) {
+    throw new ConsensusCliUsageError(
+      `--request-json cannot be combined with request-shaping flags: ${conflicts.join(", ")}`
+    );
+  }
+}
+function normalizeRuntimePolicy(command) {
+  const runtimePolicy = {};
+  if (command.permissionMode) {
+    runtimePolicy.permission_mode = command.permissionMode;
+  }
+  if (command.sandbox) runtimePolicy.sandbox = command.sandbox;
+  if (command.approvalPolicy) {
+    runtimePolicy.approval_policy = command.approvalPolicy;
+  }
+  if (command.envAllow && command.envAllow.length > 0) {
+    runtimePolicy.env_allowlist = command.envAllow;
+  }
+  if (command.readPaths) runtimePolicy.read_paths = command.readPaths;
+  if (command.editPaths) runtimePolicy.edit_paths = command.editPaths;
+  if (command.webSearch) runtimePolicy.web_search = true;
+  if (command.webFetchDomains) {
+    runtimePolicy.web_fetch_domains = command.webFetchDomains;
+  }
+  return Object.keys(runtimePolicy).length > 0 ? runtimePolicy : void 0;
+}
+function assignIfDefined(target, key, value) {
+  if (value !== void 0) target[key] = value;
+}
+function normalizeHostContext(maxDepth, command, io) {
+  return hostContextFromEnv(
+    io.env ?? {},
+    command.cwd ?? io.cwd ?? process.cwd(),
+    maxDepth ?? 1
+  );
+}
+function attachHostContextWhenDetected(request, io) {
+  if (request.host || !shouldAttachHostContext(io.env)) return request;
+  return {
+    ...request,
+    host: hostContextFromEnv(
+      io.env ?? {},
+      request.cwd ?? io.cwd ?? process.cwd(),
+      1
+    )
+  };
+}
+function shouldAttachHostContext(env = {}) {
+  return detectHostRuntime(env) !== "unknown" || env.CONSENSUS_RUN_ID !== void 0 || env.CONSENSUS_DEPTH !== void 0 || env.CONSENSUS_PARENT_HOST !== void 0;
+}
+async function readPromptSource(source, io) {
+  if (source.kind === "stdin") return io.readStdin();
+  if (source.kind === "file") return io.readFile(source.path);
+  return source.value;
+}
+function parseRequestJson(contents) {
+  let parsed;
+  try {
+    parsed = JSON.parse(contents);
+  } catch (error) {
+    throw new ConsensusCliUsageError("Invalid request JSON", {
+      cause: String(error)
+    });
+  }
+  if (!isRecord3(parsed)) {
+    throw new ConsensusCliUsageError("Request JSON must be an object");
+  }
+  if (parsed.schema_version !== "v1") {
+    throw new ConsensusCliUsageError(
+      'Request JSON schema_version must be "v1"'
+    );
+  }
+  if (typeof parsed.provider !== "string" || parsed.provider.length === 0) {
+    throw new ConsensusCliUsageError("Request JSON provider must be a string");
+  }
+  if (typeof parsed.schema_path !== "string" || parsed.schema_path.length === 0) {
+    throw new ConsensusCliUsageError(
+      "Request JSON schema_path must be a string"
+    );
+  }
+  if (typeof parsed.prompt !== "string") {
+    throw new ConsensusCliUsageError("Request JSON prompt must be a string");
+  }
+  validateOptionalStringField(parsed, "cwd", "Request JSON cwd");
+  validateOptionalStringField(parsed, "model", "Request JSON model");
+  validateOptionalStringField(parsed, "effort", "Request JSON effort");
+  validateOptionalPositiveInteger(
+    parsed,
+    "max_attempts",
+    "Request JSON max_attempts"
+  );
+  validateOptionalPositiveInteger(
+    parsed,
+    "max_runtime_sec",
+    "Request JSON max_runtime_sec"
+  );
+  validateOptionalPositiveInteger(
+    parsed,
+    "max_output_bytes",
+    "Request JSON max_output_bytes"
+  );
+  validateRuntimePolicy(parsed.runtime_policy);
+  validateContinuation(parsed.continuation);
+  validateHostContext(parsed.host);
+  validateRedaction(parsed.redaction);
+  return parsed;
+}
+function validateRuntimePolicy(value) {
+  if (value === void 0) return;
+  if (!isRecord3(value)) {
+    throw new ConsensusCliUsageError(
+      "Request JSON runtime_policy must be an object"
+    );
+  }
+  validateOptionalStringField(
+    value,
+    "permission_mode",
+    "Request JSON runtime_policy.permission_mode"
+  );
+  validateOptionalStringField(
+    value,
+    "sandbox",
+    "Request JSON runtime_policy.sandbox"
+  );
+  validateOptionalStringField(
+    value,
+    "approval_policy",
+    "Request JSON runtime_policy.approval_policy"
+  );
+  if (value.env_allowlist !== void 0 && !isStringArray(value.env_allowlist)) {
+    throw new ConsensusCliUsageError(
+      "Request JSON runtime_policy.env_allowlist must be a string array"
+    );
+  }
+  for (const field of [
+    "read_paths",
+    "edit_paths",
+    "web_fetch_domains"
+  ]) {
+    if (value[field] !== void 0 && !isStringArray(value[field])) {
+      throw new ConsensusCliUsageError(
+        `Request JSON runtime_policy.${field} must be a string array`
+      );
+    }
+  }
+  for (const field of ["web_search"]) {
+    if (value[field] !== void 0 && typeof value[field] !== "boolean") {
+      throw new ConsensusCliUsageError(
+        `Request JSON runtime_policy.${field} must be a boolean`
+      );
+    }
+  }
+}
+function validateContinuation(value) {
+  if (value === void 0) return;
+  if (!isRecord3(value)) {
+    throw new ConsensusCliUsageError(
+      "Request JSON continuation must be an object"
+    );
+  }
+  if (!CONTINUATION_MODES.includes(value.mode)) {
+    throw new ConsensusCliUsageError(
+      `Request JSON continuation.mode must be one of: ${CONTINUATION_MODES.join(", ")}`
+    );
+  }
+  for (const key of [
+    "session_id",
+    "previous_session_id",
+    "consultation_id",
+    "fallback_prompt"
+  ]) {
+    validateOptionalStringField(value, key, `Request JSON continuation.${key}`);
+  }
+  validateOptionalPositiveInteger(
+    value,
+    "round",
+    "Request JSON continuation.round"
+  );
+  if (value.fallback !== void 0 && !RESUME_FALLBACK_POLICIES.includes(value.fallback)) {
+    throw new ConsensusCliUsageError(
+      `Request JSON continuation.fallback must be one of: ${RESUME_FALLBACK_POLICIES.join(", ")}`
+    );
+  }
+}
+function validateHostContext(value) {
+  if (value === void 0) return;
+  if (!isRecord3(value)) {
+    throw new ConsensusCliUsageError("Request JSON host must be an object");
+  }
+  validateRequiredStringField(value, "runtime", "Request JSON host.runtime");
+  validateRequiredStringField(value, "cwd", "Request JSON host.cwd");
+  validateRequiredStringField(value, "run_id", "Request JSON host.run_id");
+  validateRequiredNonNegativeInteger(value, "depth", "Request JSON host.depth");
+  validateRequiredPositiveInteger(
+    value,
+    "max_depth",
+    "Request JSON host.max_depth"
+  );
+}
+function validateRedaction(value) {
+  if (value === void 0) return;
+  if (!isRecord3(value)) {
+    throw new ConsensusCliUsageError(
+      "Request JSON redaction must be an object"
+    );
+  }
+  validateOptionalBooleanField(
+    value,
+    "include_args",
+    "Request JSON redaction.include_args"
+  );
+  validateOptionalBooleanField(
+    value,
+    "include_stderr",
+    "Request JSON redaction.include_stderr"
+  );
+}
+function validateRequiredStringField(record, key, label) {
+  if (typeof record[key] !== "string" || record[key].length === 0) {
+    throw new ConsensusCliUsageError(`${label} must be a string`);
+  }
+}
+function validateOptionalStringField(record, key, label) {
+  if (record[key] === void 0) return;
+  validateRequiredStringField(record, key, label);
+}
+function validateOptionalBooleanField(record, key, label) {
+  if (record[key] === void 0) return;
+  if (typeof record[key] !== "boolean") {
+    throw new ConsensusCliUsageError(`${label} must be a boolean`);
+  }
+}
+function validateOptionalPositiveInteger(record, key, label) {
+  if (record[key] === void 0) return;
+  validateRequiredPositiveInteger(record, key, label);
+}
+function validateRequiredPositiveInteger(record, key, label) {
+  if (!Number.isInteger(record[key]) || Number(record[key]) < 1) {
+    throw new ConsensusCliUsageError(`${label} must be a positive integer`);
+  }
+}
+function validateRequiredNonNegativeInteger(record, key, label) {
+  if (!Number.isInteger(record[key]) || Number(record[key]) < 0) {
+    throw new ConsensusCliUsageError(`${label} must be a non-negative integer`);
+  }
+}
+function isStringArray(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
+}
+function parseOptionTokens(tokens, spec) {
+  const flags = /* @__PURE__ */ new Map();
+  const positionals = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (!token.startsWith("--")) {
+      positionals.push(token);
+      continue;
+    }
+    const [flag, inlineValue] = splitFlag(token);
+    if (!spec.allowedFlags.has(flag)) {
+      throw new ConsensusCliUsageError(`Unknown flag: ${flag}`);
+    }
+    if (!spec.valueFlags.has(flag)) {
+      if (inlineValue !== void 0) {
+        throw new ConsensusCliUsageError(`${flag} does not accept a value`);
+      }
+      pushFlag(flags, flag, "true");
+      continue;
+    }
+    const value = inlineValue ?? tokens[index + 1];
+    if (value === void 0 || value.startsWith("--")) {
+      throw new ConsensusCliUsageError(`${flag} requires a value`);
+    }
+    if (inlineValue === void 0) index += 1;
+    pushFlag(flags, flag, value);
+  }
+  return { flags, positionals };
+}
+function splitFlag(token) {
+  const equalsIndex = token.indexOf("=");
+  if (equalsIndex === -1) return [token, void 0];
+  return [token.slice(0, equalsIndex), token.slice(equalsIndex + 1)];
+}
+function pushFlag(flags, flag, value) {
+  const values = flags.get(flag) ?? [];
+  values.push(value);
+  flags.set(flag, values);
+}
+function singleValue(flags, flag) {
+  const values = flags.get(flag);
+  if (!values || values.length === 0) return void 0;
+  if (values.length > 1) {
+    throw new ConsensusCliUsageError(`${flag} can only be provided once`);
+  }
+  return values[0];
+}
+function valuesFor(flags, flag) {
+  return flags.get(flag) ?? [];
+}
+function requireJson(flags) {
+  if (!flags.has("--json")) {
+    throw new ConsensusCliUsageError("Missing required --json flag");
+  }
+}
+function requireNoPositionals(positionals) {
+  if (positionals.length > 0) {
+    throw new ConsensusCliUsageError(
+      `Unexpected positional argument: ${positionals[0]}`
+    );
+  }
+}
+function requireNoExtraTokens(tokens) {
+  if (tokens.length > 0) {
+    throw new ConsensusCliUsageError(`Unexpected argument: ${tokens[0]}`);
+  }
+}
+function parsePositiveInteger(flag, value) {
+  if (!/^[1-9]\d*$/.test(value)) {
+    throw new ConsensusCliUsageError(`${flag} must be a positive integer`);
+  }
+  return Number(value);
+}
+function isRecord3(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// src/plugins/consensus/provider-cli/envelope.ts
+function successEnvelope(input) {
+  const envelope = {
+    schema_version: "v1",
+    ok: true,
+    provider: input.provider,
+    args: input.args,
+    stdout: input.stdout,
+    json: input.json,
+    attempts: buildAttemptSummary(input.attempts, false)
+  };
+  if (input.stderr !== void 0) envelope.stderr = input.stderr;
+  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
+  return envelope;
+}
+function failureEnvelope(input) {
+  const envelope = {
+    schema_version: "v1",
+    ok: false,
+    code: input.code,
+    message: input.message,
+    retryable: input.retryable,
+    attempts: buildAttemptSummary(
+      {
+        ...input.attempts,
+        terminal_reason: input.terminal_reason ?? input.attempts?.terminal_reason
+      },
+      input.retryable
+    )
+  };
+  if (input.provider) envelope.provider = input.provider;
+  if (input.stdout !== void 0) envelope.stdout = input.stdout;
+  if (input.stderr !== void 0) envelope.stderr = input.stderr;
+  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
+  return envelope;
+}
+function usageFailure(message, details) {
+  const diagnostics = details === void 0 ? void 0 : { warnings: [JSON.stringify(details)] };
+  return failureEnvelope({
+    code: "CONSENSUS_CLI_USAGE",
+    message,
+    retryable: false,
+    attempts: {
+      cli_attempts: 0,
+      terminal_reason: "usage"
+    },
+    diagnostics
+  });
+}
+function processExitForEnvelope(envelope) {
+  if (envelope.ok) return 0;
+  if (envelope.code === "CONSENSUS_CLI_USAGE") return 2;
+  return 0;
+}
+function buildAttemptSummary(attempts, retryable) {
+  return {
+    cli_attempts: attempts?.cli_attempts ?? 1,
+    ...attempts?.provider_internal_attempts === void 0 ? {} : { provider_internal_attempts: attempts.provider_internal_attempts },
+    ...attempts?.terminal_reason === void 0 ? {} : { terminal_reason: attempts.terminal_reason },
+    retryable
+  };
+}
+
+// src/plugins/consensus/provider-cli/probe.ts
+import { constants } from "node:fs";
+import { access as access2 } from "node:fs/promises";
+import path4 from "node:path";
+
+// src/plugins/consensus/provider-cli/runtime-policy.ts
+import { realpathSync, statSync } from "node:fs";
+import path3 from "node:path";
+var DEFAULT_RUNTIME_POLICY = {
+  permission_mode: "non-interactive"
+};
+var BASE_ENV_ALLOWLIST = [
+  "PATH",
+  "HOME",
+  "TMPDIR",
+  "TEMP",
+  "TMP",
+  "USER",
+  "LOGNAME",
+  "SHELL",
+  "LANG"
+];
+var PROVIDER_ENV_ALLOWLIST = [
+  ["claude", ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]],
+  ["codex", ["OPENAI_API_KEY"]],
+  ["cursor", ["CURSOR_API_KEY"]]
+];
+function validateProviderOptions(request, capabilities) {
+  if (request.model && !capabilities.options.model) {
+    return unsupported("model", "Provider does not support model selection.");
+  }
+  if (request.effort && capabilities.options.effort === null) {
+    return unsupported("effort", "Provider does not support effort selection.");
+  }
+  const policy = defaultRuntimePolicy(request.runtime_policy);
+  const runtimeCapabilities = capabilities.options.runtime_policy;
+  const permissionResult = validateOptionValue(
+    "runtime_policy.permission_mode",
+    policy.permission_mode,
+    runtimeCapabilities.permission_modes
+  );
+  if (permissionResult) return permissionResult;
+  const sandboxResult = validateOptionValue(
+    "runtime_policy.sandbox",
+    policy.sandbox,
+    runtimeCapabilities.sandboxes
+  );
+  if (sandboxResult) return sandboxResult;
+  const approvalResult = validateOptionValue(
+    "runtime_policy.approval_policy",
+    policy.approval_policy,
+    runtimeCapabilities.approval_policies
+  );
+  if (approvalResult) return approvalResult;
+  if (policy.env_allowlist && policy.env_allowlist.length > 0 && !runtimeCapabilities.env_allowlist) {
+    return unsupported(
+      "runtime_policy.env_allowlist",
+      "Provider does not support child environment allowlist extension."
+    );
+  }
+  const hasScopedTools = hasScopedToolAccess(policy);
+  if (hasScopedTools && request.provider !== "claude") {
+    return unsupported(
+      "runtime_policy.scoped_tools",
+      "Scoped tool grants are supported only by the Claude provider."
+    );
+  }
+  if (hasScopedTools && policy.permission_mode !== "non-interactive") {
+    return unsupported(
+      "runtime_policy.permission_mode",
+      "Scoped Claude tool grants require non-interactive permission mode."
+    );
+  }
+  for (const [field, paths] of [
+    ["read_paths", policy.read_paths],
+    ["edit_paths", policy.edit_paths]
+  ]) {
+    for (const filePath of paths ?? []) {
+      if (!path3.isAbsolute(filePath) || path3.normalize(filePath) !== filePath || filePath.split(path3.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires exact absolute paths without parent traversal or glob characters.`
+        );
+      }
+      try {
+        const target = statSync(filePath, { throwIfNoEntry: false });
+        if (target) {
+          if (!target.isFile() || realpathSync(filePath) !== filePath) {
+            return unsupported(
+              `runtime_policy.${field}`,
+              `${field} requires canonical regular-file targets, not directories or symlinks.`
+            );
+          }
+        } else if (field === "read_paths" || realpathSync(path3.dirname(filePath)) !== path3.dirname(filePath)) {
+          return unsupported(
+            `runtime_policy.${field}`,
+            `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
+          );
+        }
+      } catch {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
+        );
+      }
+    }
+  }
+  for (const domain of policy.web_fetch_domains ?? []) {
+    if (domain.length > 253 || !/^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
+      domain
+    )) {
+      return unsupported(
+        "runtime_policy.web_fetch_domains",
+        "WebFetch grants require exact domain names without schemes, ports, or wildcards."
+      );
+    }
+  }
+  return { ok: true };
+}
+function hasScopedToolAccess(policy = {}) {
+  return Boolean(
+    policy.read_paths?.length || policy.edit_paths?.length || policy.web_search || policy.web_fetch_domains?.length
+  );
+}
+function defaultRuntimePolicy(policy = {}) {
+  return {
+    permission_mode: policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode,
+    ...policy.sandbox ? { sandbox: policy.sandbox } : {},
+    ...policy.approval_policy ? { approval_policy: policy.approval_policy } : {},
+    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {},
+    ...policy.read_paths ? { read_paths: policy.read_paths } : {},
+    ...policy.edit_paths ? { edit_paths: policy.edit_paths } : {},
+    ...policy.web_search ? { web_search: true } : {},
+    ...policy.web_fetch_domains ? { web_fetch_domains: policy.web_fetch_domains } : {}
+  };
+}
+function buildChildEnvironment({
+  parentEnv,
+  request,
+  hostEnv
+}) {
+  const allowedNames = /* @__PURE__ */ new Set([
+    ...BASE_ENV_ALLOWLIST,
+    ...providerEnvAllowlist(request.provider),
+    ...request.runtime_policy?.env_allowlist ?? []
+  ]);
+  const childEnv = {};
+  for (const name of allowedNames) {
+    const value = parentEnv[name];
+    if (value !== void 0) childEnv[name] = value;
+  }
+  return {
+    ...childEnv,
+    ...hostEnv
+  };
+}
+function buildProviderProbeEnvironment({
+  parentEnv,
+  provider
+}) {
+  const allowedNames = /* @__PURE__ */ new Set([
+    ...BASE_ENV_ALLOWLIST,
+    ...providerEnvAllowlist(provider)
+  ]);
+  const probeEnv = {};
+  for (const name of allowedNames) {
+    const value = parentEnv[name];
+    if (value !== void 0) probeEnv[name] = value;
+  }
+  return probeEnv;
+}
+function providerEnvAllowlist(provider) {
+  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
+}
+function redactedRuntimePolicyDiagnostics(policy = {}) {
+  const effectivePolicy = defaultRuntimePolicy(policy);
+  return {
+    permission_mode: effectivePolicy.permission_mode,
+    ...effectivePolicy.sandbox ? { sandbox: effectivePolicy.sandbox } : {},
+    ...effectivePolicy.approval_policy ? { approval_policy: effectivePolicy.approval_policy } : {},
+    ...effectivePolicy.env_allowlist ? { env_allowlist: [...effectivePolicy.env_allowlist] } : {}
+  };
+}
+function validateOptionValue(option, value, supportedValues) {
+  if (!value) return void 0;
+  if (supportedValues?.includes(value)) return void 0;
+  return unsupported(
+    option,
+    supportedValues ? `Unsupported ${option}: ${value}.` : `Provider does not support ${option}.`
+  );
+}
+function unsupported(option, message) {
+  return {
+    ok: false,
+    code: "PROVIDER_UNSUPPORTED_OPTION",
+    option,
+    message
+  };
+}
+
+// src/plugins/consensus/provider-cli/probe.ts
+var DEFAULT_PROBE_TIMEOUT_SEC = 10;
+var DEFAULT_PROBE_MAX_OUTPUT_BYTES = 64 * 1024;
+async function probeProviderRegistry({
+  registry,
+  runner,
+  provider,
+  requiredCapabilities
+}) {
+  const adapters = provider ? [registry.get(provider)].filter(
+    (adapter) => adapter !== void 0
+  ) : registry.list();
+  return Promise.all(
+    adapters.map(
+      (adapter) => probeProviderReadiness(adapter, { runner, requiredCapabilities })
+    )
+  );
+}
+async function probeProviderReadiness(adapter, options) {
+  const executable = await options.runner.findExecutable(adapter.executable);
+  if (!executable) {
+    return providerEntry(adapter, "missing", {
+      warnings: [
+        `PROVIDER_MISSING: executable not found for ${adapter.id} (${adapter.executable})`
+      ]
+    });
+  }
+  const result = await options.runner.run(
+    adapter.executable,
+    adapter.probe.version_args,
+    adapter.id
+  );
+  const probeFailure = probeFailureEntry(adapter, executable, result);
+  if (probeFailure) return probeFailure;
+  const output = `${result.stdout}
+${result.stderr}`;
+  if (matchesAny2(output, adapter.probe.auth_required_patterns)) {
+    return providerEntry(adapter, "auth_required", {
+      executable,
+      warnings: [`PROVIDER_AUTH_REQUIRED: ${firstNonEmptyLine2(output)}`]
+    });
+  }
+  if (result.code !== 0 || matchesAny2(output, adapter.probe.unavailable_patterns)) {
+    return providerEntry(adapter, "unavailable", {
+      executable,
+      warnings: [`PROVIDER_UNAVAILABLE: ${firstNonEmptyLine2(output)}`]
+    });
+  }
+  const detectedVersion = parseNumericVersion(output);
+  const minimumVersion = parseNumericVersion(adapter.probe.minimum_version);
+  if (!detectedVersion || !minimumVersion) {
+    return providerEntry(adapter, "unavailable", {
+      executable,
+      version: firstNonEmptyLine2(output),
+      warnings: [
+        `PROVIDER_VERSION_UNPARSEABLE: could not establish ${adapter.id} compatibility from version output`
+      ]
+    });
+  }
+  if (compareNumericVersions(detectedVersion, minimumVersion) < 0) {
+    return providerEntry(adapter, "unavailable", {
+      executable,
+      version: firstNonEmptyLine2(output),
+      warnings: [
+        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${formatNumericVersion(detectedVersion)} is below required ${adapter.probe.minimum_version}`
+      ]
+    });
+  }
+  for (const capability of options.requiredCapabilities ?? []) {
+    const definition = adapter.probe.capabilities[capability];
+    const capabilityResult = await options.runner.run(
+      adapter.executable,
+      definition.args,
+      adapter.id
+    );
+    const capabilityFailure = probeFailureEntry(
+      adapter,
+      executable,
+      capabilityResult
+    );
+    if (capabilityFailure) return capabilityFailure;
+    const capabilityOutput = `${capabilityResult.stdout}
+${capabilityResult.stderr}`;
+    if (capabilityResult.code !== 0 || !definition.required_output_patterns.every(
+      (pattern) => pattern.test(capabilityOutput)
+    )) {
+      return providerEntry(adapter, "unavailable", {
+        executable,
+        version: firstNonEmptyLine2(output),
+        warnings: [
+          `PROVIDER_CAPABILITY_MISSING: ${adapter.id} does not expose required local capability ${capability}`
+        ]
+      });
+    }
+  }
+  return providerEntry(adapter, "ready", {
+    executable,
+    version: firstNonEmptyLine2(output)
+  });
+}
+function nodeProbeCommandRunner(env = process.env, options = {}) {
+  return {
+    findExecutable(command) {
+      return findExecutable(command, env);
+    },
+    run(command, args, provider) {
+      return runProbeCommand(
+        command,
+        args,
+        buildProviderProbeEnvironment({ parentEnv: env, provider }),
+        options
+      );
+    }
+  };
+}
+async function findExecutable(command, env) {
+  if (command.includes(path4.sep)) {
+    return canExecute(command).then((ok) => ok ? command : void 0);
+  }
+  const pathValue = env.PATH ?? "";
+  for (const searchPath of pathValue.split(path4.delimiter)) {
+    if (!searchPath) continue;
+    const candidate = path4.join(searchPath, command);
+    if (await canExecute(candidate)) return candidate;
+  }
+  return void 0;
+}
+async function canExecute(filePath) {
+  try {
+    await access2(filePath, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function runProbeCommand(command, args, env, options) {
+  const subprocessOptions = {
+    env,
+    timeoutSec: options.timeoutSec ?? DEFAULT_PROBE_TIMEOUT_SEC,
+    maxOutputBytes: options.maxOutputBytes ?? DEFAULT_PROBE_MAX_OUTPUT_BYTES,
+    ...options.terminationGraceMs !== void 0 ? { terminationGraceMs: options.terminationGraceMs } : {},
+    ...options.finalResolutionMs !== void 0 ? { finalResolutionMs: options.finalResolutionMs } : {}
+  };
+  return runProviderSubprocess(
+    {
+      executable: command,
+      argv: [...args],
+      stdin: "",
+      output_mode: "stdout_json",
+      strategy: "prompt_only",
+      redacted_command: [command, ...args],
+      shell: false
+    },
+    subprocessOptions
+  ).then((result) => ({
+    code: result.exit_code,
+    signal: result.signal,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    ...result.ok ? {} : { failure_code: result.code },
+    diagnostics: result.diagnostics
+  }));
+}
+function probeFailureEntry(adapter, executable, result) {
+  if (!result.failure_code) return void 0;
+  if (result.failure_code === "PROVIDER_MISSING") {
+    return providerEntry(adapter, "missing", {
+      executable,
+      diagnostics: result.diagnostics,
+      warnings: [
+        `PROVIDER_MISSING: executable failed to start for ${adapter.id}`
+      ]
+    });
+  }
+  if (result.failure_code === "PROVIDER_TIMEOUT") {
+    return providerEntry(adapter, "unavailable", {
+      executable,
+      diagnostics: result.diagnostics,
+      warnings: [
+        `PROVIDER_TIMEOUT: readiness probe timed out after ${result.diagnostics?.timeout_sec ?? "the configured"} seconds`
+      ]
+    });
+  }
+  if (result.failure_code === "PROVIDER_OUTPUT_CAP_EXCEEDED") {
+    return providerEntry(adapter, "unavailable", {
+      executable,
+      diagnostics: result.diagnostics,
+      warnings: [
+        `PROVIDER_OUTPUT_CAP_EXCEEDED: readiness probe exceeded output cap of ${result.diagnostics?.output_bytes?.max ?? "the configured limit"} bytes`
+      ]
+    });
+  }
+  return void 0;
+}
+function providerEntry(adapter, status, options = {}) {
+  const diagnostics = mergeProviderDiagnostics(
+    options.diagnostics,
+    options.warnings
+  );
+  return {
+    id: adapter.id,
+    status,
+    capabilities: adapter.capabilities,
+    ...options.executable ? { executable: options.executable } : {},
+    ...options.version ? { version: options.version } : {},
+    ...diagnostics ? { diagnostics } : {}
+  };
+}
+function mergeProviderDiagnostics(diagnostics, warnings) {
+  if (!diagnostics && !warnings) return void 0;
+  const mergedWarnings = [
+    ...diagnostics?.warnings ?? [],
+    ...warnings ?? []
+  ];
+  return {
+    ...diagnostics,
+    ...mergedWarnings.length > 0 ? { warnings: mergedWarnings } : {}
+  };
+}
+function matchesAny2(value, patterns) {
+  return patterns?.some((pattern) => pattern.test(value)) ?? false;
+}
+function firstNonEmptyLine2(value) {
+  return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+}
+function parseNumericVersion(value) {
+  const match = value.match(/\b(\d+(?:\.\d+){2,})\b/);
+  if (!match) return void 0;
+  return match[1].split(".").map(Number);
+}
+function compareNumericVersions(left, right) {
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    if (difference !== 0) return Math.sign(difference);
+  }
+  return 0;
+}
+function formatNumericVersion(version) {
+  return version.join(".");
+}
+
+// src/plugins/consensus/provider-cli/schema-validate.ts
+function validateSchemaSubset(value, schema) {
+  if (!isRecord4(schema)) return { ok: true };
+  if (schema.type === "object" && !isRecord4(value)) {
+    return { ok: false, message: "Expected provider JSON to be an object." };
+  }
+  if (Array.isArray(schema.required)) {
+    if (!isRecord4(value)) {
+      return {
+        ok: false,
+        message: "Expected provider JSON to be an object with required fields."
+      };
+    }
+    for (const field of schema.required) {
+      if (typeof field === "string" && !(field in value)) {
+        return {
+          ok: false,
+          message: `Missing required JSON field: ${field}`
+        };
+      }
+    }
+  }
+  if (isRecord4(schema.properties) && isRecord4(value)) {
+    for (const [field, fieldSchema] of Object.entries(schema.properties)) {
+      if (!(field in value) || !isRecord4(fieldSchema)) continue;
+      const type = fieldSchema.type;
+      if (typeof type === "string" && !matchesJsonType(value[field], type)) {
+        return {
+          ok: false,
+          message: `Field ${field} must be ${type}.`
+        };
+      }
+    }
+  }
+  return { ok: true };
+}
+function isRecord4(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function matchesJsonType(value, type) {
+  if (type === "array") return Array.isArray(value);
+  if (type === "object") return isRecord4(value);
+  if (type === "integer") return Number.isInteger(value);
+  return typeof value === type;
+}
+
+// src/plugins/consensus/provider-cli/structured-output.ts
+import { readFile as readFile2, rm as rm3 } from "node:fs/promises";
+import path7 from "node:path";
+import { fileURLToPath } from "node:url";
+
+// src/plugins/consensus/provider-cli/continuation.ts
+import { randomUUID as randomUUID3 } from "node:crypto";
+import path5 from "node:path";
+var UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+var NOT_STARTED_FAILURE_CODES = [
+  "PROVIDER_MISSING",
+  "PROVIDER_AUTH_REQUIRED",
+  "PROVIDER_UNSUPPORTED_OPTION",
+  "PROVIDER_SESSION_NOT_FOUND"
+];
+function isProviderSessionId(value) {
+  return UUID_PATTERN.test(value);
+}
+function continuationMode(request) {
+  return request.continuation?.mode ?? "new";
+}
+function continuationUsageError(request) {
+  const continuation = request.continuation;
+  if (!continuation) return void 0;
+  const { mode } = continuation;
+  if (continuation.round !== void 0) {
+    if (!Number.isInteger(continuation.round) || continuation.round < 1) {
+      return "Continuation round must be a positive integer.";
+    }
+    if (mode === "new" && continuation.round !== 1) {
+      return "A new consultation starts at round 1; use --resume or --continuation reconstructed for later rounds.";
+    }
+    if (mode !== "new" && continuation.round < 2) {
+      return "A continuation round must be 2 or greater.";
+    }
+  }
+  if (continuation.consultation_id !== void 0 && continuation.consultation_id.trim() === "") {
+    return "Continuation consultation_id must be a non-empty string.";
+  }
+  if (mode !== "native-resume") {
+    if (continuation.session_id !== void 0) {
+      return `A ${mode} run cannot target an existing session; use --resume for native resume.`;
+    }
+    if (continuation.fallback !== void 0 || continuation.fallback_prompt !== void 0) {
+      return "Resume fallback options apply only to native resume (--resume).";
+    }
+  }
+  if (mode === "new" && continuation.previous_session_id !== void 0) {
+    return "A predecessor session implies a continuation; use --continuation reconstructed.";
+  }
+  if (mode === "reconstructed" && continuation.previous_session_id !== void 0 && continuation.previous_session_id.trim() === "") {
+    return "Previous session id must be a non-empty string.";
+  }
+  if (mode !== "native-resume") return void 0;
+  if (!continuation.session_id) {
+    return "Native resume requires an explicit provider session id.";
+  }
+  if (!isProviderSessionId(continuation.session_id)) {
+    return 'Native resume requires a lowercase provider session UUID, as reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
+  }
+  if (continuation.previous_session_id !== void 0) {
+    return "Native resume continues the --resume session itself; --previous-session applies only to reconstructed continuation.";
+  }
+  if ((request.max_attempts ?? 1) > 1) {
+    return "Native resume is single-attempt: a failed or malformed turn may already be recorded in the session, so the wrapper never resubmits it.";
+  }
+  const fallback = continuation.fallback ?? "error";
+  const fallbackPrompt = continuation.fallback_prompt;
+  if (fallback === "error" && fallbackPrompt !== void 0) {
+    return "A fallback prompt requires --resume-fallback reconstructed.";
+  }
+  if (fallback === "reconstructed") {
+    if (!fallbackPrompt || fallbackPrompt.trim() === "") {
+      return "Reconstructed fallback requires a continuation packet (--fallback-prompt-file).";
+    }
+    if (fallbackPrompt.trim() === request.prompt.trim()) {
+      return "The fallback continuation packet must carry reconstructed context, not repeat the native follow-up prompt.";
+    }
+  }
+  return void 0;
+}
+function reconstructedContinuationPrompt(packet, fallbackReason) {
+  return [
+    "Continuation notice (added by the consensus wrapper):",
+    "- This is a NEW provider session. You have no memory of earlier rounds, and no earlier transcript is available to you.",
+    "- The host reconstructed the context below from earlier rounds. It is a summary, may be incomplete, and is not the original transcript.",
+    ...fallbackReason ? [
+      `- A native resume of the earlier session was requested but unavailable (${fallbackReason}).`
+    ] : [],
+    "- Judge the current candidate on its merits. Name material blockers, explain any disagreement, and state whether the exact candidate is acceptable. You are not obligated to agree.",
+    "",
+    packet
+  ].join("\n");
+}
+function turnStateFor(trace) {
+  if (!trace.process) return "not_started";
+  if (trace.process.ok) return "completed";
+  if (trace.process.stdout.trim() === "" && trace.failure_code && NOT_STARTED_FAILURE_CODES.includes(trace.failure_code)) {
+    return "not_started";
+  }
+  return "unknown";
+}
+function continuationReceipt(input) {
+  const { request, adapter, mode, trace } = input;
+  const observation = adapter && trace.process ? adapter.extractSession(trace.process.stdout) : {};
+  const continuation = request.continuation;
+  const round = continuation?.round ?? (mode === "new" && !input.fallbackReason ? 1 : void 0);
+  return {
+    mode,
+    provider: request.provider,
+    ...observation.session_id ? { session_id: observation.session_id } : {},
+    ...continuation?.mode === "native-resume" && continuation.session_id ? { requested_session_id: continuation.session_id } : {},
+    ...mode === "reconstructed" && previousSessionId(request) ? { previous_session_id: previousSessionId(request) } : {},
+    consultation_id: input.consultationId,
+    ...round !== void 0 ? { round } : {},
+    cwd: path5.resolve(request.cwd ?? process.cwd()),
+    ...request.model ? { requested_model: request.model } : {},
+    ...request.effort ? { requested_effort: request.effort } : {},
+    ...observation.observed_models ? { observed_models: observation.observed_models } : {},
+    runtime_policy: redactedRuntimePolicyDiagnostics(request.runtime_policy),
+    turn: turnStateFor(trace),
+    ...input.fallbackReason ? { fallback_reason: input.fallbackReason } : {},
+    ...adapter?.capabilities.continuation ? { capability: adapter.capabilities.continuation } : {}
+  };
+}
+function consultationIdFor(request) {
+  return request.continuation?.consultation_id ?? randomUUID3();
+}
+function previousSessionId(request) {
+  const continuation = request.continuation;
+  if (!continuation) return void 0;
+  return continuation.mode === "native-resume" ? continuation.session_id : continuation.previous_session_id;
+}
+
+// src/plugins/consensus/provider-cli/submit-capture.ts
+import { randomUUID as randomUUID4 } from "node:crypto";
+import path6 from "node:path";
+var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
+var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
+var CONSENSUS_SUBMIT_CAPTURE_DIR = ".consensus/submit";
+var SubmitCaptureLimitError = class extends Error {
+  bytes;
+  maxBytes;
+  constructor(bytes, maxBytes) {
+    super(submitCaptureLimitMessage(bytes, maxBytes));
+    this.bytes = bytes;
+    this.maxBytes = maxBytes;
+  }
+};
+function submitCaptureMaxBytes(maxOutputBytes) {
+  return maxOutputBytes ?? DEFAULT_SUBMIT_CAPTURE_MAX_BYTES;
+}
+function parseSubmitCaptureMaxBytes(value) {
+  if (value === void 0 || value === "") {
+    return DEFAULT_SUBMIT_CAPTURE_MAX_BYTES;
+  }
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    return void 0;
+  }
+  return parsed;
+}
+function byteLength(value) {
+  return Buffer.byteLength(value, "utf8");
+}
+function assertWithinSubmitCaptureLimit(value, maxBytes) {
+  const bytes = byteLength(value);
+  if (bytes > maxBytes) {
+    throw new SubmitCaptureLimitError(bytes, maxBytes);
+  }
+}
+function submitCaptureLimitMessage(bytes, maxBytes) {
+  return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
+}
+function submitCaptureDirectory(cwd) {
+  return path6.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
+}
+function submitCaptureFilePath(cwd, id = randomUUID4()) {
+  return path6.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
+}
+
+// src/plugins/consensus/provider-cli/structured-output.ts
+function selectStructuredOutputStrategy(adapter, options = {}) {
+  if (options.strategy) return options.strategy;
+  if (options.submitCaptureEnabled && adapter.capabilities.schema_strategies.includes("constrained_native") && adapter.capabilities.schema_strategies.includes("prompt_only")) {
+    return "prompt_only";
+  }
+  if (adapter.capabilities.schema_strategies.includes("constrained_native")) {
+    return "constrained_native";
+  }
+  if (adapter.capabilities.schema_strategies.includes("provider_validated")) {
+    return "provider_validated";
+  }
+  return "prompt_only";
+}
+async function runProviderTurn(request, dependencies = {}) {
+  const registry = dependencies.registry ?? providerRegistry();
+  const adapter = registry.get(request.provider);
+  const consultationId = consultationIdFor(request);
+  const mode = continuationMode(request);
+  const withReceipt = (envelope2, receiptMode, trace2, fallbackReason) => ({
+    ...envelope2,
+    continuation: continuationReceipt({
+      request,
+      adapter,
+      mode: receiptMode,
+      consultationId,
+      trace: trace2,
+      fallbackReason
+    })
+  });
+  const usageError = continuationUsageError(request);
+  if (usageError) {
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: usageError,
+        terminalReason: "continuation_usage"
+      }),
+      mode,
+      {}
+    );
+  }
+  const continuation = request.continuation;
+  const runReconstructed = async (packet, fallbackReason, rejected) => {
+    const trace2 = {};
+    const envelope2 = await runStructuredTurn(
+      {
+        ...request,
+        prompt: reconstructedContinuationPrompt(packet, fallbackReason)
+      },
+      dependencies,
+      trace2
+    );
+    return withReceipt(
+      rejected ? withRejectedResume(envelope2, rejected) : envelope2,
+      "reconstructed",
+      trace2,
+      fallbackReason
+    );
+  };
+  if (mode === "reconstructed") {
+    return runReconstructed(request.prompt);
+  }
+  if (mode !== "native-resume" || !continuation?.session_id) {
+    const trace2 = {};
+    const envelope2 = await runStructuredTurn(request, dependencies, trace2);
+    return withReceipt(envelope2, "new", trace2);
+  }
+  const requestedSessionId = continuation.session_id;
+  const fallbackPacket = continuation.fallback === "reconstructed" ? continuation.fallback_prompt : void 0;
+  const resumeStatus = adapter?.capabilities.continuation?.native_resume;
+  if (adapter && resumeStatus !== "verified") {
+    const reason = `native_resume_${resumeStatus ?? "unsupported"}`;
+    if (fallbackPacket) return runReconstructed(fallbackPacket, reason);
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: "PROVIDER_UNSUPPORTED_OPTION",
+        message: `Native resume is ${resumeStatus ?? "unsupported"} for provider ${request.provider}; use --resume-fallback reconstructed with a continuation packet, or --continuation reconstructed.`,
+        terminalReason: reason
+      }),
+      "native-resume",
+      {}
+    );
+  }
+  const trace = {};
+  const envelope = await runStructuredTurn(request, dependencies, trace, {
+    resumeSessionId: requestedSessionId
+  });
+  const receipt = continuationReceipt({
+    request,
+    adapter,
+    mode: "native-resume",
+    consultationId,
+    trace
+  });
+  if (!envelope.ok && envelope.code === "PROVIDER_SESSION_NOT_FOUND" && receipt.turn === "not_started" && fallbackPacket) {
+    return runReconstructed(fallbackPacket, "session_not_found", envelope);
+  }
+  if (receipt.turn === "completed" && receipt.session_id !== requestedSessionId) {
+    return {
+      ...failureEnvelope({
+        provider: request.provider,
+        code: "PROVIDER_SESSION_MISMATCH",
+        message: receipt.session_id ? `Provider reported session ${receipt.session_id} instead of the requested ${requestedSessionId}; the turn was not a native resume.` : `Provider output did not confirm the requested session ${requestedSessionId}.`,
+        retryable: false,
+        stdout: envelope.stdout,
+        stderr: envelope.stderr,
+        attempts: {
+          cli_attempts: envelope.attempts.cli_attempts,
+          terminal_reason: "provider_session_mismatch"
+        },
+        diagnostics: envelope.diagnostics
+      }),
+      continuation: receipt
+    };
+  }
+  return { ...envelope, continuation: receipt };
+}
+function withRejectedResume(envelope, rejected) {
+  const note = `Native resume was rejected (${rejected.ok ? "ok" : rejected.code}) before a turn started; a reconstructed session answered instead.`;
+  return {
+    ...envelope,
+    attempts: {
+      ...envelope.attempts,
+      cli_attempts: envelope.attempts.cli_attempts + rejected.attempts.cli_attempts
+    },
+    diagnostics: {
+      ...envelope.diagnostics,
+      warnings: [...envelope.diagnostics?.warnings ?? [], note]
+    }
+  };
+}
+async function runStructuredTurn(request, dependencies, trace, turnOptions = {}) {
+  const registry = dependencies.registry ?? providerRegistry();
+  const adapter = registry.get(request.provider);
+  if (!adapter) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_UNSUPPORTED",
+      message: `Provider is not supported: ${request.provider}`,
+      terminalReason: "unsupported_provider"
+    });
+  }
+  const optionValidation = validateProviderOptions(
+    request,
+    adapter.capabilities
+  );
+  if (!optionValidation.ok) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: optionValidation.code,
+      message: optionValidation.message,
+      terminalReason: optionValidation.option
+    });
+  }
+  const hostGuard = evaluateHostGuard({
+    host: request.host,
+    provider: request.provider
+  });
+  if (!hostGuard.allowed) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: hostGuard.code,
+      message: hostGuard.message,
+      terminalReason: "host_recursion_blocked",
+      diagnostics: hostGuard.diagnostics
+    });
+  }
+  const readSchema = dependencies.readSchema ?? readJsonSchema;
+  let schema;
+  try {
+    schema = await readSchema(request.schema_path);
+  } catch (error) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "CONSENSUS_CLI_USAGE",
+      message: `Could not read schema: ${error instanceof Error ? error.message : String(error)}`,
+      terminalReason: "schema_read_failed"
+    });
+  }
+  const inlineJsonSchema = JSON.stringify(schema);
+  if (inlineJsonSchema === void 0) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "CONSENSUS_CLI_USAGE",
+      message: "Schema must be JSON-serializable.",
+      terminalReason: "schema_read_failed"
+    });
+  }
+  const effectiveRequest = {
+    ...request,
+    runtime_policy: defaultRuntimePolicy(request.runtime_policy)
+  };
+  const maxAttempts = effectiveRequest.max_attempts ?? 1;
+  const submitCaptureEnabled = (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && hasScopedToolAccess(request.runtime_policy)) && !(request.provider === "cursor" && request.runtime_policy?.permission_mode === "read-only");
+  const strategy = selectStructuredOutputStrategy(adapter, {
+    submitCaptureEnabled,
+    strategy: dependencies.transport?.strategy
+  });
+  if (!adapter.capabilities.schema_strategies.includes(strategy)) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_UNSUPPORTED_OPTION",
+      message: `Provider does not support structured-output strategy: ${strategy}.`,
+      terminalReason: "structured_output_strategy"
+    });
+  }
+  const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
+  const parentEnv = dependencies.parentEnv ?? process.env;
+  const submitCapturePath = submitCaptureEnabled ? submitCaptureFilePath(effectiveRequest.cwd ?? process.cwd()) : void 0;
+  const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
+  const submitCommand = submitCaptureEnabled ? dependencies.submitCommand ?? buildConsensusSubmitCommand() : void 0;
+  const childEnv = buildChildEnvironment({
+    parentEnv,
+    request: effectiveRequest,
+    hostEnv: {
+      ...hostGuard.child_env,
+      ...submitCaptureEnabled && submitCommand && submitCapturePath ? {
+        CONSENSUS_SUBMIT_COMMAND: submitCommand,
+        CONSENSUS_SUBMIT_FILE: submitCapturePath,
+        [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
+        CONSENSUS_SUBMIT_SCHEMA: path7.resolve(request.schema_path)
+      } : {}
+    }
+  });
+  let validationFeedback;
+  let lastInvocation;
+  let exitClassification;
+  try {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (submitCapturePath) {
+        await cleanupSubmitCaptureFile(submitCapturePath);
+      }
+      const invocationRequest = {
+        ...effectiveRequest,
+        prompt: promptForStrategy({
+          prompt: request.prompt,
+          strategy,
+          inlineJsonSchema,
+          submitCaptureEnabled,
+          submitCommand,
+          validationFeedback
+        })
+      };
+      const invocation2 = buildProviderInvocation(adapter, invocationRequest, {
+        strategy,
+        inlineJsonSchema,
+        lastMessageFile: dependencies.transport?.lastMessageFile,
+        preserveLastMessageFile: dependencies.transport?.preserveLastMessageFile,
+        resumeSessionId: turnOptions.resumeSessionId
+      });
+      lastInvocation = invocation2;
+      const processResult = await runSubprocess(invocation2, {
+        env: childEnv,
+        maxOutputBytes: request.max_output_bytes,
+        timeoutSec: request.max_runtime_sec
+      });
+      trace.process = processResult;
+      trace.failure_code = void 0;
+      const diagnostics = mergeDiagnostics(
+        {
+          strategy_used: strategy,
+          output_mode: invocation2.output_mode,
+          redacted_command: invocation2.redacted_command
+        },
+        hostGuard.diagnostics,
+        processResult.diagnostics,
+        permissionDenialDiagnostics(request.provider, processResult.stdout),
+        exitClassificationDiagnostics(exitClassification)
+      );
+      if (!processResult.ok) {
+        const classification = adapter.classifyRunFailure(processResult);
+        trace.failure_code = classification.code;
+        exitClassification = classification.exit_classification;
+        const failureDiagnostics = mergeDiagnostics(
+          diagnostics,
+          exitClassificationDiagnostics(exitClassification)
+        );
+        if (classification.retryable && attempt < maxAttempts) {
+          continue;
+        }
+        return failureEnvelope({
+          provider: request.provider,
+          code: classification.code,
+          message: classification.message,
+          retryable: false,
+          stdout: processResult.stdout,
+          stderr: processResult.stderr,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: classification.terminal_reason
+          },
+          diagnostics: failureDiagnostics
+        });
+      }
+      const submittedVerdict = submitCapturePath ? await readSubmittedVerdict(submitCapturePath, schema, maxSubmitBytes) : { ok: false };
+      if (submittedVerdict.ok) {
+        return successEnvelope({
+          provider: request.provider,
+          args: invocation2.redacted_command,
+          stdout: submittedVerdict.raw,
+          stderr: processResult.stderr,
+          json: submittedVerdict.value,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "success"
+          },
+          diagnostics: mergeDiagnostics(diagnostics, {
+            verdict_source: "submit"
+          })
+        });
+      }
+      const providerOutput = extractProviderOutput(invocation2, processResult);
+      const finalMessageDiagnostics = mergeDiagnostics(diagnostics, {
+        verdict_source: "final_message"
+      });
+      if (!providerOutput.ok) {
+        if (attempt < maxAttempts) {
+          validationFeedback = providerOutput.message;
+          continue;
+        }
+        return failureEnvelope({
+          provider: request.provider,
+          code: "PROVIDER_INVALID_JSON",
+          message: providerOutput.message,
+          retryable: false,
+          stdout: processResult.stdout,
+          stderr: processResult.stderr,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "missing_provider_output"
+          },
+          diagnostics: finalMessageDiagnostics
+        });
+      }
+      const parsed = parseProviderJson(providerOutput.value);
+      if (!parsed.ok) {
+        if (attempt < maxAttempts) {
+          validationFeedback = parsed.message;
+          continue;
+        }
+        return failureEnvelope({
+          provider: request.provider,
+          code: "PROVIDER_INVALID_JSON",
+          message: parsed.message,
+          retryable: false,
+          stdout: providerOutput.value,
+          stderr: processResult.stderr,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "invalid_json"
+          },
+          diagnostics: finalMessageDiagnostics
+        });
+      }
+      const verdictJson = extractStructuredJsonValue(parsed.value);
+      const validation = validateSchemaSubset(verdictJson, schema);
+      if (!validation.ok) {
+        if (attempt < maxAttempts) {
+          validationFeedback = validation.message;
+          continue;
+        }
+        return failureEnvelope({
+          provider: request.provider,
+          code: "PROVIDER_SCHEMA_VALIDATION",
+          message: validation.message,
+          retryable: false,
+          stdout: providerOutput.value,
+          stderr: processResult.stderr,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "schema_validation"
+          },
+          diagnostics: finalMessageDiagnostics
+        });
+      }
+      return successEnvelope({
+        provider: request.provider,
+        args: invocation2.redacted_command,
+        stdout: providerOutput.value,
+        stderr: processResult.stderr,
+        json: verdictJson,
+        attempts: {
+          cli_attempts: attempt,
+          terminal_reason: "success"
+        },
+        diagnostics: finalMessageDiagnostics
+      });
+    }
+    return failureEnvelope({
+      provider: request.provider,
+      code: "PROVIDER_EXIT",
+      message: "Provider run ended without a terminal result.",
+      retryable: false,
+      attempts: {
+        cli_attempts: maxAttempts,
+        terminal_reason: "attempt_budget_exhausted"
+      },
+      diagnostics: lastInvocation ? {
+        strategy_used: strategy,
+        output_mode: lastInvocation.output_mode,
+        redacted_command: lastInvocation.redacted_command
+      } : void 0
+    });
+  } finally {
+    if (submitCapturePath) {
+      await cleanupSubmitCaptureFile(submitCapturePath);
+    }
+  }
+}
+function permissionDenialDiagnostics(provider, stdout) {
+  if (provider !== "claude") return void 0;
+  let result;
+  try {
+    result = JSON.parse(stdout);
+  } catch {
+    return void 0;
+  }
+  if (!isRecord4(result) || !Array.isArray(result.permission_denials)) {
+    return void 0;
+  }
+  const denials = result.permission_denials;
+  if (denials.length === 0) return void 0;
+  const tools = [
+    ...new Set(
+      denials.filter(isRecord4).map((denial) => denial.tool_name).filter(
+        (name) => typeof name === "string" && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name)
+      )
+    )
+  ];
+  return {
+    permission_denials: { count: denials.length, tools },
+    warnings: [
+      `Claude reported ${denials.length} denied tool call(s); verify task completeness independently of schema and transport success.`
+    ]
+  };
+}
+async function readJsonSchema(schemaPath) {
+  return JSON.parse(await readFile2(schemaPath, "utf8"));
+}
+function preInvocationFailure(input) {
+  return failureEnvelope({
+    provider: input.provider,
+    code: input.code,
+    message: input.message,
+    retryable: false,
+    attempts: {
+      cli_attempts: 0,
+      terminal_reason: input.terminalReason
+    },
+    diagnostics: input.diagnostics
+  });
+}
+function extractProviderOutput(invocation2, result) {
+  if (invocation2.output_mode !== "last_message_file") {
+    return { ok: true, value: result.stdout };
+  }
+  if (result.ok && result.last_message?.trim()) {
+    return { ok: true, value: result.last_message };
+  }
+  return {
+    ok: false,
+    message: "Provider did not write a last-message file response."
+  };
+}
+function parseProviderJson(stdout) {
+  try {
+    return { ok: true, value: JSON.parse(stdout.trim()) };
+  } catch (error) {
+    return {
+      ok: false,
+      message: `Provider returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
+async function readSubmittedVerdict(filePath, schema, maxBytes) {
+  const capture = await readBoundedRegularFile(filePath, maxBytes);
+  if (!capture.ok) return { ok: false };
+  const raw = capture.contents;
+  try {
+    assertWithinSubmitCaptureLimit(raw, maxBytes);
+  } catch {
+    return { ok: false };
+  }
+  if (!raw.trim()) return { ok: false };
+  const parsed = parseProviderJson(raw);
+  if (!parsed.ok) return { ok: false };
+  const validation = validateSchemaSubset(parsed.value, schema);
+  if (!validation.ok) return { ok: false };
+  return { ok: true, raw, value: parsed.value };
+}
+async function cleanupSubmitCaptureFile(filePath) {
+  try {
+    await rm3(filePath, { force: true });
+  } catch {
+  }
+}
+function extractStructuredJsonValue(value) {
+  if (!isRecord4(value)) return value;
+  if ("structured_output" in value) {
+    return value.structured_output;
+  }
+  const result = value.result;
+  if (typeof result !== "string") return value;
+  try {
+    return JSON.parse(result.trim());
+  } catch {
+    return extractFirstJsonObject(result) ?? value;
+  }
+}
+function promptForStrategy(input) {
+  const parts = [input.prompt];
+  if (input.submitCaptureEnabled) {
+    const submitCommand = input.submitCommand ?? buildConsensusSubmitCommand();
+    parts.push(
+      "Verdict submission:",
+      "Before ending the turn, submit the final verdict by running this exact command and passing the JSON verdict on stdin:",
+      `\`${submitCommand}\``,
+      "The same command is injected as CONSENSUS_SUBMIT_COMMAND; do not substitute a bare `consensus` executable.",
+      "The command validates against the active schema from CONSENSUS_SUBMIT_SCHEMA and captures to CONSENSUS_SUBMIT_FILE.",
+      "If submission fails, fix the reported schema error and run the command again.",
+      "Also keep the final-message JSON fallback: end with only the same JSON object matching the schema."
+    );
+  }
+  if (input.validationFeedback) {
+    parts.push(
+      `Schema validation failed: ${input.validationFeedback}`,
+      "Return only JSON matching the schema."
+    );
+  }
+  if (input.strategy === "prompt_only") {
+    parts.push(
+      "Structured output requirements:",
+      "Return only one JSON object matching this JSON Schema.",
+      "Do not wrap the JSON in Markdown.",
+      "Do not include prose before or after the JSON object.",
+      "<JSON_SCHEMA>",
+      input.inlineJsonSchema,
+      "</JSON_SCHEMA>"
+    );
+  }
+  return parts.join("\n\n");
+}
+function extractFirstJsonObject(text) {
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (start === -1) {
+      if (char === "{") {
+        start = index;
+        depth = 1;
+      }
+      continue;
+    }
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char !== "}") continue;
+    depth -= 1;
+    if (depth !== 0) continue;
+    const candidate = text.slice(start, index + 1);
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      start = -1;
+      depth = 0;
+    }
+  }
+  return void 0;
+}
+function mergeDiagnostics(...diagnostics) {
+  const merged = {};
+  const warnings = [];
+  for (const item of diagnostics) {
+    if (!item) continue;
+    Object.assign(merged, item);
+    if (item.warnings) warnings.push(...item.warnings);
+  }
+  if (warnings.length > 0) merged.warnings = warnings;
+  return merged;
+}
+function exitClassificationDiagnostics(exitClassification) {
+  return exitClassification ? { exit_classification: exitClassification } : void 0;
+}
+function buildConsensusSubmitCommand(input = {}) {
+  const nodePath = input.nodePath ?? process.execPath;
+  const cliPath = input.cliPath ?? currentConsensusCliPath();
+  return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
+}
+function currentConsensusCliPath() {
+  if (process.argv[1]) return path7.resolve(process.argv[1]);
+  return fileURLToPath(import.meta.url);
+}
+function shellQuote(value) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+// src/plugins/consensus/provider-cli/commands.ts
+function helpText() {
+  return `Usage: consensus <command> --json
+
+Commands:
+  config get --json [--scope user|project|effective] [--workflow convergence|panel|review] [--cwd <path>]
+  config list --json [--cwd <path>]
+  config set --json --scope user|project [--peers <a,b>] [--panelists <a,b,c>] [--reviewers <a,b>]
+      [--panel-size <n>] [--from-file <path>] [--cwd <path>]
+  config clear --json --scope user|project [--key peers|panelists|panel-size|reviewers|roles|all] [--cwd <path>]
+  provider ls --json
+  preflight --json --provider <id> --capability run [--capability <name>] [--max-depth <n>]
+  submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
+  run --provider <id> --schema <path> --json [-|--prompt <text>|--prompt-file <path>]
+      [--model <name>] [--effort <level>]
+      [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
+      [--allow-read <absolute-file>] [--allow-edit <absolute-file>]
+      [--allow-web-search] [--allow-web-fetch-domain <domain>] (Claude only; repeat grants)
+      [--env-allow <name>] [--max-attempts <n>] [--timeout-sec <n>]
+      [--max-output-bytes <n>] [--cwd <path>] [--max-depth <n>]
+      [--consultation-id <id>] [--round <n>]
+      [--resume <session-uuid> [--resume-fallback error|reconstructed]
+        [--fallback-prompt-file <path>]]
+      [--continuation new|reconstructed [--previous-session <id>]]
+  run --request-json <path|-> --json
+`;
+}
+async function runProviderList(options = {}) {
+  return {
+    schema_version: "v1",
+    ok: true,
+    providers: await resolveRegistry(options.registry, options)
+  };
+}
+async function runPreflight(options) {
+  const registry = await resolveRegistry(
+    options.registry,
+    options,
+    options.provider,
+    options.capabilities
+  );
+  const providers = applyHostGuardToProviders(
+    selectProviders(registry, options.provider),
+    options.host
+  );
+  const usable = providers.every((provider) => provider.status === "ready");
+  const diagnostics = options.provider && providers[0]?.status === "unsupported" ? {
+    warnings: [
+      `Requested provider is not registered: ${options.provider}`
+    ]
+  } : void 0;
+  return {
+    schema_version: "v1",
+    ok: true,
+    usable,
+    providers,
+    ...diagnostics ? { diagnostics } : {}
+  };
+}
+async function runSubmit(command, io) {
+  const schemaPath = command.schemaPath ?? io.env?.CONSENSUS_SUBMIT_SCHEMA;
+  if (!schemaPath) {
+    return submitFailure(io, "Missing submit schema path.", 2);
+  }
+  const outPath = command.outPath ?? io.env?.CONSENSUS_SUBMIT_FILE;
+  if (!outPath) {
+    return submitFailure(io, "Missing submit output path.", 2);
+  }
+  if (!command.verdictSource) {
+    return submitFailure(io, "Missing verdict source.", 2);
+  }
+  if (command.verdictSource.kind === "prompt") {
+    return submitFailure(
+      io,
+      "Submit verdict source must be stdin or --verdict-file.",
+      2
+    );
+  }
+  const maxSubmitBytes = parseSubmitCaptureMaxBytes(
+    io.env?.[CONSENSUS_SUBMIT_MAX_BYTES_ENV]
+  );
+  if (maxSubmitBytes === void 0) {
+    return submitFailure(io, "Invalid submit capture byte limit.", 2);
+  }
+  let schema;
+  try {
+    schema = JSON.parse(await io.readFile(schemaPath));
+  } catch (error) {
+    return submitFailure(
+      io,
+      `Could not read submit schema: ${error instanceof Error ? error.message : String(error)}`,
+      2
+    );
+  }
+  let rawVerdict;
+  try {
+    rawVerdict = await readSubmitSource(
+      command.verdictSource,
+      io,
+      maxSubmitBytes
+    );
+    assertWithinSubmitCaptureLimit(rawVerdict, maxSubmitBytes);
+  } catch (error) {
+    return submitFailure(
+      io,
+      error instanceof Error ? error.message : String(error),
+      1
+    );
+  }
+  let verdict;
+  try {
+    verdict = JSON.parse(rawVerdict);
+  } catch (error) {
+    return submitFailure(
+      io,
+      `Submitted verdict must be valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      1
+    );
+  }
+  const validation = validateSchemaSubset(verdict, schema);
+  if (!validation.ok) {
+    return submitFailure(io, validation.message, 1);
+  }
+  const captureContents = `${JSON.stringify(verdict)}
+`;
+  try {
+    assertWithinSubmitCaptureLimit(captureContents, maxSubmitBytes);
+  } catch (error) {
+    return submitFailure(
+      io,
+      error instanceof SubmitCaptureLimitError ? error.message : `Could not size submit capture: ${error instanceof Error ? error.message : String(error)}`,
+      1
+    );
+  }
+  try {
+    await (io.writeSubmitCapture ?? writeJsonFileAtomic)(
+      outPath,
+      captureContents
+    );
+  } catch (error) {
+    return submitFailure(
+      io,
+      `Could not write submit capture: ${error instanceof Error ? error.message : String(error)}`,
+      1
+    );
+  }
+  writeJson(io, {
+    schema_version: "v1",
+    ok: true,
+    captured: true,
+    message: "verdict captured"
+  });
+  return 0;
+}
+async function runConsensusCli(argv, io, options = {}) {
+  try {
+    const command = parseConsensusCliArgs(argv);
+    if (command.kind === "help") {
+      io.stdout.write(helpText());
+      return 0;
+    }
+    if (command.kind === "config-list") {
+      writeJson(io, runConfigList());
+      return 0;
+    }
+    if (command.kind === "config-get") {
+      writeJson(io, await runConfigGet(command, io, options));
+      return 0;
+    }
+    if (command.kind === "config-set") {
+      writeJson(io, await runConfigSet(command, io));
+      return 0;
+    }
+    if (command.kind === "config-clear") {
+      writeJson(io, await runConfigClear(command, io));
+      return 0;
+    }
+    if (command.kind === "provider-list") {
+      writeJson(
+        io,
+        await runProviderList(defaultProbeOptions(options, io.env))
+      );
+      return 0;
+    }
+    if (command.kind === "preflight") {
+      writeJson(
+        io,
+        await runPreflight({
+          ...defaultProbeOptions(options, io.env),
+          provider: command.provider,
+          capabilities: command.capabilities,
+          host: command.maxDepth === void 0 ? void 0 : hostContextFromEnv(io.env ?? {}, io.cwd, command.maxDepth)
+        })
+      );
+      return 0;
+    }
+    if (command.kind === "submit") {
+      return runSubmit(command, io);
+    }
+    const request = await normalizeRunRequest(command, io);
+    const envelope = await runProviderTurn(request, {
+      readSchema: async (schemaPath) => JSON.parse(await io.readFile(schemaPath)),
+      parentEnv: io.env
+    });
+    writeJson(io, envelope);
+    return processExitForEnvelope(envelope);
+  } catch (error) {
+    if (error instanceof ConsensusCliUsageError) {
+      const envelope = usageFailure(error.message, error.details);
+      writeJson(io, envelope);
+      return processExitForEnvelope(envelope);
+    }
+    io.stderr.write(
+      `${error instanceof Error ? error.message : String(error)}
+`
+    );
+    return 1;
+  }
+}
+function runConfigList() {
+  return {
+    schema_version: "v1",
+    ok: true,
+    scopes: ["user", "project", "effective"],
+    writable_scopes: ["user", "project"],
+    keys: ["peers", "panelists", "panel-size", "reviewers", "roles", "all"],
+    workflows: ["convergence", "panel", "review"]
+  };
+}
+async function runConfigGet(command, io, options) {
+  const cwd = command.cwd ?? io.cwd;
+  if (command.scope === "user" || command.scope === "project") {
+    return {
+      schema_version: "v1",
+      ok: true,
+      scope: command.scope,
+      config: await readConsensusConfig({
+        scope: command.scope,
+        cwd,
+        env: io.env
+      })
+    };
+  }
+  const effective = await readEffectiveConfig(cwd, io.env);
+  if (!command.workflow) {
+    return {
+      schema_version: "v1",
+      ok: true,
+      scope: "effective",
+      source: effective.source,
+      field_sources: effective.fieldSources,
+      config: effective.config,
+      diagnostics: { warnings: [] }
+    };
+  }
+  const composition = await resolveConsensusComposition({
+    workflow: command.workflow,
+    cwd,
+    env: io.env,
+    inventory: await resolveRegistry(
+      options.registry,
+      defaultProbeOptions(options, io.env)
+    )
+  });
+  return {
+    schema_version: "v1",
+    ok: true,
+    scope: "effective",
+    source: composition.source,
+    config: effective.config,
+    workflow: composition.workflow,
+    agents: composition.agents,
+    diagnostics: { warnings: composition.warnings }
+  };
+}
+async function runConfigSet(command, io) {
+  const cwd = command.cwd ?? io.cwd;
+  const patch = parseConfigSetPatch(command);
+  if (!command.fromFile && !configDefaultsHasValues(patch)) {
+    throw new ConsensusCliUsageError(
+      "config set requires --peers, --panelists, --panel-size, --reviewers, or --from-file"
+    );
+  }
+  const base = command.fromFile ? await readConfigFromFile(command.fromFile, io) : await readConsensusConfig({
+    scope: command.scope,
+    cwd,
+    env: io.env
+  }) ?? { schema_version: "v1" };
+  const config = parseConfigForCli(configWithDefaultsPatch(base, patch));
+  await writeConsensusConfig({
+    scope: command.scope,
+    cwd,
+    env: io.env,
+    config
+  });
+  return {
+    schema_version: "v1",
+    ok: true,
+    scope: command.scope,
+    config
+  };
+}
+async function runConfigClear(command, io) {
+  const cwd = command.cwd ?? io.cwd;
+  await clearConsensusConfig({
+    scope: command.scope,
+    cwd,
+    env: io.env,
+    key: command.key
+  });
+  return {
+    schema_version: "v1",
+    ok: true,
+    scope: command.scope,
+    key: command.key,
+    config: await readConsensusConfig({
+      scope: command.scope,
+      cwd,
+      env: io.env
+    })
+  };
+}
+async function readEffectiveConfig(cwd, env) {
+  const user = await readConsensusConfig({ scope: "user", cwd, env });
+  const project = await readConsensusConfig({ scope: "project", cwd, env });
+  const config = mergeConfigs(user, project);
+  const source = configHasDefaults(project) ? "project" : configHasDefaults(user) ? "user" : "built-in";
+  return { source, fieldSources: effectiveFieldSources(user, project), config };
+}
+function effectiveFieldSources(user, project) {
+  const fieldSources = {};
+  const fields = [
+    ["peers", "peers"],
+    ["panelists", "panelists"],
+    ["panel-size", "panel_size"],
+    ["reviewers", "reviewers"],
+    ["roles", "roles"]
+  ];
+  for (const [key, field] of fields) {
+    if (project?.defaults?.[field] !== void 0) {
+      fieldSources[key] = "project";
+    } else if (user?.defaults?.[field] !== void 0) {
+      fieldSources[key] = "user";
+    }
+  }
+  return fieldSources;
+}
+function mergeConfigs(user, project) {
+  const config = { schema_version: "v1" };
+  const defaults = {};
+  mergeConfigFields(defaults, user?.defaults);
+  mergeConfigFields(defaults, project?.defaults);
+  if (configDefaultsHasValues(defaults)) config.defaults = defaults;
+  return config;
+}
+function mergeConfigFields(target, source) {
+  if (!source) return;
+  if (source.peers !== void 0) target.peers = source.peers;
+  if (source.panelists !== void 0) target.panelists = source.panelists;
+  if (source.panel_size !== void 0) target.panel_size = source.panel_size;
+  if (source.reviewers !== void 0) target.reviewers = source.reviewers;
+  if (source.roles !== void 0) target.roles = source.roles;
+}
+function configHasDefaults(config) {
+  return config !== null && configDefaultsHasValues(config.defaults);
+}
+async function readConfigFromFile(filePath, io) {
+  let parsed;
+  try {
+    parsed = JSON.parse(await io.readFile(filePath));
+  } catch (error) {
+    throw new ConsensusCliUsageError(
+      `Malformed consensus config: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  return parseConfigForCli(parsed);
+}
+function parseConfigForCli(value) {
+  try {
+    return parseConsensusDefaultsConfig(value);
+  } catch (error) {
+    throw new ConsensusCliUsageError(
+      `Malformed consensus config: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+function parseConfigSetPatch(command) {
+  const patch = {};
+  if (command.peers !== void 0) {
+    patch.peers = parseAgentSpecList(command.peers);
+  }
+  if (command.panelists !== void 0) {
+    patch.panelists = parseAgentSpecList(command.panelists);
+  }
+  if (command.panelSize !== void 0) {
+    patch.panel_size = command.panelSize;
+  }
+  if (command.reviewers !== void 0) {
+    patch.reviewers = parseAgentSpecList(command.reviewers);
+  }
+  return patch;
+}
+function configWithDefaultsPatch(base, patch) {
+  const defaults = {
+    ...base.defaults,
+    ...patch
+  };
+  const config = {
+    schema_version: base.schema_version
+  };
+  if (configDefaultsHasValues(defaults)) config.defaults = defaults;
+  return config;
+}
+function configDefaultsHasValues(defaults) {
+  return defaults !== void 0 && (defaults.peers !== void 0 || defaults.panelists !== void 0 || defaults.panel_size !== void 0 || defaults.reviewers !== void 0 || defaults.roles !== void 0);
+}
+function parseAgentSpecList(value) {
+  return value.split(",").map((item) => item.trim()).filter((item) => item.length > 0).map(parseAgentSpec);
+}
+function parseAgentSpec(value) {
+  const [provider, model, effort, extra] = value.split(":");
+  if (extra !== void 0) {
+    throw new ConsensusCliUsageError(
+      "Agent specs must use provider[:model[:effort]]"
+    );
+  }
+  const agent = { provider };
+  if (model !== void 0 && model.length > 0) agent.model = model;
+  if (effort !== void 0 && effort.length > 0) agent.effort = effort;
+  return agent;
+}
+async function readSubmitSource(source, io, maxBytes) {
+  if (source.kind === "stdin") return io.readStdin(maxBytes);
+  if (source.kind === "file") return io.readFile(source.path, maxBytes);
+  return source.value;
+}
+function submitFailure(io, message, exitCode) {
+  writeJson(io, {
+    schema_version: "v1",
+    ok: false,
+    captured: false,
+    message
+  });
+  io.stderr.write(`${message}
+`);
+  return exitCode;
+}
+async function writeJsonFileAtomic(filePath, contents) {
+  const directory = dirname(filePath);
+  await mkdir2(directory, { recursive: true });
+  const tempPath = join(
+    directory,
+    `.${basename(filePath)}.${process.pid}.${randomUUID5()}.tmp`
+  );
+  await writeFile2(tempPath, contents, "utf8");
+  await rename2(tempPath, filePath);
+}
+function defaultProbeOptions(options, env) {
+  if (options.registry || options.probeRunner) return options;
+  return {
+    ...options,
+    probeRunner: nodeProbeCommandRunner(env ?? {})
+  };
+}
+function writeJson(io, value) {
+  io.stdout.write(`${JSON.stringify(value)}
+`);
+}
+function selectProviders(registry, provider) {
+  if (!provider) return registry;
+  const selected = registry.find((entry) => entry.id === provider);
+  if (selected) return [selected];
+  return [
+    {
+      id: provider,
+      status: "unsupported",
+      capabilities: placeholderCapabilities()
+    }
+  ];
+}
+function applyHostGuardToProviders(providers, host) {
+  if (!host) return providers;
+  return providers.map((provider) => {
+    const result = evaluateHostGuard({ host, provider: provider.id });
+    if (result.allowed) {
+      return {
+        ...provider,
+        host_relation: result.host_relation,
+        guard: result.guard,
+        diagnostics: mergeDiagnostics2(provider.diagnostics, result.diagnostics)
+      };
+    }
+    return {
+      ...provider,
+      status: "unavailable",
+      host_relation: result.host_relation,
+      guard: result.guard,
+      diagnostics: mergeDiagnostics2(provider.diagnostics, result.diagnostics)
+    };
+  });
+}
+function mergeDiagnostics2(current, next) {
+  const warnings = [...current?.warnings ?? [], ...next.warnings ?? []];
+  return {
+    ...current,
+    ...next,
+    ...warnings.length > 0 ? { warnings } : {}
+  };
+}
+async function resolveRegistry(registry, options = {}, provider, requiredCapabilities) {
+  if (Array.isArray(registry)) return registry;
+  if (typeof registry === "function") return registry();
+  if (options.probeRunner) {
+    return probeProviderRegistry({
+      registry: providerRegistry(),
+      runner: options.probeRunner,
+      ...provider ? { provider } : {},
+      ...requiredCapabilities ? { requiredCapabilities } : {}
+    });
+  }
+  return defaultProviderRegistry();
+}
+function defaultProviderRegistry() {
+  return providerRegistry().list().map((adapter) => ({
+    id: adapter.id,
+    status: "missing",
+    capabilities: adapter.capabilities
+  }));
+}
+function placeholderCapabilities() {
+  return {
+    schema_strategies: ["prompt_only"],
+    output_modes: ["stdout_json"],
+    options: {
+      model: false,
+      effort: null,
+      runtime_policy: {
+        env_allowlist: false
+      }
+    },
+    supports_submit_tool: false,
+    supports_same_host_subprocess: false,
+    supports_host_native_dispatch: false
+  };
+}
+
+// src/plugins/consensus/provider-cli/cli.ts
+function nodeIo() {
+  return {
+    stdout: process.stdout,
+    stderr: process.stderr,
+    stdin: process.stdin,
+    cwd: process.cwd(),
+    env: process.env,
+    readFile: (filePath, maxBytes) => readUtf8File(filePath, maxBytes),
+    readStdin: (maxBytes) => readAllStdin(process.stdin, maxBytes)
+  };
+}
+async function readUtf8File(filePath, maxBytes) {
+  if (maxBytes !== void 0) {
+    const file = await stat(filePath);
+    if (file.size > maxBytes) {
+      throw new SubmitCaptureLimitError(file.size, maxBytes);
+    }
+  }
+  const contents = await readFile3(filePath, "utf8");
+  if (maxBytes !== void 0 && byteLength(contents) > maxBytes) {
+    throw new SubmitCaptureLimitError(byteLength(contents), maxBytes);
+  }
+  return contents;
+}
+function readAllStdin(stdin, maxBytes) {
+  stdin.setEncoding("utf8");
+  return new Promise((resolve, reject) => {
+    let value = "";
+    let bytes = 0;
+    stdin.on("data", (chunk) => {
+      const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+      if (maxBytes !== void 0) {
+        bytes += byteLength(text);
+        if (bytes > maxBytes) {
+          reject(new SubmitCaptureLimitError(bytes, maxBytes));
+          stdin.destroy();
+          return;
+        }
+      }
+      value += text;
+    });
+    stdin.on("error", reject);
+    stdin.on("end", () => {
+      resolve(value);
+    });
+    stdin.resume();
+  });
+}
+function isEntrypointPath(argvPath) {
+  try {
+    return realpathSync2(argvPath) === realpathSync2(fileURLToPath2(import.meta.url));
+  } catch (error) {
+    const code = error.code;
+    if (code === "ENOENT" || code === "ENOTDIR") return false;
+    throw error;
+  }
+}
+if (process.argv[1] && isEntrypointPath(process.argv[1])) {
+  runConsensusCli(process.argv.slice(2), nodeIo()).then((code) => {
+    process.exitCode = code;
+  });
+}

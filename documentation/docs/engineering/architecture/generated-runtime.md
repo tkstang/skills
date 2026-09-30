@@ -63,20 +63,22 @@ plugin by itself.
 
 ## Canonical owner to generated forms
 
-| Canonical owner                                                                        | Generated forms                                                                         |
-| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `src/skills/create`, `decide`, `plan`, `refine`, `evaluate`, `panel`, `phone-a-friend` | Matching `plugins/consensus/skills/<name>/` payloads                                    |
-| `src/skills/session-observer`                                                          | `skills/session-observer/` and `plugins/consensus/skills/observer/`                     |
-| `src/skills/session-observer-collab`                                                   | `skills/session-observer-collab/` and `plugins/consensus/skills/observer-collab/`       |
-| `src/skills/session-handoff`                                                           | `skills/session-handoff/` and `plugins/session/skills/handoff/`                         |
-| `src/skills/session-retro`                                                             | `skills/session-retro/` and `plugins/session/skills/retro/`                             |
-| `src/skills/session-export-transcript`                                                 | `skills/session-export-transcript/` and `plugins/session/skills/export-transcript/`     |
-| `src/skills/session-fork-to-destination`                                               | `skills/session-fork-to-destination/` and `plugins/session/skills/fork-to-destination/` |
-| `src/skills/complexity-review`                                                         | `skills/complexity-review/` only                                                        |
-| `src/skills/author-skill`                                                              | `skills/author-skill/` only                                                             |
-| `src/skills/align`                                                                     | `skills/align/` only                                                                    |
-| `src/skills/next-steps`                                                                | `skills/next-steps/` only                                                               |
-| `src/skills/must-we`                                                                   | `skills/must-we/` only                                                                  |
+| Canonical owner                                                                                                                  | Generated forms                                                                         |
+| -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `src/skills/consensus-create`, `consensus-decide`, `consensus-plan`, `consensus-refine`, `consensus-evaluate`, `consensus-panel` | Matching plugin-only `plugins/consensus/skills/<short-name>/` payloads                  |
+| `src/skills/phone-a-friend`                                                                                                      | `skills/phone-a-friend/` and `plugins/consensus/skills/phone-a-friend/`                 |
+| `src/skills/consensus-review`                                                                                                    | `skills/consensus-review/` and `plugins/consensus/skills/review/`                       |
+| `src/skills/session-observer`                                                                                                    | `skills/session-observer/` and `plugins/consensus/skills/observer/`                     |
+| `src/skills/session-observer-collab`                                                                                             | `skills/session-observer-collab/` and `plugins/consensus/skills/observer-collab/`       |
+| `src/skills/session-handoff`                                                                                                     | `skills/session-handoff/` and `plugins/session/skills/handoff/`                         |
+| `src/skills/session-retro`                                                                                                       | `skills/session-retro/` and `plugins/session/skills/retro/`                             |
+| `src/skills/session-export-transcript`                                                                                           | `skills/session-export-transcript/` and `plugins/session/skills/export-transcript/`     |
+| `src/skills/session-fork-to-destination`                                                                                         | `skills/session-fork-to-destination/` and `plugins/session/skills/fork-to-destination/` |
+| `src/skills/complexity-review`                                                                                                   | `skills/complexity-review/` only                                                        |
+| `src/skills/author-skill`                                                                                                        | `skills/author-skill/` only                                                             |
+| `src/skills/align`                                                                                                               | `skills/align/` only                                                                    |
+| `src/skills/next-steps`                                                                                                          | `skills/next-steps/` only                                                               |
+| `src/skills/must-we`                                                                                                             | `skills/must-we/` only                                                                  |
 
 Executable owners declare entrypoints in `build.json`; prompt-only skills do
 not need one. The build follows actual imports into permitted shared roots,
@@ -136,9 +138,11 @@ The plugin also contains `skills/observer/` and `skills/observer-collab/`.
 Their shared transcript and observer runtime closure is materialized into the
 plugin unit; they do not import the standalone `skills/` tree at runtime.
 
-Standalone copies of peer wrappers remain supported only where declared and
-through the existing pinned provider-CLI recovery path at
-`~/.consensus/consensus.mjs`.
+The standalone `phone-a-friend` unit bundles its provider helper and advisory
+schema. It does not require the Consensus plugin or a helper under the user's
+home directory. The plugin's six converging and panel workflows remain
+plugin-only; Review carries its own bundled review runtime in both declared
+forms.
 
 ## Session plugin-local runtime layout
 

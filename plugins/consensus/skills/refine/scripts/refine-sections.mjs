@@ -1,6 +1,6 @@
-// GENERATED skill payload for refine.
+// GENERATED skill payload for consensus-refine.
 
-// src/skills/refine/src/refine-sections.ts
+// src/skills/consensus-refine/src/refine-sections.ts
 import path7 from "node:path";
 
 // src/plugins/consensus/shared/cli-helpers.ts
@@ -179,7 +179,7 @@ function normalizePeerAgent(peer) {
   return typeof peer === "string" ? { provider: peer } : peer;
 }
 
-// src/skills/refine/src/refine-shared.ts
+// src/skills/consensus-refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
   lstat as lstat3,
@@ -195,7 +195,7 @@ import {
 import path6 from "node:path";
 var INPUT_SIZE_CAP_BYTES = 1024 * 1024;
 
-// src/skills/refine/src/refine-args.ts
+// src/skills/consensus-refine/src/refine-args.ts
 var PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/u;
 var MAX_ROUNDS_MIN = 1;
 var MAX_ROUNDS_MAX = 100;
@@ -405,7 +405,7 @@ function parseWrapperArgs(argv) {
   return parsed;
 }
 
-// src/skills/refine/src/refine-sections.ts
+// src/skills/consensus-refine/src/refine-sections.ts
 function markdownLines(markdown) {
   const normalized = String(markdown ?? "").replace(/\r\n?/g, "\n");
   return normalized.match(/[^\n]*\n|[^\n]+$/g) ?? [];

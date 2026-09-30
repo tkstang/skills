@@ -1,6 +1,6 @@
-// GENERATED skill payload for refine.
+// GENERATED skill payload for consensus-refine.
 
-// src/skills/refine/src/refine-shared.ts
+// src/skills/consensus-refine/src/refine-shared.ts
 import { randomBytes } from "node:crypto";
 import {
   lstat,

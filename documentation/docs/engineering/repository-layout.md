@@ -25,6 +25,8 @@ infrastructure.
   for explicitly declared skills only.
 - `plugins/consensus/` — generated complete consensus installation unit,
   including peer workflows plus local `observer` and `observer-collab` skills.
+- `skills/phone-a-friend/` — generated standalone advisory skill with its
+  bundled provider helper and schema; the Consensus plugin also contains it.
 - `plugins/session/` — generated complete session installation unit with local
   `retro`, `handoff`, `export-transcript`, and `fork-to-destination` skills.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` — repo-root marketplace entries.
@@ -75,7 +77,7 @@ Inside `plugins/consensus/`:
 - `skills/evaluate/` — implementation directory for the shipped `evaluate` skill.
   - `skills/evaluate/references/operator-qa.md` — manual QA walkthrough of artifact/rubric evaluation and dissent review.
   - `skills/evaluate/references/examples/` — four ready-to-adapt example rubrics (general-purpose, code review, technical writing, design/architecture) used by guided rubric creation.
-- `skills/phone-a-friend/` — instruction-only advisory peer consultation skill.
+- `skills/phone-a-friend/` — advisory peer consultation skill with a bundled executable provider helper.
   - `skills/phone-a-friend/schemas/advisory.schema.json` — structured advisory response contract.
   - `skills/phone-a-friend/references/operator-qa.md` — manual QA walkthrough of one-shot advisory calls, expected JSON, and host disposition.
   - `skills/phone-a-friend/references/examples/` — example advisory prompt and response payload.
