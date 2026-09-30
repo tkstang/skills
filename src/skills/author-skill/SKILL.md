@@ -2,8 +2,8 @@
 name: author-skill
 description: Use when any task creates, edits, migrates, audits, or reviews an agent skill or SKILL.md, including skill instructions, references, templates, helpers, tests, and packaging. Apply proactively without requiring an explicit skill invocation.
 metadata:
-  author: thomas.stang
-  version: '1.3.0'
+  author: Thomas Stang
+  version: '1.3.1'
 license: MIT
 compatibility: Agent Skills baseline; instruction-only, with no runtime or package dependencies.
 disable-model-invocation: false

@@ -9,7 +9,7 @@
   WebSearch, and domain-scoped WebFetch. The skill now routes tool-using peers
   through a permission runbook while keeping advice-only calls short.
 
-- `author-skill` 1.3.0 standalone, instruction-only skill for creating,
+- `author-skill` 1.3.1 standalone, instruction-only skill for creating,
   revising, migrating, and reviewing agent skills using the target repository’s
   authoring, versioning, distribution, and verification conventions. Promoted
   from the 1.2.1 source while preserving its version history.
@@ -27,6 +27,7 @@
   `refine` 0.1.22, `session-observer` 1.0.85,
   `session-observer-collab` 1.0.73, and `session-fork-to-destination` 0.2.53;
   their own workflows are unchanged.
+
 ### Changed
 
 - Normalize `metadata.author` to `Thomas Stang` across all 18 canonical
