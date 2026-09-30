@@ -87,6 +87,32 @@ describe('provider invocation builders', () => {
     );
   });
 
+  it('passes only explicit scoped Claude tool grants and redacts private paths', () => {
+    const invocation = buildInvocation('claude', 'provider_validated', {
+      runtime_policy: {
+        permission_mode: 'non-interactive',
+        read_paths: ['/private/vault/brief with spaces.md'],
+        edit_paths: ['/private/scratch/result.md'],
+        web_search: true,
+        web_fetch_domains: ['example.org'],
+      },
+    });
+
+    expect(invocation.argv).toEqual(
+      expect.arrayContaining([
+        'Read(//private/vault/brief with spaces.md)',
+        'Edit(//private/scratch/result.md)',
+        'WebFetch(domain:example.org)',
+        'Read,Edit,Write,WebSearch,WebFetch',
+        'dontAsk',
+        '--strict-mcp-config',
+      ]),
+    );
+    expect(invocation.argv.at(-1)).toBe('Sensitive prompt text.');
+    expect(invocation.redacted_command.join(' ')).not.toContain('/private/');
+    expect(invocation.argv).not.toContain('bypassPermissions');
+  });
+
   it('reflects Codex constrained-native schema and reasoning effort in argv', () => {
     const invocation = buildInvocation('codex', 'constrained_native', {
       model: 'gpt-5.1-codex',

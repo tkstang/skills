@@ -268,6 +268,12 @@ The consensus `create`, `decide`, `plan`, `refine`, `evaluate`, `review`,
 with the advisory schema, not a generated wrapper. It needs read access to the
 prompt file and schema, and any write access the host uses to prepare temporary
 prompt files or record the advisory disposition.
+For a peer that must read files, search/fetch public web pages, or write an
+approved result, use the shipped `phone-a-friend/references/scoped-tool-access.md`
+runbook. Its Claude-only `--allow-read`, `--allow-edit`, `--allow-web-search`,
+and `--allow-web-fetch-domain` flags are opt-in. Preflight does not test these
+tools, and a schema-valid reply remains transport success even when the peer
+reports denied tool calls.
 
 `panel` uses the generated panel wrapper, writes `.consensus/` run state and a
 markdown panel artifact, and should ask before sending sensitive/private context

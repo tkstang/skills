@@ -79,6 +79,46 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
     redactedArgv.push('--permission-mode', claudePermissionMode);
   }
 
+  const policy = request.runtime_policy;
+  const scopedTools = [
+    ...(policy?.read_paths ?? []).map((filePath) => `Read(/${filePath})`),
+    ...(policy?.edit_paths ?? []).map((filePath) => `Edit(/${filePath})`),
+    ...(policy?.web_search ? ['WebSearch'] : []),
+    ...(policy?.web_fetch_domains ?? []).map(
+      (domain) => `WebFetch(domain:${domain})`,
+    ),
+  ];
+  if (scopedTools.length > 0) {
+    const availableTools = [
+      ...(policy?.read_paths?.length ? ['Read'] : []),
+      ...(policy?.edit_paths?.length ? ['Edit', 'Write'] : []),
+      ...(policy?.web_search ? ['WebSearch'] : []),
+      ...(policy?.web_fetch_domains?.length ? ['WebFetch'] : []),
+    ];
+    argv.push(
+      '--allowedTools',
+      ...scopedTools,
+      '--tools',
+      availableTools.join(','),
+      '--permission-prompts',
+      'none',
+      '--permission-mode',
+      'dontAsk',
+      '--strict-mcp-config',
+    );
+    redactedArgv.push(
+      '--allowedTools',
+      '<scoped-tool-rules>',
+      '--tools',
+      availableTools.join(','),
+      '--permission-prompts',
+      'none',
+      '--permission-mode',
+      'dontAsk',
+      '--strict-mcp-config',
+    );
+  }
+
   argv.push(request.prompt);
   redactedArgv.push('<prompt>');
 

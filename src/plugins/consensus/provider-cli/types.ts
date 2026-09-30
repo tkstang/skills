@@ -93,6 +93,10 @@ export interface ProviderRuntimePolicy {
   sandbox?: string;
   approval_policy?: string;
   env_allowlist?: string[];
+  read_paths?: string[];
+  edit_paths?: string[];
+  web_search?: boolean;
+  web_fetch_domains?: string[];
 }
 
 export interface ConsensusCliRunRequest {
@@ -142,6 +146,10 @@ export interface ProviderDiagnostics {
   };
   timeout_sec?: number;
   warnings?: string[];
+  permission_denials?: {
+    count: number;
+    tools: string[];
+  };
 }
 
 export type ProviderExitClassification =
