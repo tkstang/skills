@@ -6,8 +6,8 @@ compatibility: Agent Skills baseline; instruction-only, with no runtime or packa
 disable-model-invocation: true
 user-invocable: true
 metadata:
-  author: thomas.stang
-  version: '1.0.0'
+  author: Thomas Stang
+  version: '1.0.1'
 ---
 
 # Align

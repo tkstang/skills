@@ -4,7 +4,7 @@
 
 ### Added
 
-- `align` 1.0.0 standalone instruction-only skill for explicitly checking
+- `align` 1.0.1 standalone instruction-only skill for explicitly checking
   shared understanding of the user's goal, underlying problem, and success
   criteria before or during work.
 
