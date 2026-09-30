@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: Thomas Stang
-  version: '1.0.24'
+  version: '1.0.25'
 ---
 
 # agent-messaging

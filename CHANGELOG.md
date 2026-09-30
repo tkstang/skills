@@ -16,6 +16,10 @@
 
 ### Fixed
 
+- Refresh the `session` plugin manifest assertion for 0.3.5 and the copied
+  `agent-messaging` payload assertion for 1.0.25. The `agent-messaging` version
+  bump covers its colocated test edit; its runtime behavior is unchanged.
+
 - `consensus` plugin 0.2.5 surfaces Claude `permission_denials` as redacted
   count/tool-name diagnostics, avoids instructing a no-Bash scoped peer to
   submit via Bash, and makes clear that schema-valid blocked replies are
