@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p04-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -36,9 +36,9 @@ oat_generated: false
 | Phase 1 | complete    | 16    | 16/16     |
 | Phase 2 | complete    | 21    | 21/21     |
 | Phase 3 | complete    | 10    | 10/10     |
-| Phase 4 | pending     | 3     | 0/3       |
+| Phase 4 | in_progress | 3     | 3/3       |
 
-**Total:** 47/50 tasks completed
+**Total:** 50/50 tasks completed
 
 ---
 
@@ -288,7 +288,44 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 ## Phase 4: Documentation, stale-path fix, release notes, full verification
 
-**Status:** pending
+**Status:** in_progress (tasks complete; root review pending)
+
+| Task | Status | Commit |
+| ---- | ------ | ------ |
+| p04-t01 | completed | 016e40dd |
+| p04-t02 | completed | 24620c53 (+ recovery 9ccaef4f) |
+| p04-t03 | completed | 9ca31d5d |
+
+**Outcome:**
+
+- Adds the user-guide page `user-guide/skills/session-search`, plus plugin/skills/installation/layout/runtime/transcript-core enumerations and session-schemas "Discovery indexes". `documentation/index.md` was regenerated, and the docs production build passes (61 pages).
+- Fixes the stale Codex `session-<id>.jsonl` path in 3 canonical docs. Bumps session-export-transcript 2.0.39, session-observer 1.0.88, session-observer-collab 1.0.76, session-fork-to-destination 0.2.56.
+- Adds the CHANGELOG `[Unreleased]` entry covering session-search 0.1.0, session plugin 0.4.0 (`search`), and the four owner bumps.
+
+**Verification:** `premerge` passes (2733 tests, 1 skipped). `validate:skill-versions` (merge-base origin/main) passes. `build:check` is in sync (root re-verified gates).
+
+### Recovery Event session-search-p04-recovery-1
+
+- Phase/task: p04 / p04-t02
+- Original request: session-search-p04-implementation-1
+- Original commit: 24620c53b1cbd33682835df52d5e6ca405fb4474
+- Defect class: lint
+- Discovered by: pnpm run format:check
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-claude-claude-opus-5-5-medium
+- Recovery commit: 9ccaef4f9e71704505aecbd55f98747f03ba3544
+- Verification: focused oxfmt check passes; post-commit premerge and validate:skill-versions pass.
+- Reason: `scripts/bump-version.ts` writes double-quoted versions. The fix restores single quotes in 3 canonical SKILL.md files and 6 generated copies (mechanical, non-behavioral). Root validated the ledger and settled `pending_attempt: null` with `used_attempts: 1`.
+
+**Concerns carried:**
+
+- Pre-existing `format:check` failures in 3 untouched test files (out of scope; not run by premerge).
+- The `bump-version.ts` quoting is a tooling follow-up.
+- Changed mermaid diagrams (`plugins/session/index.md`, `generated-runtime.md`) still need a browser visual check, which the implementer had no browser for. Root will attempt it at closeout.
+- `src/shared/collaboration/diagnostics.test.ts` flakes under full-suite load (out of scope).
+
 
 ---
 
@@ -364,6 +401,11 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 - Continuation `cont-session-search-p03-fix-1` (t06–t10): `fc49e499..a1c9b7c5`, DONE_WITH_CONCERNS (expected changelog gate only).
 
 **p03 phase outcome:** pass. Fix iterations: 1 (non-blocking). No phase gate. The final review covers t06–t10.
+
+#### Dispatch record: session-search-p04-implementation-1
+
+- Target `oat-phase-implementer-claude-claude-opus-5-5-medium` (candidate; default-implementation, medium). Validated-only, then accepted. Outcome: DONE_WITH_CONCERNS. Range `6737289c..9ccaef4f` (3 task commits + 1 recovery commit). Recovery attempts: 1/10.
+- Dispatch stamp: `Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-medium`
 
 <!-- orchestration-runs-end -->
 

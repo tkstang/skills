@@ -1,6 +1,6 @@
 ---
-oat_current_task: p04-t01
-oat_last_commit: a1c9b7c5
+oat_current_task: null
+oat_last_commit: 9ccaef4f
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -17,16 +17,7 @@ oat_phase_recovery_policy:
   phase_attempt_usage:
     p04:
       used_attempts: 1
-      pending_attempt:
-        attempt: 1
-        event_id: session-search-p04-recovery-1
-        status: completed
-        original_request: session-search-p04-implementation-1
-        original_task: p04-t02
-        original_commit: 24620c53b1cbd33682835df52d5e6ca405fb4474
-        discovered_by: pnpm run format:check
-        dispatch_target: oat-phase-implementer-claude-claude-opus-5-5-medium
-        reservation_head: 9ca31d5dc664b14faabbd91104af7fcdd1d93cfb
+      pending_attempt: null
 oat_phase: implement
 oat_phase_status: in_progress
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
@@ -90,7 +81,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-10-02T04:59:03.168Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-10-02T08:13:10Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-10-02T08:26:24Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
