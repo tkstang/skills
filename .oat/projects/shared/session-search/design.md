@@ -160,7 +160,7 @@ All adapters degrade gracefully. A missing root yields no sessions and adds a `s
 - **Node verification:**
   - Stream each surviving file with a line reader that splits on LF only.
   - **Skip lines longer than `maxLineBytes`** (default 64 KiB) before `JSON.parse`, and count them in diagnostics.
-  - On the deep tier only, an oversize line goes through a narrow raw fallback: it is matched unparsed only when its prefix identifies a known tool-output carrier (Codex `function_call_output`/`custom_tool_call_output`, Codex `item_completed` CommandExecution/McpToolCall/FileChange/Extension, Claude `tool_result`). `world_state`, `session_meta`, `turn_context`, and `compacted` are never raw-matched, and the child inherited-record skip is applied via the `ordinal` in the prefix.
+  - On the deep tier only, an oversize line goes through a narrow raw fallback: it is matched unparsed only when its prefix identifies a known tool-output carrier (Codex `function_call_output`/`custom_tool_call_output`, Codex `item_completed` CommandExecution/McpToolCall/FileChange/Extension, Claude `tool_result`). `world_state`, `session_meta`, `turn_context`, and `compacted` are never raw-matched, and the child inherited-record skip is applied via the `ordinal` in the prefix. Before raw matching, record metadata values (Claude `cwd`/`gitBranch`/ids/timestamps/`slug`, Codex envelope fields; each capped at 1024 chars to stay linear) are blanked, so only tool content can match.
   - Parse the record, call `adapter.classifyRecord`, and match each text unit.
   - Stop a file after `maxHitsPerSession` units.
 - **Classification is adapter-owned.** Each adapter's `classifyRecord` turns one raw record into role-tagged units, and a shared `classify.ts` maps roles:
@@ -217,7 +217,7 @@ score = 40 * distinctPatternsMatched/patternCount
 **Responsibilities:**
 
 - Mask credential-shaped substrings in snippets and titles, including JSON-quoted and JSON-escaped `"key":"value"` forms with the full quoted value masked:
-  - `sk-…`, `ghp_`/`gho_`/`github_pat_…`, `xox[abp]-…`, `AKIA…`
+  - `sk-…`, `ghp_`/`gho_`/`github_pat_…`, `xox[abp]-…`, `AKIA…`/`ASIA…`, Google `AIza…`, GitLab `glpat-…`, Stripe `(sk|rk|pk)_(live|test)_…`, Hugging Face `hf_…` (bare 32-hex runs are deliberately not masked)
   - `Bearer <token>`
   - `password=…`/`token=…`-style pairs
   - `password=…`/`token=…`-style pairs with credential words in prefixed or suffixed identifiers (`AWS_SECRET_ACCESS_KEY=`), in plain, JSON-quoted, and **multi-level escaped** forms
@@ -228,6 +228,7 @@ score = 40 * distinctPatternsMatched/patternCount
 - **Exemptions** (to keep snippets readable): `/`, `-`, or `_`-separated word-segment runs with a lowercase-only first segment (paths and Claude project slugs), and genuine camelCase identifiers (bounded uppercase-only and digit pieces). A seeded statistical test keeps random tokens masked.
 - Redaction regexes anchor at the start of runs so the scan stays linear (256 KiB timing tests).
 - Emitted snippets always go through `snippetFor(text, matcher, preHit)`. It redacts the full unit first, then re-matches outside `[REDACTED]` markers and windows there. If the hit itself was redacted, it centers on the marker nearest the original hit. `Hit.firstIndex` is pre-redaction and is never reused on redacted text.
+- **Bounded hit memory:** scan hits keep only their finished snippet (built with `snippetFor` at scan time) plus a per-file position `seq`, never the full unit text. A hit that can no longer win a snippet slot (three distinct better snippets already exist for the file) stores none. Snippet ties break by file position.
 - Snippets keep ±80 characters around the first hit in a unit, collapse whitespace, cap at 240 characters, and allow at most 3 per session. The CLI never emits whole records.
 
 ## Data Models

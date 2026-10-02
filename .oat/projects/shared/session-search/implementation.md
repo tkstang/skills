@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p05-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -37,9 +37,9 @@ oat_generated: false
 | Phase 2 | complete    | 21    | 21/21     |
 | Phase 3 | complete    | 10    | 10/10     |
 | Phase 4 | complete    | 7     | 7/7       |
-| Phase 5 | pending     | 5     | 0/5       |
+| Phase 5 | in_progress | 5     | 5/5       |
 
-**Total:** 54/59 tasks completed
+**Total:** 59/59 tasks completed
 
 ---
 
@@ -365,6 +365,22 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 ---
 
+## Phase 5: Final review fixes
+
+**Status:** in_progress (tasks complete; combined p05 + final re-review pending)
+
+| Task | Status | Commit |
+| ---- | ------ | ------ |
+| p05-t01 | completed | c81e974b |
+| p05-t02 | completed | cd609320 |
+| p05-t03 | completed | f3fb6888 |
+| p05-t04 | completed | a5e48390 |
+| p05-t05 | completed | 3fb6dc1f |
+
+- Range `9b5994a8..3fb6dc1f`. 268 skill tests pass (root re-verified). `build:check` is in sync. The real-store motivating search still finds Codex `01a053ba`.
+- Measured peak RSS on broad deep queries (local 4.9 GiB store): 1.31→0.40 GB (`the`) and 1.50→0.41 GB (`function`). Broad-deep wall time rose 9.9→11.9 s and 10.5→17.4 s because snippets are redacted at scan time. Narrow queries are unchanged.
+- Snippet tie-break is now by file position (ranking unchanged).
+
 ---
 
 ## Orchestration Runs
@@ -452,6 +468,14 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 **p04 phase outcome:** pass. Fix iterations: 1 (non-blocking). Recovery attempts: 1/10 (settled). p04 is the final HiLL checkpoint, so the run routes to final review and closeout.
 
+#### Dispatch record: session-search-final-review-1
+
+- Final code review, target `oat-reviewer-claude-claude-opus-5-5-high`. Outcome: 0C/0H/3M/4L. Artifact: `reviews/archived/final-review-2026-10-02T084934Z.md`. Gate `IMPLEMENT-11`.
+
+#### Dispatch record: session-search-p05-implementation-1
+
+- Target `oat-phase-implementer-claude-claude-opus-5-5-high`. Outcome: DONE_WITH_CONCERNS (performance trade-off and tie-break, both accepted). Range `9b5994a8..3fb6dc1f`.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -467,6 +491,8 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 | p02-t04 | plan.md | `rg -l -i --no-messages [-F] -e …` | Adds `--no-config -a` | A user rg config or binary detection would break the superset guarantee | implementation | none |
 | p02-t06 | design.md | Deep rung after zero results | Deep runs only when the content tier is selected; `--include-tools` labels the content scan `deep`; `tiersRun` lists only scans that actually ran | Clear tier semantics | implementation | Document in SKILL.md (p03-t01) |
 | p03 root verification | design.md / plan.md p02-t02 | Codex tool sources: function_call_output, custom_tool_call_output, function_call args, item_completed CommandExecution | Also item_completed McpToolCall (and other tool-like items) | The real store showed MCP results carry the motivating text | implementation (p03-t04) | design.md aligned by root after t04 |
+| p05 review routing | oat-project-implement phase-execution | separate root p05 phase review, then final re-review | one narrowed final re-review over `79416011..3fb6dc1f` (exactly the p05 range) serves as both | the two reviews would cover an identical range; this avoids a duplicate | process deviation (recorded) | none |
+| p05-t03 | design.md | full hit text retained until ranking | bounded snippet + `seq` per hit; position tie-break | memory bound (final M3) | implementation (design aligned) | none |
 | p01-t04 | design.md | Redaction shapes | Also covers `ghu_`/`ghr_`. Bearer is masked only when ≥16 chars, or ≥8 with a digit. Quoted values are masked including their quotes. | Fewer prose false positives; broader token coverage | implementation | Over-masking risk (`token: string`, long slug paths) to be watched in p02 ranking tests |
 
 ## Test Results
