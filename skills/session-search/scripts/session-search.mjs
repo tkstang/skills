@@ -2713,7 +2713,9 @@ var TOKEN_RULES = [
   // Stripe secret, restricted, and publishable keys, short forms included.
   /(?<![A-Za-z0-9])[srp]k_(?:live|test)_[0-9A-Za-z]{16,}/g,
   // Hugging Face tokens.
-  /(?<![A-Za-z0-9])hf_[A-Za-z0-9]{30,}/g
+  /(?<![A-Za-z0-9])hf_[A-Za-z0-9]{30,}/g,
+  // npm access tokens.
+  /(?<![A-Za-z0-9])npm_[A-Za-z0-9]{36}/g
   // Bare 32-hex values are deliberately NOT masked: they would blank MD5
   // hashes and other ids people search for. Keyed hex secrets are caught by
   // the key-value rule.

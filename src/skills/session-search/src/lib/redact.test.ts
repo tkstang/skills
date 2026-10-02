@@ -25,6 +25,8 @@ const GITLAB_PAT = join('gl', 'pat-', 'A1b2C3d4E5f6G7h8I9j0');
 const STRIPE_LIVE = join('sk', '_live_', 'A1b2C3d4E5f6G7h8');
 const STRIPE_RESTRICTED = join('rk', '_live_', 'Z9y8X7w6V5u4T3s2R1q0');
 const STRIPE_TEST = join('pk', '_test_', 'Q1w2E3r4T5y6U7i8O9p0');
+// All-lowercase plus digits, so the mixed-case base64 fallback cannot mask it.
+const NPM_TOKEN = join('np', 'm_', 'k3v9x2q7w8e1r5t6y4u0i9o2p7a3s8d1f6g2');
 const HUGGING_FACE = join('hf', '_', 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789');
 const SHA = 'a'.repeat(8) + '0123456789abcdef0123456789abcdef';
 const SYNTHETIC = 'synthetic-only';
@@ -50,6 +52,8 @@ describe('redact: credential shapes', () => {
     ],
     ['Stripe test key', `stripe ${STRIPE_TEST} ok`, STRIPE_TEST],
     ['Hugging Face token', `hub ${HUGGING_FACE} ok`, HUGGING_FACE],
+    ['npm access token', `//registry.npmjs.org/:${NPM_TOKEN}`, NPM_TOKEN],
+    ['bare npm access token', `val ${NPM_TOKEN} end`, NPM_TOKEN],
     [
       'Bearer token',
       `Authorization: Bearer ${join('eyJhbGci', 'OiJIUzI1NiJ9.e30.x1')}`,
@@ -299,6 +303,7 @@ describe('redact: ordinary text stays intact', () => {
     // Token-family prefixes in prose, and a bare 32-hex (MD5-looking) hash.
     'Ask Asia about the AIza docs, glpat- tokens, sk_live mode, and hf_ repos.',
     'md5 9e107d9d372bb6826bd81d3542a419d6 matches the fixture',
+    'set npm_config_cache and npm_package_json_version_number_xyz_abc',
   ])('leaves %j untouched', (text) => {
     expect(redact(text)).toBe(text);
   });
@@ -382,6 +387,7 @@ describe('redact: oversize input', () => {
       'sk_live_'.repeat(32 * 1024),
       `hf_${'a'.repeat(256 * 1024)}`,
       'ASIA'.repeat(64 * 1024),
+      'npm_'.repeat(64 * 1024),
     ];
     const started = performance.now();
     for (const input of inputs) redact(input);
