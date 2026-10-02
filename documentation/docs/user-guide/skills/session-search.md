@@ -39,12 +39,12 @@ roughly when, and which repository.
 The selected tiers run cheapest first. Widening and the deep rung are fallbacks
 that run only when the earlier passes found nothing:
 
-| Tier      | What it searches                                                                                                                                                       |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `history` | Prompt history files: `~/.claude/history.jsonl` and `~/.codex/history.jsonl`. Cursor has none.                                                                         |
-| `meta`    | Session titles, Codex `session_index.jsonl`, and the Codex `state_5.sqlite` thread table (read-only, through `sqlite3` when present).                                  |
-| `content` | User and assistant text inside transcripts, with an optional `rg -l` prefilter and streaming verification in Node.                                                     |
-| `deep`    | Tool output as well (command output, MCP tool results, file listings). Runs only when nothing else matched, the `content` tier is selected, and `--no-deep` is absent. |
+| Tier      | What it searches                                                                                                                                                             |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `history` | Prompt history files: `~/.claude/history.jsonl` and `~/.codex/history.jsonl`. Cursor has none.                                                                               |
+| `meta`    | Session titles, Codex `session_index.jsonl`, and the Codex `state_5.sqlite` thread table (read-only, through `sqlite3` when present).                                        |
+| `content` | User and assistant text inside transcripts, including questions the agent asked you and your answers, with an optional `rg -l` prefilter and streaming verification in Node. |
+| `deep`    | Tool output as well (command output, MCP tool results, file listings). Runs only when nothing else matched, the `content` tier is selected, and `--no-deep` is absent.       |
 
 `--tiers history,meta,content` restricts the scan. `--include-tools` searches
 tool output in the content scan itself and labels that scan `deep`. The JSON
@@ -125,14 +125,21 @@ host it came from.
 Environment variables help on constrained hosts: `SESSION_SEARCH_RG` and
 `SESSION_SEARCH_SQLITE3` set explicit tool paths, `SESSION_SEARCH_NO_RG=1` and
 `SESSION_SEARCH_NO_SQLITE3=1` force the fallbacks, and
-`SESSION_SEARCH_PROBE_TIMEOUT_MS` sets the tool-probe timeout.
+`SESSION_SEARCH_PROBE_TIMEOUT_MS` sets the tool-probe timeout (default 3000 ms).
 
 ## Privacy
 
 - Results show only short snippets, at most three per session. The agent does
   not paste whole transcripts unless you ask to open one session.
 - Snippets and titles are redacted: credential-shaped strings appear as
-  `[REDACTED]`, and the agent never recovers the original values.
+  `[REDACTED]`, and the agent never recovers the original values. Redaction
+  covers secret-named keys and flags (`password=`, `--token`), `Authorization`
+  and `Bearer` values, URL passwords, provider tokens (OpenAI and Anthropic
+  `sk-`, GitHub, Slack, AWS `AKIA`/`ASIA` key IDs, Google, GitLab, Stripe,
+  Hugging Face, and npm), and long hex or encoded-looking strings. It errs
+  toward masking; bare 32-character hex values such as hashes stay visible.
+- Matching runs on the original text, so a pattern can still find a session by
+  a value that its snippet shows as `[REDACTED]`.
 - Results are not saved to files unless you ask.
 
 ## Limitations
