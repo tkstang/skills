@@ -19,7 +19,7 @@ oat_phase_recovery_policy:
       used_attempts: 1
       pending_attempt: null
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_policy:
   mode: managed
@@ -125,11 +125,11 @@ oat_implement_exit_gate:
   failure: null
   updated_at: '2026-10-02T17:41:33Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
-oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
-oat_pr_url: null # null | string — tracked PR URL when a PR exists
+oat_pr_status: open # null | ready | open | closed | merged — actual PR state for the current project
+oat_pr_url: "https://github.com/tkstang/skills/pull/115" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-10-02T04:59:03.168Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-10-02T17:49:12Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-10-02T18:04:48Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -145,7 +145,7 @@ oat_project_recap:
 
 ## Current Phase
 
-Implementation - final review passed (cycle 4); new implementation exit gate generation next.
+Implementation — PR open; completion may run before or after merge.
 
 ## Artifacts
 
@@ -163,6 +163,8 @@ Implementation - final review passed (cycle 4); new implementation exit gate gen
 - ✓ Implementation tasks complete (61/61)
 - ✓ Final review passed
 - ⧗ Implementation exit gate and closeout
+- ✓ PR created
+- ⧗ Awaiting human review
 
 ## Blockers
 
@@ -170,4 +172,8 @@ None
 
 ## Next Milestone
 
-Complete discovery and generate a quick implementation plan
+PR is open for review.
+
+- To incorporate feedback: run `oat-project-revise`
+- Complete before merge: run `oat-project-complete` now, then merge the PR.
+- Merge before completion: merge the PR, then run `oat-project-complete`.
