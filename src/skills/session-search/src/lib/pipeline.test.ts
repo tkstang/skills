@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -18,6 +20,7 @@ import {
   writeClaudeSession,
   writeCodexRollout,
   writeCursorTranscript,
+  writeExecutable,
   type TempHome,
 } from '../helpers/test-helpers.js';
 import { resolveOptions, type RawOptionValues } from './options.js';
@@ -38,13 +41,16 @@ afterEach(() => {
   temp.cleanup();
 });
 
-function search(raw: RawOptionValues) {
+function search(raw: RawOptionValues, extraEnv: Record<string, string> = {}) {
   const options = resolveOptions(raw, {
     home: temp.home,
     cwd: temp.home,
     now: NOW,
   });
-  return runSearch(options, { home: temp.home, env: searchEnv(temp) });
+  return runSearch(options, {
+    home: temp.home,
+    env: searchEnv(temp, extraEnv),
+  });
 }
 
 /** A Claude session with the target phrase typed by the user. */
@@ -466,6 +472,26 @@ describe('runSearch', () => {
       'absent',
       'absent',
     ]);
+  });
+});
+
+describe.skipIf(process.platform === 'win32')('runSearch deadline', () => {
+  it('stops a hanging rg prefilter at --deadline-ms and reports incomplete', async () => {
+    claudeTarget('/work/target');
+    const rg = writeExecutable(
+      path.join(temp.root, 'bin', 'rg'),
+      '#!/bin/sh\ncase "$1" in --version) echo "ripgrep stub"; exit 0 ;; esac\nexec sleep 30\n',
+    );
+
+    const started = Date.now();
+    const result = await search(
+      { pattern: ['perceive'], 'deadline-ms': '700' },
+      { SESSION_SEARCH_RG: rg },
+    );
+
+    expect(result.tools.rg).toBe(rg);
+    expect(result.incomplete).toBe(true);
+    expect(Date.now() - started).toBeLessThan(4000);
   });
 });
 

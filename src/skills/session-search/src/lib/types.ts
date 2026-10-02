@@ -240,6 +240,11 @@ export interface AdapterContext {
   files: SessionFile[];
   /** Mark this runtime's source degraded with a diagnostic note. */
   degrade(note: string): void;
+  /**
+   * Absolute epoch-ms deadline (`--deadline-ms`). Per-file loops stop doing
+   * bounded reads once it passes; the pipeline reports `incomplete`.
+   */
+  deadline?: number | null;
 }
 
 /** Context for `SourceAdapter.enumerate`, which produces `files` itself. */

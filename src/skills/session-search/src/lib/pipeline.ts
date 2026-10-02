@@ -101,6 +101,7 @@ async function prepare(
   options: SearchOptions,
   context: SearchContext,
   tools: ToolPaths,
+  deadline: number | null = null,
 ): Promise<RuntimeState[]> {
   const states: RuntimeState[] = [];
   for (const runtime of options.runtimes) {
@@ -121,6 +122,7 @@ async function prepare(
       tools,
       roots,
       degrade: (note) => state.notes.push(note),
+      deadline,
     });
     state.windowFiles = state.files.filter((file) =>
       inTimeWindow(file, options.since, options.until),
@@ -216,7 +218,7 @@ export async function runSearch(
     literal: options.literal,
   });
 
-  const states = await prepare(options, context, tools);
+  const states = await prepare(options, context, tools, deadline);
   const stateFor = new Map(states.map((state) => [state.runtime, state]));
   const adapterFor = (runtime: Runtime) => {
     const state = stateFor.get(runtime);
@@ -239,7 +241,8 @@ export async function runSearch(
     timedOut: false,
   };
   let needsConfirmation: NeedsConfirmation | null = null;
-  let incomplete = false;
+  // Enumeration skips header reads once the deadline passes.
+  let incomplete = expired();
 
   const contextFor = (
     state: RuntimeState,
@@ -252,6 +255,7 @@ export async function runSearch(
     roots: state.roots,
     files: files.filter((file) => file.runtime === state.runtime),
     degrade: (note) => state.notes.push(note),
+    deadline,
   });
 
   const acceptHit = (
@@ -317,6 +321,8 @@ export async function runSearch(
         );
       }
       tiersRun.add(tier);
+      // Per-file title reads stop at the deadline.
+      if (expired()) incomplete = true;
     }
     const hits = [...cheap];
     if (options.tiers.includes('content')) {
@@ -334,6 +340,11 @@ export async function runSearch(
   if (options.cwdHints.length > 0) {
     const scoped: SessionFile[] = [];
     for (const file of windowFiles) {
+      if (expired()) {
+        // Unchecked files stay out of scope; the run is partial.
+        incomplete = true;
+        break;
+      }
       if (await inScope(file, adapterFor(file.runtime), options.cwdHints))
         scoped.push(file);
     }

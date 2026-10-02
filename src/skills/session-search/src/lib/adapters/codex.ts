@@ -575,8 +575,11 @@ export function createCodexAdapter(): CodexAdapter {
         // Headers are read lazily, and only for files inside the time window.
         // A thread row with an ordinary source already settles cwd and lineage.
         const needsHeader = !(thread?.plainSource && thread.cwd);
+        // Past the deadline the file is listed without its header.
+        const expired = ctx.deadline != null && Date.now() >= ctx.deadline;
         if (
           needsHeader &&
+          !expired &&
           inTimeWindow(file, ctx.options.since, ctx.options.until)
         ) {
           const header = await headerFor(file);

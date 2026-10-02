@@ -315,6 +315,7 @@ export function createClaudeCodeAdapter(): ClaudeCodeAdapter {
     async metadataHits(ctx: AdapterContext, matcher: Matcher): Promise<Hit[]> {
       const hits: Hit[] = [];
       for (const file of ctx.files) {
+        if (ctx.deadline != null && Date.now() >= ctx.deadline) break;
         if (file.runtime !== RUNTIME || file.isSubagent) continue;
         const title = await titleFor(file.path);
         if (!title) continue;

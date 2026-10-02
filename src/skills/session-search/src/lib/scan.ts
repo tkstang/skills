@@ -79,18 +79,22 @@ export interface PrefilterResult {
   /** Candidate paths that may match, or `null` to scan everything in Node. */
   files: Set<string> | null;
   note: string | null;
+  /** True when the deadline stopped `rg`; no Node fallback should run. */
+  timedOut: boolean;
 }
 
 /**
  * Narrow `files` to those `rg` reports as containing any pattern. Returns
  * `files: null` with a note when a pattern is not prefilter-safe or `rg`
- * fails; the caller then scans every candidate in Node.
+ * fails; the caller then scans every candidate in Node. Each `rg` call gets
+ * the remaining time to `deadline` as its timeout; when the deadline stops it,
+ * the result is `timedOut` and the caller must not fall back to Node.
  */
 export function prefilterWithRg(
   rgPath: string,
   patterns: readonly string[],
   files: readonly string[],
-  { literal }: { literal: boolean },
+  { literal, deadline = null }: { literal: boolean; deadline?: number | null },
 ): PrefilterResult {
   const unsafe = patterns.filter(
     (pattern) => !isPrefilterSafe(pattern, literal),
@@ -99,6 +103,7 @@ export function prefilterWithRg(
     return {
       files: null,
       note: `rg prefilter skipped: pattern ${JSON.stringify(unsafe[0])} is not prefilter-safe; scanning all candidates in Node`,
+      timedOut: false,
     };
   }
   const base = [
@@ -114,16 +119,27 @@ export function prefilterWithRg(
   const matched = new Set<string>();
   let chunk: string[] = [];
   let chunkBytes = 0;
+  const TIMED_OUT = 'timed-out';
   const run = (): string | null => {
     if (chunk.length === 0) return null;
+    let timeout: number | undefined;
+    if (deadline !== null) {
+      timeout = deadline - Date.now();
+      if (timeout <= 0) return TIMED_OUT;
+    }
     const result = spawnSync(rgPath, [...base, ...chunk], {
       encoding: 'utf8',
       maxBuffer: RG_MAX_OUTPUT,
       windowsHide: true,
+      ...(timeout === undefined ? {} : { timeout }),
     });
     chunk = [];
     chunkBytes = 0;
-    if (result.error) return `rg prefilter failed (${result.error.message})`;
+    if (result.error) {
+      const code = (result.error as NodeJS.ErrnoException).code;
+      if (code === 'ETIMEDOUT') return TIMED_OUT;
+      return `rg prefilter failed (${result.error.message})`;
+    }
     if (result.status === 1) return null;
     if (result.status !== 0) {
       return `rg prefilter exited with status ${result.status ?? 'signal'}`;
@@ -133,23 +149,30 @@ export function prefilterWithRg(
     }
     return null;
   };
+  const failed = (failure: string): PrefilterResult =>
+    failure === TIMED_OUT
+      ? {
+          files: matched,
+          note: 'rg prefilter stopped at the deadline; results are incomplete',
+          timedOut: true,
+        }
+      : {
+          files: null,
+          note: `${failure}; scanning all candidates in Node`,
+          timedOut: false,
+        };
   for (const file of files) {
     const bytes = Buffer.byteLength(file) + 1;
     if (chunk.length > 0 && chunkBytes + bytes > RG_ARG_CHUNK_BYTES) {
       const failure = run();
-      if (failure)
-        return {
-          files: null,
-          note: `${failure}; scanning all candidates in Node`,
-        };
+      if (failure) return failed(failure);
     }
     chunk.push(file);
     chunkBytes += bytes;
   }
   const failure = run();
-  if (failure)
-    return { files: null, note: `${failure}; scanning all candidates in Node` };
-  return { files: matched, note: null };
+  if (failure) return failed(failure);
+  return { files: matched, note: null, timedOut: false };
 }
 
 const RAW_SKIP_TYPES =
@@ -325,8 +348,14 @@ export async function scanFiles(
       options.rg,
       matcher.patterns,
       files.map((file) => file.path),
-      { literal: matcher.literal },
+      { literal: matcher.literal, deadline: options.deadline ?? null },
     );
+    if (prefilter.timedOut) {
+      // Never fall back to a full Node scan past the deadline.
+      if (prefilter.note) notes.push(prefilter.note);
+      stats.timedOut = true;
+      return { hits, stats, notes };
+    }
     if (prefilter.files) {
       const keep = prefilter.files;
       candidates = files.filter((file) => keep.has(file.path));
