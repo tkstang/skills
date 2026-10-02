@@ -1167,6 +1167,48 @@ Source: reviews/archived/p03-review-2026-10-02T080403Z.md, Low.
 
 ---
 
+### Task p04-t04: (review) Mention session search on the README and docs home
+
+Source: reviews/archived/p04-review-2026-10-02T083046Z.md, Medium.
+
+**Files:** `README.md` (Session plugin row and description lines), `documentation/docs/index.md` (Session plugin mentions); regenerate `documentation/index.md` if needed.
+
+**Behavior:** both front doors describe the Session plugin including session search, consistent with the plugins index wording.
+**Verify:** Format the edited Markdown (`pnpm exec oxfmt --write <files>`). If a skill source changed, run `pnpm run build` and `pnpm run build:check`. Then run `pnpm run test:vitest tests/repo` and `pnpm run validate`; for docs changes also run `cd documentation && pnpm build`.
+**Commit:** `docs(p04-t04): mention session search on readme and docs home`
+
+### Task p04-t05: (review) Correct the history-file field lists
+
+Source: reviews/archived/p04-review-2026-10-02T083046Z.md, Low.
+
+**Files:** `documentation/docs/engineering/architecture/session-schemas/index.md`, `src/skills/session-search/references/store-layouts.md` (then regenerate).
+
+**Behavior:** remove `pastedContents` from the fields "the code reads", or mark it as present but unused.
+**Verify:** Format the edited Markdown (`pnpm exec oxfmt --write <files>`). If a skill source changed, run `pnpm run build` and `pnpm run build:check`. Then run `pnpm run test:vitest tests/repo` and `pnpm run validate`; for docs changes also run `cd documentation && pnpm build`.
+**Commit:** `docs(p04-t05): correct history field lists`
+
+### Task p04-t06: (review) State the deep-tier precondition in the docs tier table
+
+Source: reviews/archived/p04-review-2026-10-02T083046Z.md, Low.
+
+**Files:** `documentation/docs/user-guide/skills/session-search.md`.
+
+**Behavior:** the deep row states that it runs only when the `content` tier is selected (and that `--include-tools` labels the content scan `deep`).
+**Verify:** Format the edited Markdown (`pnpm exec oxfmt --write <files>`). If a skill source changed, run `pnpm run build` and `pnpm run build:check`. Then run `pnpm run test:vitest tests/repo` and `pnpm run validate`; for docs changes also run `cd documentation && pnpm build`.
+**Commit:** `docs(p04-t06): state deep-tier precondition`
+
+### Task p04-t07: (review) Say the remote fallback is unranked and unredacted
+
+Source: reviews/archived/p04-review-2026-10-02T083046Z.md, Low.
+
+**Files:** `documentation/docs/user-guide/skills/session-search.md`. Also `src/skills/session-search/SKILL.md` and/or `references/remote-fallback.md` if they lack it (then regenerate).
+
+**Behavior:** the remote-search section notes that the no-install fallback returns raw, **unranked** and **unredacted** matches, so the agent must show only short excerpts and must not echo credential-shaped text.
+**Verify:** Format the edited Markdown (`pnpm exec oxfmt --write <files>`). If a skill source changed, run `pnpm run build` and `pnpm run build:check`. Then run `pnpm run test:vitest tests/repo` and `pnpm run validate`; for docs changes also run `cd documentation && pnpm build`.
+**Commit:** `docs(p04-t07): note remote fallback is unranked and unredacted`
+
+---
+
 ## Reviews
 
 | Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head | Invocation | Gate Target       |
@@ -1176,7 +1218,7 @@ Source: reviews/archived/p03-review-2026-10-02T080403Z.md, Low.
 | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md | 0367021c | auto | - |
 | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md | e09b9afe | auto | - |
 | p03   | code     | fixes_completed | 2026-10-02 | reviews/archived/p03-review-2026-10-02T080403Z.md | 7ff0c270 | auto | - |
-| p04   | code     | pending         | -          | -                                                           | -             | -          | -                 |
+| p04   | code     | fixes_added | 2026-10-02 | reviews/archived/p04-review-2026-10-02T083046Z.md | 9ccaef4f | auto | - |
 | final | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -             | auto       | -                 |
 | plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -             | gate       | codex-6-sol-xhigh |
@@ -1203,9 +1245,9 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 - Phase 1: 16 tasks. Core library: types/shim, options/time, matcher/snippets, redaction, tool probe, plus 11 p01 review fixes (t06–t16).
 - Phase 2: 21 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 12 p02 review fixes (t08–t19) and 2 root follow-ups (t20–t21).
 - Phase 3: 10 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests. Includes 2 root follow-ups (t04 Codex MCP results, t05 ladder guidance) and 5 p03 review fixes (t06–t10).
-- Phase 4: 3 tasks. Docs, stale-path fix, changelog plus premerge.
+- Phase 4: 7 tasks. Docs, stale-path fix, changelog plus premerge. Includes 4 p04 review fixes (t04–t07).
 
-**Total: 50 tasks**
+**Total: 54 tasks**
 
 ## References
 

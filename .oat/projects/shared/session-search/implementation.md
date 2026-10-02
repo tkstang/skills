@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: null
+oat_current_task_id: p04-t04
 oat_generated: false
 ---
 
@@ -36,9 +36,9 @@ oat_generated: false
 | Phase 1 | complete    | 16    | 16/16     |
 | Phase 2 | complete    | 21    | 21/21     |
 | Phase 3 | complete    | 10    | 10/10     |
-| Phase 4 | in_progress | 3     | 3/3       |
+| Phase 4 | in_progress | 7     | 3/7       |
 
-**Total:** 50/50 tasks completed
+**Total:** 50/54 tasks completed
 
 ---
 
@@ -288,7 +288,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 ## Phase 4: Documentation, stale-path fix, release notes, full verification
 
-**Status:** in_progress (tasks complete; root review pending)
+**Status:** in_progress (review passed 0C/0H; fix tasks p04-t04..t07 queued)
 
 | Task | Status | Commit |
 | ---- | ------ | ------ |
@@ -323,9 +323,25 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 - Pre-existing `format:check` failures in 3 untouched test files (out of scope; not run by premerge).
 - The `bump-version.ts` quoting is a tooling follow-up.
-- Changed mermaid diagrams (`plugins/session/index.md`, `generated-runtime.md`) still need a browser visual check, which the implementer had no browser for. Root will attempt it at closeout.
+- Mermaid browser check (root, Playwright, on the static `documentation/out` export): 4 diagrams render with no errors and no page-level horizontal overflow at 1440 px and 390 px. The session diagram (including the new `search` branch) was inspected in light and dark themes. Wide diagrams scroll inside the `.mermaid` container (`overflow-x: auto`), consistent with the existing site behavior.
 - `src/shared/collaboration/diagnostics.test.ts` flakes under full-suite load (out of scope).
 
+
+### Review Received: p04
+
+**Date:** 2026-10-02
+**Review artifact:** reviews/archived/p04-review-2026-10-02T083046Z.md (request `session-search-p04-review-1`, invocation auto, reviewed head `9ccaef4f`, **Reconnaissance:** not-attempted)
+
+**Findings:** Critical 0, High 0, Medium 1, Low 3. **Passes.**
+
+**Dispositions:**
+
+- p04-t04: M, README and docs home omit search
+- p04-t05: L, `pastedContents` field claim
+- p04-t06: L, deep-tier precondition in the tier table
+- p04-t07: L, remote fallback is unranked and unredacted
+
+---
 
 ---
 
@@ -406,6 +422,10 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 - Target `oat-phase-implementer-claude-claude-opus-5-5-medium` (candidate; default-implementation, medium). Validated-only, then accepted. Outcome: DONE_WITH_CONCERNS. Range `6737289c..9ccaef4f` (3 task commits + 1 recovery commit). Recovery attempts: 1/10.
 - Dispatch stamp: `Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:medium dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-medium`
+
+#### Dispatch record: session-search-p04-review-1
+
+- Root phase review, same reviewer target. Outcome: **pass**, 0C/0H/1M/3L. Artifact: `reviews/archived/p04-review-2026-10-02T083046Z.md`.
 
 <!-- orchestration-runs-end -->
 
