@@ -235,11 +235,18 @@ export interface AdapterContext {
   degrade(note: string): void;
 }
 
+/** Context for `SourceAdapter.enumerate`, which produces `files` itself. */
+export type EnumerateContext = Omit<AdapterContext, 'files'>;
+
 /** One runtime's store layout and record semantics. */
 export interface SourceAdapter {
   runtime: Runtime;
   roots(home: string): StoreRoots;
-  enumerate(ctx: AdapterContext): Promise<SessionFile[]>;
+  /**
+   * Stat-only enumeration. It produces the candidate list, so it receives the
+   * context without `files`.
+   */
+  enumerate(ctx: EnumerateContext): Promise<SessionFile[]>;
   /** Tier 1: history files. */
   historyHits(ctx: AdapterContext, matcher: Matcher): Promise<Hit[]>;
   /** Tier 2: metadata indexes and title records. */
