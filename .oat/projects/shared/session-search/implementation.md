@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p03-t01
+oat_current_task_id: p02-t16
 oat_generated: false
 ---
 
@@ -34,11 +34,11 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 16    | 16/16     |
-| Phase 2 | in_progress | 15    | 15/15     |
+| Phase 2 | in_progress | 19    | 15/19     |
 | Phase 3 | pending     | 3     | 0/3       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 31/37 tasks completed
+**Total:** 31/41 tasks completed
 
 ---
 
@@ -154,7 +154,7 @@ Behavior notes:
 
 ## Phase 2: Adapters, scanner, pipeline, ranker, CLI
 
-**Status:** in_progress (fix tasks p02-t08..t15 complete; re-review pending)
+**Status:** in_progress (re-review passed 0C/0H; fix tasks p02-t16..t19 queued)
 
 ### Phase Summary
 
@@ -180,6 +180,25 @@ Behavior notes:
 | p02-t05 | completed | 2ef33a65 |
 | p02-t06 | completed | 49976082 |
 | p02-t07 | completed | 0367021c |
+
+### Review Received: p02 (re-review, cycle 2)
+
+**Date:** 2026-10-02
+**Review artifact:** reviews/archived/p02-review-2026-10-02T072802Z.md (request `session-search-p02-review-2`, narrowed `0367021c..e09b9afe`, invocation auto, **Reconnaissance:** not-attempted)
+
+**Findings:** Critical 0, High 0, Medium 1, Low 5. **Passes.** The prior High and every prior Medium/Low were verified as resolved.
+
+**Dispositions:**
+
+- p02-t16: M, ask-user answers over 500 chars
+- p02-t17: L×2, untested deadline loop guards and stringify branch
+- p02-t18: L, image-only base64 fallback
+- p02-t19: L, duplicate patterns
+- design.md drift (L): **aligned by root**. Covers the deep-tier prefilter skip, no fallback after a deadline timeout, Codex ask-user classification, and `fileClassifier`/`deadline`/`agentAuthored`.
+
+**Governance:** this is the second p02 review cycle. After t16–t19 pass the implementer's and the root's verification, p02 closes without a third p02 cycle; the final code review covers them.
+
+---
 
 ### Review-fix tasks p02-t08..p02-t15
 

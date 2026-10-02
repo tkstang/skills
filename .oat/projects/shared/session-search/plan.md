@@ -806,6 +806,63 @@ Source: reviews/archived/p02-review-2026-10-02T071003Z.md, Low L4.
 
 ---
 
+### Task p02-t16: (review) Match ask-user answers on untruncated text, consistently across runtimes
+
+Source: reviews/archived/p02-review-2026-10-02T072802Z.md, Medium (a regression from p02-t14).
+
+**Files:** `lib/adapters/claude-code.ts`, `lib/adapters/codex.ts`, `lib/scan.test.ts` (or the adapter tests).
+
+**Behavior:**
+
+- Emit the conversational `user` unit for an ask-user answer from the **untruncated** raw text (Claude `tool_result` content or `toolUseResult.answers`; Codex output). Use normalizer output only for presentation, if at all.
+- Apply one policy for both runtimes: answered ask-user records produce conversational units **only** (no duplicate `tool` unit on deep).
+
+**Test:** a Claude answer longer than 500 characters with the phrase past the limit is found on the content tier. Codex questions and answers are not emitted twice on deep.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files. Each new test must fail against the pre-fix code.
+**Commit:** `fix(p02-t16): match ask-user answers on untruncated text`
+
+### Task p02-t17: (review) Pin the in-loop deadline checks and the stringify branch with tests
+
+Source: reviews/archived/p02-review-2026-10-02T072802Z.md, Low ×2.
+
+**Files:** `lib/adapters/codex.test.ts`, `lib/adapters/claude-code.test.ts`, `lib/pipeline.test.ts` (tests only).
+
+**Tests:**
+
+- With an already-expired deadline, no Codex header is read, Claude `metadataHits` returns no title hits, and a cwd-hinted run reports `incomplete: true` without `widened`.
+- A mixed text and non-text array (JSON-encoded and real array) matches the non-text object's phrase.
+
+Each must fail when the corresponding guard or branch is removed.
+
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files. Each new test must fail against the pre-fix code.
+**Commit:** `test(p02-t17): pin deadline loop guards and mixed-array tool output`
+
+### Task p02-t18: (review) Don't fall back to raw base64 for image-only tool output
+
+Source: reviews/archived/p02-review-2026-10-02T072802Z.md, Low.
+
+**Files:** `lib/adapters/codex.ts`, `lib/adapters/codex.test.ts`.
+
+**Behavior:** distinguish "decoded and intentionally empty (only skipped image blocks)" from "decoding lost text". Skip the raw fallback in the image-only case.
+
+**Test:** image-only JSON-encoded output yields no unit (and no base64 match).
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files. Each new test must fail against the pre-fix code.
+**Commit:** `fix(p02-t18): skip raw fallback for image-only codex tool output`
+
+### Task p02-t19: (review) Deduplicate patterns so the early stop works
+
+Source: reviews/archived/p02-review-2026-10-02T072802Z.md, Low.
+
+**Files:** `lib/options.ts`, `lib/options.test.ts` (or `scan.ts`).
+
+**Behavior:** `resolveOptions` deduplicates patterns while preserving order, or `done()` compares against the distinct pattern count.
+
+**Test:** `-p zebra -p zebra` stops streaming after the cap.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files. Each new test must fail against the pre-fix code.
+**Commit:** `fix(p02-t19): dedupe search patterns`
+
+---
+
 ## Phase 3: Skill packaging, distribution, CLI integration tests
 
 ### Task p03-t01: SKILL.md agent guidance and references
@@ -977,6 +1034,7 @@ Source: reviews/archived/p02-review-2026-10-02T071003Z.md, Low L4.
 | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T061433Z.md | d2fdc0bed2f806ebbd0463e396cc66e747c3f488 | auto | - |
 | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T062929Z.md | e4ae386d889d279a69e859fa7bd44aaca422b67d | auto | - |
 | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md | 0367021c | auto | - |
+| p02   | code     | fixes_added | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md | e09b9afe | auto | - |
 | p03   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | p04   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | final | code     | pending         | -          | -                                                           | -             | -          | -                 |
@@ -1003,11 +1061,11 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 **Summary:**
 
 - Phase 1: 16 tasks. Core library: types/shim, options/time, matcher/snippets, redaction, tool probe, plus 11 p01 review fixes (t06–t16).
-- Phase 2: 15 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 8 p02 review fixes (t08–t15).
+- Phase 2: 19 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 12 p02 review fixes (t08–t19).
 - Phase 3: 3 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests.
 - Phase 4: 3 tasks. Docs, stale-path fix, changelog plus premerge.
 
-**Total: 37 tasks**
+**Total: 41 tasks**
 
 ## References
 

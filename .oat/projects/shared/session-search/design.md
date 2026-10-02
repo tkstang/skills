@@ -123,7 +123,10 @@ interface SourceAdapter {
   sessionInfo(file: SessionFile): Promise<SessionInfo>; // cwd, title, firstPrompt, startedAt (bounded read)
   classifyRecord(record: JsonObject, includeTools: boolean): TextUnit[]; // role-tagged text for tier 3/4
   openHint(file: SessionFile, info: SessionInfo): { command: string | null; hint: string };
+  fileClassifier?(file: SessionFile, includeTools: boolean): RecordClassifier; // per-file state (tool-name / call-id maps) for ask-user pairing
 }
+// AdapterContext carries an optional `deadline` (epoch ms) honored by enumeration header reads, title tail reads, and scoping loops.
+// SessionFile carries `agentAuthored` for Codex threads whose source has a `subagent` key (thread_spawn, review, memory_consolidation, guardian); their user-role text is never user-typed.
 ```
 
 **Per-runtime behavior:**
@@ -153,7 +156,7 @@ All adapters degrade gracefully. A missing root yields no sessions and adds a `s
 
 **Responsibilities:**
 
-- **Optional prefilter:** run `rg -l -i --no-messages -e <p1> -e <p2> … -- <files…>`, chunked by argument length. It narrows the candidate files only and must be a provable superset of the Node scan, so it runs only when every pattern is prefilter-safe. Safe patterns are literal ASCII without quotes, backslashes, or control characters, plus `.*`/`.+`, `|`, and groups. Backslashes, any character class, a bare `.` or `.?`/`.{n}` wildcard, lookaround, and non-ASCII are all rejected. Otherwise, or on an rg error, every candidate is scanned in Node. Patterns are passed through `-e` (never through a shell), with `--fixed-strings` when `--literal` is set.
+- **Optional prefilter:** run `rg -l -i --no-messages -e <p1> -e <p2> … -- <files…>`, chunked by argument length. It narrows the candidate files only and must be a provable superset of the Node scan, so it runs only when every pattern is prefilter-safe. Safe patterns are literal ASCII without quotes, backslashes, or control characters, plus `.*`/`.+`, `|`, and groups. Backslashes, any character class, a bare `.` or `.?`/`.{n}` wildcard, lookaround, and non-ASCII are all rejected. Otherwise, or on an rg error, every candidate is scanned in Node. The exception is a **deadline timeout** of `rg`: the run is marked `incomplete`, with no Node fallback past the deadline. The **deep tier always skips the prefilter**, because deep text is decoded or re-serialized. Patterns are passed through `-e` (never through a shell), with `--fixed-strings` when `--literal` is set.
 - **Node verification:**
   - Stream each surviving file with a line reader that splits on LF only.
   - **Skip lines longer than `maxLineBytes`** (default 64 KiB) before `JSON.parse`, and count them in diagnostics.
@@ -167,7 +170,7 @@ All adapters degrade gracefully. A missing root yields no sessions and adds a `s
 
   Per runtime:
   - **Claude Code** uses `normalizeEntries('claude-code', [record], …)` per record. It is safe because Claude records are self-contained.
-  - **Codex** uses `normalizeEntries` for message records. With `includeTools`, it also emits `tool` units directly from `function_call_output`/`custom_tool_call_output` output, `function_call` arguments, and `exec_command_end`, because the shared Codex normalizer drops tool output. Child rollouts skip inherited records (`ordinal < subagent_history_start_ordinal`).
+  - **Codex** uses `normalizeEntries` for message records and, through a per-file call-id map, for `request_user_input` questions and answers (conversational, not tool). With `includeTools`, it also emits `tool` units directly from `function_call_output`/`custom_tool_call_output` output, `function_call` arguments, and `exec_command_end`, because the shared Codex normalizer drops tool output. Child rollouts skip inherited records (`ordinal < subagent_history_start_ordinal`).
   - **Cursor** extracts text directly from the raw record and never calls `normalizeEntries`, because the shared Cursor normalizer only emits at `turn_ended` and returns nothing for a lone record.
 - **Injected-context demotion:** user-role text for which any of the repo's existing `HIDDEN_PAYLOAD_MATCHERS` returns true is reclassified as `context`. Those matchers come from `session-export-transcript/src/sanitize.ts` through a shim under a cross-skill `allowedSourceRoots` entry. A leading `<user_instructions>` is a local addition. Context is weighted like assistant text and never counted as user-typed.
 - **Claude tool text** is extracted directly from raw `tool_result`/`tool_use` blocks at full length when `includeTools` is set, because the shared normalizer truncates tool text (500/200 chars).
