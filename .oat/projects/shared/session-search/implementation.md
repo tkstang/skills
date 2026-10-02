@@ -630,6 +630,8 @@ oat_implement_exit_gate:
 
 This generation went stale after fix p05-t08 changed the effective delta. Generation 2 started at reviewed head `76e1b108abf51192af2d2f99d1dab3c7c3a70d50` after final review cycle 4 passed.
 
+- **Ledger repair (2026-10-02T18:02:30Z):** gate PRFINAL-05 blocked PR creation. The `plan | artifact | fixes_completed` row carried the description `structured (in-memory) x3` in its Artifact cell, which the root wrote by mistake. The three plan reviews ran in structured (in-memory) mode and produced no artifact file. Per the Reviews Ledger Mutation Contract, unavailable provenance is written as `-`. Root corrected only that cell (the request IDs remain documented under the table) and re-ran `oat-project-pr-final`.
+
 <!-- orchestration-runs-end -->
 
 ---

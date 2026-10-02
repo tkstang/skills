@@ -1380,7 +1380,7 @@ Source: reviews/archived/final-review-2026-10-02T122041Z.md, Low L1.
 | p05   | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T114035Z.md         | 3fb6dc1fa82e8c49d0bb61f493778cc8e9df764f | auto       | -                 |
 | final | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T084934Z.md         | 7941601149bdf9adf2a7d9e6d9b55f98152f1fb1 | auto       | -                 |
 | final | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T114035Z.md         | 3fb6dc1fa82e8c49d0bb61f493778cc8e9df764f | auto       | -                 |
-| plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -                                        | auto       | -                 |
+| plan | artifact | fixes_completed | 2026-10-02 | - | - | auto | - |
 | plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -                                        | gate       | codex-6-sol-xhigh |
 | plan  | artifact | passed          | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T055258Z.md | -                                        | gate       | codex-6-sol-xhigh |
 | final | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T120208Z.md         | bc7aea7bed64a51938e51a4f241a5bff8584806f | gate       | codex-6-sol-xhigh |
