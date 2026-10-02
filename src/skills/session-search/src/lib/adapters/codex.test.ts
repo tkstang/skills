@@ -257,6 +257,21 @@ describe('Codex record classification', () => {
     expect(matches(classifyCodexRecord(out, true), 'zebra')).toHaveLength(1);
   });
 
+  it('yields no unit for image-only JSON-encoded output', () => {
+    const imageOnly = JSON.stringify([
+      {
+        type: 'input_image',
+        image_url: 'data:image/png;base64,QUJDREVGR0hJSktMTU5PUFFSU1RVVldY',
+      },
+    ]);
+    const units = classifyCodexRecord(
+      record(codexToolOutput('function_call_output', 'call_img', imageOnly, 9)),
+      true,
+    );
+    expect(units).toEqual([]);
+    expect(matches(units, 'QUJDREVG')).toEqual([]);
+  });
+
   it('keeps non-text objects inside mixed output arrays', () => {
     const blocks = [
       { type: 'input_text', text: 'header line' },

@@ -216,6 +216,20 @@ export function isInheritedRecord(
   );
 }
 
+/** True for decoded output made only of `input_image` blocks. */
+function isImageOnly(value: unknown): boolean {
+  const blocks = Array.isArray(value)
+    ? value
+    : isObject(value) && Array.isArray(value.content)
+      ? value.content
+      : null;
+  return (
+    blocks !== null &&
+    blocks.length > 0 &&
+    blocks.every((block) => isObject(block) && block.type === 'input_image')
+  );
+}
+
 /**
  * Text of a tool output in any documented shape: a bare string, an array of
  * `input_text` blocks, or a JSON-encoded string of either. Decoding never
@@ -226,13 +240,17 @@ export function codexOutputText(output: unknown, depth = 0): string {
   if (typeof output === 'string') {
     const trimmed = output.trimStart();
     if (depth === 0 && /^[[{"]/u.test(trimmed)) {
-      let decoded: string;
+      let parsed: unknown;
       try {
-        decoded = codexOutputText(JSON.parse(output), depth + 1);
+        parsed = JSON.parse(output);
       } catch {
         return output;
       }
-      return decoded.trim() === '' ? output : decoded;
+      const decoded = codexOutputText(parsed, depth + 1);
+      if (decoded.trim() !== '') return decoded;
+      // Intentionally empty (only skipped image blocks) is not lost text, so
+      // the raw string (base64 included) is not searched.
+      return isImageOnly(parsed) ? '' : output;
     }
     return output;
   }
