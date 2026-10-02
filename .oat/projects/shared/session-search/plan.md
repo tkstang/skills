@@ -1428,7 +1428,7 @@ Source: PR #115 CodeRabbit review feedback (2026-10-02), triaged by root; the us
 | final  | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T173611Z.md         | 4abed1dc8dda554eceaaf07dec2181cfacb41d8b | gate       | codex-6-sol-xhigh |
 | final  | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T193728Z.md         | 34cc7fb5be4183a783e5f570738fd787c44f9ac9 | auto       | -                 |
 | p-rev1 | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T193728Z.md         | 34cc7fb5be4183a783e5f570738fd787c44f9ac9 | auto       | -                 |
-| final  | code     | received        | 2026-10-02 | reviews/final-review-2026-10-02T194727Z.md                  | 0b94b4f6f75ea0216e078be45bfacc61ee9667ae | gate       | codex-6-sol-xhigh |
+| final | code | passed | 2026-10-02 | reviews/archived/final-review-2026-10-02T194727Z.md | 0b94b4f6f75ea0216e078be45bfacc61ee9667ae | gate | codex-6-sol-xhigh |
 
 For code-review events, `Reviewed Head` is the full 40-character SHA at the
 head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
