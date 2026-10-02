@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p02-t20
+oat_current_task_id: p02-t21
 oat_generated: false
 ---
 
@@ -34,11 +34,11 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 16    | 16/16     |
-| Phase 2 | in_progress | 20    | 19/20     |
+| Phase 2 | in_progress | 21    | 20/21     |
 | Phase 3 | pending     | 3     | 0/3       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 35/42 tasks completed
+**Total:** 36/43 tasks completed
 
 ---
 
@@ -154,7 +154,7 @@ Behavior notes:
 
 ## Phase 2: Adapters, scanner, pipeline, ranker, CLI
 
-**Status:** in_progress (t16–t19 done; root follow-up p02-t20 queued)
+**Status:** in_progress (t20 done at 083798c0, 230 tests; root follow-up p02-t21 queued for the atime-flaky test)
 
 ### Phase Summary
 

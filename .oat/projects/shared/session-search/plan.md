@@ -880,6 +880,20 @@ Source: root follow-up to a p02 fix-round-2 implementer concern. Under heavy loa
 
 ---
 
+### Task p02-t21: (root) Replace the flaky atime assertion with a deterministic scope-read counter
+
+Source: root follow-up to the p02-t20 implementer concern. The p02-t17 test "reports a cwd-hinted run incomplete without scoping reads or widening" asserts on file access times, which macOS background services also update. It flaked in 13 of 24 runs under parallel load.
+
+**Files:** `lib/pipeline.ts`, `lib/types.ts` (an additive `diagnostics.scopeReads: number` in `SearchResult`), `lib/pipeline.test.ts`.
+
+**Behavior:** the pipeline counts `sessionInfo` reads performed during cwd scoping and reports them as `diagnostics.scopeReads`. The test asserts `scopeReads === 0` under an expired deadline instead of checking atime. This is an additive field under `session-search/v1`.
+
+**Test:** the assertion fails when the scoping-loop deadline guard is removed, and the test is stable under parallel load (run the file 6 at a time for several rounds).
+**Verify:** `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files.
+**Commit:** `test(p02-t21): assert scoping reads via diagnostics counter`
+
+---
+
 ## Phase 3: Skill packaging, distribution, CLI integration tests
 
 ### Task p03-t01: SKILL.md agent guidance and references
@@ -1078,11 +1092,11 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 **Summary:**
 
 - Phase 1: 16 tasks. Core library: types/shim, options/time, matcher/snippets, redaction, tool probe, plus 11 p01 review fixes (t06–t16).
-- Phase 2: 20 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 12 p02 review fixes (t08–t19) and 1 root follow-up (t20).
+- Phase 2: 21 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 12 p02 review fixes (t08–t19) and 2 root follow-ups (t20–t21).
 - Phase 3: 3 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests.
 - Phase 4: 3 tasks. Docs, stale-path fix, changelog plus premerge.
 
-**Total: 42 tasks**
+**Total: 43 tasks**
 
 ## References
 
