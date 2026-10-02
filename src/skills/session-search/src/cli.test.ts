@@ -376,6 +376,9 @@ describe('session-search CLI', () => {
 
     expect(help.status).toBe(0);
     expect(help.stdout).toContain('Usage:');
+    expect(help.stdout).toMatch(
+      /SESSION_SEARCH_PROBE_TIMEOUT_MS +tool-probe timeout in ms \(default 3000\)/,
+    );
     expect(badRegex.status).toBe(1);
     expect(badRegex.stderr).toContain('Invalid regex pattern "("');
     expect(badRegex.stderr).toContain('--literal');

@@ -73,6 +73,7 @@ estimate prints per-runtime file counts and bytes inside the window (and cwd sco
 Environment:
   SESSION_SEARCH_RG, SESSION_SEARCH_SQLITE3        explicit tool paths
   SESSION_SEARCH_NO_RG=1, SESSION_SEARCH_NO_SQLITE3=1  force the fallbacks
+  SESSION_SEARCH_PROBE_TIMEOUT_MS                  tool-probe timeout in ms (default 3000)
 
 Exit codes: 0 results · 2 no sessions matched · 3 needs confirmation (large scan) · 1 usage or hard error`;
 
