@@ -191,7 +191,7 @@ export function createClaudeFileClassifier(): RecordClassifier {
     const message = isObject(record.message) ? record.message : null;
     const content = Array.isArray(message?.content) ? message.content : [];
     const pairedCalls: JsonObject[] = [];
-    const answered = new Set<string>();
+    const answerBlocks: JsonObject[] = [];
     for (const block of content) {
       if (!isObject(block)) continue;
       const id = asString(block.id);
@@ -202,26 +202,76 @@ export function createClaudeFileClassifier(): RecordClassifier {
       const call = answerOf ? askCalls.get(answerOf) : undefined;
       if (block.type === 'tool_result' && answerOf && call) {
         pairedCalls.push(call);
-        answered.add(answerOf);
+        answerBlocks.push(block);
       }
     }
     if (pairedCalls.length === 0) {
       return classifyClaudeRecord(record, includeTools);
     }
     // Replay the question beside the answer record so the normalizer can
-    // correlate tool_use_id → AskUserQuestion; keep only the answer record.
+    // correlate tool_use_id → AskUserQuestion and settle the answer's role.
+    // The normalizer truncates answers for display, so the matched text is
+    // taken untruncated from the raw record instead.
     const question = {
       type: 'assistant',
       message: { role: 'assistant', content: pairedCalls },
     };
+    const entries = normalizeEntries(RUNTIME, [question, record]).filter(
+      (entry) => entry.recordIndex === 1,
+    );
+    const askEntries = entries.filter((entry) => entry.kind === 'ask_user');
     const units = unitsFromEntries(
-      normalizeEntries(RUNTIME, [question, record]).filter(
-        (entry) => entry.recordIndex === 1,
-      ),
+      entries.filter((entry) => entry.kind !== 'ask_user'),
       RUNTIME,
     );
+    const [askUnit] = unitsFromEntries(askEntries, RUNTIME);
+    const answered = new Set<string>();
+    if (askUnit) {
+      const seen = new Set<string>();
+      for (const block of answerBlocks) {
+        answered.add(asString(block.tool_use_id) ?? '');
+        const text = claudeAnswerText(record, block);
+        if (text.trim() === '' || seen.has(text)) continue;
+        seen.add(text);
+        units.push({ role: askUnit.role, text });
+      }
+    }
+    // Answered ask-user results are conversation only, never also tool text.
     return includeTools ? [...units, ...toolUnits(record, answered)] : units;
   };
+}
+
+/** Answer values from a Claude/Codex ask-user payload, at full length. */
+function askAnswerValues(value: unknown): string[] {
+  if (typeof value === 'string') return value.trim() === '' ? [] : [value];
+  if (Array.isArray(value)) return value.flatMap(askAnswerValues);
+  if (isObject(value)) return askAnswerValues(value.answers);
+  return [];
+}
+
+/** Untruncated text of one answered `AskUserQuestion` result. */
+function claudeAnswerText(record: JsonObject, block: JsonObject): string {
+  const result = isObject(record.toolUseResult) ? record.toolUseResult : null;
+  if (result && isObject(result.answers)) {
+    const annotations = isObject(result.annotations) ? result.annotations : {};
+    const lines = Object.entries(result.answers).flatMap(([prompt, value]) => {
+      const answers = askAnswerValues(value);
+      if (answers.length === 0) return [];
+      const annotation = annotations[prompt];
+      const note = isObject(annotation)
+        ? asString(annotation.notes)
+        : undefined;
+      return [`${prompt}: ${answers.join(', ')}${note ? `\n${note}` : ''}`];
+    });
+    if (lines.length > 0) return lines.join('\n');
+  }
+  if (typeof block.content === 'string') return block.content;
+  if (!Array.isArray(block.content)) return '';
+  return block.content
+    .filter(isObject)
+    .map((part) => asString(part.text) ?? '')
+    .filter((part) => part !== '')
+    .join('\n');
 }
 
 /**

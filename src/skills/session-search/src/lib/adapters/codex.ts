@@ -315,15 +315,66 @@ export function classifyCodexRecord(
   includeTools: boolean,
 ): TextUnit[] {
   const payload = isObject(record.payload) ? record.payload : null;
+  const isAskCall =
+    record.type === 'response_item' &&
+    payload?.type === 'function_call' &&
+    payload.name === ASK_USER_TOOL;
   // Messages, plus ask-user questions (human decision content, not tools).
   const conversational =
     record.type === 'response_item' &&
-    (payload?.type === 'message' ||
-      (payload?.type === 'function_call' && payload.name === ASK_USER_TOOL));
+    (payload?.type === 'message' || isAskCall);
   const units = conversational
     ? unitsFromEntries(normalizeEntries(RUNTIME, [record]), RUNTIME)
     : [];
-  return includeTools ? [...units, ...codexToolUnits(record)] : units;
+  // A recognized ask-user question is conversation only, never also tool text.
+  if (!includeTools || (isAskCall && units.length > 0)) return units;
+  return [...units, ...codexToolUnits(record)];
+}
+
+/** Answer values from an ask-user payload, at full length. */
+function askAnswerValues(value: unknown): string[] {
+  if (typeof value === 'string') return value.trim() === '' ? [] : [value];
+  if (Array.isArray(value)) return value.flatMap(askAnswerValues);
+  if (isObject(value)) return askAnswerValues(value.answers);
+  return [];
+}
+
+/** Untruncated text of a `request_user_input` answer, labeled by question. */
+function codexAnswerText(call: JsonObject, record: JsonObject): string {
+  const callPayload = isObject(call.payload) ? call.payload : {};
+  const payload = isObject(record.payload) ? record.payload : {};
+  const args =
+    typeof callPayload.arguments === 'string'
+      ? parseJsonObject(callPayload.arguments)
+      : isObject(callPayload.arguments)
+        ? callPayload.arguments
+        : null;
+  const labels = new Map<string, string>();
+  for (const question of Array.isArray(args?.questions) ? args.questions : []) {
+    if (!isObject(question)) continue;
+    const id = asString(question.id);
+    const label =
+      asString(question.header) ??
+      asString(question.question) ??
+      asString(question.prompt);
+    if (id && label) labels.set(id, label);
+  }
+  const output =
+    typeof payload.output === 'string'
+      ? parseJsonObject(payload.output)
+      : isObject(payload.output)
+        ? payload.output
+        : null;
+  if (output && isObject(output.answers)) {
+    const lines = Object.entries(output.answers).flatMap(([id, value]) => {
+      const answers = askAnswerValues(value);
+      return answers.length === 0
+        ? []
+        : [`${labels.get(id) ?? id}: ${answers.join(', ')}`];
+    });
+    if (lines.length > 0) return lines.join('\n');
+  }
+  return codexOutputText(payload.output);
 }
 
 /**
@@ -342,13 +393,19 @@ export function createCodexFileClassifier(): RecordClassifier {
       } else if (payload.type === 'function_call_output') {
         const call = askCalls.get(callId);
         if (call) {
-          const units = unitsFromEntries(
+          // The normalizer settles whether this is an answer and its role;
+          // the matched text is taken untruncated from the raw output.
+          const [answer] = unitsFromEntries(
             normalizeEntries(RUNTIME, [call, record]).filter(
               (entry) => entry.recordIndex === 1,
             ),
             RUNTIME,
           );
-          return includeTools ? [...units, ...codexToolUnits(record)] : units;
+          if (answer) {
+            const text = codexAnswerText(call, record);
+            // Answered ask-user records are conversation only.
+            return text.trim() === '' ? [] : [{ role: answer.role, text }];
+          }
         }
       }
     }

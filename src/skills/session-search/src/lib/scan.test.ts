@@ -332,6 +332,109 @@ describe('ask-user exchanges on the content tier', () => {
   });
 });
 
+describe('ask-user answers: untruncated, emitted once', () => {
+  const askCall = (e: Parameters<typeof claudeToolUse>[0]) =>
+    claudeToolUse(e, 'toolu_ask', 'AskUserQuestion', {
+      questions: [
+        {
+          question: 'Which animal pattern?',
+          header: 'Pattern',
+          options: [{ label: 'stripes' }, { label: 'spots' }],
+        },
+      ],
+    });
+
+  it('matches a Claude answer past the 500-character display limit', async () => {
+    const answer = `${'long free-text reasoning '.repeat(30)}okapi-late`;
+    expect(answer.indexOf('okapi-late')).toBeGreaterThan(600);
+    writeClaudeSession(temp.home, {
+      cwd: '/work/repo',
+      records: (e) => [
+        askCall(e),
+        {
+          ...claudeToolResult(
+            e,
+            'toolu_ask',
+            'User has answered your questions.',
+          ),
+          toolUseResult: {
+            questions: [
+              { question: 'Which animal pattern?', header: 'Pattern' },
+            ],
+            answers: { 'Which animal pattern?': answer },
+          },
+        },
+      ],
+    });
+    const file = await onlyFile();
+    const matcher = compileMatcher(['okapi-late'], { literal: true });
+
+    const content = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      matcher,
+      options(),
+    );
+    const deep = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      matcher,
+      options({ includeTools: true }),
+    );
+
+    expect(
+      content.hits.map((hit) => [hit.role, hit.tier, hit.userTyped]),
+    ).toEqual([['user', 'content', true]]);
+    expect(deep.hits.map((hit) => hit.role)).toEqual(['user']);
+  });
+
+  it('emits Codex ask-user questions and answers once on the deep tier', async () => {
+    writeCodexRollout(temp.home, {
+      id: CODEX_ID,
+      startedAtMs: NOW - DAY_MS,
+      records: [
+        codexSessionMeta({ id: CODEX_ID, cwd: '/work/repo' }),
+        codexFunctionCall(
+          'call_ask',
+          'request_user_input',
+          {
+            questions: [
+              {
+                id: 'q1',
+                header: 'Pattern',
+                question: 'Which animal pattern?',
+                options: [{ label: 'striped' }],
+              },
+            ],
+          },
+          1,
+        ),
+        codexToolOutput(
+          'function_call_output',
+          'call_ask',
+          JSON.stringify({ answers: { q1: { answers: ['okapi-stripes'] } } }),
+          2,
+        ),
+      ],
+    });
+    const file = await onlyFile();
+    const deep = (pattern: string) =>
+      scanFile(
+        file,
+        adapterFor(file.runtime),
+        compileMatcher([pattern], { literal: true }),
+        options({ includeTools: true }),
+      );
+
+    expect((await deep('okapi-stripes')).hits.map((hit) => hit.role)).toEqual([
+      'user',
+    ]);
+    expect(
+      (await deep('which animal pattern')).hits.map((hit) => hit.role),
+    ).toEqual(['assistant']);
+  });
+});
+
 describe('agent-authored Codex threads', () => {
   it.each([
     [{ subagent: 'review' }],
