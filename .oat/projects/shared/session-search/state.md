@@ -19,7 +19,7 @@ oat_phase_recovery_policy:
       used_attempts: 1
       pending_attempt: null
 oat_phase: implement
-oat_phase_status: in_progress
+oat_phase_status: pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 oat_dispatch_policy:
   mode: managed
@@ -88,9 +88,9 @@ oat_post_implement_sequence:
   post_approval_completed: []
   failure: null
 oat_implement_exit_gate:
-  status: pending
+  status: allowed
   resolution: configured
-  disposition: null
+  disposition: passed
   config_fingerprint: 'a43cbbb47e7ded76ad62bdcab5e1942f49b48288f5b17682279a78cc055924ab'
   resolved_command: "OAT_GATE_EXEC_TIMEOUT_MS=2400000 oat --json gate review --project \"$PROJECT_PATH\" --review-type code --review-scope final --exit-nonzero-on important \"Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings. Run every verification command in the foreground of your own turn: do not use background tasks, monitors, or waiters, and do not end your turn until the review artifact has been written and committed.\""
   resolved_description: "Semantic cross-family final implementation review before oat-project-implement exits."
@@ -113,17 +113,17 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T194727Z.md
   handoff: "Run oat-project-review-receive for .oat/projects/shared/session-search/reviews/final-review-2026-10-02T194727Z.md before treating this gate review as consumed."
-  receive_state: intent_persisted
+  receive_state: completed
   receive_correlation: {gate_run_id: 63e85fdb-dba6-4845-877c-08216e4dc3a8, scope: final, type: code, source_filename: final-review-2026-10-02T194727Z.md}
   receive_source_artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T194727Z.md
   receive_archived_artifact: .oat/projects/shared/session-search/reviews/archived/final-review-2026-10-02T194727Z.md
   receive_event_identity: 'final|code|final-review-2026-10-02T194727Z.md'
   receive_pre_head: 'a54f72861aac8452ba3fde98ddfddd9f969cd1c7'
-  receive_commit: null
+  receive_commit: '014c3612a0c3d2637621fbee019032047d232dcd'
   receive_eligible: true
-  receive_completed: false
+  receive_completed: true
   failure: null
-  updated_at: '2026-10-02T19:39:14Z'
+  updated_at: '2026-10-02T19:53:34Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: open # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: "https://github.com/tkstang/skills/pull/115" # null | string — tracked PR URL when a PR exists
