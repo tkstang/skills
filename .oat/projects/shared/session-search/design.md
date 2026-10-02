@@ -80,7 +80,9 @@ The skill sits beside the existing `session-*` skills. It ships standalone (`ski
 1. parse args → SearchOptions {patterns, since/until, cwdHints, runtimes, tiers,
    includeTools, allowLargeScan, limit, maxLineBytes, json}
 2. probe tools (rg, sqlite3)
-3. enumerate sessions per adapter (stat only, no reads): SessionFile
+3. enumerate sessions per adapter (stat only; Codex session_meta headers read
+   lazily, only for files that survive the time window, or skipped when
+   sqlite threads supply cwd/rollout_path): SessionFile
    {runtime, path, sessionId, parentSessionId?, isSubagent, archived, mtimeMs, size}
    → apply time window on mtime (cheap); keep the full list for widening
 4. scope pass 1 = sessions whose recorded/encoded cwd matches a --cwd hint
@@ -154,8 +156,16 @@ All adapters degrade gracefully. A missing root yields no sessions and adds a `s
   - **Skip lines longer than `maxLineBytes`** (default 64 KiB) before `JSON.parse`, and count them in diagnostics.
   - Parse the record, call `adapter.classifyRecord`, and match each text unit.
   - Stop a file after `maxHitsPerSession` units.
-- `classifyRecord` reuses the shared normalizers by calling `normalizeEntries(runtime, [record], { includeToolResults: includeTools, includeToolCalls: includeTools })` and mapping each entry to `{role: 'user'|'assistant'|'tool', text}`.
-- **Injected-context demotion:** user-role text that is clearly host-injected, such as a leading `<system-reminder>`, `<environment_context>`, `<user_instructions>`, or a `# AGENTS.md instructions` header, is reclassified as `context`. It is weighted like assistant text and never counted as user-typed.
+- **Classification is adapter-owned.** Each adapter's `classifyRecord` turns one raw record into role-tagged units, and a shared `classify.ts` maps roles:
+  - `kind` `tool_call`/`tool_result` → `tool`.
+  - `origin`/`displayRole` `automatic-control`, `runtime-notification`, or `runtime-diagnostic` → `context`.
+  - Otherwise the entry role.
+
+  Per runtime:
+  - **Claude Code** uses `normalizeEntries('claude-code', [record], …)` per record. It is safe because Claude records are self-contained.
+  - **Codex** uses `normalizeEntries` for message records. With `includeTools`, it also emits `tool` units directly from `function_call_output`/`custom_tool_call_output` output, `function_call` arguments, and `exec_command_end`, because the shared Codex normalizer drops tool output. Child rollouts skip inherited records (`ordinal < subagent_history_start_ordinal`).
+  - **Cursor** extracts text directly from the raw record and never calls `normalizeEntries`, because the shared Cursor normalizer only emits at `turn_ended` and returns nothing for a lone record.
+- **Injected-context demotion:** user-role text for which any of the repo's existing `HIDDEN_PAYLOAD_MATCHERS` returns true is reclassified as `context`. Those matchers come from `session-export-transcript/src/sanitize.ts` through a shim under a cross-skill `allowedSourceRoots` entry. A leading `<user_instructions>` is a local addition. Context is weighted like assistant text and never counted as user-typed.
 
 ### Pipeline
 
@@ -203,6 +213,7 @@ score = 40 * distinctPatternsMatched/patternCount
   - `Bearer <token>`
   - `password=…`/`token=…`-style pairs
   - long hex or base64 runs of 40 or more characters
+- The full text unit is redacted **before** snippet windowing, so window edges cannot leave unmasked secret fragments. The base64 rule excludes `/`-separated paths and requires a digit and mixed case.
 - Snippets keep ±80 characters around the first hit in a unit, collapse whitespace, cap at 240 characters, and allow at most 3 per session. The CLI never emits whole records.
 
 ## Data Models
@@ -290,7 +301,7 @@ node scripts/session-search.mjs estimate [--since …] [--runtime …] [--json]
 ```
 
 - **Output:** `--json` emits `SearchResult`. Without it, the CLI prints a compact table (rank, runtime, when, cwd, title/first prompt, best snippet, open hint).
-- **Exit codes:** `0` results found; `2` no sessions matched; `3` `needsConfirmation` set and the results are partial; `1` usage or hard error. These follow the repo convention: 2 = none.
+- **Exit codes:** `3` whenever `needsConfirmation` is set, regardless of result count. Otherwise `0` results found / `2` no sessions matched. `1` usage or hard error. An `incomplete` (deadline) run exits 0 or 2 by results. This follows the repo convention: 2 = none.
 - **Environment:**
   - `HOME` (all roots derive from it)
   - `SESSION_SEARCH_RG` and `SESSION_SEARCH_SQLITE3` (tool overrides)
@@ -371,7 +382,7 @@ Negative tests must fail if the feature is removed: the deep rung, widening, the
   - `src/**`
   - `references/remote-fallback.md`
   - `references/store-layouts.md` (a compact pointer to the session-schema docs plus history and index facts)
-- `src/distributions.ts`: an owner entry with `allowedSourceRoots: ['src/shared/transcript']`. Targets are standalone `skills/session-search` and plugin `session` / `search`.
+- `src/distributions.ts`: an owner entry with `allowedSourceRoots: ['src/shared/transcript', 'src/skills/session-export-transcript']`. Test helpers live in `src/helpers/`, which is exempt from the runtime closure and never bundled. Targets are standalone `skills/session-search` and plugin `session` / `search`.
 - Pinned test lists: `tests/release/versioning.test.ts`, `tests/repo/layout.test.ts`, `tests/repo/plugin-manifests.test.ts`, `marketplace-manifests.test.ts`, and the generated-output roots as needed.
 - Plugin metadata:
   - Session plugin description updated consistently across the three plugin manifests and the three marketplaces.
@@ -381,7 +392,7 @@ Negative tests must fail if the feature is removed: the deep rung, widening, the
   - `documentation/docs/user-guide/skills/session-search.md` plus `meta.json` and the index rows.
   - The session plugin page table.
   - `installation.md` mapping.
-  - `documentation/index.md`.
+  - `documentation/index.md`, regenerated with `oat docs generate-index` and never hand-edited.
   - `CHANGELOG.md` `[Unreleased] → Added`.
   - An architecture note linking `session-schemas/` with history and index facts (`history.jsonl`, `state_5.sqlite`, `session_index.jsonl`, `archived_sessions/`) in `session-schemas/index.md` or the provider pages.
 - Opportunistic fix: the stale Codex `session-<id>.jsonl` path in:

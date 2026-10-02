@@ -47,7 +47,7 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 
 - **p02 depends on p01.** The adapters, scanner, pipeline, and ranker import p01's options, matcher, redact, tools, and types.
 - **p03 depends on p02.** CLI integration tests execute the generated bundle, which needs the complete source and the distribution entry.
-- **p04 cannot run beside p03.** Both phases run `pnpm run build`, which rewrites shared generated roots (`skills/**`, `plugins/session/**`, and observer/export reference copies when the stale-path fix lands). Both also touch the session plugin manifests and marketplace metadata, so they would conflict in isolated worktrees.
+- **p04 cannot run beside p03.** Both phases run `pnpm run build`, which rewrites shared generated roots (`skills/**`, `plugins/session/**`, and observer/export reference copies when the stale-path fix lands). p04's docs and changelog also describe what p03 ships, so they would conflict or drift in isolated worktrees.
 
 ---
 
@@ -58,24 +58,25 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 **Files:**
 
 - Create: `src/skills/session-search/src/lib/runtimes.ts` (one-line shim: `export * from '../../../../shared/transcript/runtimes.js';`)
+- Create: `src/skills/session-search/src/lib/sanitize.ts`. A one-line shim re-exporting `HIDDEN_PAYLOAD_MATCHERS` from the export skill: `export { HIDDEN_PAYLOAD_MATCHERS } from '../../../session-export-transcript/src/sanitize.js';`. This reuses the repo's injected-payload table rather than duplicating it; p03-t02 adds the matching `allowedSourceRoots` entry, following the session-observer-collab precedent for cross-skill roots.
 - Create: `src/skills/session-search/src/lib/types.ts`. Shared types from `design.md` Data Models:
-  - `Runtime` (re-exported)
+  - `Runtime` (re-exported with `export type` because of `verbatimModuleSyntax`)
   - `SearchOptions`
   - `SessionFile`
   - `SessionInfo`
-  - `TextUnit`
+  - `TextUnit` (role `user | assistant | context | tool`)
   - `Hit`
   - `SessionHit`
   - `SearchResult` (with `schema: 'session-search/v1'`)
   - `SourceAdapter`
   - `AdapterContext`
   - `StoreRoots`
-- Create: `src/skills/session-search/src/lib/types.test.ts`. A compile-level test: a minimal `SearchResult` object literal type-checks, and `schema` is the literal `'session-search/v1'`.
 
-**Step 1: Write test (RED).** Write `types.test.ts` asserting a constant built from the types has the expected shape.
-**Step 2: Implement (GREEN).** Add the types and the shim.
-**Step 3: Format/Lint.** `pnpm exec oxfmt --write src/skills/session-search/src/lib/*.ts && pnpm exec oxlint src/skills/session-search/src/lib`
-**Step 4: Verify.** `pnpm run test:vitest src/skills/session-search/src/lib/types.test.ts && pnpm run type-check`. Expected: pass.
+This task has no runtime test: types-only code is verified by `type-check`, because hand-built fixture assertions are disallowed by `src/AGENTS.md`.
+
+**Step 1: Implement.** Add the types and the two shims.
+**Step 2: Format/Lint.** `pnpm exec oxfmt --write src/skills/session-search/src/lib/*.ts && pnpm exec oxlint src/skills/session-search/src/lib`
+**Step 3: Verify.** `pnpm run type-check`. Expected: pass.
 **Step 5: Commit.** `git add src/skills/session-search && git commit -m "feat(p01-t01): scaffold session-search types and transcript shim"`
 
 ---
@@ -135,7 +136,7 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 - Create: `src/skills/session-search/src/lib/redact.ts`
 - Create: `src/skills/session-search/src/lib/redact.test.ts`
 
-**Behavior:** `redact(text)` masks the following as `[REDACTED]`, leaving ordinary prose, paths, and UUIDs intact:
+**Behavior:** `redact(text)` masks the following as `[REDACTED]`, leaving ordinary prose, slash-separated paths, and UUIDs intact:
 
 - `sk-…`/`sk-ant-…` keys
 - `ghp_`/`gho_`/`ghs_`/`github_pat_…`
@@ -143,9 +144,20 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 - `AKIA[0-9A-Z]{16}`
 - `Bearer <token>`
 - `(password|passwd|secret|token|api[_-]?key)\s*[:=]\s*\S+` values
-- hex runs of 40 or more chars and base64 runs of 40 or more chars
+- hex runs of 40 or more chars
+- base64-like runs of 40 or more chars that contain no `/` path separators and include at least one digit and mixed case
 
-**Steps:** RED tests (one per shape, plus negatives: a git SHA of exactly 40 hex chars inside an obvious `commit` context is still masked, which is acceptable and documented; UUIDs and normal words are untouched) → GREEN → format/lint → verify `pnpm run test:vitest src/skills/session-search/src/lib/redact.test.ts` → commit `feat(p01-t04): add session-search snippet redaction`.
+Callers redact the **full text unit before snippet windowing**, so a secret cut at a window edge can never survive as an unmatched fragment. This contract is used by `rank.ts`.
+
+**Steps:**
+
+- RED tests:
+  - Positives, one per shape. A 40-hex git SHA is intentionally masked; document this in a test name.
+  - Negatives: UUIDs, normal words, and a long slash path such as `documentation/docs/engineering/architecture` stay untouched.
+- GREEN.
+- Format/lint.
+- Verify `pnpm run test:vitest src/skills/session-search/src/lib/redact.test.ts`.
+- Commit `feat(p01-t04): add session-search snippet redaction`.
 
 ---
 
@@ -186,19 +198,46 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 
 - Create: `src/skills/session-search/src/lib/adapters/claude-code.ts`
 - Create: `src/skills/session-search/src/lib/adapters/claude-code.test.ts`
-- Create: `src/skills/session-search/src/lib/test-helpers.ts`. A temp-HOME builder that writes synthetic stores for all three runtimes, including real-shaped Codex `rollout-<ts>-<uuid>.jsonl` with a `session_meta` header, and sets mtimes via `utimes`. It is shared by later tests.
+- Create: `src/skills/session-search/src/helpers/test-helpers.ts`. A temp-HOME builder that writes synthetic, **real-shaped** stores for all three runtimes and sets mtimes via `utimes`:
+  - Claude records with `cwd`, `sessionId`, `tool_result` blocks, `ai-title`/`custom-title`, and `subagents/agent-*.jsonl` plus a `subagents/workflows/…/journal.jsonl` decoy.
+  - Codex `rollout-<ts>-<uuid>.jsonl` with a `session_meta` header, `function_call_output`, and child files with inherited records.
+  - Cursor transcripts with `turn_ended` records and an open trailing turn.
+
+  `src/helpers/` is the build's runtime-closure exemption (`scripts/lib/packaging.ts`), so it is never bundled. It is shared by later tests.
+- Create: `src/skills/session-search/src/lib/classify.ts`. Shared role mapping for `DigestEntry` values:
+  - `kind` `tool_call`/`tool_result` → `tool`.
+  - `origin`/`displayRole` `automatic-control`, `runtime-notification`, or `runtime-diagnostic` → `context`.
+  - Otherwise the entry `role`.
+  - Then **injected-context demotion**: user text for which any `HIDDEN_PAYLOAD_MATCHERS` entry (via the `lib/sanitize.ts` shim) returns true, or that starts with `<user_instructions>`, becomes `context`.
 
 **Behavior (per `design.md` Source adapters):**
 
-- Enumerate the parent `~/.claude/projects/*/*.jsonl` files and the subagent `*/<sid>/subagents/**/*.jsonl` files (`isSubagent`, `parentSessionId=<sid>`) using stat only.
+- Enumerate using stat only:
+  - parent `~/.claude/projects/*/*.jsonl` files
+  - subagent `*/<sid>/subagents/**/agent-*.jsonl` files only (`isSubagent`, `parentSessionId=<sid>`). Workflow `journal.jsonl` files are excluded.
 - `historyHits` streams `~/.claude/history.jsonl` (`display`, `project`, `sessionId`, `timestamp`). A hit is user-typed, with tier `history`.
-- `metadataHits` reads `ai-title`/`custom-title` from candidate files via `readMetadataRecordsBounded` (bounded bytes).
+- `metadataHits` reads the **latest** title for candidate files:
+  - A bounded tail read (`readTailRecordsBounded`) preferring the last `custom-title` over the last `ai-title`.
+  - Falls back to a bounded prefix read (`readMetadataRecordsBounded`).
 - `sessionInfo` reads cwd, first prompt, and `startedAt` with a bounded read.
-- `classifyRecord` maps the record through `normalizeEntries('claude-code', [record], {includeToolCalls, includeToolResults})` to role-tagged `TextUnit`s.
-- Injected-context demotion: user text starting with `<system-reminder>`, `<environment_context>`, `<user_instructions>`, `<command-` or `# AGENTS.md instructions` becomes `context`.
+- `classifyRecord` maps the record through `normalizeEntries('claude-code', [record], {includeToolCalls, includeToolResults})` and then through `classify.ts`.
 - Open hint: `claude --resume <sessionId>` plus "run from <cwd>".
 
-**Steps:** RED tests (enumeration incl. subagents; history parse; title extraction; classifyRecord roles; tool text only with includeTools; injected demotion; missing root yields `absent`) → GREEN → format/lint → verify `pnpm run test:vitest src/skills/session-search/src/lib/adapters/claude-code.test.ts` → commit `feat(p02-t01): add session-search Claude Code adapter`.
+**Steps:**
+
+- RED tests:
+  - Enumeration includes `agent-*` subagents and excludes the workflow journal.
+  - History parsing.
+  - The latest title wins, and custom-title beats ai-title.
+  - classifyRecord roles.
+  - **A Claude `tool_result` containing the pattern is `tool`, never user-typed.**
+  - Tool text appears only with includeTools.
+  - Injected demotion uses the shared matchers.
+  - A missing root yields `absent`.
+- GREEN.
+- Format/lint.
+- Verify `pnpm run test:vitest src/skills/session-search/src/lib/adapters/claude-code.test.ts`.
+- Commit `feat(p02-t01): add session-search Claude Code adapter`.
 
 ---
 
@@ -211,8 +250,15 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 
 **Behavior:**
 
-- **Enumerate** `~/.codex/sessions/**/rollout-*.jsonl` and `~/.codex/archived_sessions/rollout-*.jsonl` (`archived: true`).
-- **Parent/child:** a bounded `session_meta` read determines this. When `payload.id !== payload.session_id`, the file is a child with `parentSessionId = payload.session_id`. The adapter caches the header per file.
+- **Enumerate** `~/.codex/sessions/**/rollout-*.jsonl` and `~/.codex/archived_sessions/rollout-*.jsonl` (`archived: true`) using stat only.
+- **Lazy headers:** read the `session_meta` header only for files that survive the time window (via `readMetadataRecordsBounded` with a `maxBytes` large enough for a `session_meta` line that carries `base_instructions`, e.g. 1 MiB, and `maxRecords` 2). When sqlite threads are available, prefer their `rollout_path`/`cwd` and skip the header read for cwd scoping.
+  - When `payload.id !== payload.session_id`, the file is a child with `parentSessionId = payload.session_id`.
+  - Record `subagent_history_start_ordinal` when present.
+  - Cache the header per file.
+- **Inherited records:** in child files, tiers 3 and 4 skip records whose `ordinal` is below `subagent_history_start_ordinal`. These are inherited parent history, and scanning them would duplicate parent hits.
+- **classifyRecord:**
+  - Message records (`response_item` message, `event_msg` user/agent messages) go through `normalizeEntries('codex', [record], …)` + `classify.ts`.
+  - With `includeTools`, the adapter **also** emits `tool` units directly from `response_item` `function_call_output`/`custom_tool_call_output` `payload.output`, from `function_call` arguments, and from `event_msg` `exec_command_end` output. The shared normalizer drops tool output, and this deep-rung case is the motivating incident.
 - **History:** `~/.codex/history.jsonl` `{session_id, ts(seconds), text}`, user-typed.
 - **Meta:**
   - `session_index.jsonl` `{id, thread_name, updated_at}` provides title hits.
@@ -228,6 +274,9 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 - RED tests:
   - Archived enumeration and labeling.
   - Child detection via `session_meta`.
+  - Headers are read only for in-window files.
+  - Inherited child records are skipped.
+  - A `function_call_output` phrase is matched only with includeTools.
   - History and session_index parsing.
   - The sqlite path using a **stub `sqlite3` script** that prints canned JSON for the PRAGMA and the SELECT (selected through `SESSION_SEARCH_SQLITE3`).
   - A stub missing `rollout_path` yields `degraded`.
@@ -251,10 +300,22 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 - Enumerate `~/.cursor/projects/*/agent-transcripts/<id>/<id>.jsonl` plus `subagents/`. Time is the mtime.
 - There is no history or meta tier: both return `[]`.
 - Cwd hint matching uses `encodeCwdVariants('cursor', cwd)` against the project dir slug.
-- `classifyRecord` uses `normalizeEntries('cursor', …)`.
+- `classifyRecord` extracts text **directly from the raw record** and does **not** call `normalizeEntries`. The shared Cursor normalizer only emits at `turn_ended` and returns nothing for a lone record.
+  - Read `role` and the `message.content` text blocks as user/assistant, then apply `classify.ts` demotion.
+  - With includeTools, emit `tool_use`/tool-result blocks as `tool`.
 - Open hint: the transcript path ("open in Cursor").
 
-**Steps:** RED (enumeration, slug match, classification) → GREEN → format/lint → verify `pnpm run test:vitest src/skills/session-search/src/lib/adapters/cursor.test.ts` → commit `feat(p02-t03): add session-search Cursor adapter`.
+**Steps:**
+
+- RED tests:
+  - Enumeration.
+  - Slug match.
+  - On a real-shaped transcript with `turn_ended` records and an **open trailing turn**, both user and assistant text match.
+  - Tool blocks match only with includeTools.
+- GREEN.
+- Format/lint.
+- Verify `pnpm run test:vitest src/skills/session-search/src/lib/adapters/cursor.test.ts`.
+- Commit `feat(p02-t03): add session-search Cursor adapter`.
 
 ---
 
@@ -303,7 +364,7 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
   - Groups hits by session and rolls subagent hits up to an existing parent (`via: 'subagent'`, half weight). Orphans are listed with `isSubagent: true`.
   - Scores with the `design.md` formula.
   - Ties break by `lastActivity` desc, then `runtime`, then `sessionId`.
-  - Attaches up to 3 redacted snippets (user > title > assistant > context > tool, then by tier order), and `matchedPatterns` and `matchedTiers`.
+  - Attaches up to 3 snippets (user > title > assistant > context > tool, then by tier order). Each snippet is built by **redacting the full text unit first, then windowing** (`redact` → `buildSnippet`). Also attaches `matchedPatterns` and `matchedTiers`.
   - Applies `limit` and assigns `rank`.
 
 **Steps:**
@@ -343,11 +404,12 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 
 **Steps:**
 
-- RED tests on temp-HOME corpora via `test-helpers.ts`:
+- RED tests on temp-HOME corpora via `src/helpers/test-helpers.ts`:
   - Cross-runtime target found and ranked first.
   - Time window excludes old sessions.
   - A cwd-hint miss widens.
-  - A tool-only phrase found only by deep; `deep: false` yields zero results.
+  - A tool-only phrase **in a Codex `function_call_output`** is found only by deep, and a Claude `tool_result` case is likewise found only by deep; `deep: false` yields zero results.
+  - Inherited Codex child records do not duplicate parent hits.
   - The large-scan guard with a tiny threshold sets `needsConfirmation` and still returns T1/T2 hits; `allowLargeScan` returns full results.
   - Archived Codex is found and labeled.
   - No stores: all sources `absent`.
@@ -374,8 +436,12 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
   - `--json` emits `SearchResult` (2-space JSON plus a newline).
   - Otherwise it prints a compact text table plus notes for `widened`, `needsConfirmation`, and degraded sources.
   - Errors are prefixed `[session-search]` on stderr.
-- **Exit codes:** 0 results, 2 none, 3 needsConfirmation, 1 usage or error.
-- **Bundling:** a realpath-safe main guard so it runs through symlinked installs (match the existing CLI entry guard pattern; see commit `666daccc`).
+- **Exit codes:**
+  - 3 whenever `needsConfirmation` is set, regardless of result count.
+  - Otherwise 0 with results, 2 with none.
+  - 1 for usage or hard errors.
+  - An `incomplete: true` run (deadline) still exits 0 or 2 by results. SKILL.md tells the agent to check `incomplete`.
+- **Bundling:** a realpath-safe main guard so it runs through symlinked installs: `if (process.argv[1] && isEntrypointPath(process.argv[1])) …`, mirroring `src/skills/consensus-review/src/review.ts`. `tests/tooling/entrypoint-symlink.test.ts` auto-discovers this guard and requires that importing with a non-file `argv[1]` does not run main.
 
 **Steps:**
 
@@ -417,14 +483,15 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 
 **Files:**
 
-- Create: `src/skills/session-search/build.json`. It lists `src/session-search.ts` and every `src/lib/**/*.ts` runtime file including `lib/runtimes.ts` (shape per `session-export-transcript/build.json`; no test files).
-- Modify: `src/distributions.ts`. Add an owner entry `session-search` with `source: 'src/skills/session-search'` and `allowedSourceRoots: ['src/shared/transcript']`. Targets:
+- Create: `src/skills/session-search/build.json`. It lists `src/session-search.ts` plus the runtime `src/lib/**/*.ts` modules, including the `lib/runtimes.ts` and `lib/sanitize.ts` shims (shape per `session-export-transcript/build.json`). It explicitly excludes `src/helpers/**`, `*.test.ts`, and type-only files.
+- Modify: `src/distributions.ts`. Add an owner entry `session-search` with `source: 'src/skills/session-search'` and `allowedSourceRoots: ['src/shared/transcript', 'src/skills/session-export-transcript']`. Targets:
   - standalone `skills/session-search`
   - plugin `session` / `search` → `plugins/session/skills/search`
 - Modify the pinned test lists so the new skill is expected:
   - `tests/release/versioning.test.ts` (skill file lists and the SKILL_FILES pin, generated list)
   - `tests/repo/layout.test.ts` (standaloneSkills, requiredDirectories)
-  - `tests/repo/plugin-manifests.test.ts` and `tests/repo/marketplace-manifests.test.ts` (session skills list now includes `search`; description)
+  - `tests/repo/plugin-manifests.test.ts`: the session `version: '0.3.6'` → `'0.4.0'`, the description, and `search` added to `skills`. `scripts/bump-version.ts` does not rewrite this pin.
+  - `tests/repo/marketplace-manifests.test.ts`: only the session skill membership if it is pinned there. It has no description pin.
   - `tests/tooling/generated-output-sync.test.ts` only if its roots are enumerated explicitly
 - Modify the session plugin description consistently to mention search, e.g. "Session messaging, retrospective, handoff, transcript export, session search, and destination-fork guidance for coding-agent conversations.". This covers:
   - `plugins/session/.claude-plugin/plugin.json`
@@ -441,7 +508,7 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 - `pnpm run build`.
 - `pnpm run build:check`.
 - Format/lint the authored JSON/TS files with the oxfmt/oxlint file-scoped commands (generated outputs excluded).
-- Verify `pnpm run validate && pnpm run test:vitest tests/repo tests/release tests/tooling`. Expected: pass.
+- Verify `pnpm run validate && pnpm run test:vitest tests/repo tests/release tests/tooling`, including `tests/tooling/entrypoint-symlink.test.ts` and `generated-output-sync.test.ts`. Expected: pass.
 - Commit `feat(p03-t02): distribute session-search standalone and in session plugin`. This includes the generated outputs produced by the build.
 
 ---
@@ -452,18 +519,18 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 
 - Create: `src/skills/session-search/src/cli.test.ts`
 
-**Behavior.** The test uses `CLI_PATH = new URL('../../../../skills/session-search/scripts/session-search.mjs', import.meta.url)` and `spawnSync('node', [CLI_PATH, …], { env: { HOME, STATE_DIR, …blank harness vars } })` with a temp HOME per test (from `test-helpers.ts`). Cases from `design.md` Integration Tests:
+**Behavior.** The test uses `CLI_PATH = fileURLToPath(new URL('../../../../skills/session-search/scripts/session-search.mjs', import.meta.url))` and `spawnSync(process.execPath, [CLI_PATH, …], { env: { ...process.env, HOME, STATE_DIR, …blank harness vars } })`, following export-transcript's `cli.test.ts`. Each test gets a temp HOME from `src/helpers/test-helpers.ts`. Cases from `design.md` Integration Tests:
 
 - cross-runtime ranked-first with valid `session-search/v1` JSON
 - `--since 24h`
 - cwd-hint widening
 - deep rung, and `--no-deep` gives exit 2
-- large-scan guard: exit 3, then `--allow-large-scan`
+- large-scan guard: exit 3, including a **zero-results-plus-needsConfirmation** case, then `--allow-large-scan`
 - no stores: exit 2
 - `estimate` output
 - text (non-JSON) output smoke
 - `--help` exit 0, and a bad regex / missing pattern exit 1
-- identical JSON results with `SESSION_SEARCH_NO_RG=1`
+- identical JSON results with `SESSION_SEARCH_NO_RG=1`. The non-NO_RG run asserts `tools.rg !== null`; use `it.skipIf` when `rg` is absent.
 
 **Steps:**
 
@@ -484,10 +551,18 @@ The plan is sequential (`oat_plan_parallel_groups: []`):
 - Create: `documentation/docs/user-guide/skills/session-search.md` (what it searches, the tiers, hints, the ladder, ChatGPT and multi-machine notes, privacy, exit codes, `session:search` / standalone naming, and that "search sessions" requests route to it)
 - Modify: `documentation/docs/user-guide/skills/meta.json` and `documentation/docs/user-guide/skills/index.md`
 - Modify: `documentation/docs/user-guide/plugins/session/index.md` (skill table) and its `meta.json` if pages are listed
-- Modify: `documentation/index.md` and `documentation/docs/user-guide/installation.md` (mapping table)
+- Modify: `documentation/docs/user-guide/installation.md` (mapping table)
+- Regenerate (never hand-edit or format): `documentation/index.md` via `cd documentation && oat docs generate-index --docs-dir docs --output index.md`
 - Modify: `documentation/docs/engineering/architecture/session-schemas/index.md`. Add a short "Discovery indexes" section: `~/.claude/history.jsonl`, `~/.codex/history.jsonl`, `session_index.jsonl`, `state_5.sqlite` threads, `archived_sessions/`, with field lists and a note that they are internal and may drift.
 
-**Steps:** write/edit → format (`pnpm exec oxfmt --write <those files>`) → verify `pnpm run test:vitest tests/repo` (docs presence and links) and `pnpm run validate` → commit `docs(p04-t01): document session-search skill and discovery indexes`.
+**Steps:**
+
+- Write and edit the files.
+- Regenerate the index.
+- Format only the authored pages and meta files (`pnpm exec oxfmt --write <authored files>`, excluding `documentation/index.md`).
+- Keep `session-schemas/meta.json` and the docs Contents map consistent.
+- Verify `pnpm run test:vitest tests/repo`, `pnpm run validate`, and the docs production build (`cd documentation && pnpm build`, which also runs prebuild generation and link checks).
+- Commit `docs(p04-t01): document session-search skill and discovery indexes`.
 
 ---
 
