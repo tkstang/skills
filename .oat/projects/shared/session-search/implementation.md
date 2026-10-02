@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p03-t04
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -35,10 +35,10 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 16    | 16/16     |
 | Phase 2 | complete    | 21    | 21/21     |
-| Phase 3 | in_progress | 5     | 3/5       |
+| Phase 3 | in_progress | 5     | 5/5       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 40/45 tasks completed
+**Total:** 42/45 tasks completed
 
 ---
 
@@ -249,13 +249,17 @@ Residual (Low, accepted): final-result per-session reads do not check the deadli
 
 ## Phase 3: Skill packaging, distribution, CLI integration tests
 
-**Status:** in_progress (t01–t03 done; root follow-ups t04–t05 queued before the p03 review)
+**Status:** in_progress (all 5 tasks done; root review pending)
 
 | Task | Status | Commit |
 | ---- | ------ | ------ |
 | p03-t01 | completed | 099ca291 |
 | p03-t02 | completed | c194c14c |
 | p03-t03 | completed | d3618da9 |
+| p03-t04 | completed | 044cf47f |
+| p03-t05 | completed | 7ff0c270 |
+
+Via `cont-session-search-p03-1`. After t04, the real-store check finds the motivating Codex session (`01a053ba…`) on the deep rung with `--include-tools` (root re-verified). 621 tests pass. design.md Codex classification is aligned by root.
 
 Verification (root re-run): `build:check` in sync; 617 tests pass across the skill, tests/repo, tests/release, and tests/tooling. The session plugin is at 0.4.0. Expected gate: `validate:skill-versions` fails until the p04-t03 CHANGELOG, so pushes are deferred until then.
 
@@ -328,6 +332,12 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 **p02 phase outcome:** pass. Blocking fix iterations: 1 (within retry limit 2), plus 3 non-blocking follow-up rounds. No phase gate is configured. No nested dispatches. The final review covers t16–t21.
 
+#### Dispatch record: session-search-p03-implementation-1
+
+- Target `oat-phase-implementer-claude-claude-opus-5-5-high`. Task class: default-implementation. Validated-only, then accepted. Outcome: DONE_WITH_CONCERNS (expected changelog gate). Range `4c00cc97..d3618da9`.
+- Continuation `cont-session-search-p03-1` (root follow-ups t04–t05): `a3488242..7ff0c270`, DONE_WITH_CONCERNS.
+- Dispatch stamp: `Dispatch: scope=p03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high`
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -342,7 +352,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 | p02-t01/t02 | plan.md | Files listed per task | Added `lib/jsonl.ts` (shared LF-only reader) and `lib/window.ts` (window overlap), mechanically derived in-phase helpers | Shared by multiple p02 modules | implementation | p03-t02 build.json lists both (plan updated) |
 | p02-t04 | plan.md | `rg -l -i --no-messages [-F] -e …` | Adds `--no-config -a` | A user rg config or binary detection would break the superset guarantee | implementation | none |
 | p02-t06 | design.md | Deep rung after zero results | Deep runs only when the content tier is selected; `--include-tools` labels the content scan `deep`; `tiersRun` lists only scans that actually ran | Clear tier semantics | implementation | Document in SKILL.md (p03-t01) |
-| p03 root verification | design.md / plan.md p02-t02 | Codex tool sources: function_call_output, custom_tool_call_output, function_call args, item_completed CommandExecution | Also item_completed McpToolCall (and other tool-like items) | The real store showed MCP results carry the motivating text | implementation (p03-t04) | design.md Codex classification to be aligned at p04 docs |
+| p03 root verification | design.md / plan.md p02-t02 | Codex tool sources: function_call_output, custom_tool_call_output, function_call args, item_completed CommandExecution | Also item_completed McpToolCall (and other tool-like items) | The real store showed MCP results carry the motivating text | implementation (p03-t04) | design.md aligned by root after t04 |
 | p01-t04 | design.md | Redaction shapes | Also covers `ghu_`/`ghr_`. Bearer is masked only when ≥16 chars, or ≥8 with a digit. Quoted values are masked including their quotes. | Fewer prose false positives; broader token coverage | implementation | Over-masking risk (`token: string`, long slug paths) to be watched in p02 ranking tests |
 
 ## Test Results
