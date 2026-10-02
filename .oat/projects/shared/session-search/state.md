@@ -77,9 +77,9 @@ oat_workflow_origin: native # native | imported
 #   failure: null
 #   updated_at: '2026-07-18T00:00:00Z'
 oat_implement_exit_gate:
-  status: stale
+  status: pending
   resolution: configured
-  disposition: passed
+  disposition: null
   config_fingerprint: 'a43cbbb47e7ded76ad62bdcab5e1942f49b48288f5b17682279a78cc055924ab'
   resolved_command: "OAT_GATE_EXEC_TIMEOUT_MS=2400000 oat --json gate review --project \"$PROJECT_PATH\" --review-type code --review-scope final --exit-nonzero-on important \"Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings. Run every verification command in the foreground of your own turn: do not use background tasks, monitors, or waiters, and do not end your turn until the review artifact has been written and committed.\""
   resolved_description: "Semantic cross-family final implementation review before oat-project-implement exits."
@@ -87,22 +87,22 @@ oat_implement_exit_gate:
   on_failure: block
   max_attempts: 2
   attempts_completed: 0
-  reviewed_head: '724783c80ba743c8a4b7c26b2961cba3a6ae5189'
+  reviewed_head: '76e1b108abf51192af2d2f99d1dab3c7c3a70d50'
   implementation_base_ref: origin/main
-  implementation_fingerprint: 'sha256:effective-delta-v2:3e45191a52facc2ec76fb5ce9a76005e9b6df906c9faf5b843a6593f76d07e5c'
-  freshness_head: '724783c80ba743c8a4b7c26b2961cba3a6ae5189'
-  freshness_fingerprint: 'sha256:effective-delta-v2:3e45191a52facc2ec76fb5ce9a76005e9b6df906c9faf5b843a6593f76d07e5c'
+  implementation_fingerprint: 'sha256:effective-delta-v2:bc56701335df222b6ae9a0c02d15dc058ddd0598da40d87e47441f53f1f5b7ca'
+  freshness_head: '76e1b108abf51192af2d2f99d1dab3c7c3a70d50'
+  freshness_fingerprint: 'sha256:effective-delta-v2:bc56701335df222b6ae9a0c02d15dc058ddd0598da40d87e47441f53f1f5b7ca'
   waivers: []
-  launch_state: result_persisted
-  launch_attempt_id: impl-gate-fc42bc0a38ac
-  launch_started_at: '2026-10-02T11:47:17Z'
-  launch_result_receipt: .oat/projects/shared/session-search/gate-receipts/impl-gate-fc42bc0a38ac.json
+  launch_state: intent_persisted
+  launch_attempt_id: impl-gate-70b256c8a3cc
+  launch_started_at: '2026-10-02T17:28:29Z'
+  launch_result_receipt: .oat/projects/shared/session-search/gate-receipts/impl-gate-70b256c8a3cc.json
   gate_run_marker: null
   gate_run_id: null
-  envelope_status: ok
+  envelope_status: null
   artifact: null
   handoff: null
-  receive_state: completed
+  receive_state: not_started
   receive_correlation: null
   receive_source_artifact: null
   receive_archived_artifact: null
@@ -112,7 +112,7 @@ oat_implement_exit_gate:
   receive_eligible: false
   receive_completed: false
   failure: null
-  updated_at: '2026-10-02T12:10:49Z'
+  updated_at: '2026-10-02T17:28:29Z'
 oat_docs_updated: null # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
