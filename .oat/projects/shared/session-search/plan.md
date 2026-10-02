@@ -144,7 +144,17 @@ This task has no runtime test: types-only code is verified by `type-check`, beca
 - `xox[abprs]-…`
 - `AKIA[0-9A-Z]{16}`
 - `Bearer <token>`
-- case-insensitive key-value secrets whose key contains a credential word, allowing identifier prefixes and suffixes: `/\b[\w-]*(password|passwd|secret|token|api[_-]?key|access[_-]?key)[\w-]*\s*[:=]\s*\S+/i` (e.g. `API_KEY=`, `AWS_SECRET_ACCESS_KEY=`, `GITHUB_TOKEN_RO=`)
+- case-insensitive key-value secrets whose key contains a credential word, allowing identifier prefixes and suffixes, **in plain, JSON-quoted, and JSON-escaped forms**:
+  - The key may be wrapped in `"`, `'`, or an escaped `\"` (as in raw serialized records).
+  - The separator is `:` or `=` with optional surrounding whitespace.
+  - The value is masked **completely**:
+    - a full double-quoted string, honoring escapes and spaces, e.g. `"pass word"`
+    - a full escaped-quoted string (`\"…\"`)
+    - a single-quoted string
+    - otherwise the `\S+` run up to a delimiter (`,`, `}`, `&`)
+
+  The credential words are `password|passwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret|private[_-]?key`. Examples: `API_KEY=…`, `AWS_SECRET_ACCESS_KEY=…`, `{"password":"x"}`, `{"API_KEY":"x y"}`, `{\"token\":\"x\"}`.
+- **Representation boundary:** every emitted string (snippet, title, firstPrompt) is redacted from the full text unit before windowing. On the deep raw fallback, the full raw line is redacted before the window is cut, so escaped forms are covered.
 - hex runs of 40 or more chars
 - base64-like runs `[A-Za-z0-9+/_-]{40,}={0,2}` that include at least one digit and mixed case, **except** path-like runs whose `/`-split segments are all lowercase word-like (so `documentation/docs/engineering/architecture` survives while AWS-style secrets containing `/`/`+` are masked)
 
@@ -153,7 +163,13 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 **Steps:**
 
 - RED tests:
-  - Positives, one per shape, including uppercase `API_KEY=…`, a prefixed `AWS_SECRET_ACCESS_KEY=…`, and a 40-char AWS-style secret containing `/` and `+`. A 40-hex git SHA is intentionally masked; document this in a test name.
+  - Positives, one per shape, including:
+    - uppercase `API_KEY=…`
+    - a prefixed `AWS_SECRET_ACCESS_KEY=…`
+    - a 40-char AWS-style secret containing `/` and `+`
+    - **short JSON credentials** `{"password":"synthetic-only"}` and `{"API_KEY":"synthetic-only"}`
+    - a quoted value with spaces, masked entirely
+    - an **escaped raw-record** credential `{\"token\":\"synthetic-only\"}` placed near a snippet edge (asserted through `redact` → `buildSnippet`) A 40-hex git SHA is intentionally masked; document this in a test name.
   - Negatives: UUIDs, normal words, and a long slash path such as `documentation/docs/engineering/architecture` stay untouched.
 - GREEN.
 - Format/lint.
@@ -222,7 +238,10 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
   - A bounded tail read (`readTailRecordsBounded`) preferring the last `custom-title` over the last `ai-title`.
   - Falls back to a bounded prefix read (`readMetadataRecordsBounded`).
 - `sessionInfo` reads cwd, first prompt, and `startedAt` with a bounded read.
-- `classifyRecord` maps the record through `normalizeEntries('claude-code', [record], {includeToolCalls, includeToolResults})` and then through `classify.ts`.
+- `classifyRecord`:
+  - Ordinary messages and provenance go through `normalizeEntries('claude-code', [record], …)` + `classify.ts`. Tools are disabled there.
+  - With `includeTools`, the adapter **extracts `tool_result` content (string or array `.text` blocks) and `tool_use` input directly from the raw record at full length**, labeled `tool`. The shared normalizer truncates tool results to 500 chars and inputs to 200, which would hide phrases further in.
+  - Redaction and windowing happen only when building output.
 - Open hint: `claude --resume <sessionId>` plus "run from <cwd>".
 
 **Steps:**
@@ -233,6 +252,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
   - The latest title wins, and custom-title beats ai-title.
   - classifyRecord roles.
   - **A Claude `tool_result` containing the pattern is `tool`, never user-typed.**
+  - A Claude `tool_result` whose only target phrase sits **past character 600** (line below `maxLineBytes`) is found with includeTools and not without.
   - Tool text appears only with includeTools.
   - Injected demotion uses the shared matchers.
   - A missing root yields `absent`.
@@ -340,15 +360,14 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 
 - **Prefilter (must be a provable superset of the Node scan):** `prefilterWithRg(rgPath, patterns, files, {literal})`
   - Runs only when **every** pattern is prefilter-safe. A pattern qualifies when it contains only:
-    - literal ASCII text without quotes or backslashes
+    - literal ASCII text without quotes, backslashes, or control characters
     - `.*` and `.+`
     - `|` and groups
-    - non-negated character classes
 
     It is rejected when it contains:
     - any backslash (escapes, `\s`, `\n`, …)
     - a `.` not immediately followed by `*` or `+`
-    - a negated class `[^`
+    - **any character class `[…]`**, negated or not. A range like `[ -~]` can match decoded `"`/`\`, whose raw JSON form is two bytes.
     - lookaround or backreferences
     - non-ASCII characters
 
@@ -384,6 +403,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
   - **Negative:** an oversize Codex `world_state` line (AGENTS.md text) containing the phrase produces no deep hit.
   - An oversize inherited child line is skipped.
   - `foo.bar` against text containing `foo"bar` gives the same hits with and without rg, because the prefilter is skipped.
+  - `foo[ -~]bar` against decoded `foo"bar` and `foo\bar` gives the same hits with and without rg, because the prefilter is skipped.
 - GREEN.
 - Format/lint.
 - Verify `pnpm run test:vitest src/skills/session-search/src/lib/scan.test.ts`.
@@ -438,7 +458,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 1. Probe tools.
 2. Enumerate sessions per selected runtime and apply the time window (activity interval overlap via mtime; meta `created_at` when known).
 3. Pass 1 scoped to cwd hints (equal or descendant after normalization; Cursor by slug).
-4. Run T1, then T2, then T3 over the candidates, with the large-scan guard measured after window and scope narrowing. Over the threshold without `allowLargeScan`, restrict T3 to sessions hit in T1/T2 and set `needsConfirmation`.
+4. Run T1, then T2, then T3 over the candidates, with the large-scan guard measured after window and scope narrowing. Over the threshold without `allowLargeScan`, restrict T3 to sessions hit in T1/T2 and set `needsConfirmation`. Then **recompute the restricted set's bytes**: if it still exceeds the threshold, skip the content and deep scans entirely and return the cheap-tier results plus `needsConfirmation`.
 5. Zero sessions with a cwd scope: run unscoped and set `widened: true`.
 6. Still zero and `deep` enabled: T4 (`includeTools`) under the same guard.
 7. Rank and assemble `SearchResult`, with `host` (os.hostname/platform), `tools`, `tiersRun`, `sources`, and `diagnostics`. An optional `deadlineMs` yields partial results with `incomplete: true`.
@@ -452,6 +472,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
   - A tool-only phrase **in a Codex `function_call_output`** is found only by deep, and a Claude `tool_result` case is likewise found only by deep; `deep: false` yields zero results.
   - Inherited Codex child records do not duplicate parent hits.
   - The large-scan guard with a tiny threshold sets `needsConfirmation` and still returns T1/T2 hits; `allowLargeScan` returns full results.
+  - When the T1/T2-hit files alone exceed the threshold, content and deep scanning do **not** run (diagnostics `filesScanned` is 0) until `allowLargeScan` is set.
   - Archived Codex is found and labeled.
   - No stores: all sources `absent`.
   - Each negative test fails if its feature is removed.

@@ -150,7 +150,7 @@ All adapters degrade gracefully. A missing root yields no sessions and adds a `s
 
 **Responsibilities:**
 
-- **Optional prefilter:** run `rg -l -i --no-messages -e <p1> -e <p2> … -- <files…>`, chunked by argument length. It narrows the candidate files only and must be a provable superset of the Node scan, so it runs only when every pattern is prefilter-safe. Safe patterns are literal ASCII without quotes or backslashes, plus `.*`/`.+`, `|`, groups, and non-negated classes. Backslashes, a bare `.` or `.?`/`.{n}` wildcard, `[^`, lookaround, and non-ASCII are all rejected. Otherwise, or on an rg error, every candidate is scanned in Node. Patterns are passed through `-e` (never through a shell), with `--fixed-strings` when `--literal` is set.
+- **Optional prefilter:** run `rg -l -i --no-messages -e <p1> -e <p2> … -- <files…>`, chunked by argument length. It narrows the candidate files only and must be a provable superset of the Node scan, so it runs only when every pattern is prefilter-safe. Safe patterns are literal ASCII without quotes, backslashes, or control characters, plus `.*`/`.+`, `|`, and groups. Backslashes, any character class, a bare `.` or `.?`/`.{n}` wildcard, lookaround, and non-ASCII are all rejected. Otherwise, or on an rg error, every candidate is scanned in Node. Patterns are passed through `-e` (never through a shell), with `--fixed-strings` when `--literal` is set.
 - **Node verification:**
   - Stream each surviving file with a line reader that splits on LF only.
   - **Skip lines longer than `maxLineBytes`** (default 64 KiB) before `JSON.parse`, and count them in diagnostics.
@@ -167,6 +167,7 @@ All adapters degrade gracefully. A missing root yields no sessions and adds a `s
   - **Codex** uses `normalizeEntries` for message records. With `includeTools`, it also emits `tool` units directly from `function_call_output`/`custom_tool_call_output` output, `function_call` arguments, and `exec_command_end`, because the shared Codex normalizer drops tool output. Child rollouts skip inherited records (`ordinal < subagent_history_start_ordinal`).
   - **Cursor** extracts text directly from the raw record and never calls `normalizeEntries`, because the shared Cursor normalizer only emits at `turn_ended` and returns nothing for a lone record.
 - **Injected-context demotion:** user-role text for which any of the repo's existing `HIDDEN_PAYLOAD_MATCHERS` returns true is reclassified as `context`. Those matchers come from `session-export-transcript/src/sanitize.ts` through a shim under a cross-skill `allowedSourceRoots` entry. A leading `<user_instructions>` is a local addition. Context is weighted like assistant text and never counted as user-typed.
+- **Claude tool text** is extracted directly from raw `tool_result`/`tool_use` blocks at full length when `includeTools` is set, because the shared normalizer truncates tool text (500/200 chars).
 
 ### Pipeline
 
@@ -178,7 +179,7 @@ All adapters degrade gracefully. A missing root yields no sessions and adds a `s
 - **Cwd-first widening:** pass 1 is restricted to sessions whose cwd matches a hint. A match means equal to the hint or a descendant of it, compared after path normalization; Cursor compares encoded slugs. Git worktree expansion is out of scope for v1. If pass 1 finds no sessions, pass 2 runs unscoped and the result reports `widened: true`.
 - **Large-scan guard:**
   - Before tier 3, sum the bytes of the candidate files.
-  - The sum is measured after the window and scope narrowing. If it exceeds `largeScanBytes` (default 2 GiB, flag `--large-scan-bytes`) and `--allow-large-scan` is unset, restrict tier 3 to sessions already hit in tiers 1–2 and set `needsConfirmation`.
+  - The sum is measured after the window and scope narrowing. If it exceeds `largeScanBytes` (default 2 GiB, flag `--large-scan-bytes`) and `--allow-large-scan` is unset, restrict tier 3 to sessions already hit in tiers 1–2 and set `needsConfirmation`. The restricted set's bytes are then recomputed. If they still exceed the threshold, the content and deep tiers are skipped and only cheap-tier results are returned with `needsConfirmation`.
   - The agent asks the user and re-runs with `--allow-large-scan`.
 - **Deep rung:** when everything above yields 0 sessions and `--no-deep` is unset, run tier 4 (tool output included) under the same guard.
 - **Deadline:** an optional `--deadline-ms` (default none). When it is reached, the CLI returns partial results with `incomplete: true`.
@@ -209,7 +210,7 @@ score = 40 * distinctPatternsMatched/patternCount
 
 **Responsibilities:**
 
-- Mask credential-shaped substrings in snippets and titles:
+- Mask credential-shaped substrings in snippets and titles, including JSON-quoted and JSON-escaped `"key":"value"` forms with the full quoted value masked:
   - `sk-…`, `ghp_`/`gho_`/`github_pat_…`, `xox[abp]-…`, `AKIA…`
   - `Bearer <token>`
   - `password=…`/`token=…`-style pairs
