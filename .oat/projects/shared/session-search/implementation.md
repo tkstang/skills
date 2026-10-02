@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: null
+oat_current_task_id: p05-t08
 oat_generated: false
 ---
 
@@ -37,9 +37,9 @@ oat_generated: false
 | Phase 2 | complete    | 21    | 21/21     |
 | Phase 3 | complete    | 10    | 10/10     |
 | Phase 4 | complete    | 7     | 7/7       |
-| Phase 5 | complete    | 7     | 7/7       |
+| Phase 5 | in_progress | 8     | 7/8       |
 
-**Total:** 61/61 tasks completed
+**Total:** 61/62 tasks completed
 
 ---
 
@@ -397,6 +397,24 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 - Low 3 (stale implementation.md line 190 and design.md data-flow step 10): **aligned by root**.
 
 **Deferred Mediums:** none (the final deferred-Medium ledger is empty).
+
+---
+
+### Review Received: implementation exit gate (gate run c5a7745f, codex-6-sol-xhigh, different-family)
+
+**Date:** 2026-10-02
+**Review artifact:** reviews/archived/final-review-2026-10-02T120208Z.md (envelope `ok`, receive-eligible, non-blocking; reviewed head `bc7aea7b`)
+
+**Findings:** Critical 0, High 0, Medium 1, Low 3. The gate passed at its `important` threshold. Receive ran in **judgment-sweep** mode.
+
+**Dispositions:**
+
+- **M1 (rg prefilter vs JSON escapes): address now** as fix task **p05-t08**. Root first judged this theoretical, then measured real stores and found HTML-safe `\u003c/\u003e/\u0026/\u0027` escapes in 77 files and `\/` in about 1,340. So it is a real silent-miss risk for patterns containing `/<>&'`. The fix changes the implementation, so this gate generation is marked **stale** after the fix. A narrowed final re-review and a new gate generation follow.
+- **L1 (custom title in the prefix loses to a generated tail title): deferred.** It needs a 600K-char separation between titles and only affects title-tier ranking (content and history tiers still find the session). It is a follow-up.
+- **L2 (metadata-only Codex orphans lose archived/child/title facts): deferred.** It only applies when a rollout file was pruned but sqlite still has the thread. The session is still found, only unlabeled. It is a follow-up.
+- **L3 (remote history fallback excerpt can drop the match and session id): deferred.** It only affects the opt-in no-install remote fallback; the primary remote path runs the CLI. It is a follow-up.
+
+**Follow-ups (post-PR):** gate L1–L3, listed in the PR description.
 
 ---
 

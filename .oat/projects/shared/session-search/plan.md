@@ -1312,6 +1312,27 @@ Source: reviews/archived/final-review-2026-10-02T114035Z.md, Low 2.
 
 ---
 
+### Task p05-t08: (gate review) Restrict the rg prefilter to never-escaped characters
+
+Source: reviews/archived/final-review-2026-10-02T120208Z.md, Medium M1 (implementation exit gate, cross-family). Real stores contain JSON escapes of HTML-sensitive characters (`\u003c`, `\u003e`, `\u0026`, `\u0027` in 77 local files) and escaped slashes (`\/` in about 1,340 local files). A safe-looking pattern containing `/`, `<`, `>`, `&`, or `'` therefore misses in raw-byte `rg` while Node matches the decoded text, so the prefilter is not a superset.
+
+**Files:** `lib/scan.ts`, `lib/scan.test.ts`, `lib/pipeline.test.ts` (or `src/cli.test.ts`).
+
+**Behavior:** `isPrefilterSafe` allows only ASCII letters, digits, space, `-`, and `_`, plus the constructs `.*`, `.+`, `|`, and groups. Every other character makes the pattern prefilter-unsafe, so the file set is scanned in Node. Document the invariant: no JSON writer used by these stores escapes those characters. Update the scan module comment and design.md's prefilter sentence. Root aligns design.md.
+
+**Test:** the accelerated/fallback parity test gains:
+
+- a decoded `src/foo` stored as `src\/foo`
+- `a<b` stored as `a\u003cb`
+- `it's` stored as `it\u0027s`
+- a cheap-tier competing hit, so the automatic deep retry cannot hide the defect
+
+With and without rg, results must be identical. The tests must fail before the fix.
+**Verify:** `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint; `pnpm run build` and `pnpm run build:check`.
+**Commit:** `fix(p05-t08): restrict rg prefilter to never-escaped characters`
+
+---
+
 ## Reviews
 
 | Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target       |
@@ -1328,7 +1349,7 @@ Source: reviews/archived/final-review-2026-10-02T114035Z.md, Low 2.
 | plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -                                        | auto       | -                 |
 | plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -                                        | gate       | codex-6-sol-xhigh |
 | plan  | artifact | passed          | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T055258Z.md | -                                        | gate       | codex-6-sol-xhigh |
-| final | code     | received        | 2026-10-02 | reviews/final-review-2026-10-02T120208Z.md                  | bc7aea7bed64a51938e51a4f241a5bff8584806f | gate       | codex-6-sol-xhigh |
+| final | code | fixes_added | 2026-10-02 | reviews/archived/final-review-2026-10-02T120208Z.md | bc7aea7bed64a51938e51a4f241a5bff8584806f | gate | codex-6-sol-xhigh |
 
 For code-review events, `Reviewed Head` is the full 40-character SHA at the
 head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
@@ -1352,9 +1373,9 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 - Phase 2: 21 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 12 p02 review fixes (t08–t19) and 2 root follow-ups (t20–t21).
 - Phase 3: 10 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests. Includes 2 root follow-ups (t04 Codex MCP results, t05 ladder guidance) and 5 p03 review fixes (t06–t10).
 - Phase 4: 7 tasks. Docs, stale-path fix, changelog plus premerge. Includes 4 p04 review fixes (t04–t07).
-- Phase 5: 7 tasks. Final-review fixes (deep raw-fallback scoping, token families, bounded hit memory, ask-user unit split, help text).
+- Phase 5: 8 tasks. Final-review fixes (deep raw-fallback scoping, token families, bounded hit memory, ask-user unit split, help text).
 
-**Total: 61 tasks**
+**Total: 62 tasks**
 
 ## References
 
