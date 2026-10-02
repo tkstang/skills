@@ -46,6 +46,10 @@ PR #99 implements and has accepted the six selected session-evidence tickets on 
 
 Branch versions are `session-observer` 1.0.81, `session-observer-collab` 1.0.69, `session-export-transcript` 2.0.34, `session-retro` 1.0.2, `session-fork-to-destination` 0.2.48 and `consensus-review` 0.1.17; Session remains manifest 0.3.2. They remain branch state until PR #99 merges. Closing the six records means their acceptance criteria are satisfied in PR #99; it does not imply merge, release, installation, or live-provider acceptance.
 
+### Implemented on `feat/session-search`, awaiting PR
+
+The `session-search` project (2026-10-02) adds a read-only skill that finds a past Claude Code, Codex, or Cursor session on the local machine from agent-expanded patterns. It ships standalone as `session-search` 0.1.0 and as Session plugin member `search` (manifest 0.4.0). A bundled, dependency-free CLI searches history, metadata, and content tiers cheapest-first with a deep tool-output rung, cwd-first auto-widening, a large-scan guard (exit 3), and ranked, redacted results; remote search over SSH is opt-in. The branch also corrects the Codex rollout path in four session skills' docs (`session-export-transcript` 2.0.39, `session-observer` 1.0.88, `session-observer-collab` 1.0.76, `session-fork-to-destination` 0.2.56). The no-index design is [DR-261002-stateless-tiered-session](../reference/decisions/DR-261002-stateless-tiered-session.md); deferred Low findings are [BL-261002-resolve-deferred-session](backlog/items/BL-261002-resolve-deferred-session.md). Usage: [Session Search guide](../../../documentation/docs/user-guide/skills/session-search.md). This remains branch state until its PR merges.
+
 ### Documentation and distribution posture
 
 - PR #100 archived **BL-260920-re-verify-install-matrix — Re-verify Install matrix Cursor claims against current cursor-agent** after checking the named Cursor documentation claims. It did not complete the separate six-cell standalone installer acceptance ticket.
