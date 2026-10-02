@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p01-t14
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -33,18 +33,18 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | 16    | 13/16     |
+| Phase 1 | complete    | 16    | 16/16     |
 | Phase 2 | pending     | 7     | 0/7       |
 | Phase 3 | pending     | 3     | 0/3       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 13/29 tasks completed
+**Total:** 16/29 tasks completed
 
 ---
 
 ## Phase 1: Core library (options, matching, redaction, tool probe)
 
-**Status:** in_progress (re-review passed 0C/0H; review-fix tasks p01-t14..t16 queued)
+**Status:** complete. Root review cycle 1 passed (0C/0H). Re-review cycle 2 passed (0C/0H). All 11 review-fix tasks are done; t14–t16 are covered by the final review.
 **Started:** 2026-10-02
 
 ### Phase Summary
@@ -93,6 +93,16 @@ The first credential regex was quadratic: 4.2 s on a 64 KiB line. It was rewritt
 
 **Status:** completed
 **Commit:** d2fdc0be
+
+---
+
+### Review-fix tasks p01-t14..p01-t16
+
+**Status:** completed via `cont-session-search-p01-fix-2`, range `15290d4d..338bd1e5`. Commits: t14 dbb239f6, t15 3afc6505, t16 338bd1e5. Tests: 129 pass, and type-check passes (root re-verified).
+
+- The identifier exemptions are tightened. A seeded statistical test (seed 0x5e55, 20k samples) gives 0 exemptions; the measured residual is about 0.06 per 10k.
+- URL passwords run to the last `@` (scan capped at 256 chars). Token-only userinfo and `Authorization` headers are masked.
+- `snippetFor(text, matcher, preHit?)` skips matches inside `[REDACTED]` markers and anchors on the marker nearest the original hit.
 
 ---
 
@@ -172,6 +182,27 @@ Behavior notes:
 - Dispatch policy: high; selected=claude-opus-5-5/high; cap=claude-opus-5-5/high (claude, enforced — native variant oat-phase-implementer-claude-claude-opus-5-5-high)
 - Range: `70bff3ac..d2fdc0be` (5 task commits). Recovery attempts: 0/10.
 
+#### Dispatch record: session-search-p01-review-1
+
+- Root phase review, target `oat-reviewer-claude-claude-opus-5-5-high` (review-target, native-catalog), validated-only, then accepted.
+- Outcome: 0C/0H/3M/5L, so the phase passes. Artifact: `reviews/archived/p01-review-2026-10-02T061433Z.md`. Reconnaissance: not-attempted.
+- Dispatch stamp: `Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high`
+
+#### Continuation cont-session-search-p01-fix-1 (of session-search-p01-implementation-1)
+
+- Same handle, fix mode, tasks p01-t06..t13, range `d1f6f0ea..e4ae386d`. Outcome: DONE.
+
+#### Dispatch record: session-search-p01-review-2
+
+- Narrowed re-review `d1f6f0ea..e4ae386d`, same target. Validated-only, then accepted.
+- Outcome: 0C/0H/2M/3L, so it passes. Artifact: `reviews/archived/p01-review-2026-10-02T062929Z.md`.
+
+#### Continuation cont-session-search-p01-fix-2 (of session-search-p01-implementation-1)
+
+- Same handle, fix mode, tasks p01-t14..t16, range `15290d4d..338bd1e5`. Outcome: DONE.
+
+**p01 phase outcome:** pass. Fix iterations: 2. No phase gate is configured. No optional nested dispatches. Outstanding: none (t14–t16 are covered by the final review).
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -189,7 +220,7 @@ Behavior notes:
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | 110       | 110    | 0      | -        |
+| 1     | 129       | 129    | 0      | -        |
 
 ## Final Summary (for PR/docs)
 
