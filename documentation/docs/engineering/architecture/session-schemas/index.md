@@ -109,13 +109,13 @@ with no published schema and may drift between client releases. The fields below
 are the ones the repository reads; readers should probe for them and degrade
 rather than fail when one is missing.
 
-| File                                         | Runtime     | Fields read                                                                                                                                   |
-| -------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `~/.claude/history.jsonl`                    | Claude Code | One record per typed prompt: `display`, `pastedContents`, `project` (cwd), `sessionId`, `timestamp` (epoch milliseconds).                     |
-| `~/.codex/history.jsonl`                     | Codex       | One record per typed prompt: `session_id`, `ts` (epoch seconds), `text`.                                                                      |
-| `~/.codex/session_index.jsonl`               | Codex       | `id`, `thread_name`, `updated_at`. Covers only some threads.                                                                                  |
-| `~/.codex/state_5.sqlite`, table `threads`   | Codex       | `id` and `rollout_path` (required), `title`, `first_user_message`, `cwd`, `created_at`, `updated_at`, `archived`, `git_origin_url`, `source`. |
-| `~/.codex/archived_sessions/rollout-*.jsonl` | Codex       | Archived rollout transcripts with the same format as `sessions/`; a thread's `archived` flag marks them.                                      |
+| File                                         | Runtime     | Fields read                                                                                                                                                     |
+| -------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `~/.claude/history.jsonl`                    | Claude Code | One record per typed prompt: `display`, `project` (cwd), `sessionId`, `timestamp` (epoch milliseconds). Records also carry `pastedContents`, which is not read. |
+| `~/.codex/history.jsonl`                     | Codex       | One record per typed prompt: `session_id`, `ts` (epoch seconds), `text`.                                                                                        |
+| `~/.codex/session_index.jsonl`               | Codex       | `id`, `thread_name`, `updated_at`. Covers only some threads.                                                                                                    |
+| `~/.codex/state_5.sqlite`, table `threads`   | Codex       | `id` and `rollout_path` (required), `title`, `first_user_message`, `cwd`, `created_at`, `updated_at`, `archived`, `git_origin_url`, `source`.                   |
+| `~/.codex/archived_sessions/rollout-*.jsonl` | Codex       | Archived rollout transcripts with the same format as `sessions/`; a thread's `archived` flag marks them.                                                        |
 
 Read the SQLite database read-only (`sqlite3 -readonly`) and check
 `PRAGMA table_info(threads)` before querying. Treat `created_at` and

@@ -10,14 +10,14 @@ repository).
 
 ## Claude Code
 
-| What       | Path / fields                                                                                  |
-| ---------- | ---------------------------------------------------------------------------------------------- |
-| Transcript | `~/.claude/projects/<slug>/<session-id>.jsonl`; `<slug>` is the cwd with `/` and `.` as `-`.   |
-| Subagents  | `<slug>/<session-id>/subagents/**/agent-<id>.jsonl` (workflow agents nest under `workflows/`). |
-| History    | `~/.claude/history.jsonl`: `{display, pastedContents, project, sessionId, timestamp (ms)}`.    |
-| Titles     | Sparse `ai-title` (`aiTitle`) and `custom-title` (`customTitle`) records; a custom title wins. |
-| Cwd        | `cwd` on every message record.                                                                 |
-| Resume     | `claude --resume <session-id>`, run in the recorded cwd.                                       |
+| What       | Path / fields                                                                                              |
+| ---------- | ---------------------------------------------------------------------------------------------------------- |
+| Transcript | `~/.claude/projects/<slug>/<session-id>.jsonl`; `<slug>` is the cwd with `/` and `.` as `-`.               |
+| Subagents  | `<slug>/<session-id>/subagents/**/agent-<id>.jsonl` (workflow agents nest under `workflows/`).             |
+| History    | `~/.claude/history.jsonl`: `{display, project, sessionId, timestamp (ms)}` (`pastedContents` is not read). |
+| Titles     | Sparse `ai-title` (`aiTitle`) and `custom-title` (`customTitle`) records; a custom title wins.             |
+| Cwd        | `cwd` on every message record.                                                                             |
+| Resume     | `claude --resume <session-id>`, run in the recorded cwd.                                                   |
 
 Workflow `journal.jsonl` files are not transcripts and are skipped.
 
