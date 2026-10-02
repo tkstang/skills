@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p05-t08
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -37,9 +37,9 @@ oat_generated: false
 | Phase 2 | complete    | 21    | 21/21     |
 | Phase 3 | complete    | 10    | 10/10     |
 | Phase 4 | complete    | 7     | 7/7       |
-| Phase 5 | in_progress | 8     | 7/8       |
+| Phase 5 | complete    | 8     | 8/8       |
 
-**Total:** 61/62 tasks completed
+**Total:** 62/62 tasks completed
 
 ---
 
@@ -378,6 +378,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 | p05-t05 | completed | 3fb6dc1f |
 | p05-t06 | completed | 61f49382 |
 | p05-t07 | completed | da20282a |
+| p05-t08 | completed | 5dbc5806 (gate M1; via `cont-session-search-p05-fix-2`) |
 
 - Range `9b5994a8..3fb6dc1f`. 268 skill tests pass (root re-verified). `build:check` is in sync. The real-store motivating search still finds Codex `01a053ba`.
 - Measured peak RSS on broad deep queries (local 4.9 GiB store): 1.31→0.40 GB (`the`) and 1.50→0.41 GB (`function`). Broad-deep wall time rose 9.9→11.9 s and 10.5→17.4 s because snippets are redacted at scan time. Narrow queries are unchanged.
