@@ -102,7 +102,7 @@ The skill sits beside the existing `session-*` skills. It ships standalone (`ski
    enabled → T4: same as T3 with tool output included. `--include-tools`
    instead labels the content scan itself `deep`. tiersRun lists every scan
    that ran, including over zero files (a guard-skipped rung is omitted)
-10. rank, roll up subagents, redact, cap snippets, limit → emit
+10. rank, roll up subagents, cap snippets (already redacted at scan time), limit → emit
 ```
 
 ## Component Design

@@ -1286,6 +1286,32 @@ Source: reviews/archived/final-review-2026-10-02T084934Z.md, Low L4.
 
 ---
 
+### Task p05-t06: (review) Blank Codex structural fields before raw matching
+
+Source: reviews/archived/final-review-2026-10-02T114035Z.md, Low 1.
+
+**Files:** `lib/scan.ts`, `lib/scan.test.ts`.
+
+**Behavior:** add Codex item structural keys (`status`, `source`, `type`/`item.type`, `call_id`, `id`, `exit_code`, `duration`, and similar envelope fields observed on `item_completed` CommandExecution/McpToolCall lines) to the metadata-blanking list, keeping the 1024-char cap and the linear-time guarantees.
+
+**Test:** an oversize Codex command-output line whose only match is a structural value (e.g. `unified_exec_startup` in `source`) yields no deep hit, while the same text inside `aggregated_output` is still found.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files; `pnpm run build` and `pnpm run build:check`. Each new test must fail against the pre-fix code.
+**Commit:** `fix(p05-t06): blank codex structural fields before raw matching`
+
+### Task p05-t07: (review) Redact npm tokens
+
+Source: reviews/archived/final-review-2026-10-02T114035Z.md, Low 2.
+
+**Files:** `lib/redact.ts`, `lib/redact.test.ts`.
+
+**Behavior:** mask `npm_[A-Za-z0-9]{36}` tokens, with the timing test still passing.
+
+**Test:** a positive npm token and a prose negative (e.g. `npm_config_cache`).
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files; `pnpm run build` and `pnpm run build:check`. Each new test must fail against the pre-fix code.
+**Commit:** `fix(p05-t07): redact npm tokens`
+
+---
+
 ## Reviews
 
 | Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head | Invocation | Gate Target       |
@@ -1296,8 +1322,9 @@ Source: reviews/archived/final-review-2026-10-02T084934Z.md, Low L4.
 | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md | e09b9afe | auto | - |
 | p03   | code     | fixes_completed | 2026-10-02 | reviews/archived/p03-review-2026-10-02T080403Z.md | 7ff0c270 | auto | - |
 | p04   | code     | fixes_completed | 2026-10-02 | reviews/archived/p04-review-2026-10-02T083046Z.md | 9ccaef4f | auto | - |
-| p05   | code     | pending | -    | -        | -             | -          | -           |
-| final | code     | fixes_added | 2026-10-02 | reviews/archived/final-review-2026-10-02T084934Z.md | 7941601149bdf9adf2a7d9e6d9b55f98152f1fb1 | auto | - |
+| p05   | code     | passed | 2026-10-02 | reviews/archived/final-review-2026-10-02T114035Z.md | 3fb6dc1fa82e8c49d0bb61f493778cc8e9df764f | auto | - |
+| final | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T084934Z.md | 7941601149bdf9adf2a7d9e6d9b55f98152f1fb1 | auto | - |
+| final | code     | passed | 2026-10-02 | reviews/archived/final-review-2026-10-02T114035Z.md | 3fb6dc1fa82e8c49d0bb61f493778cc8e9df764f | auto | - |
 | plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -             | auto       | -                 |
 | plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -             | gate       | codex-6-sol-xhigh |
 | plan  | artifact | passed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T055258Z.md | - | gate | codex-6-sol-xhigh |
@@ -1324,9 +1351,9 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 - Phase 2: 21 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 12 p02 review fixes (t08–t19) and 2 root follow-ups (t20–t21).
 - Phase 3: 10 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests. Includes 2 root follow-ups (t04 Codex MCP results, t05 ladder guidance) and 5 p03 review fixes (t06–t10).
 - Phase 4: 7 tasks. Docs, stale-path fix, changelog plus premerge. Includes 4 p04 review fixes (t04–t07).
-- Phase 5: 5 tasks. Final-review fixes (deep raw-fallback scoping, token families, bounded hit memory, ask-user unit split, help text).
+- Phase 5: 7 tasks. Final-review fixes (deep raw-fallback scoping, token families, bounded hit memory, ask-user unit split, help text).
 
-**Total: 59 tasks**
+**Total: 61 tasks**
 
 ## References
 
