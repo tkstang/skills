@@ -182,6 +182,24 @@ describe('Claude Code titles', () => {
     });
   });
 
+  it('stops reading titles once the deadline has passed', async () => {
+    writeClaudeSession(temp.home, {
+      cwd: '/work/repo',
+      records: (e) => [claudeTitle('ai-title', e.sessionId, 'Zebra title')],
+    });
+    const matcher = compileMatcher(['zebra'], { literal: true });
+    const live = createClaudeCodeAdapter();
+    const { ctx } = adapterContext(live, temp);
+    ctx.files = await live.enumerate(ctx);
+    expect(await live.metadataHits(ctx, matcher)).toHaveLength(1);
+
+    const late = createClaudeCodeAdapter();
+    const expired = adapterContext(late, temp).ctx;
+    expired.files = ctx.files;
+    expired.deadline = Date.now() - 1;
+    expect(await late.metadataHits(expired, matcher)).toEqual([]);
+  });
+
   it('falls back to a prefix read when the tail window holds no title', async () => {
     const filler = 'y'.repeat(4000);
     const session = writeClaudeSession(temp.home, {

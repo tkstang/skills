@@ -1,3 +1,4 @@
+import { statSync, utimesSync } from 'node:fs';
 import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -492,6 +493,37 @@ describe.skipIf(process.platform === 'win32')('runSearch deadline', () => {
     expect(result.tools.rg).toBe(rg);
     expect(result.incomplete).toBe(true);
     expect(Date.now() - started).toBeLessThan(4000);
+  });
+});
+
+describe('runSearch with an expired deadline', () => {
+  it('reports a cwd-hinted run incomplete without scoping reads or widening', async () => {
+    const hinted = writeClaudeSession(temp.home, {
+      cwd: '/work/hinted',
+      records: (e) => [claudeUser(e, 'zebra here')],
+    });
+    // atime older than mtime, so a read during scoping would refresh it.
+    const atime = (NOW - 2 * DAY_MS) / 1000;
+    utimesSync(hinted.path, atime, (NOW - HOUR_MS) / 1000);
+    const atimeBefore = statSync(hinted.path).atimeMs;
+    const options = {
+      ...resolveOptions(
+        { pattern: ['zebra'], cwd: ['/work/hinted'] },
+        { home: temp.home, cwd: temp.home, now: NOW },
+      ),
+      // Already expired when the pipeline starts.
+      deadlineMs: 0,
+    };
+
+    const result = await runSearch(options, {
+      home: temp.home,
+      env: searchEnv(temp),
+    });
+
+    expect(result.incomplete).toBe(true);
+    expect(result.widened).toBe(false);
+    expect(result.results).toEqual([]);
+    expect(statSync(hinted.path).atimeMs).toBe(atimeBefore);
   });
 });
 

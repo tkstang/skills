@@ -126,6 +126,31 @@ describe('Codex enumeration', () => {
     expect(file.cwd).toBeUndefined();
   });
 
+  it('reads no headers once the deadline has passed', async () => {
+    writeCodexRollout(temp.home, {
+      id: CHILD,
+      startedAtMs: NOW - DAY_MS,
+      records: [
+        codexSessionMeta({
+          id: CHILD,
+          sessionId: PARENT,
+          cwd: '/work/repo',
+          source: { subagent: 'review' },
+        }),
+      ],
+    });
+    const adapter = createCodexAdapter();
+    const { ctx } = adapterContext(adapter, temp);
+    ctx.deadline = Date.now() - 1;
+
+    const [file] = await adapter.enumerate(ctx);
+
+    expect(file.isSubagent).toBe(false);
+    expect(file.parentSessionId).toBeNull();
+    expect(file.agentAuthored).toBe(false);
+    expect(file.cwd).toBeUndefined();
+  });
+
   it('marks records below the history start ordinal as inherited', () => {
     const child = { subagentHistoryStartOrdinal: 5 };
     expect(
@@ -230,6 +255,28 @@ describe('Codex record classification', () => {
       codexToolOutput('function_call_output', 'call_2', 'found zebra docs', 5),
     );
     expect(matches(classifyCodexRecord(out, true), 'zebra')).toHaveLength(1);
+  });
+
+  it('keeps non-text objects inside mixed output arrays', () => {
+    const blocks = [
+      { type: 'input_text', text: 'header line' },
+      { title: 'Perceive Now vetting', id: 2 },
+    ];
+    for (const output of [JSON.stringify(blocks), blocks]) {
+      const units = classifyCodexRecord(
+        record(
+          codexToolOutput(
+            'custom_tool_call_output',
+            'call_mixed',
+            output as Array<{ type: 'input_text'; text: string }>,
+            8,
+          ),
+        ),
+        true,
+      );
+      expect(matches(units, 'Perceive Now')).toHaveLength(1);
+      expect(matches(units, 'header line')).toHaveLength(1);
+    }
   });
 
   it('keeps JSON-encoded tool output whose objects carry no text blocks', () => {
