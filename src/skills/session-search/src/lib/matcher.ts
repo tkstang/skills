@@ -122,15 +122,54 @@ function splitsSurrogatePair(text: string, position: number): boolean {
  * Build an emitted snippet for one text unit: redact the FULL unit first,
  * then re-run the matcher on the redacted text and window at that hit.
  * Indices from a pre-redaction match are never reused, because redaction
- * changes string length. When redaction removed the hit itself, the window
- * falls back to the first redaction marker, else the start of the text.
+ * changes string length.
+ *
+ * - Re-match hits inside a `[REDACTED]` marker span are skipped (a pattern
+ *   such as `redacted` must not anchor on a marker); matching runs on the
+ *   text between markers.
+ * - When redaction removed the hit itself, the window centers on the marker
+ *   nearest the original hit (`preHit`, a match on the unredacted text),
+ *   located at `redact(text.slice(0, preHit.firstIndex)).length`. Without
+ *   `preHit` it uses the first marker, else the start of the text.
  */
-export function snippetFor(text: string, matcher: Matcher): string {
+export function snippetFor(
+  text: string,
+  matcher: Matcher,
+  preHit?: Pick<MatchResult, 'firstIndex'> | null,
+): string {
   const redacted = redact(text);
-  const hit = matcher.match(redacted);
-  if (hit) return buildSnippet(redacted, hit.firstIndex, hit.firstLength);
-  const marker = redacted.indexOf(REDACTED);
-  return marker === -1
-    ? buildSnippet(redacted, 0, 0)
-    : buildSnippet(redacted, marker, REDACTED.length);
+  const markers: number[] = [];
+  for (
+    let at = redacted.indexOf(REDACTED);
+    at !== -1;
+    at = redacted.indexOf(REDACTED, at + REDACTED.length)
+  ) {
+    markers.push(at);
+  }
+
+  // Match each stretch between markers, in order.
+  let segmentStart = 0;
+  for (const segmentEnd of [...markers, redacted.length]) {
+    const hit = matcher.match(redacted.slice(segmentStart, segmentEnd));
+    if (hit) {
+      return buildSnippet(
+        redacted,
+        segmentStart + hit.firstIndex,
+        hit.firstLength,
+      );
+    }
+    segmentStart = segmentEnd + REDACTED.length;
+  }
+
+  if (markers.length === 0) return buildSnippet(redacted, 0, 0);
+  let marker = markers[0];
+  if (preHit) {
+    const target = redact(text.slice(0, Math.max(0, preHit.firstIndex))).length;
+    const distance = (at: number) =>
+      target < at ? at - target : Math.max(0, target - (at + REDACTED.length));
+    marker = markers.reduce((best, at) =>
+      distance(at) < distance(best) ? at : best,
+    );
+  }
+  return buildSnippet(redacted, marker, REDACTED.length);
 }

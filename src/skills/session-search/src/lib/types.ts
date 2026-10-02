@@ -134,8 +134,9 @@ export interface Hit {
   text: string;
   /**
    * Position of the first match in the UNREDACTED `text`. Redaction changes
-   * string length, so never reuse these indices on redacted text; `snippetFor`
-   * re-matches after redacting.
+   * string length, so never reuse these indices on redacted text. Build
+   * snippets with `snippetFor(hit.text, matcher, hit)`, which re-matches after
+   * redacting and uses these indices only to locate a redacted hit.
    */
   firstIndex: number;
   firstLength: number;

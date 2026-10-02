@@ -211,6 +211,31 @@ describe('snippetFor', () => {
     expect(snippet.startsWith('…')).toBe(true);
   });
 
+  it('skips re-match hits inside a redaction marker', () => {
+    const matcher = compileMatcher(['redacted'], { literal: false });
+    const text = `${'x'.repeat(200)} password=hunter2 ${'y'.repeat(200)} the redacted file`;
+
+    const snippet = snippetFor(text, matcher, matcher.match(text));
+
+    expect(snippet).toContain('the redacted file');
+    expect(snippet).not.toContain(REDACTED);
+    expect(snippet).not.toContain('hunter2');
+  });
+
+  it('centers a redacted hit on its own marker, not an earlier unrelated one', () => {
+    const token = ['gh', 'p_', 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'].join('');
+    const matcher = compileMatcher(['hunter2'], { literal: true });
+    const text = `token ${token} ${'z'.repeat(300)} then password=hunter2 here`;
+
+    const snippet = snippetFor(text, matcher, matcher.match(text));
+
+    expect(snippet).toContain(`password=${REDACTED} here`);
+    expect(snippet).not.toContain('hunter2');
+    expect(snippet).not.toContain('token');
+    // Without the original hit the first marker is still the fallback.
+    expect(snippetFor(text, matcher)).toContain(`token ${REDACTED}`);
+  });
+
   it('falls back to the text start when nothing matches after redaction', () => {
     const matcher = compileMatcher(['absent'], { literal: true });
     expect(snippetFor('plain words only', matcher)).toBe('plain words only');
