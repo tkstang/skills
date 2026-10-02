@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p04-t04
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -36,9 +36,9 @@ oat_generated: false
 | Phase 1 | complete    | 16    | 16/16     |
 | Phase 2 | complete    | 21    | 21/21     |
 | Phase 3 | complete    | 10    | 10/10     |
-| Phase 4 | in_progress | 7     | 3/7       |
+| Phase 4 | complete    | 7     | 7/7       |
 
-**Total:** 50/54 tasks completed
+**Total:** 54/54 tasks completed
 
 ---
 
@@ -288,7 +288,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 ## Phase 4: Documentation, stale-path fix, release notes, full verification
 
-**Status:** in_progress (review passed 0C/0H; fix tasks p04-t04..t07 queued)
+**Status:** complete. Review passed (0C/0H). Review fixes t04 e2174212, t05 f5fc3ac1, t06 15414f34, t07 9a0fc691 (via `cont-session-search-p04-fix-1`). The implementer's two premerge runs hit the `diagnostics.test.ts` load flake (load about 15 on 14 cores). Root re-ran `pnpm run premerge` at `9a0fc691`: **pass** (2733 passed, 1 skipped; validate and smoke pass).
 
 | Task | Status | Commit |
 | ---- | ------ | ------ |
@@ -426,6 +426,9 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 #### Dispatch record: session-search-p04-review-1
 
 - Root phase review, same reviewer target. Outcome: **pass**, 0C/0H/1M/3L. Artifact: `reviews/archived/p04-review-2026-10-02T083046Z.md`.
+- Continuation `cont-session-search-p04-fix-1` (t04–t07): `c6b259ba..9a0fc691`, DONE_WITH_CONCERNS (premerge load flake). Root re-ran premerge: pass.
+
+**p04 phase outcome:** pass. Fix iterations: 1 (non-blocking). Recovery attempts: 1/10 (settled). p04 is the final HiLL checkpoint, so the run routes to final review and closeout.
 
 <!-- orchestration-runs-end -->
 
@@ -451,6 +454,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 | 1     | 129       | 129    | 0      | -        |
 | 2     | 230 (cumulative) | 230 | 0 | -        |
 | 3     | 624 (skill + repo/release/tooling) | 624 | 0 | -        |
+| 4 (premerge) | 2734 | 2733 | 0 (1 skipped) | -        |
 
 ## Final Summary (for PR/docs)
 

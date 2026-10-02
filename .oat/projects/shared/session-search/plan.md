@@ -1218,7 +1218,7 @@ Source: reviews/archived/p04-review-2026-10-02T083046Z.md, Low.
 | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md | 0367021c | auto | - |
 | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md | e09b9afe | auto | - |
 | p03   | code     | fixes_completed | 2026-10-02 | reviews/archived/p03-review-2026-10-02T080403Z.md | 7ff0c270 | auto | - |
-| p04   | code     | fixes_added | 2026-10-02 | reviews/archived/p04-review-2026-10-02T083046Z.md | 9ccaef4f | auto | - |
+| p04   | code     | fixes_completed | 2026-10-02 | reviews/archived/p04-review-2026-10-02T083046Z.md | 9ccaef4f | auto | - |
 | final | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -             | auto       | -                 |
 | plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -             | gate       | codex-6-sol-xhigh |
