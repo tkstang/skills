@@ -210,6 +210,120 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 
 ---
 
+### Task p01-t06: (review) Production redact-then-snippet helper
+
+Source: reviews/archived/p01-review-2026-10-02T061433Z.md, Medium M1. `Hit.firstIndex` is measured on unredacted text, so windowing the redacted text can drop the matched phrase.
+
+**Files:** `src/skills/session-search/src/lib/matcher.ts` (or `redact.ts`), `src/skills/session-search/src/lib/types.ts` (Hit doc), and the matching tests.
+
+**Behavior:** `snippetFor(text, matcher)`:
+
+1. Redacts the full unit.
+2. Re-runs `matcher.match` on the redacted text and windows at that index.
+3. When the hit itself was redacted, falls back to the first `[REDACTED]` marker or the start of the text.
+
+Document that the `Hit` indices are pre-redaction and must not be reused on redacted text.
+
+**Test:** with a long secret run before the hit, the snippet contains the hit phrase, and the existing no-fragment assertion is kept.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search/src/lib` and `pnpm run type-check`; format/lint the touched files (`pnpm exec oxfmt --write <files>`, `pnpm exec oxlint <files>`).
+**Commit:** `fix(p01-t06): window snippets on redacted text`
+
+### Task p01-t07: (review) Mask multi-level escaped JSON credentials
+
+Source: reviews/archived/p01-review-2026-10-02T061433Z.md, Medium M2.
+
+**Files:** `src/skills/session-search/src/lib/redact.ts`, `redact.test.ts`.
+
+**Behavior:**
+
+- Generalize the key wrapper to any backslash run before the quote. The value must open with the same run and close at its next occurrence.
+- Keep the bare and unterminated fallbacks.
+- Keep linear-time anchoring and re-run the 256 KiB timing test.
+
+**Test:** the two-level positive `{\\\"password\\\":\\\"synthetic-only\\\"}` is masked.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search/src/lib` and `pnpm run type-check`; format/lint the touched files (`pnpm exec oxfmt --write <files>`, `pnpm exec oxlint <files>`).
+**Commit:** `fix(p01-t07): redact multi-level escaped JSON credentials`
+
+### Task p01-t08: (review) Mask URL-userinfo passwords and CLI-flag credentials
+
+Source: reviews/archived/p01-review-2026-10-02T061433Z.md, Medium M3 (discovery: never echo credential-shaped strings).
+
+**Files:** `redact.ts`, `redact.test.ts`.
+
+**Behavior:**
+
+- Mask only the password segment of `scheme://user:pass@host`.
+- Mask the value of `--?<credential-word identifier>\s+<value>` flags. The flag form requires a leading `-`, so prose like "the token is" stays intact.
+
+**Tests:** positives for postgres/https userinfo and `--password X`/`--token X`; a prose negative.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search/src/lib` and `pnpm run type-check`; format/lint the touched files (`pnpm exec oxfmt --write <files>`, `pnpm exec oxlint <files>`).
+**Commit:** `fix(p01-t08): redact URL userinfo and CLI flag credentials`
+
+### Task p01-t09: (review) Reject patterns that match empty text
+
+Source: reviews/archived/p01-review-2026-10-02T061433Z.md, Low L1.
+
+**Files:** `matcher.ts`, `matcher.test.ts`.
+
+**Behavior:** after compiling, a pattern for which `regex.test('')` is true raises `UsageError("pattern matches empty text: …")`.
+
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search/src/lib` and `pnpm run type-check`; format/lint the touched files (`pnpm exec oxfmt --write <files>`, `pnpm exec oxlint <files>`).
+**Commit:** `fix(p01-t09): reject empty-matching search patterns`
+
+### Task p01-t10: (review) Let `.` cross newlines (dotAll)
+
+Source: reviews/archived/p01-review-2026-10-02T061433Z.md, Low L2.
+
+**Files:** `matcher.ts`, `matcher.test.ts`.
+
+**Behavior:**
+
+- Compile with flags `is`.
+- `perceive.*now` now matches across a newline.
+- The rg prefilter remains a superset, because raw JSONL stores the newline as the two characters `\n`.
+
+SKILL.md guidance in p03-t01 must state the dotAll semantics.
+
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search/src/lib` and `pnpm run type-check`; format/lint the touched files (`pnpm exec oxfmt --write <files>`, `pnpm exec oxlint <files>`).
+**Commit:** `fix(p01-t10): make pattern dot match newlines`
+
+### Task p01-t11: (review) Stop the base64 rule from masking slugs and identifiers
+
+Source: reviews/archived/p01-review-2026-10-02T061433Z.md, Low L3.
+
+**Files:** `redact.ts`, `redact.test.ts`.
+
+**Behavior:** exempt runs made only of `-`/`_`-separated word segments (e.g. Claude project slugs like `-Users-name-code-repo`) and long camelCase identifiers with no digit-dense segment. AWS-style secrets and the existing positives must stay masked.
+
+**Tests:** negatives for a Claude slug and a long camelCase identifier; all existing positives still pass.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search/src/lib` and `pnpm run type-check`; format/lint the touched files (`pnpm exec oxfmt --write <files>`, `pnpm exec oxlint <files>`).
+**Commit:** `fix(p01-t11): avoid redacting slugs and identifiers`
+
+### Task p01-t12: (review) Narrow the enumerate context type
+
+Source: reviews/archived/p01-review-2026-10-02T061433Z.md, Low L4.
+
+**Files:** `types.ts`.
+
+**Behavior:** `enumerate` takes `Omit<AdapterContext, 'files'>`, or `files` becomes optional for enumeration, so callers don't pass a placeholder.
+
+**Verify:** `pnpm run type-check`
+**Commit:** `fix(p01-t12): narrow adapter enumerate context`
+
+### Task p01-t13: (review) Keep snippet edges off surrogate pairs
+
+Source: reviews/archived/p01-review-2026-10-02T061433Z.md, Low L5.
+
+**Files:** `matcher.ts`, `matcher.test.ts`.
+
+**Behavior:** nudge the window start and end and the cap slice off low-surrogate positions, so an emoji at an edge is never split.
+
+**Test:** an emoji at the window edge produces no lone surrogate.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search/src/lib` and `pnpm run type-check`; format/lint the touched files (`pnpm exec oxfmt --write <files>`, `pnpm exec oxlint <files>`).
+**Commit:** `fix(p01-t13): avoid splitting surrogate pairs in snippets`
+
+---
+
 ## Phase 2: Adapters, scanner, pipeline, ranker, CLI
 
 ### Task p02-t01: Claude Code adapter
@@ -685,7 +799,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 
 | Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head | Invocation | Gate Target       |
 | ----- | -------- | --------------- | ---------- | ----------------------------------------------------------- | ------------- | ---------- | ----------------- |
-| p01   | code     | pending         | -          | -                                                           | -             | -          | -                 |
+| p01   | code     | fixes_added | 2026-10-02 | reviews/archived/p01-review-2026-10-02T061433Z.md | d2fdc0bed2f806ebbd0463e396cc66e747c3f488 | auto | - |
 | p02   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | p03   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | p04   | code     | pending         | -          | -                                                           | -             | -          | -                 |
@@ -712,12 +826,12 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 
 **Summary:**
 
-- Phase 1: 5 tasks. Core library: types/shim, options/time, matcher/snippets, redaction, tool probe.
+- Phase 1: 13 tasks. Core library: types/shim, options/time, matcher/snippets, redaction, tool probe, plus 8 p01 review fixes (t06–t13).
 - Phase 2: 7 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry.
 - Phase 3: 3 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests.
 - Phase 4: 3 tasks. Docs, stale-path fix, changelog plus premerge.
 
-**Total: 18 tasks**
+**Total: 26 tasks**
 
 ## References
 

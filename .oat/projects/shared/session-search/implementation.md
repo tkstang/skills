@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p02-t01
+oat_current_task_id: p01-t06
 oat_generated: false
 ---
 
@@ -33,18 +33,18 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | 5     | 5/5       |
+| Phase 1 | in_progress | 13    | 5/13      |
 | Phase 2 | pending     | 7     | 0/7       |
 | Phase 3 | pending     | 3     | 0/3       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 5/18 tasks completed
+**Total:** 5/26 tasks completed
 
 ---
 
 ## Phase 1: Core library (options, matching, redaction, tool probe)
 
-**Status:** in_progress (tasks complete; root review pending)
+**Status:** in_progress (review passed 0C/0H; 8 review-fix tasks p01-t06..t13 queued)
 **Started:** 2026-10-02
 
 ### Phase Summary
@@ -93,6 +93,19 @@ The first credential regex was quadratic: 4.2 s on a 64 KiB line. It was rewritt
 
 **Status:** completed
 **Commit:** d2fdc0be
+
+---
+
+### Review Received: p01
+
+**Date:** 2026-10-02
+**Review artifact:** reviews/archived/p01-review-2026-10-02T061433Z.md (request `session-search-p01-review-1`, target `oat-reviewer-claude-claude-opus-5-5-high`, invocation auto, reviewed head `d2fdc0be`, **Reconnaissance:** not-attempted)
+
+**Findings:** Critical 0, High 0, Medium 3, Low 5. The phase review **passes** (no Critical or High findings).
+
+**New tasks added:** p01-t06 (M1 snippet windowing), p01-t07 (M2 multi-level escaped JSON), p01-t08 (M3 URL userinfo/CLI flags), p01-t09 (L1 empty patterns), p01-t10 (L2 dotAll), p01-t11 (L3 slug/identifier over-masking), p01-t12 (L4 enumerate context type), p01-t13 (L5 surrogate pairs). Auto-disposition converted all eight; none were deferred.
+
+**Next:** execute the fix tasks through the original p01 phase implementer in fix mode, then re-review.
 
 ---
 
