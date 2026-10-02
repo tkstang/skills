@@ -1384,7 +1384,7 @@ Source: reviews/archived/final-review-2026-10-02T122041Z.md, Low L1.
 | plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -                                        | gate       | codex-6-sol-xhigh |
 | plan  | artifact | passed          | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T055258Z.md | -                                        | gate       | codex-6-sol-xhigh |
 | final | code | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T120208Z.md | bc7aea7bed64a51938e51a4f241a5bff8584806f | gate | codex-6-sol-xhigh |
-| final | code     | fixes_added | 2026-10-02 | reviews/archived/final-review-2026-10-02T122041Z.md | aaec2be03690af795026b08c4565e315a08272f5 | auto | - |
+| final | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T122041Z.md | aaec2be03690af795026b08c4565e315a08272f5 | auto | - |
 
 For code-review events, `Reviewed Head` is the full 40-character SHA at the
 head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;

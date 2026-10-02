@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p05-t09
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -37,9 +37,9 @@ oat_generated: false
 | Phase 2 | complete    | 21    | 21/21     |
 | Phase 3 | complete    | 10    | 10/10     |
 | Phase 4 | complete    | 7     | 7/7       |
-| Phase 5 | in_progress | 10    | 8/10      |
+| Phase 5 | complete    | 10    | 10/10     |
 
-**Total:** 62/64 tasks completed
+**Total:** 64/64 tasks completed
 
 ---
 
@@ -367,7 +367,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 ## Phase 5: Final review fixes
 
-**Status:** in_progress. Final re-reviews: cycle 2 passed. Exit-gate M1 was fixed by t08. The cycle-3 narrowed re-review found a recall regression (M) from t06, so t09–t10 are queued.
+**Status:** tasks complete (t01–t10). The cycle-3 fixes t09–t10 are done and root-verified (272+ skill tests; build:check in sync; the MCP-id recall probe recovered). **The final review row is `fixes_completed`; a 4th final-review cycle needs an operator override (REVIEWRECEIVE-02).**
 
 | Task | Status | Commit |
 | ---- | ------ | ------ |
@@ -379,6 +379,8 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 | p05-t06 | completed | 61f49382 |
 | p05-t07 | completed | da20282a |
 | p05-t08 | completed | 5dbc5806 (gate M1; via `cont-session-search-p05-fix-2`) |
+| p05-t09 | completed | 98372735 (final cycle-3 M1; via `cont-session-search-p05-fix-3`) |
+| p05-t10 | completed | 20b7b261 |
 
 - Range `9b5994a8..3fb6dc1f`. 268 skill tests pass (root re-verified). `build:check` is in sync. The real-store motivating search still finds Codex `01a053ba`.
 - Measured peak RSS on broad deep queries (local 4.9 GiB store): 1.31→0.40 GB (`the`) and 1.50→0.41 GB (`function`). Broad-deep wall time rose 9.9→11.9 s and 10.5→17.4 s because snippets are redacted at scan time. Narrow queries are unchanged.
@@ -541,6 +543,15 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 #### Dispatch record: session-search-final-review-3
 
 - Narrowed final re-review of the changed basis. Outcome: 0C/0H/1M/2L, so fixes were added. Artifact: `reviews/archived/final-review-2026-10-02T122041Z.md`.
+
+- Continuation `cont-session-search-p05-fix-3` (t09–t10): `c903c277..20b7b261`, DONE.
+
+### Boundary: review-cycle limit (REVIEWRECEIVE-02, repository-policy-approval)
+
+- The final scope has used 3 standard review cycles (final-review 084934, 114035, 122041).
+- Cycle-3 findings (1M, 2L) were converted and fixed (t09–t10). A re-review is required before the final row can be `passed` and before the implementation exit gate can run a fresh generation.
+- The autonomous contract forbids self-authorizing a review beyond the cycle cap, so the run stops here.
+- **Operator action:** authorize one more final-review cycle (or perform a manual review), then resume with `/oat-project-autonomous session-search`.
 
 <!-- orchestration-runs-end -->
 
