@@ -688,7 +688,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 | p04   | code     | pending         | -          | -                                                  | -             | -          | -           |
 | final | code     | pending         | -          | -                                                  | -             | -          | -           |
 | plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                          | -             | auto       | -           |
-| plan  | artifact | received        | 2026-10-02 | reviews/artifact-plan-review-2026-10-02T053829Z.md | -             | -          | -           |
+| plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | - | gate | codex-6-sol-xhigh |
 
 For code-review events, `Reviewed Head` is the full 40-character SHA at the
 head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
@@ -697,6 +697,8 @@ valid. Writers must preserve every existing row and every unknown trailing
 cell; never truncate a widened row back to five columns.
 
 Plan artifact review disposition (Step 3.6/3.7): the auto artifact-review loop ran 3 structured attempts with `oat-reviewer-claude-claude-opus-5-5-high`. Request IDs: session-search-plan-review-1/2/3. Route: native, policy-resolved under the `high` dispatch policy. Findings: attempt 1 had 3 High, 7 Medium, and 4 Low, all fixed. Attempt 2 had 1 High, 5 Medium, and 3 Low, all fixed. Attempt 3 had 1 High (deep-rung raw fallback scope) and 2 Medium (`validate:skill-versions` base ref; prefilter wildcard safety), all fixed in-artifact after the retry bound (2) was exhausted, so they have not been re-reviewed by this loop. They are re-reviewed by the configured cross-family `oat-project-quick-start` exit gate.
+
+Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `codex-6-sol-xhigh`, different-family) was **blocked** with 3 High and 1 Medium findings. All four were received as valid and resolved in-artifact: quoted/escaped JSON credential redaction; prefilter rejects character classes; Claude tool text extracted untruncated; bounded restricted large-scan. Gate attempt 2 re-reviews.
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 
