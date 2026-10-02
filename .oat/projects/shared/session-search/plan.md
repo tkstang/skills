@@ -337,12 +337,32 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 **Behavior:**
 
 - **Prefilter (must be a provable superset of the Node scan):** `prefilterWithRg(rgPath, patterns, files, {literal})`
-  - Runs only when **every** pattern is prefilter-safe: ASCII-only, with no whitespace classes or escapes (`\s`, `\n`, `\t`), no `"` or `\` in literals, and no lookaround or backreferences.
+  - Runs only when **every** pattern is prefilter-safe. A pattern qualifies when it contains only:
+    - literal ASCII text without quotes or backslashes
+    - `.*` and `.+`
+    - `|` and groups
+    - non-negated character classes
+
+    It is rejected when it contains:
+    - any backslash (escapes, `\s`, `\n`, …)
+    - a `.` not immediately followed by `*` or `+`
+    - a negated class `[^`
+    - lookaround or backreferences
+    - non-ASCII characters
+
+    Raw JSONL stores `"`, `\`, tab, and newline as two-byte escapes, so single-character wildcards could miss text that Node matches after decoding.
   - Otherwise it returns `null` with a diagnostic note, and the caller scans all candidates in Node.
   - When it runs: `rg -l -i --no-messages [-F] -e p… -- <chunk>`, chunking the argument list to ≤ 100 KB per call. Exit 1 means no matches. Any other error (e.g. exit 2 on a regex dialect mismatch) returns `null`, which also falls back.
 - **Verification:** `scanFile(path, adapter, matcher, {maxLineBytes, includeTools, maxHitsPerSession})`
   - Streams with a LF-only splitter: read in chunks and split on `0x0A`, not with `readline`, because U+2028/2029 can appear inside strings.
-  - Skips oversize lines before `JSON.parse` and counts them. On the **deep** tier only, the matcher first runs on the raw oversize line without parsing it, and on a hit emits a redacted, windowed `tool` unit, so large tool dumps stay searchable.
+  - Skips oversize lines before `JSON.parse` and counts them. On the **deep** tier only, oversize lines get a **narrow raw fallback**, so large tool dumps stay searchable without surfacing injected context:
+    - Inspect only the line prefix (the first ~512 bytes) for the record type. Raw matching is allowed only for known tool-output carriers:
+      - Codex `response_item` `function_call_output`/`custom_tool_call_output`
+      - Codex `event_msg` `item_completed` whose `item.type` is `CommandExecution`, `McpToolCall`, or `FileChange`
+      - Claude lines carrying `tool_result`
+    - Explicitly skip `world_state`, `session_meta`, `turn_context`, and `compacted`.
+    - Read `"ordinal":N` from the prefix with a regex and apply the child inherited-record skip.
+    - On a hit, emit a redacted, windowed `tool` unit.
   - Calls `adapter.classifyRecord`, matches each unit, and returns hits with role, tier `content` or `deep`, and snippet inputs.
   - Counts parse errors.
 
@@ -356,7 +376,10 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
   - The rg prefilter (when `rg` is available in the test env; otherwise `it.skipIf`) returns the same matching file set as a full Node scan.
   - The Node-only path (`SESSION_SEARCH_NO_RG=1`) gives identical hits.
   - A `perceive\s*now` pattern spanning an embedded `\n` in a JSON string returns the same hits with and without rg, because the prefilter is skipped.
-  - A deep-tier phrase inside an oversize line is still found.
+  - A deep-tier phrase inside an oversize `function_call_output` line is still found.
+  - **Negative:** an oversize Codex `world_state` line (AGENTS.md text) containing the phrase produces no deep hit.
+  - An oversize inherited child line is skipped.
+  - `foo.bar` against text containing `foo"bar` gives the same hits with and without rg, because the prefilter is skipped.
 - GREEN.
 - Format/lint.
 - Verify `pnpm run test:vitest src/skills/session-search/src/lib/scan.test.ts`.
@@ -607,7 +630,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 - Check `tests/repo/docs-presence.test.ts` expectations.
 - `pnpm run build` to refresh the generated copies.
 - `pnpm run build:check`.
-- Verify `pnpm run test:vitest tests/repo src/skills/session-export-transcript src/skills/session-observer` and `pnpm run validate:skill-versions -- --base-ref main`. The latter may still demand changelog lines, which p04-t03 adds; confirm the only remaining failures are changelog coverage.
+- Verify `pnpm run test:vitest tests/repo src/skills/session-export-transcript src/skills/session-observer` and `pnpm run validate:skill-versions -- --base-ref "$(git merge-base HEAD origin/main)"`. The latter may still demand changelog lines, which p04-t03 adds; confirm `bumpedSkills` includes exactly the four owners and the only remaining failures are changelog coverage.
 - Format the edited Markdown.
 - Commit `docs(p04-t02): correct Codex rollout transcript path in session skill docs`.
 
@@ -625,7 +648,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 
 - Edit and format.
 - Run `pnpm run premerge`. Expected: the full chain passes. If it fails, fix in scope and re-run.
-- Run `pnpm run validate:skill-versions -- --base-ref main`.
+- Run `pnpm run validate:skill-versions -- --base-ref "$(git merge-base HEAD origin/main)"`.
 - Commit `docs(p04-t03): add session-search changelog entry`.
 
 ---
@@ -639,13 +662,15 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 | p03   | code     | pending | -    | -        | -             | -          | -           |
 | p04   | code     | pending | -    | -        | -             | -          | -           |
 | final | code     | pending | -    | -        | -             | -          | -           |
-| plan  | artifact | pending | -    | -        | -             | -          | -           |
+| plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3 | - | auto | - |
 
 For code-review events, `Reviewed Head` is the full 40-character SHA at the
 head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
 `Gate Target` is populated only for gate events. Legacy five-column rows remain
 valid. Writers must preserve every existing row and every unknown trailing
 cell; never truncate a widened row back to five columns.
+
+Plan artifact review disposition (Step 3.6/3.7): the auto artifact-review loop ran 3 structured attempts with `oat-reviewer-claude-claude-opus-5-5-high`. Request IDs: session-search-plan-review-1/2/3. Route: native, policy-resolved under the `high` dispatch policy. Findings: attempt 1 had 3 High, 7 Medium, and 4 Low, all fixed. Attempt 2 had 1 High, 5 Medium, and 3 Low, all fixed. Attempt 3 had 1 High (deep-rung raw fallback scope) and 2 Medium (`validate:skill-versions` base ref; prefilter wildcard safety), all fixed in-artifact after the retry bound (2) was exhausted, so they have not been re-reviewed by this loop. They are re-reviewed by the configured cross-family `oat-project-quick-start` exit gate.
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 

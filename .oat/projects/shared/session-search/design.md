@@ -150,10 +150,11 @@ All adapters degrade gracefully. A missing root yields no sessions and adds a `s
 
 **Responsibilities:**
 
-- **Optional prefilter:** run `rg -l -i --no-messages -e <p1> -e <p2> … -- <files…>`, chunked by argument length. It narrows the candidate files only and must be a provable superset of the Node scan, so it runs only when every pattern is prefilter-safe: ASCII, with no whitespace classes or escapes, no quotes or backslashes in literals, and no lookaround. Otherwise, or on an rg error, every candidate is scanned in Node. Patterns are passed through `-e` (never through a shell), with `--fixed-strings` when `--literal` is set.
+- **Optional prefilter:** run `rg -l -i --no-messages -e <p1> -e <p2> … -- <files…>`, chunked by argument length. It narrows the candidate files only and must be a provable superset of the Node scan, so it runs only when every pattern is prefilter-safe. Safe patterns are literal ASCII without quotes or backslashes, plus `.*`/`.+`, `|`, groups, and non-negated classes. Backslashes, a bare `.` or `.?`/`.{n}` wildcard, `[^`, lookaround, and non-ASCII are all rejected. Otherwise, or on an rg error, every candidate is scanned in Node. Patterns are passed through `-e` (never through a shell), with `--fixed-strings` when `--literal` is set.
 - **Node verification:**
   - Stream each surviving file with a line reader that splits on LF only.
   - **Skip lines longer than `maxLineBytes`** (default 64 KiB) before `JSON.parse`, and count them in diagnostics.
+  - On the deep tier only, an oversize line goes through a narrow raw fallback: it is matched unparsed only when its prefix identifies a known tool-output carrier (Codex `function_call_output`/`custom_tool_call_output`, Codex `item_completed` CommandExecution/McpToolCall/FileChange, Claude `tool_result`). `world_state`, `session_meta`, `turn_context`, and `compacted` are never raw-matched, and the child inherited-record skip is applied via the `ordinal` in the prefix.
   - Parse the record, call `adapter.classifyRecord`, and match each text unit.
   - Stop a file after `maxHitsPerSession` units.
 - **Classification is adapter-owned.** Each adapter's `classifyRecord` turns one raw record into role-tagged units, and a shared `classify.ts` maps roles:
