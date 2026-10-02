@@ -231,7 +231,7 @@ describe('redact: ordinary text stays intact', () => {
     'Session 0b6d8f3e-3f4a-4c1b-9d2e-7a8b9c0d1e2f resumed',
     'We vetted Perceive Now and decided against it.',
     'See documentation/docs/engineering/architecture/session-schemas for details',
-    'Users/Shared/Vault/Projects2026/Stoa/Proposals/Search',
+    '/Users/Shared/Vault/Projects2026/Stoa/Proposals/Search',
     'The bearer of the message tokenizes nothing.',
     'A password manager keeps secrets safe.',
     'Run pnpm run test:vitest src/skills/session-search/src/lib',
@@ -242,6 +242,59 @@ describe('redact: ordinary text stays intact', () => {
     'call compileMatcherWithLiteralEscapingForV2Patterns() first',
     'HTTPServerRequestHandlerFactoryForSessionSearch2 is unused',
   ])('leaves %j untouched', (text) => {
+    expect(redact(text)).toBe(text);
+  });
+});
+
+describe('redact: identifier exemptions keep random tokens masked', () => {
+  // mulberry32: a tiny fixed-seed PRNG, so the sample is deterministic.
+  function mulberry32(seed: number): () => number {
+    let state = seed;
+    return () => {
+      state = (state + 0x6d2b79f5) | 0;
+      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  it('masks at least 99.99% of random 40-char alphanumeric tokens', () => {
+    const alphabet =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const random = mulberry32(0x5e55);
+    const samples = 20_000;
+    const exempted: string[] = [];
+    let generated = 0;
+    while (generated < samples) {
+      let token = '';
+      for (let i = 0; i < 40; i++) {
+        token += alphabet[Math.floor(random() * alphabet.length)];
+      }
+      // Only tokens that pass the digit and mixed-case gate are candidates.
+      if (!/\d/.test(token) || !/[a-z]/.test(token) || !/[A-Z]/.test(token)) {
+        continue;
+      }
+      generated += 1;
+      if (redact(`v ${token} e`) !== `v ${REDACTED} e`) exempted.push(token);
+    }
+    expect(exempted.length).toBeLessThanOrEqual(Math.floor(samples * 0.0001));
+  });
+
+  it.each([
+    'L2WwqMjqvfoWQ781LJjj4zynuNQRrv80ttrNsfbc',
+    'KmNABIQoevljrojLiuY7USS9Ckg3vgmfh8vjl1ZC',
+    'NEFS21DW683nhxjvmon6fkivmDqhn5QOvtu6SIKS',
+    'Correct-Horse-Battery-Staple-Mountain-River7',
+  ])('masks the previously leaking sample %j', (token) => {
+    expect(redact(`v ${token} e`)).toBe(`v ${REDACTED} e`);
+  });
+
+  it.each([
+    'compileMatcherWithLiteralEscapingForV2Patterns',
+    'HTTPServerRequestHandlerFactoryForSessionSearch2',
+    'useSessionSearchResultsQueryForCursorV3Store',
+    '-Users-thomas-stang--superconductor-worktrees-skills-sc-levitated-cryostat-ae6a',
+  ])('keeps the identifier or slug %j', (text) => {
     expect(redact(text)).toBe(text);
   });
 });

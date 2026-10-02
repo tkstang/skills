@@ -90,44 +90,71 @@ const BASE64_RE = /(?<![A-Za-z0-9+/_-])[A-Za-z0-9+/_-]{40,}={0,2}/g;
 // A segment that reads as a word: lowercase letters and digits, optionally
 // with one leading capital (e.g. `Users`, `ae6a`, `V2`).
 const WORD_SEGMENT_RE = /^[A-Za-z]?[a-z0-9]*$/;
+const LOWERCASE_SEGMENT_RE = /^[a-z0-9]*$/;
 
 /**
- * Paths and slugs: runs split by `/`, `-`, or `_` into word segments, e.g.
- * `Users/Shared/Vault` or the Claude project slug `-Users-name-code-repo`.
- * Random encodings almost never split into segments without an internal
- * capital, and `+`/`=` never appear in a word segment.
+ * Paths and slugs: runs split by `/`, `-`, or `_` into word segments whose
+ * FIRST segment is lowercase-only (often empty, as in `/Users/Shared/Vault`
+ * or the Claude project slug `-Users-name-code-repo`); later segments may
+ * carry one leading capital. Capitalized passphrases such as
+ * `Correct-Horse-Battery-Staple7` therefore stay masked, and `+`/`=` never
+ * appear in a word segment.
  */
 function isSegmentedWords(run: string): boolean {
+  if (!/[/_-]/.test(run)) return false;
+  const segments = run.split(/[/_-]/);
   return (
-    /[/_-]/.test(run) &&
-    run.split(/[/_-]/).every((segment) => WORD_SEGMENT_RE.test(segment))
+    LOWERCASE_SEGMENT_RE.test(segments[0]) &&
+    segments.every((segment) => WORD_SEGMENT_RE.test(segment))
   );
 }
 
 const CAMEL_PIECE_RE = /[A-Z]?[a-z]+|[A-Z]?\d+|[A-Z]+(?![a-z])/g;
+const MAX_UPPERCASE_PIECES = 2;
+const MAX_DIGIT_PIECES = 2;
 
 /**
- * Long camelCase identifiers such as `compileMatcherWithLiteralEscaping`:
- * every lowercase word is at least three letters (two for the first),
- * acronyms are short, and digit groups are short and never adjacent (no
- * digit-dense segment). Random base64 fails these almost surely.
+ * Genuine camelCase identifiers such as `compileMatcherWithLiteralEscaping`,
+ * `HTTPServerRequestHandler`, or `useCursorV3Store`. The run must split
+ * exactly into pieces where:
+ * - every lowercase word is at least three letters (two for the first piece);
+ * - there are at most two uppercase-only pieces (acronyms), each at most five
+ *   letters, and a lone capital never precedes a capitalized word
+ *   (`LJjj` splitting into `L` + `Jjj` is rejected);
+ * - there are at most two digit pieces, each at most three digits, never
+ *   adjacent (no digit-dense segment).
+ * A seeded statistical test pins the random-token exemption rate.
  */
 function isCamelIdentifier(run: string): boolean {
   if (!/^[A-Za-z][A-Za-z0-9]*$/.test(run)) return false;
   const pieces = run.match(CAMEL_PIECE_RE) ?? [];
   if (pieces.join('') !== run) return false;
-  let previousHadDigits = false;
-  return pieces.every((piece, index) => {
-    const digits = piece.replace(/\D/g, '').length;
-    if (digits > 0) {
-      const ok = !previousHadDigits && digits <= 3;
-      previousHadDigits = true;
-      return ok;
+  let uppercasePieces = 0;
+  let digitPieces = 0;
+  for (let index = 0; index < pieces.length; index++) {
+    const piece = pieces[index];
+    if (/\d/.test(piece)) {
+      digitPieces += 1;
+      if (
+        digitPieces > MAX_DIGIT_PIECES ||
+        piece.replace(/\D/g, '').length > 3 ||
+        /\d/.test(pieces[index - 1] ?? '')
+      ) {
+        return false;
+      }
+    } else if (/[a-z]/.test(piece)) {
+      if (piece.length < (index === 0 ? 2 : 3)) return false;
+    } else {
+      uppercasePieces += 1;
+      if (uppercasePieces > MAX_UPPERCASE_PIECES || piece.length > 5) {
+        return false;
+      }
+      if (piece.length === 1 && /^[A-Z][a-z]/.test(pieces[index + 1] ?? '')) {
+        return false;
+      }
     }
-    previousHadDigits = false;
-    if (/[a-z]/.test(piece)) return piece.length >= (index === 0 ? 2 : 3);
-    return piece.length <= 5;
-  });
+  }
+  return true;
 }
 
 function looksLikeEncodedSecret(run: string): boolean {
