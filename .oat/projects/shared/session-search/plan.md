@@ -96,6 +96,7 @@ This task has no runtime test: types-only code is verified by `type-check`, beca
   - ISO dates and date-times
 
   It returns epoch ms, and throws a usage error naming the bad value.
+
 - `resolveOptions(rawValues)` produces a `SearchOptions` with:
   - defaults: `limit` 15, `maxLineBytes` 65536, `largeScanBytes` 2 GiB, `deep` on, `includeTools` false, all runtimes, tiers `history,meta,content`
   - `--until` earlier than `--since` rejected
@@ -204,6 +205,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
   - Cursor transcripts with `turn_ended` records and an open trailing turn.
 
   `src/helpers/` is the build's runtime-closure exemption (`scripts/lib/packaging.ts`), so it is never bundled. It is shared by later tests.
+
 - Create: `src/skills/session-search/src/lib/classify.ts`. Shared role mapping for `DigestEntry` values:
   - `kind` `tool_call`/`tool_result` → `tool`.
   - `origin`/`displayRole` `automatic-control`, `runtime-notification`, or `runtime-diagnostic` → `context`.
@@ -351,8 +353,10 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
     - non-ASCII characters
 
     Raw JSONL stores `"`, `\`, tab, and newline as two-byte escapes, so single-character wildcards could miss text that Node matches after decoding.
+
   - Otherwise it returns `null` with a diagnostic note, and the caller scans all candidates in Node.
   - When it runs: `rg -l -i --no-messages [-F] -e p… -- <chunk>`, chunking the argument list to ≤ 100 KB per call. Exit 1 means no matches. Any other error (e.g. exit 2 on a regex dialect mismatch) returns `null`, which also falls back.
+
 - **Verification:** `scanFile(path, adapter, matcher, {maxLineBytes, includeTools, maxHitsPerSession})`
   - Streams with a LF-only splitter: read in chunks and split on `0x0A`, not with `readline`, because U+2028/2029 can appear inside strings.
   - Skips oversize lines before `JSON.parse` and counts them. On the **deep** tier only, oversize lines get a **narrow raw fallback**, so large tool dumps stay searchable without surfacing injected context:
@@ -655,14 +659,15 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 
 ## Reviews
 
-| Scope | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
-| ----- | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
-| p01   | code     | pending | -    | -        | -             | -          | -           |
-| p02   | code     | pending | -    | -        | -             | -          | -           |
-| p03   | code     | pending | -    | -        | -             | -          | -           |
-| p04   | code     | pending | -    | -        | -             | -          | -           |
-| final | code     | pending | -    | -        | -             | -          | -           |
-| plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3 | - | auto | - |
+| Scope | Type     | Status          | Date       | Artifact                                           | Reviewed Head | Invocation | Gate Target |
+| ----- | -------- | --------------- | ---------- | -------------------------------------------------- | ------------- | ---------- | ----------- |
+| p01   | code     | pending         | -          | -                                                  | -             | -          | -           |
+| p02   | code     | pending         | -          | -                                                  | -             | -          | -           |
+| p03   | code     | pending         | -          | -                                                  | -             | -          | -           |
+| p04   | code     | pending         | -          | -                                                  | -             | -          | -           |
+| final | code     | pending         | -          | -                                                  | -             | -          | -           |
+| plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                          | -             | auto       | -           |
+| plan  | artifact | received        | 2026-10-02 | reviews/artifact-plan-review-2026-10-02T053829Z.md | -             | -          | -           |
 
 For code-review events, `Reviewed Head` is the full 40-character SHA at the
 head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
