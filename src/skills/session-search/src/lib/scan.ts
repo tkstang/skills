@@ -28,9 +28,12 @@ import { spawnSync } from 'node:child_process';
 
 import { isInheritedRecord } from './adapters/codex.js';
 import { parseJsonObject, readLines } from './jsonl.js';
+import { snippetFor } from './matcher.js';
+import { MAX_SNIPPETS, precedesInFile } from './rank.js';
 import type {
   Hit,
   Matcher,
+  MatchResult,
   RecordClassifier,
   Runtime,
   SessionFile,
@@ -261,7 +264,17 @@ function timestampOf(record: Record<string, unknown>): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-/** Stream one transcript and return its verified hits. */
+/**
+ * Stream one transcript and return its verified hits. A hit never keeps its
+ * unit, so memory per hit is bounded however large the unit or raw tool line
+ * was. It keeps the emitted snippet (built with `snippetFor`, which redacts
+ * the full unit first) while ranking could still emit it: within one file,
+ * ranking orders hits by role, then timestamp, then scan order
+ * (`precedesInFile`), and stops after `MAX_SNIPPETS` distinct snippets. A hit
+ * preceded in this file by that many distinct snippets is never reached, so
+ * it is kept for scoring only, without text or snippet, and its unit is
+ * never redacted.
+ */
 export async function scanFile(
   file: SessionFile,
   adapter: SourceAdapter,
@@ -290,8 +303,27 @@ export async function scanFile(
   const accept = (patterns: readonly string[]): boolean =>
     hits.length < options.maxHitsPerSession ||
     patterns.some((pattern) => !seen.has(pattern));
-  const keep = (hit: Hit) => {
-    hits.push(hit);
+  const withSnippets: Hit[] = [];
+  const reachable = (hit: Hit): boolean => {
+    const better = new Set<string>();
+    for (const prior of withSnippets) {
+      if (!precedesInFile(prior, hit)) continue;
+      better.add(prior.snippet ?? '');
+      if (better.size >= MAX_SNIPPETS) return false;
+    }
+    return true;
+  };
+  const keep = (
+    hit: Omit<Hit, 'text' | 'snippet'>,
+    unitText: string,
+    match: MatchResult,
+  ) => {
+    const kept: Hit = { ...hit, text: '', seq: hits.length };
+    if (reachable(kept)) {
+      kept.snippet = snippetFor(unitText, matcher, match);
+      withSnippets.push(kept);
+    }
+    hits.push(kept);
     for (const pattern of hit.patterns) seen.add(pattern);
   };
   const done = () =>
@@ -321,16 +353,19 @@ export async function scanFile(
           const text = rawToolText(event.text);
           const match = matcher.match(text);
           if (!match || !accept(match.patterns)) return;
-          keep({
-            ...base,
-            role: 'tool',
-            userTyped: false,
-            patterns: match.patterns,
+          keep(
+            {
+              ...base,
+              role: 'tool',
+              userTyped: false,
+              patterns: match.patterns,
+              firstIndex: match.firstIndex,
+              firstLength: match.firstLength,
+              timestampMs: null,
+            },
             text,
-            firstIndex: match.firstIndex,
-            firstLength: match.firstLength,
-            timestampMs: null,
-          });
+            match,
+          );
           return !done();
         }
         const parsed = parseJsonObject(event.text);
@@ -349,19 +384,22 @@ export async function scanFile(
         for (const unit of units) {
           const match = matcher.match(unit.text);
           if (!match || !accept(match.patterns)) continue;
-          keep({
-            ...base,
-            role: unit.role,
-            userTyped:
-              unit.role === 'user' &&
-              !file.isSubagent &&
-              file.agentAuthored !== true,
-            patterns: match.patterns,
-            text: unit.text,
-            firstIndex: match.firstIndex,
-            firstLength: match.firstLength,
-            timestampMs: timestampOf(parsed),
-          });
+          keep(
+            {
+              ...base,
+              role: unit.role,
+              userTyped:
+                unit.role === 'user' &&
+                !file.isSubagent &&
+                file.agentAuthored !== true,
+              patterns: match.patterns,
+              firstIndex: match.firstIndex,
+              firstLength: match.firstLength,
+              timestampMs: timestampOf(parsed),
+            },
+            unit.text,
+            match,
+          );
           if (done()) return false;
         }
       },

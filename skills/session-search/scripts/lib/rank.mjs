@@ -251,8 +251,18 @@ function presentText(value, max) {
 function compareText(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
+function hitText(hit) {
+  return hit.snippet ?? hit.text;
+}
+function precedesInFile(a, b) {
+  const role = ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role);
+  if (role !== 0) return role < 0;
+  const time = (a.timestampMs ?? Number.MAX_SAFE_INTEGER) - (b.timestampMs ?? Number.MAX_SAFE_INTEGER);
+  if (time !== 0) return time < 0;
+  return (a.seq ?? 0) < (b.seq ?? 0);
+}
 function snippetOrder(a, b) {
-  return ROLE_ORDER.indexOf(a.hit.role) - ROLE_ORDER.indexOf(b.hit.role) || TIER_ORDER.indexOf(a.hit.tier) - TIER_ORDER.indexOf(b.hit.tier) || b.weight - a.weight || (a.hit.timestampMs ?? Number.MAX_SAFE_INTEGER) - (b.hit.timestampMs ?? Number.MAX_SAFE_INTEGER) || compareText(a.hit.sessionId, b.hit.sessionId) || compareText(a.hit.text, b.hit.text);
+  return ROLE_ORDER.indexOf(a.hit.role) - ROLE_ORDER.indexOf(b.hit.role) || TIER_ORDER.indexOf(a.hit.tier) - TIER_ORDER.indexOf(b.hit.tier) || b.weight - a.weight || (a.hit.timestampMs ?? Number.MAX_SAFE_INTEGER) - (b.hit.timestampMs ?? Number.MAX_SAFE_INTEGER) || compareText(a.hit.sessionId, b.hit.sessionId) || compareText(a.hit.transcriptPath ?? "", b.hit.transcriptPath ?? "") || (a.hit.seq ?? 0) - (b.hit.seq ?? 0) || compareText(hitText(a.hit), hitText(b.hit));
 }
 function fallbackSession(hit) {
   return {
@@ -365,7 +375,7 @@ function rankSessions(hits, sessions, options) {
     const seen = /* @__PURE__ */ new Set();
     for (const candidate of groupHits.toSorted(snippetOrder)) {
       if (snippets.length >= MAX_SNIPPETS) break;
-      const text = snippetFor(candidate.hit.text, matcher, candidate.hit);
+      const text = candidate.hit.snippet ?? snippetFor(candidate.hit.text, matcher, candidate.hit);
       if (seen.has(text)) continue;
       seen.add(text);
       snippets.push({
@@ -401,6 +411,8 @@ export {
   MAX_SNIPPETS,
   TITLE_MAX_CHARS,
   cwdMatchesHint,
+  hitText,
+  precedesInFile,
   presentText,
   rankSessions
 };

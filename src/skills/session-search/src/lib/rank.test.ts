@@ -204,6 +204,20 @@ describe('rankSessions subagents', () => {
 });
 
 describe('rankSessions output', () => {
+  it('emits a scanner-built snippet as-is without re-windowing', () => {
+    const m = compileMatcher(['zebra'], { literal: true });
+    const prebuilt = `…${'w '.repeat(60)}zebra ${'v '.repeat(40)}…`;
+    const results = rankSessions(
+      [{ ...hit(m, 's', 'zebra'), text: '', snippet: prebuilt }],
+      [session('s')],
+      { matcher: m, cwdHints: [], limit: 10 },
+    );
+
+    expect(results[0].snippets.map((snippet) => snippet.text)).toEqual([
+      prebuilt,
+    ]);
+  });
+
   it('redacts snippets, titles, and first prompts', () => {
     const secret = 'ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8';
     const m = compileMatcher(['zebra'], { literal: true });

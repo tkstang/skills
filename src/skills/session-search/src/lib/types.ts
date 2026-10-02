@@ -134,12 +134,27 @@ export interface Hit {
   userTyped: boolean;
   patterns: string[];
   /**
-   * Full, unredacted text unit. Emit it only through `snippetFor`, which
-   * redacts the whole unit before windowing.
+   * Full, unredacted text unit of a cheap-tier hit (history entry, title).
+   * Emit it only through `snippetFor`, which redacts the whole unit before
+   * windowing. Content- and deep-tier hits never retain their unit: `text`
+   * is empty, and `snippet` is set unless ranking can never emit the hit, so
+   * memory per hit stays bounded.
    */
   text: string;
   /**
-   * Position of the first match in the UNREDACTED `text`. Redaction changes
+   * The emitted snippet, already built with `snippetFor` (redacted as a whole
+   * unit, then windowed; at most `SNIPPET_MAX_CHARS`). When set, ranking and
+   * output use it as-is and never re-window `text`.
+   */
+  snippet?: string;
+  /**
+   * Content and deep tiers: the hit's position in its transcript's scan
+   * (0-based). Ranking breaks snippet ties within one transcript by it, so a
+   * hit's place never depends on text the scanner did not keep.
+   */
+  seq?: number;
+  /**
+   * Position of the first match in the UNREDACTED unit. Redaction changes
    * string length, so never reuse these indices on redacted text. Build
    * snippets with `snippetFor(hit.text, matcher, hit)`, which re-matches after
    * redacting and uses these indices only to locate a redacted hit.

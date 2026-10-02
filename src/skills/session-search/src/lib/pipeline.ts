@@ -28,7 +28,12 @@ import {
   cursorSlugMatchesCwd,
 } from './adapters/cursor.js';
 import { compileMatcher } from './matcher.js';
-import { cwdMatchesHint, rankSessions, type RankSession } from './rank.js';
+import {
+  cwdMatchesHint,
+  hitText,
+  rankSessions,
+  type RankSession,
+} from './rank.js';
 import { scanFiles, type ScanStats } from './scan.js';
 import { probeTools } from './tools.js';
 import type {
@@ -495,7 +500,7 @@ async function sessionsFor(
     const ordered = group.toSorted(
       (a, b) =>
         TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier) ||
-        (a.text < b.text ? -1 : a.text > b.text ? 1 : 0),
+        (hitText(a) < hitText(b) ? -1 : hitText(a) > hitText(b) ? 1 : 0),
     );
     const first = ordered[0];
     const cwd = ordered.find((hit) => hit.cwd)?.cwd ?? null;

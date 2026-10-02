@@ -13,8 +13,11 @@
  *       +  4 * recency (1.0 newest in the result set → 0.0 oldest)
  *
  * Ties break by last activity (newest first), then runtime, then session id.
+ * Snippets are picked by role, tier, weight, and timestamp; ties within one
+ * transcript keep scan order (`Hit.seq`).
  * Every emitted string is redacted; snippets go through `snippetFor`, which
- * redacts the full unit before windowing.
+ * redacts the full unit before windowing. Scanner hits arrive with that
+ * snippet prebuilt (`Hit.snippet`), so ranking never holds full units.
  */
 import path from 'node:path';
 
@@ -113,6 +116,33 @@ function compareText(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+/**
+ * The bounded text a hit is presented and tie-broken by: the snippet the
+ * scanner already built, else the cheap-tier unit.
+ */
+export function hitText(hit: Pick<Hit, 'snippet' | 'text'>): string {
+  return hit.snippet ?? hit.text;
+}
+
+/**
+ * Strict `snippetOrder` for two hits of the same transcript file, which share
+ * tier, weight, session, and path: `a` sorts before `b` by role, then
+ * timestamp (missing timestamps last), then scan order (`seq`). The scanner
+ * uses this to skip building snippets that ranking can never reach.
+ */
+export function precedesInFile(
+  a: Pick<Hit, 'role' | 'timestampMs' | 'seq'>,
+  b: Pick<Hit, 'role' | 'timestampMs' | 'seq'>,
+): boolean {
+  const role = ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role);
+  if (role !== 0) return role < 0;
+  const time =
+    (a.timestampMs ?? Number.MAX_SAFE_INTEGER) -
+    (b.timestampMs ?? Number.MAX_SAFE_INTEGER);
+  if (time !== 0) return time < 0;
+  return (a.seq ?? 0) < (b.seq ?? 0);
+}
+
 function snippetOrder(a: WeightedHit, b: WeightedHit): number {
   return (
     ROLE_ORDER.indexOf(a.hit.role) - ROLE_ORDER.indexOf(b.hit.role) ||
@@ -121,7 +151,9 @@ function snippetOrder(a: WeightedHit, b: WeightedHit): number {
     (a.hit.timestampMs ?? Number.MAX_SAFE_INTEGER) -
       (b.hit.timestampMs ?? Number.MAX_SAFE_INTEGER) ||
     compareText(a.hit.sessionId, b.hit.sessionId) ||
-    compareText(a.hit.text, b.hit.text)
+    compareText(a.hit.transcriptPath ?? '', b.hit.transcriptPath ?? '') ||
+    (a.hit.seq ?? 0) - (b.hit.seq ?? 0) ||
+    compareText(hitText(a.hit), hitText(b.hit))
   );
 }
 
@@ -271,7 +303,9 @@ export function rankSessions(
     const seen = new Set<string>();
     for (const candidate of groupHits.toSorted(snippetOrder)) {
       if (snippets.length >= MAX_SNIPPETS) break;
-      const text = snippetFor(candidate.hit.text, matcher, candidate.hit);
+      const text =
+        candidate.hit.snippet ??
+        snippetFor(candidate.hit.text, matcher, candidate.hit);
       if (seen.has(text)) continue;
       seen.add(text);
       snippets.push({

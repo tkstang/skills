@@ -25,8 +25,9 @@ import {
 import { createClaudeCodeAdapter } from './adapters/claude-code.js';
 import { createCodexAdapter } from './adapters/codex.js';
 import { createCursorAdapter } from './adapters/cursor.js';
-import { compileMatcher } from './matcher.js';
+import { compileMatcher, SNIPPET_MAX_CHARS, snippetFor } from './matcher.js';
 import { resolveOptions } from './options.js';
+import { rankSessions } from './rank.js';
 import {
   isPrefilterSafe,
   isRawToolCarrier,
@@ -104,7 +105,9 @@ describe('scanFile', () => {
       role: 'user',
       userTyped: true,
       tier: 'content',
-      text: 'line one perceive now end',
+      // One unit: the separators survive into the unit and the snippet
+      // collapses them to spaces.
+      snippet: 'line one perceive now end',
     });
   });
 
@@ -251,11 +254,151 @@ describe('scanFile', () => {
       options({ maxHitsPerSession: 3 }),
     );
 
-    expect(hits.map((hit) => hit.text)).toEqual([
+    expect(hits.map((hit) => hit.snippet)).toEqual([
       'zebra note 0',
       'zebra note 1',
       'zebra note 2',
     ]);
+  });
+});
+
+describe('bounded memory per hit', () => {
+  // Serialized hit size bound: snippet plus ids, paths, and pattern names.
+  const MAX_HIT_JSON = 2048;
+  const secret = ['gh', 'p_', 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'].join('');
+  const mib = `${'filler words '.repeat(45_000)}token ${secret} zebra ${'tail words '.repeat(45_000)}`;
+
+  it('keeps only a bounded, redacted snippet for a hit in a 1 MiB unit', async () => {
+    expect(mib.length).toBeGreaterThan(1024 * 1024);
+    writeClaudeSession(temp.home, {
+      cwd: '/work/repo',
+      records: (e) => [claudeAssistant(e, mib)],
+    });
+    const file = await onlyFile();
+    const matcher = compileMatcher(['zebra'], { literal: true });
+
+    const { hits } = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      matcher,
+      options({ maxLineBytes: 4 * 1024 * 1024 }),
+    );
+
+    expect(hits).toHaveLength(1);
+    expect(JSON.stringify(hits[0]).length).toBeLessThan(MAX_HIT_JSON);
+    expect(hits[0].snippet?.length).toBeLessThanOrEqual(SNIPPET_MAX_CHARS);
+    // The same snippet the ranker used to build from the full unit.
+    expect(hits[0].snippet).toBe(snippetFor(mib, matcher, matcher.match(mib)));
+    expect(hits[0].snippet).toContain('[REDACTED] zebra');
+  });
+
+  it('builds snippets only for hits ranking can still emit', async () => {
+    const at = (minute: number) =>
+      `2026-09-20T10:${String(minute).padStart(2, '0')}:00.000Z`;
+    writeClaudeSession(temp.home, {
+      cwd: '/work/repo',
+      records: (e) => [
+        claudeUser({ ...e, timestamp: at(1) }, 'zebra same'),
+        claudeUser({ ...e, timestamp: at(2) }, 'zebra same'),
+        claudeAssistant({ ...e, timestamp: at(3) }, 'zebra early reply'),
+        claudeUser({ ...e, timestamp: at(4) }, 'zebra second'),
+        claudeUser({ ...e, timestamp: at(5) }, 'zebra third'),
+        claudeUser({ ...e, timestamp: at(6) }, 'zebra fourth'),
+        claudeAssistant({ ...e, timestamp: at(7) }, 'zebra late reply'),
+      ],
+    });
+    const file = await onlyFile();
+    const matcher = compileMatcher(['zebra'], { literal: true });
+
+    const { hits } = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      matcher,
+      options(),
+    );
+
+    // Duplicates do not count toward the three distinct snippets ranking
+    // shows, so `zebra third` still gets one; later hits keep none.
+    expect(hits.map((hit) => [hit.role, hit.snippet ?? null])).toEqual([
+      ['user', 'zebra same'],
+      ['user', 'zebra same'],
+      ['assistant', 'zebra early reply'],
+      ['user', 'zebra second'],
+      ['user', 'zebra third'],
+      ['user', null],
+      ['assistant', null],
+    ]);
+    expect(hits.every((hit) => hit.text === '')).toBe(true);
+    const [result] = rankSessions(hits, [], {
+      matcher,
+      cwdHints: [],
+      limit: 1,
+    });
+    expect(result.snippets.map((snippet) => snippet.text)).toEqual([
+      'zebra same',
+      'zebra second',
+      'zebra third',
+    ]);
+  });
+
+  it('stops building snippets for untimed raw hits after three distinct ones', async () => {
+    writeCodexRollout(temp.home, {
+      id: CODEX_ID,
+      startedAtMs: NOW - DAY_MS,
+      records: [
+        codexSessionMeta({ id: CODEX_ID, cwd: '/work/repo' }),
+        ...[1, 2, 3, 4, 5].map((n) =>
+          codexToolOutput(
+            'function_call_output',
+            `call_${n}`,
+            `zebra dump ${n} ${'log line\n'.repeat(12_000)}`,
+            n,
+          ),
+        ),
+      ],
+    });
+    const file = await onlyFile();
+
+    const { hits, stats } = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      compileMatcher(['zebra'], { literal: true }),
+      options({ includeTools: true }),
+    );
+
+    expect(stats.linesSkippedOversize).toBe(5);
+    expect(hits.map((hit) => [hit.seq, hit.snippet !== undefined])).toEqual([
+      [0, true],
+      [1, true],
+      [2, true],
+      [3, false],
+      [4, false],
+    ]);
+  });
+
+  it('keeps only a bounded snippet for an oversize raw tool-output hit', async () => {
+    writeCodexRollout(temp.home, {
+      id: CODEX_ID,
+      startedAtMs: NOW - DAY_MS,
+      records: [
+        codexSessionMeta({ id: CODEX_ID, cwd: '/work/repo' }),
+        codexToolOutput('function_call_output', 'call_1', mib, 1),
+      ],
+    });
+    const file = await onlyFile();
+
+    const { hits, stats } = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      compileMatcher(['zebra'], { literal: true }),
+      options({ includeTools: true }),
+    );
+
+    expect(stats.linesSkippedOversize).toBe(1);
+    expect(hits).toHaveLength(1);
+    expect(JSON.stringify(hits[0]).length).toBeLessThan(MAX_HIT_JSON);
+    expect(hits[0].snippet).toContain('[REDACTED] zebra');
+    expect(hits[0].snippet).not.toContain(secret);
   });
 });
 
@@ -302,7 +445,7 @@ describe('ask-user exchanges on the content tier', () => {
 
     const answer = hits.find((hit) => hit.role === 'user');
     expect(answer).toMatchObject({ tier: 'content', userTyped: true });
-    expect(answer?.text).toContain('okapi-stripes');
+    expect(answer?.snippet).toContain('okapi-stripes');
   });
 
   it('finds a Codex request_user_input answer without includeTools', async () => {

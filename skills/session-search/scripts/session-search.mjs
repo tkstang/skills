@@ -2933,8 +2933,18 @@ function presentText(value, max) {
 function compareText(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
+function hitText(hit) {
+  return hit.snippet ?? hit.text;
+}
+function precedesInFile(a, b) {
+  const role = ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role);
+  if (role !== 0) return role < 0;
+  const time = (a.timestampMs ?? Number.MAX_SAFE_INTEGER) - (b.timestampMs ?? Number.MAX_SAFE_INTEGER);
+  if (time !== 0) return time < 0;
+  return (a.seq ?? 0) < (b.seq ?? 0);
+}
 function snippetOrder(a, b) {
-  return ROLE_ORDER.indexOf(a.hit.role) - ROLE_ORDER.indexOf(b.hit.role) || TIER_ORDER.indexOf(a.hit.tier) - TIER_ORDER.indexOf(b.hit.tier) || b.weight - a.weight || (a.hit.timestampMs ?? Number.MAX_SAFE_INTEGER) - (b.hit.timestampMs ?? Number.MAX_SAFE_INTEGER) || compareText(a.hit.sessionId, b.hit.sessionId) || compareText(a.hit.text, b.hit.text);
+  return ROLE_ORDER.indexOf(a.hit.role) - ROLE_ORDER.indexOf(b.hit.role) || TIER_ORDER.indexOf(a.hit.tier) - TIER_ORDER.indexOf(b.hit.tier) || b.weight - a.weight || (a.hit.timestampMs ?? Number.MAX_SAFE_INTEGER) - (b.hit.timestampMs ?? Number.MAX_SAFE_INTEGER) || compareText(a.hit.sessionId, b.hit.sessionId) || compareText(a.hit.transcriptPath ?? "", b.hit.transcriptPath ?? "") || (a.hit.seq ?? 0) - (b.hit.seq ?? 0) || compareText(hitText(a.hit), hitText(b.hit));
 }
 function fallbackSession(hit) {
   return {
@@ -3047,7 +3057,7 @@ function rankSessions(hits, sessions, options) {
     const seen = /* @__PURE__ */ new Set();
     for (const candidate of groupHits.toSorted(snippetOrder)) {
       if (snippets.length >= MAX_SNIPPETS) break;
-      const text = snippetFor(candidate.hit.text, matcher, candidate.hit);
+      const text = candidate.hit.snippet ?? snippetFor(candidate.hit.text, matcher, candidate.hit);
       if (seen.has(text)) continue;
       seen.add(text);
       snippets.push({
@@ -3232,8 +3242,23 @@ async function scanFile(file, adapter, matcher, options) {
   };
   const seen = /* @__PURE__ */ new Set();
   const accept = (patterns) => hits.length < options.maxHitsPerSession || patterns.some((pattern) => !seen.has(pattern));
-  const keep = (hit) => {
-    hits.push(hit);
+  const withSnippets = [];
+  const reachable = (hit) => {
+    const better = /* @__PURE__ */ new Set();
+    for (const prior of withSnippets) {
+      if (!precedesInFile(prior, hit)) continue;
+      better.add(prior.snippet ?? "");
+      if (better.size >= MAX_SNIPPETS) return false;
+    }
+    return true;
+  };
+  const keep = (hit, unitText, match) => {
+    const kept = { ...hit, text: "", seq: hits.length };
+    if (reachable(kept)) {
+      kept.snippet = snippetFor(unitText, matcher, match);
+      withSnippets.push(kept);
+    }
+    hits.push(kept);
     for (const pattern of hit.patterns) seen.add(pattern);
   };
   const done = () => hits.length >= options.maxHitsPerSession && seen.size >= matcher.patterns.length;
@@ -3256,16 +3281,19 @@ async function scanFile(file, adapter, matcher, options) {
           const text = rawToolText(event.text);
           const match = matcher.match(text);
           if (!match || !accept(match.patterns)) return;
-          keep({
-            ...base,
-            role: "tool",
-            userTyped: false,
-            patterns: match.patterns,
+          keep(
+            {
+              ...base,
+              role: "tool",
+              userTyped: false,
+              patterns: match.patterns,
+              firstIndex: match.firstIndex,
+              firstLength: match.firstLength,
+              timestampMs: null
+            },
             text,
-            firstIndex: match.firstIndex,
-            firstLength: match.firstLength,
-            timestampMs: null
-          });
+            match
+          );
           return !done();
         }
         const parsed = parseJsonObject(event.text);
@@ -3284,16 +3312,19 @@ async function scanFile(file, adapter, matcher, options) {
         for (const unit of units) {
           const match = matcher.match(unit.text);
           if (!match || !accept(match.patterns)) continue;
-          keep({
-            ...base,
-            role: unit.role,
-            userTyped: unit.role === "user" && !file.isSubagent && file.agentAuthored !== true,
-            patterns: match.patterns,
-            text: unit.text,
-            firstIndex: match.firstIndex,
-            firstLength: match.firstLength,
-            timestampMs: timestampOf(parsed)
-          });
+          keep(
+            {
+              ...base,
+              role: unit.role,
+              userTyped: unit.role === "user" && !file.isSubagent && file.agentAuthored !== true,
+              patterns: match.patterns,
+              firstIndex: match.firstIndex,
+              firstLength: match.firstLength,
+              timestampMs: timestampOf(parsed)
+            },
+            unit.text,
+            match
+          );
           if (done()) return false;
         }
       }
@@ -3779,7 +3810,7 @@ async function sessionsFor(hits, fileIndex, adapterFor, options) {
     ([a], [b]) => a < b ? -1 : 1
   )) {
     const ordered = group.toSorted(
-      (a, b) => TIER_ORDER2.indexOf(a.tier) - TIER_ORDER2.indexOf(b.tier) || (a.text < b.text ? -1 : a.text > b.text ? 1 : 0)
+      (a, b) => TIER_ORDER2.indexOf(a.tier) - TIER_ORDER2.indexOf(b.tier) || (hitText(a) < hitText(b) ? -1 : hitText(a) > hitText(b) ? 1 : 0)
     );
     const first = ordered[0];
     const cwd = ordered.find((hit) => hit.cwd)?.cwd ?? null;
