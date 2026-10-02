@@ -60,6 +60,10 @@ ss-p02-outcome-1 p02 pass; blocking fix iterations 1; reviews reviews/archived/p
 
 ss-p03-outcome-1 p03 pass; fix iterations 1; review reviews/archived/p03-review-2026-10-02T080403Z.md
 
+### 2026-10-02 · structural · oat-project-implement · p04
+
+ss-p04-outcome-1 p04 pass; fix iterations 1; recovery 1/10; review reviews/archived/p04-review-2026-10-02T083046Z.md
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
