@@ -250,7 +250,19 @@ export async function scanFile(
     fromSubagent: file.isSubagent,
     parentSessionId: file.parentSessionId,
   };
-  const full = () => hits.length >= options.maxHitsPerSession;
+  // Past the per-file cap, a hit is kept only when it credits a pattern not
+  // yet seen in this file; streaming stops once every pattern is credited.
+  const seen = new Set<string>();
+  const accept = (patterns: readonly string[]): boolean =>
+    hits.length < options.maxHitsPerSession ||
+    patterns.some((pattern) => !seen.has(pattern));
+  const keep = (hit: Hit) => {
+    hits.push(hit);
+    for (const pattern of hit.patterns) seen.add(pattern);
+  };
+  const done = () =>
+    hits.length >= options.maxHitsPerSession &&
+    seen.size >= matcher.patterns.length;
 
   try {
     const result = await readLines(
@@ -272,8 +284,8 @@ export async function scanFile(
             return;
           }
           const match = matcher.match(event.text);
-          if (!match) return;
-          hits.push({
+          if (!match || !accept(match.patterns)) return;
+          keep({
             ...base,
             role: 'tool',
             userTyped: false,
@@ -283,25 +295,25 @@ export async function scanFile(
             firstLength: match.firstLength,
             timestampMs: null,
           });
-          return !full();
+          return !done();
         }
-        const record = parseJsonObject(event.text);
-        if (!record) {
+        const parsed = parseJsonObject(event.text);
+        if (!parsed) {
           stats.parseErrors += 1;
           return;
         }
-        if (isInheritedRecord(file, record)) return;
+        if (isInheritedRecord(file, parsed)) return;
         let units;
         try {
-          units = adapter.classifyRecord(record, options.includeTools);
+          units = adapter.classifyRecord(parsed, options.includeTools);
         } catch {
           stats.parseErrors += 1;
           return;
         }
         for (const unit of units) {
           const match = matcher.match(unit.text);
-          if (!match) continue;
-          hits.push({
+          if (!match || !accept(match.patterns)) continue;
+          keep({
             ...base,
             role: unit.role,
             userTyped:
@@ -312,9 +324,9 @@ export async function scanFile(
             text: unit.text,
             firstIndex: match.firstIndex,
             firstLength: match.firstLength,
-            timestampMs: timestampOf(record),
+            timestampMs: timestampOf(parsed),
           });
-          if (full()) return false;
+          if (done()) return false;
         }
       },
     );

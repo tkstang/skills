@@ -181,6 +181,30 @@ describe('scanFile', () => {
     ).toEqual([['user', false, true]]);
   });
 
+  it('credits a later pattern after the per-file hit cap is reached', async () => {
+    writeClaudeSession(temp.home, {
+      cwd: '/work/repo',
+      records: (e) => [
+        ...Array.from({ length: 30 }, (_, i) =>
+          claudeAssistant(e, `zebra ${i}`),
+        ),
+        claudeAssistant(e, 'finally an okapi'),
+        claudeAssistant(e, 'zebra after both'),
+      ],
+    });
+    const file = await onlyFile();
+
+    const { hits } = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      compileMatcher(['zebra', 'okapi'], { literal: true }),
+      options({ maxHitsPerSession: 25 }),
+    );
+
+    expect(hits).toHaveLength(26);
+    expect(hits.at(-1)?.patterns).toEqual(['okapi']);
+  });
+
   it('stops a file after maxHitsPerSession hits', async () => {
     writeClaudeSession(temp.home, {
       cwd: '/work/repo',
