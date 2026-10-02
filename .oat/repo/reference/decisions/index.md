@@ -9,6 +9,13 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-261002-adapter-owned-record | 2026-10-02 | accepted | Adapter-owned record classification | - |
+| DR-261002-local-only-search-with-opt | 2026-10-02 | accepted | Local-only search with opt-in remote hosts | - |
+| DR-261002-optional-rg-prefilter | 2026-10-02 | accepted | Optional rg prefilter with Node verification | - |
+| DR-261002-redact-snippets-at-scan-time | 2026-10-02 | accepted | Redact snippets at scan time | - |
+| DR-261002-repo-hints-widen-instead | 2026-10-02 | accepted | Repo hints widen instead of filtering | - |
+| DR-261002-stateless-tiered-session | 2026-10-02 | accepted | Stateless tiered session search | - |
+| DR-261002-tool-output-only-on-the-deep | 2026-10-02 | accepted | Tool output only on the deep rung | - |
 | DR-260920-opt-in-complete-activity | 2026-09-20 | accepted | Opt-in complete activity export | - |
 | DR-260920-preserve-native-activity | 2026-09-20 | accepted | Preserve native activity semantics | - |
 | DR-260920-retrospectives-use-frozen | 2026-09-20 | accepted | Retrospectives use frozen evidence | - |
