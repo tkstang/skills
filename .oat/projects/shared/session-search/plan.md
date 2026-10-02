@@ -6,7 +6,7 @@ oat_last_updated: 2026-10-02
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
-oat_plan_hill_phases: ["p04"]
+oat_plan_hill_phases: ["p05"]
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_source: quick
 oat_import_reference: null
@@ -1209,6 +1209,83 @@ Source: reviews/archived/p04-review-2026-10-02T083046Z.md, Low.
 
 ---
 
+## Phase 5: Final review fixes
+
+Source: reviews/archived/final-review-2026-10-02T084934Z.md (final code review, 0C/0H/3M/4L). Fix tasks for the final-review findings. L2 was aligned by root; L3 was rejected with rationale (see implementation.md).
+
+### Task p05-t01: (review) Confine deep raw-fallback matching to tool content
+
+Source: reviews/archived/final-review-2026-10-02T084934Z.md, Medium M1.
+
+**Files:** `src/skills/session-search/src/lib/scan.ts`, `lib/scan.test.ts`, `lib/pipeline.test.ts`.
+
+**Behavior:** the deep-tier raw fallback for oversize lines must not match record metadata (Claude `cwd`, `gitBranch`, `sessionId`, `version`, `uuid`/`parentUuid`, `timestamp`, `userType`, `slug`; Codex envelope fields). Either match only within the raw span of the tool-content value (e.g. from the `"content":`/`"output":`/`"result":` key of the carrier), or exclude spans of the known metadata keys before matching.
+
+**Test:** an oversize Claude `tool_result` line whose only occurrence of the pattern is in `cwd`/`gitBranch` yields no deep hit. The same pattern inside the tool content is still found.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files; `pnpm run build` and `pnpm run build:check`. Each new test must fail against the pre-fix code.
+**Commit:** `fix(p05-t01): confine deep raw fallback to tool content`
+
+### Task p05-t02: (review) Cover more common token families in redaction
+
+Source: reviews/archived/final-review-2026-10-02T084934Z.md, Medium M2.
+
+**Files:** `lib/redact.ts`, `lib/redact.test.ts`.
+
+**Behavior:** mask these families:
+
+- Google `AIza[0-9A-Za-z_-]{35}`
+- GitLab `glpat-[0-9A-Za-z_-]{20,}`
+- Stripe `(sk|rk|pk)_(live|test)_[0-9A-Za-z]{16,}` (short forms included)
+- Hugging Face `hf_[A-Za-z0-9]{30,}`
+- AWS temporary key IDs `ASIA[0-9A-Z]{16}`
+
+Keep the scan linear and re-run the 256 KiB timing test. **Bare 32-hex masking is out of scope (rejected).** It would mask MD5 and other hashes and IDs that users search for; keyed hex values are already covered by the key-value rule.
+
+**Test:** one positive per family; negatives for prose and an MD5-looking hash.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files; `pnpm run build` and `pnpm run build:check`. Each new test must fail against the pre-fix code.
+**Commit:** `fix(p05-t02): redact additional common token families`
+
+### Task p05-t03: (review) Bound per-hit memory during scans
+
+Source: reviews/archived/final-review-2026-10-02T084934Z.md, Medium M3 (a broad deep query used 1.42 GB RSS on a 4.9 GiB store).
+
+**Files:** `lib/scan.ts`, `lib/pipeline.ts`, `lib/rank.ts`, `lib/types.ts`, and the related tests.
+
+**Behavior:**
+
+- At scan time, keep at most a bounded excerpt per hit. Build the redacted snippet early with `snippetFor`, or keep a bounded window (e.g. ±2 KiB around the match) instead of the full unit text.
+- Keep the per-session stored-hit cap.
+- Ranking must use only those bounded fields.
+
+**Test:** a hit from a 1 MiB text unit stores at most the bounded size. Ranking and snippets are unchanged for the existing fixtures.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files; `pnpm run build` and `pnpm run build:check`. Each new test must fail against the pre-fix code., plus a measured RSS spot-check (e.g. `/usr/bin/time -l`) of a broad deep query on the local store, before and after, reported in the task notes.
+**Commit:** `fix(p05-t03): bound per-hit memory during scans`
+
+### Task p05-t04: (review) Emit ask-user prompts and answers as separate units
+
+Source: reviews/archived/final-review-2026-10-02T084934Z.md, Low L1 (results with `rg` differ from results without it when a pattern spans the combined `prompt: answer` text).
+
+**Files:** `lib/adapters/claude-code.ts`, `lib/adapters/codex.ts`, `lib/scan.test.ts`.
+
+**Behavior:** emit the question/label and each answer value as separate units, so every emitted string exists contiguously in the raw bytes and the prefilter-superset invariant holds.
+
+**Test:** in the `gives identical hits with and without rg` test, a pattern spanning a label and its answer gives identical results either way.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files; `pnpm run build` and `pnpm run build:check`. Each new test must fail against the pre-fix code.
+**Commit:** `fix(p05-t04): emit ask-user prompt and answers as separate units`
+
+### Task p05-t05: (review) List SESSION_SEARCH_PROBE_TIMEOUT_MS in --help
+
+Source: reviews/archived/final-review-2026-10-02T084934Z.md, Low L4.
+
+**Files:** `src/skills/session-search/src/session-search.ts` (`HELP`), plus a CLI `--help` assertion in `src/cli.test.ts` if one exists.
+
+**Behavior:** the `Environment:` block lists `SESSION_SEARCH_PROBE_TIMEOUT_MS  tool-probe timeout in ms (default 3000)`.
+
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files; `pnpm run build` and `pnpm run build:check`. Each new test must fail against the pre-fix code.
+**Commit:** `fix(p05-t05): document probe timeout env in help`
+
+---
+
 ## Reviews
 
 | Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head | Invocation | Gate Target       |
@@ -1219,7 +1296,8 @@ Source: reviews/archived/p04-review-2026-10-02T083046Z.md, Low.
 | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md | e09b9afe | auto | - |
 | p03   | code     | fixes_completed | 2026-10-02 | reviews/archived/p03-review-2026-10-02T080403Z.md | 7ff0c270 | auto | - |
 | p04   | code     | fixes_completed | 2026-10-02 | reviews/archived/p04-review-2026-10-02T083046Z.md | 9ccaef4f | auto | - |
-| final | code     | pending         | -          | -                                                           | -             | -          | -                 |
+| p05   | code     | pending | -    | -        | -             | -          | -           |
+| final | code     | fixes_added | 2026-10-02 | reviews/archived/final-review-2026-10-02T084934Z.md | 7941601149bdf9adf2a7d9e6d9b55f98152f1fb1 | auto | - |
 | plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -             | auto       | -                 |
 | plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -             | gate       | codex-6-sol-xhigh |
 | plan  | artifact | passed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T055258Z.md | - | gate | codex-6-sol-xhigh |
@@ -1246,8 +1324,9 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 - Phase 2: 21 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 12 p02 review fixes (t08–t19) and 2 root follow-ups (t20–t21).
 - Phase 3: 10 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests. Includes 2 root follow-ups (t04 Codex MCP results, t05 ladder guidance) and 5 p03 review fixes (t06–t10).
 - Phase 4: 7 tasks. Docs, stale-path fix, changelog plus premerge. Includes 4 p04 review fixes (t04–t07).
+- Phase 5: 5 tasks. Final-review fixes (deep raw-fallback scoping, token families, bounded hit memory, ask-user unit split, help text).
 
-**Total: 54 tasks**
+**Total: 59 tasks**
 
 ## References
 

@@ -100,8 +100,8 @@ The skill sits beside the existing `session-*` skills. It ships standalone (`ski
    set widened=true
 9. if still 0 sessions, the content tier is selected, and the deep rung is
    enabled → T4: same as T3 with tool output included. `--include-tools`
-   instead labels the content scan itself `deep`. tiersRun lists only scans
-   that actually ran (a guard-skipped or zero-file rung is omitted)
+   instead labels the content scan itself `deep`. tiersRun lists every scan
+   that ran, including over zero files (a guard-skipped rung is omitted)
 10. rank, roll up subagents, redact, cap snippets, limit → emit
 ```
 
@@ -122,7 +122,7 @@ interface SourceAdapter {
   metadataHits(ctx: AdapterContext, m: Matcher): Promise<Hit[]>; // tier 2
   sessionInfo(file: SessionFile): Promise<SessionInfo>; // cwd, title, firstPrompt, startedAt (bounded read)
   classifyRecord(record: JsonObject, includeTools: boolean): TextUnit[]; // role-tagged text for tier 3/4
-  openHint(file: SessionFile, info: SessionInfo): { command: string | null; hint: string };
+  openHint(sessionId: string, info: SessionInfo, transcriptPath: string | null): { command: string | null; hint: string };
   fileClassifier?(file: SessionFile, includeTools: boolean): RecordClassifier; // per-file state (tool-name / call-id maps) for ask-user pairing
 }
 // AdapterContext carries an optional `deadline` (epoch ms) honored by enumeration header reads, title tail reads, and scoping loops.
@@ -270,6 +270,7 @@ interface SearchResult {
     linesSkippedOversize: number;
     parseErrors: number;
     elapsedMs: number;
+    scopeReads: number; // sessionInfo reads performed during cwd scoping
   };
 }
 

@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: null
+oat_current_task_id: p05-t01
 oat_generated: false
 ---
 
@@ -24,7 +24,7 @@ oat_generated: false
 
 **Run context (autonomous):**
 
-- Gate `IMPLEMENT-03`: no `oat_plan_hill_phases` on the first run, so the autonomous default `["p04"]` (final phase) was written to plan.md.
+- Gate `IMPLEMENT-03`: no `oat_plan_hill_phases` on the first run, so the autonomous default `["p04"]` (final phase) was written to plan.md. It moved to `["p05"]` when final-review receive added Phase 5.
 - Gate `IMPLEMENT-04`: `oat_auto_review_at_hill_checkpoints: true`.
 - Gate `IMPLEMENT-08`: delegation authorized once for `oat-phase-implementer` and `oat-reviewer` within plan-bounded phase and review scopes.
 - Tier 1 (native Claude subagents). Dispatch policy `high` (project-state).
@@ -37,8 +37,9 @@ oat_generated: false
 | Phase 2 | complete    | 21    | 21/21     |
 | Phase 3 | complete    | 10    | 10/10     |
 | Phase 4 | complete    | 7     | 7/7       |
+| Phase 5 | pending     | 5     | 0/5       |
 
-**Total:** 54/54 tasks completed
+**Total:** 54/59 tasks completed
 
 ---
 
@@ -340,6 +341,27 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 - p04-t05: L, `pastedContents` field claim
 - p04-t06: L, deep-tier precondition in the tier table
 - p04-t07: L, remote fallback is unranked and unredacted
+
+---
+
+### Review Received: final
+
+**Date:** 2026-10-02
+**Review artifact:** reviews/archived/final-review-2026-10-02T084934Z.md (request `session-search-final-review-1`, invocation auto, reviewed head `79416011`, **Reconnaissance:** not-attempted; gate `IMPLEMENT-11`: route native, policy-resolved review target `oat-reviewer-claude-claude-opus-5-5-high`; independence: separate context, same family)
+
+**Findings:** Critical 0, High 0, Medium 3, Low 4. A `passed` final row requires the Mediums to be resolved, so they were converted.
+
+**Dispositions:**
+
+- **p05-t01**: M1, deep raw fallback matches Claude metadata.
+- **p05-t02**: M2, token families. The bare 32-hex part is **rejected**: it would mask hashes and IDs users search for, and keyed hex is already covered.
+- **p05-t03**: M3, unbounded per-hit memory.
+- **p05-t04**: L1, prefilter parity for ask-user composite text.
+- **p05-t05**: L4, `--help` env var.
+- **L2** (design.md drift: `tiersRun` zero-file wording, `scopeReads`, `openHint` signature): aligned by root.
+- **L3** (`.oat/sync/manifest.json` oatVersion bump): **rejected with rationale**. It is OAT sync tooling state, committed by the quick-start preflight contract as its own separately described `chore: run sync` commit, which is the reviewer's own acceptable alternative. It is not part of the session-search feature diff.
+
+**Plan change:** Phase 5 was added for the final-review fixes, and the autonomous final HiLL checkpoint moved from p04 to p05 (still the final phase). A final re-review follows p05.
 
 ---
 
