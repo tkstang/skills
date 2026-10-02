@@ -253,9 +253,8 @@ export async function main(
     const result = await runSearch(options, {
       home,
       env: io.env,
-      onNote: options.json
-        ? undefined
-        : (note) => io.stderr(`${PREFIX} note: ${note}\n`),
+      // Notes go to stderr in every mode, so --json stdout stays pure JSON.
+      onNote: (note) => io.stderr(`${PREFIX} note: ${note}\n`),
     });
     io.stdout(
       options.json
