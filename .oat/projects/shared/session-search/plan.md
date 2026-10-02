@@ -984,6 +984,44 @@ Source: root follow-up to the p02-t20 implementer concern. The p02-t17 test "rep
 
 ---
 
+### Task p03-t04: (root) Extract Codex MCP and other item_completed tool results
+
+Source: root real-store verification of the generated CLI (2026-10-02). In the motivating Codex rollout (`2026/08/30/rollout-…01a053ba….jsonl`), the ChatGPT thread title "Review Perceive Now" appears **only** in `event_msg` `item_completed` records whose `item.type` is `McpToolCall`: `{server, tool, arguments, result: {content: [{type: "text", text}], isError, structuredContent?}}`, with normal-sized lines. The Codex adapter emits tool text only for `function_call_output`/`custom_tool_call_output`/`CommandExecution`, so `--include-tools` and the deep rung miss the original incident's exact shape.
+
+Item types observed in the September census: Reasoning, CommandExecution, AgentMessage, UserMessage, Extension, SubAgentActivity, McpToolCall, FileChange, CollabAgentToolCall, and others.
+
+**Files:** `src/skills/session-search/src/lib/adapters/codex.ts`, `lib/adapters/codex.test.ts`, `lib/pipeline.test.ts`, `helpers/test-helpers.ts`, `lib/scan.ts` (only if the oversize raw-fallback carrier list needs aligning), plus the regenerated bundle via `pnpm run build`.
+
+**Behavior:** with `includeTools`, emit `tool` units from `item_completed` items:
+
+- `McpToolCall`: `result.content[].text` blocks (the same decoding rules as `codexOutputText`, never losing text), `structuredContent` (JSON-stringified), and `arguments`.
+- `CollabAgentToolCall` and `Extension`: any `result`/`output`/`content` text, defensively.
+- `FileChange`: the change summary text if present.
+
+Do not emit `Reasoning`. `AgentMessage`/`UserMessage` items are already covered by `response_item` messages, so they must not be double-counted. Keep the oversize raw-fallback carrier list consistent.
+
+**Tests:**
+
+- An `item_completed` `McpToolCall` whose `result.content[0].text` carries the phrase is found only with `includeTools` and on the deep rung (pipeline).
+- `Reasoning` is not emitted.
+- The new tests fail before the fix.
+
+**Verify:** `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files; `pnpm run build` and `pnpm run build:check`; `pnpm run test:vitest src/skills/session-search/src/cli.test.ts`.
+**Commit:** `fix(p03-t04): search codex mcp tool call results`
+
+### Task p03-t05: (root) Teach the widening ladder to try tool output when hits are only later discussion
+
+Source: the same real-store verification. Without `--include-tools`, the top hits for the motivating query were later sessions **discussing** the incident. The deep rung only runs on zero results, so the original is never reached.
+
+**Files:** `src/skills/session-search/SKILL.md`, plus the regenerated outputs via `pnpm run build`.
+
+**Behavior (guidance only):** in the weak-results ladder, when the top hits look like later sessions talking about the thing rather than the session where it happened (they mention "found it", "another session", or the dates postdate the user's hint), re-run with `--include-tools` and/or an `--until` bound before the discussion. Explain that tool output (MCP results, command output) is excluded by default.
+
+**Verify:** `pnpm run build`, `pnpm run build:check`, `pnpm run validate`; format the edited Markdown.
+**Commit:** `docs(p03-t05): suggest tool-output reruns for discussion-only hits`
+
+---
+
 ## Phase 4: Documentation, stale-path fix, release notes, full verification
 
 ### Task p04-t01: User-guide and architecture docs
@@ -1093,10 +1131,10 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 
 - Phase 1: 16 tasks. Core library: types/shim, options/time, matcher/snippets, redaction, tool probe, plus 11 p01 review fixes (t06–t16).
 - Phase 2: 21 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 12 p02 review fixes (t08–t19) and 2 root follow-ups (t20–t21).
-- Phase 3: 3 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests.
+- Phase 3: 5 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests. Includes 2 root follow-ups (t04 Codex MCP results, t05 ladder guidance).
 - Phase 4: 3 tasks. Docs, stale-path fix, changelog plus premerge.
 
-**Total: 43 tasks**
+**Total: 45 tasks**
 
 ## References
 
