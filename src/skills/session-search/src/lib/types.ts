@@ -127,8 +127,16 @@ export interface Hit {
   /** True for user-typed text (history tier or genuine user role). */
   userTyped: boolean;
   patterns: string[];
-  /** Full text unit; redacted as a whole before snippet windowing. */
+  /**
+   * Full, unredacted text unit. Emit it only through `snippetFor`, which
+   * redacts the whole unit before windowing.
+   */
   text: string;
+  /**
+   * Position of the first match in the UNREDACTED `text`. Redaction changes
+   * string length, so never reuse these indices on redacted text; `snippetFor`
+   * re-matches after redacting.
+   */
   firstIndex: number;
   firstLength: number;
   transcriptPath: string | null;

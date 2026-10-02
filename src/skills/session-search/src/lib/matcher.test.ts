@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { SNIPPET_MAX_CHARS, buildSnippet, compileMatcher } from './matcher.js';
+import {
+  SNIPPET_MAX_CHARS,
+  buildSnippet,
+  compileMatcher,
+  snippetFor,
+} from './matcher.js';
 import { UsageError } from './options.js';
+import { REDACTED } from './redact.js';
 
 describe('compileMatcher', () => {
   it('treats patterns as regexes by default and escapes them with literal', () => {
@@ -101,5 +107,42 @@ describe('buildSnippet', () => {
     expect(SNIPPET_MAX_CHARS).toBe(240);
     expect(snippet.startsWith(`…${'x'.repeat(80)}H`)).toBe(true);
     expect(snippet.endsWith('…')).toBe(true);
+  });
+});
+
+describe('snippetFor', () => {
+  const secret = ['QmFzZTY0', 'RW5jb2RlZERhdGFXaXRoMURpZ2l0']
+    .join('')
+    .repeat(10);
+
+  it('re-matches after redaction so an earlier secret cannot shift the hit away', () => {
+    const matcher = compileMatcher(['PerceiveNow'], { literal: false });
+    const text = `${secret} we discussed PerceiveNow ${'filler words '.repeat(30)}`;
+    // Pre-redaction indices no longer line up with the redacted text.
+    const preRedaction = matcher.match(text);
+    expect(preRedaction?.firstIndex).toBeGreaterThan(300);
+
+    const snippet = snippetFor(text, matcher);
+
+    expect(snippet).toContain('PerceiveNow');
+    expect(snippet).toContain(REDACTED);
+    expect(snippet).not.toContain('QmFzZTY0');
+  });
+
+  it('falls back to the first redaction marker when the hit itself was redacted', () => {
+    const key = ['sk', '-', 'proj', 'A1b2C3d4E5f6G7h8I9j0K1'].join('');
+    const matcher = compileMatcher(['sk-proj'], { literal: true });
+    const text = `${'lead '.repeat(40)}key ${key} trailing`;
+
+    const snippet = snippetFor(text, matcher);
+
+    expect(snippet).toContain(REDACTED);
+    expect(snippet).not.toContain('sk-proj');
+    expect(snippet.startsWith('…')).toBe(true);
+  });
+
+  it('falls back to the text start when nothing matches after redaction', () => {
+    const matcher = compileMatcher(['absent'], { literal: true });
+    expect(snippetFor('plain words only', matcher)).toBe('plain words only');
   });
 });

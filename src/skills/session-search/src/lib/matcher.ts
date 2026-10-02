@@ -2,10 +2,12 @@
  * Pattern compilation and snippet windowing for session-search.
  *
  * Patterns are supplied by the calling agent. They are case-insensitive
- * regexes by default; `--literal` escapes them. Snippet text passed to
- * `buildSnippet` must already be redacted as a whole unit (see `redact.ts`).
+ * regexes by default; `--literal` escapes them. Emitted snippets go through
+ * `snippetFor`, which redacts the whole unit before windowing. Text passed
+ * directly to `buildSnippet` must already be redacted as a whole unit.
  */
 import { UsageError } from './options.js';
+import { REDACTED, redact } from './redact.js';
 import type { MatchResult, Matcher } from './types.js';
 
 /** Characters kept on each side of the first hit. */
@@ -90,4 +92,21 @@ export function buildSnippet(
     body = body.slice(0, SNIPPET_MAX_CHARS - prefix.length - suffix.length);
   }
   return `${prefix}${body}${suffix}`;
+}
+
+/**
+ * Build an emitted snippet for one text unit: redact the FULL unit first,
+ * then re-run the matcher on the redacted text and window at that hit.
+ * Indices from a pre-redaction match are never reused, because redaction
+ * changes string length. When redaction removed the hit itself, the window
+ * falls back to the first redaction marker, else the start of the text.
+ */
+export function snippetFor(text: string, matcher: Matcher): string {
+  const redacted = redact(text);
+  const hit = matcher.match(redacted);
+  if (hit) return buildSnippet(redacted, hit.firstIndex, hit.firstLength);
+  const marker = redacted.indexOf(REDACTED);
+  return marker === -1
+    ? buildSnippet(redacted, 0, 0)
+    : buildSnippet(redacted, marker, REDACTED.length);
 }

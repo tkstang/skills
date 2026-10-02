@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildSnippet } from './matcher.js';
+import { compileMatcher, snippetFor } from './matcher.js';
 import { REDACTED, redact } from './redact.js';
 
 // Synthetic credential shapes are assembled at runtime so no literal token
@@ -124,16 +124,17 @@ describe('redact: key-value secrets', () => {
 });
 
 describe('redact: full unit before windowing', () => {
+  const needle = compileMatcher(['needle'], { literal: true });
+
   it('leaves no fragment of an escaped credential near a snippet edge', () => {
     // Place the credential value so the raw window would end mid-value.
     const head = 'needle ';
     const keyPart = '{\\"token\\":\\"';
     const filler = 'y'.repeat(80 - head.length - keyPart.length);
     const text = `${head}${filler}${keyPart}${SYNTHETIC}\\"} trailing`;
-    const index = 0;
     expect(text.slice(0, 86)).toMatch(/synthe$/);
 
-    const snippet = buildSnippet(redact(text), index, 'needle'.length);
+    const snippet = snippetFor(text, needle);
 
     expect(snippet).toContain('needle');
     expect(snippet).not.toMatch(/synth/);
@@ -141,9 +142,8 @@ describe('redact: full unit before windowing', () => {
 
   it('masks a long token whose window cut would leave a short fragment', () => {
     const text = `needle ${'z'.repeat(60)} ${SHA}${SHA} tail`;
-    const index = text.indexOf('needle');
 
-    const snippet = buildSnippet(redact(text), index, 'needle'.length);
+    const snippet = snippetFor(text, needle);
 
     expect(snippet).not.toMatch(/[0-9a-f]{12,}/);
   });
