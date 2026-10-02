@@ -52,9 +52,9 @@
   - Getting Started
     - [Getting Started](user-guide/getting-started/index.md) — Choose an installation form, try a small request, and recognize a useful skill response.
   - Plugins
-    - [Plugins](user-guide/plugins/index.md) — Choose Consensus for peer perspectives or Session for messaging, continuity, and retrospective review.
+    - [Plugins](user-guide/plugins/index.md) — Choose Consensus for peer perspectives or Session for messaging, continuity, past-session search, and retrospective review.
     - Session
-      - [Session](user-guide/plugins/session/index.md) — Exchange messages, preserve context, export a transcript, prepare an alpha native fork, or review a session.
+      - [Session](user-guide/plugins/session/index.md) — Exchange messages, preserve context, export a transcript, find a past session, prepare an alpha native fork, or review a session.
   - Skills
     - [Standalone Skills](user-guide/skills/index.md) — Find independently installable skills by capability, including members also available through Consensus or Session.
     - [Agent Messaging](user-guide/skills/agent-messaging.md) — Exchange durable addressed messages among local coding-agent sessions without sharing transcripts.
@@ -69,4 +69,5 @@
     - [Collaborative Observer](user-guide/skills/session-observer-collab.md) — Coordinate two mutually observing agent sessions with exact pins, bounded wake tiers, explicit authority, and deterministic closeout.
     - [Session Observer](user-guide/skills/session-observer.md) — Review what another coding agent did in this project with tool-free digests, per-session read offsets, and foreground watch mode.
     - [Session Retro](user-guide/skills/session-retro.md) — Review one exact frozen session episode and propose evidence-backed improvements without applying them.
+    - [Session Search](user-guide/skills/session-search.md) — Find a past Claude Code, Codex, or Cursor session on this machine from a fuzzy description, with ranked, redacted candidates and resume hints.
   - [Installation](user-guide/installation.md) — Install the consensus or session plugin, choose optional standalone skill forms, and check prerequisites and release evidence.

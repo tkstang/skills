@@ -74,6 +74,7 @@ plugin by itself.
 | `src/skills/session-retro`                                                                                                       | `skills/session-retro/` and `plugins/session/skills/retro/`                             |
 | `src/skills/session-export-transcript`                                                                                           | `skills/session-export-transcript/` and `plugins/session/skills/export-transcript/`     |
 | `src/skills/session-fork-to-destination`                                                                                         | `skills/session-fork-to-destination/` and `plugins/session/skills/fork-to-destination/` |
+| `src/skills/session-search`                                                                                                      | `skills/session-search/` and `plugins/session/skills/search/`                           |
 | `src/skills/complexity-review`                                                                                                   | `skills/complexity-review/` only                                                        |
 | `src/skills/author-skill`                                                                                                        | `skills/author-skill/` only                                                             |
 | `src/skills/align`                                                                                                               | `skills/align/` only                                                                    |
@@ -105,6 +106,8 @@ core skill.
 flowchart LR
   TRANSCRIPT["Shared transcript code"] -->|bundled code| OBSERVER["session-observer"]
   TRANSCRIPT -->|bundled code| EXPORT["session-export-transcript"]
+  TRANSCRIPT -->|bundled code| SEARCH["session-search"]
+  EXPORT -->|"bundled code (sanitizer matchers)"| SEARCH
   COLLAB["session-observer-collab"] -.->|requires installed workflow| OBSERVER
   HANDOFF["session-handoff"] -.->|optional integration| OBSERVER
   HANDOFF -.->|optional integration| EXPORT
@@ -146,12 +149,12 @@ forms.
 
 ## Session plugin-local runtime layout
 
-The session plugin is a separate complete package. `export-transcript` and
-`fork-to-destination` each carry their own bundled runtime closure inside their
-skill directory; `handoff` and `retro` are instruction-only with bundled
-templates. Their
-canonical standalone names stay `session-export-transcript`,
-`session-fork-to-destination`, `session-handoff`, and `session-retro`.
+The session plugin is a separate complete package. `export-transcript`,
+`fork-to-destination`, and `search` each carry their own bundled runtime closure
+inside their skill directory; `handoff` and `retro` are instruction-only with
+bundled templates. Their canonical standalone names stay
+`session-export-transcript`, `session-fork-to-destination`, `session-search`,
+`session-handoff`, and `session-retro`.
 
 ## Import rewriting
 

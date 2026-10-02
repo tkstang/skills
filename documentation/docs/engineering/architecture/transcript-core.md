@@ -41,6 +41,10 @@ Current consumers of the shared transcript-core:
   Its public commands are limited to `discover`, `preview`, and `prepare`; it
   does not import or expose the older executor, reconciliation, or behavior
   gate.
+- `session-search` — ships `runtimes.mjs` for store paths and slug handling,
+  plus its own read-only history, metadata, and content adapters. It also
+  bundles the hidden-payload matchers from `session-export-transcript`'s
+  sanitizer so injected context never counts as user-typed text.
 
 The lower-level Cursor normalizer remains terminal-only for Export Session
 Transcript compatibility. Session Observer explicitly requests the

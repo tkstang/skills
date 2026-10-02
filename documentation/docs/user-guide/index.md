@@ -17,9 +17,10 @@ What ships today:
   asks one peer for an advisory take, one-shot by default with bounded
   follow-up rounds on request;
   `observer` and `observer-collab` provide plugin-local session observation.
-- **Session plugin** — `messaging`, `retro`, `handoff`, `export-transcript`, and
-  `fork-to-destination` cover addressed coordination, bounded review,
-  continuation, sanitized export, and alpha destination-side fork guidance.
+- **Session plugin** — `messaging`, `retro`, `handoff`, `export-transcript`,
+  `search`, and `fork-to-destination` cover addressed coordination, bounded
+  review, continuation, sanitized export, past-session search, and alpha
+  destination-side fork guidance.
 - **Optional standalone skills** — the session capabilities retain descriptive
   `session-*` names except for `agent-messaging`; `align`, `author-skill`,
   `next-steps`, `must-we`, and `complexity-review` remain standalone only.
