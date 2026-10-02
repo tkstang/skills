@@ -188,6 +188,31 @@ describe('runSearch', () => {
     expect(noDeep.results).toEqual([]);
   });
 
+  it('finds a phrase in JSON-encoded Codex tool objects only on the deep rung', async () => {
+    writeCodexRollout(temp.home, {
+      id: PARENT,
+      startedAtMs: NOW - HOUR_MS,
+      records: [
+        codexSessionMeta({ id: PARENT, cwd: '/work/repo' }),
+        codexMessage('user', 'list my chat threads', 1),
+        codexToolOutput(
+          'function_call_output',
+          'call_1',
+          JSON.stringify([{ title: 'Perceive Now vetting', id: 1 }]),
+          2,
+        ),
+      ],
+    });
+
+    const deep = await search({ pattern: ['perceive now'] });
+    const noDeep = await search({ pattern: ['perceive now'], 'no-deep': true });
+
+    expect(
+      deep.results.map((hit) => [hit.sessionId, hit.matchedTiers]),
+    ).toEqual([[PARENT, ['deep']]]);
+    expect(noDeep.results).toEqual([]);
+  });
+
   it('finds a Claude tool_result phrase only through the deep rung', async () => {
     const session = writeClaudeSession(temp.home, {
       cwd: '/work/repo',

@@ -42,7 +42,7 @@ afterEach(() => {
 });
 
 const record = (value: unknown) => value as JsonObject;
-const matches = (units: { text: string }[], pattern: string) => {
+const matches = <T extends { text: string }>(units: T[], pattern: string) => {
   const matcher = compileMatcher([pattern], { literal: true });
   return units.filter((unit) => matcher.match(unit.text));
 };
@@ -230,6 +230,21 @@ describe('Codex record classification', () => {
       codexToolOutput('function_call_output', 'call_2', 'found zebra docs', 5),
     );
     expect(matches(classifyCodexRecord(out, true), 'zebra')).toHaveLength(1);
+  });
+
+  it('keeps JSON-encoded tool output whose objects carry no text blocks', () => {
+    const encoded = JSON.stringify([{ title: 'Perceive Now vetting', id: 1 }]);
+    const out = record(
+      codexToolOutput('function_call_output', 'call_3', encoded, 6),
+    );
+
+    const units = matches(classifyCodexRecord(out, true), 'Perceive Now');
+    expect(units).toHaveLength(1);
+    expect(units[0].role).toBe('tool');
+    expect(codexOutputText(JSON.stringify({ content: [{ id: 7 }] }))).toContain(
+      '"id":7',
+    );
+    expect(codexOutputText(JSON.stringify(''))).toBe('""');
   });
 });
 

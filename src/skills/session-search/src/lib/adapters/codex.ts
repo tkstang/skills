@@ -199,39 +199,49 @@ export function isInheritedRecord(
 
 /**
  * Text of a tool output in any documented shape: a bare string, an array of
- * `input_text` blocks, or a JSON-encoded string of either.
+ * `input_text` blocks, or a JSON-encoded string of either. Decoding never
+ * loses text: blocks without a `.text` field are serialized, and when a
+ * decoded string yields no text the raw string is used instead.
  */
 export function codexOutputText(output: unknown, depth = 0): string {
   if (typeof output === 'string') {
     const trimmed = output.trimStart();
     if (depth === 0 && /^[[{"]/u.test(trimmed)) {
+      let decoded: string;
       try {
-        return codexOutputText(JSON.parse(output), depth + 1);
+        decoded = codexOutputText(JSON.parse(output), depth + 1);
       } catch {
         return output;
       }
+      return decoded.trim() === '' ? output : decoded;
     }
     return output;
   }
   if (Array.isArray(output)) {
     return output
-      .map((block) =>
-        isObject(block)
-          ? (asString(block.text) ?? '')
-          : typeof block === 'string'
-            ? block
-            : '',
-      )
+      .map((block): string => {
+        if (typeof block === 'string') return block;
+        if (isObject(block)) {
+          const text = asString(block.text);
+          if (text !== undefined) return text;
+          // Image payloads are opaque data, not searchable text.
+          if (block.type === 'input_image') return '';
+        }
+        return block === null || block === undefined
+          ? ''
+          : JSON.stringify(block);
+      })
       .filter((text) => text !== '')
       .join('\n');
   }
   if (isObject(output)) {
     if (typeof output.output === 'string') return output.output;
-    if (Array.isArray(output.content))
+    if (Array.isArray(output.content)) {
       return codexOutputText(output.content, 1);
+    }
     return JSON.stringify(output);
   }
-  return '';
+  return output === null || output === undefined ? '' : JSON.stringify(output);
 }
 
 function codexToolUnits(record: JsonObject): TextUnit[] {
