@@ -104,12 +104,12 @@ oat_implement_exit_gate:
   freshness_head: '43b5ea4e8e568ad192d41e6694c2197787e60b8c'
   freshness_fingerprint: 'sha256:effective-delta-v2:2a781fece5fb1396ddca6a3b6058a3b098e3b5b8a4219fcc135417c28004284b'
   waivers: []
-  launch_state: intent_persisted
+  launch_state: accepted
   launch_attempt_id: impl-gate-bd09c50beaa0
   launch_started_at: '2026-10-02T19:39:14Z'
   launch_result_receipt: .oat/projects/shared/session-search/gate-receipts/impl-gate-bd09c50beaa0.json
-  gate_run_marker: null
-  gate_run_id: null
+  gate_run_marker: /var/folders/ch/kmbmcdfd4gb807zjsjt2td4h0000gp/T/oat-gate-runs/63e85fdb-dba6-4845-877c-08216e4dc3a8.json
+  gate_run_id: 63e85fdb-dba6-4845-877c-08216e4dc3a8
   envelope_status: null
   artifact: null
   handoff: null
