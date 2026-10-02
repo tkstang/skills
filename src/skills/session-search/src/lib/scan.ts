@@ -31,7 +31,7 @@
 import { spawnSync } from 'node:child_process';
 
 import { isInheritedRecord } from './adapters/codex.js';
-import { parseJsonObject, readLines } from './jsonl.js';
+import { OVERSIZE_PREFIX_BYTES, parseJsonObject, readLines } from './jsonl.js';
 import { snippetFor } from './matcher.js';
 import { MAX_SNIPPETS, precedesInFile } from './rank.js';
 import type {
@@ -206,26 +206,108 @@ const RAW_CODEX_ITEM =
 const RAW_CLAUDE_RESULT = /"type"\s*:\s*"tool_result"/u;
 const RAW_ORDINAL = /"ordinal"\s*:\s*(\d+)/u;
 /**
- * Record-envelope and structural fields of Claude and Codex tool carriers
- * (including Codex `item_completed` item fields such as `status`, `source`,
- * `id`, `process_id`, `exit_code`, and the `{secs, nanos}` duration), with a
- * scalar value. They are blanked before an oversize line is raw-matched,
- * so a pattern that names only a repo path, branch, session id, record type,
- * or timestamp never becomes a tool hit. Values are length-bounded (envelope
- * values are short), which keeps each attempt O(1) and avoids the regex
- * engine's recursion limit on a multi-megabyte string, so the replace stays
- * linear. Escaped keys inside a tool-output string (`\"cwd\"`) are tool
- * content and are kept.
+ * Record-envelope fields of Claude and Codex tool carriers, with a scalar
+ * value. They are blanked anywhere on an oversize line before it is
+ * raw-matched, so a pattern that names only a repo path, branch, session id,
+ * record type, or timestamp never becomes a tool hit. Values are
+ * length-bounded (envelope values are short), which keeps each attempt O(1)
+ * and avoids the regex engine's recursion limit on a multi-megabyte string,
+ * so the replace stays linear. Escaped keys inside a tool-output string
+ * (`\"cwd\"`) are tool content and are kept.
  */
 const RAW_ENVELOPE_FIELD =
-  /"(?:parentUuid|logicalParentUuid|leafUuid|isSidechain|userType|cwd|sessionId|version|gitBranch|slug|agentId|uuid|timestamp|requestId|promptId|messageId|sourceToolAssistantUUID|sourceToolUseID|toolUseID|tool_use_id|type|role|is_error|isMeta|isApiErrorMessage|entrypoint|permissionMode|ordinal|call_id|thread_id|turn_id|client_authored|id|status|source|process_id|exit_code|started_at_ms|completed_at_ms|duration_ms|duration|secs|nanos|readOnlyHint)"\s*:\s*(?:"(?:[^"\\]|\\[\s\S]){0,1024}"|-?\d[\d.eE+-]{0,64}|true|false|null|\{\s*"secs"\s*:\s*\d{1,20}\s*,\s*"nanos"\s*:\s*\d{1,20}\s*\})/gu;
+  /"(?:parentUuid|logicalParentUuid|leafUuid|isSidechain|userType|cwd|sessionId|version|gitBranch|slug|agentId|uuid|timestamp|requestId|promptId|messageId|sourceToolAssistantUUID|sourceToolUseID|toolUseID|tool_use_id|type|role|is_error|isMeta|isApiErrorMessage|entrypoint|permissionMode|ordinal|call_id|thread_id|turn_id|client_authored)"\s*:\s*(?:"(?:[^"\\]|\\[\s\S]){0,1024}"|-?\d[\d.eE+-]{0,64}|true|false|null)/gu;
+
+/**
+ * Codex structural fields (item ids, status, source, process id, exit code,
+ * timing). Unlike `RAW_ENVELOPE_FIELD` they are common keys inside tool
+ * content too (MCP `arguments` and `structuredContent` carry entity `id`s),
+ * so they are blanked only as keys of the payload (depth 2) and the item's
+ * own top-level header (depth 3), never deeper.
+ */
+const CODEX_HEADER_KEYS: ReadonlySet<string> = new Set([
+  'id',
+  'status',
+  'source',
+  'process_id',
+  'exit_code',
+  'started_at_ms',
+  'completed_at_ms',
+  'duration_ms',
+  'duration',
+  'readOnlyHint',
+]);
+const CODEX_HEADER_KEY_MAX = 16;
+/** The `: value` after a header key: a bounded scalar or `{secs, nanos}`. */
+const CODEX_HEADER_VALUE =
+  /\s*:\s*(?:"(?:[^"\\]|\\[\s\S]){0,1024}"|-?\d[\d.eE+-]{0,64}|true|false|null|\{\s*"secs"\s*:\s*\d{1,20}\s*,\s*"nanos"\s*:\s*\d{1,20}\s*\})/y;
+
+/** Index of the quote closing the JSON string opened at `start`, or -1. */
+function stringEnd(line: string, start: number): number {
+  let from = start + 1;
+  for (;;) {
+    const quote = line.indexOf('"', from);
+    if (quote === -1) return -1;
+    let slashes = 0;
+    while (line.charCodeAt(quote - 1 - slashes) === 0x5c) slashes += 1;
+    if (slashes % 2 === 0) return quote;
+    from = quote + 1;
+  }
+}
+
+/**
+ * Blank `CODEX_HEADER_KEYS` fields at JSON depth 2 and 3 of a Codex line.
+ * One linear pass: strings are skipped with `indexOf`, and only bytes
+ * outside strings are inspected for nesting.
+ */
+function blankCodexHeaders(line: string): string {
+  const parts: string[] = [];
+  let kept = 0;
+  let depth = 0;
+  let at = 0;
+  while (at < line.length) {
+    const code = line.charCodeAt(at);
+    if (code === 0x22) {
+      const end = stringEnd(line, at);
+      if (end === -1) break;
+      if (
+        (depth === 2 || depth === 3) &&
+        end - at - 1 <= CODEX_HEADER_KEY_MAX &&
+        CODEX_HEADER_KEYS.has(line.slice(at + 1, end))
+      ) {
+        CODEX_HEADER_VALUE.lastIndex = end + 1;
+        const value = CODEX_HEADER_VALUE.exec(line);
+        if (value) {
+          parts.push(line.slice(kept, at), ' ');
+          at = end + 1 + value[0].length;
+          kept = at;
+          continue;
+        }
+      }
+      at = end + 1;
+      continue;
+    }
+    if (code === 0x7b || code === 0x5b) depth += 1;
+    else if (code === 0x7d || code === 0x5d) depth -= 1;
+    at += 1;
+  }
+  if (parts.length === 0) return line;
+  parts.push(line.slice(kept));
+  return parts.join('');
+}
 
 /**
  * The raw text of an oversize tool-carrier line with its envelope fields
- * blanked (see `RAW_ENVELOPE_FIELD`), so only tool content can match.
+ * blanked (see `RAW_ENVELOPE_FIELD`), plus Codex payload and item header
+ * fields (see `CODEX_HEADER_KEYS`), so only tool content can match.
  */
 export function rawToolText(line: string): string {
-  return line.replace(RAW_ENVELOPE_FIELD, ' ');
+  const prefix = line.slice(0, OVERSIZE_PREFIX_BYTES);
+  const codex = RAW_CODEX_OUTPUT.test(prefix) || RAW_CODEX_ITEM.test(prefix);
+  return (codex ? blankCodexHeaders(line) : line).replace(
+    RAW_ENVELOPE_FIELD,
+    ' ',
+  );
 }
 
 /**

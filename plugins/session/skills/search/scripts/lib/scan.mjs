@@ -482,9 +482,70 @@ var RAW_CODEX_OUTPUT = /"type"\s*:\s*"response_item"[\s\S]*?"payload"\s*:\s*\{\s
 var RAW_CODEX_ITEM = /"type"\s*:\s*"item_completed"[\s\S]*?"item"\s*:\s*\{\s*"type"\s*:\s*"(?:CommandExecution|McpToolCall|Extension|FileChange)"/u;
 var RAW_CLAUDE_RESULT = /"type"\s*:\s*"tool_result"/u;
 var RAW_ORDINAL = /"ordinal"\s*:\s*(\d+)/u;
-var RAW_ENVELOPE_FIELD = /"(?:parentUuid|logicalParentUuid|leafUuid|isSidechain|userType|cwd|sessionId|version|gitBranch|slug|agentId|uuid|timestamp|requestId|promptId|messageId|sourceToolAssistantUUID|sourceToolUseID|toolUseID|tool_use_id|type|role|is_error|isMeta|isApiErrorMessage|entrypoint|permissionMode|ordinal|call_id|thread_id|turn_id|client_authored|id|status|source|process_id|exit_code|started_at_ms|completed_at_ms|duration_ms|duration|secs|nanos|readOnlyHint)"\s*:\s*(?:"(?:[^"\\]|\\[\s\S]){0,1024}"|-?\d[\d.eE+-]{0,64}|true|false|null|\{\s*"secs"\s*:\s*\d{1,20}\s*,\s*"nanos"\s*:\s*\d{1,20}\s*\})/gu;
+var RAW_ENVELOPE_FIELD = /"(?:parentUuid|logicalParentUuid|leafUuid|isSidechain|userType|cwd|sessionId|version|gitBranch|slug|agentId|uuid|timestamp|requestId|promptId|messageId|sourceToolAssistantUUID|sourceToolUseID|toolUseID|tool_use_id|type|role|is_error|isMeta|isApiErrorMessage|entrypoint|permissionMode|ordinal|call_id|thread_id|turn_id|client_authored)"\s*:\s*(?:"(?:[^"\\]|\\[\s\S]){0,1024}"|-?\d[\d.eE+-]{0,64}|true|false|null)/gu;
+var CODEX_HEADER_KEYS = /* @__PURE__ */ new Set([
+  "id",
+  "status",
+  "source",
+  "process_id",
+  "exit_code",
+  "started_at_ms",
+  "completed_at_ms",
+  "duration_ms",
+  "duration",
+  "readOnlyHint"
+]);
+var CODEX_HEADER_KEY_MAX = 16;
+var CODEX_HEADER_VALUE = /\s*:\s*(?:"(?:[^"\\]|\\[\s\S]){0,1024}"|-?\d[\d.eE+-]{0,64}|true|false|null|\{\s*"secs"\s*:\s*\d{1,20}\s*,\s*"nanos"\s*:\s*\d{1,20}\s*\})/y;
+function stringEnd(line, start) {
+  let from = start + 1;
+  for (; ; ) {
+    const quote = line.indexOf('"', from);
+    if (quote === -1) return -1;
+    let slashes = 0;
+    while (line.charCodeAt(quote - 1 - slashes) === 92) slashes += 1;
+    if (slashes % 2 === 0) return quote;
+    from = quote + 1;
+  }
+}
+function blankCodexHeaders(line) {
+  const parts = [];
+  let kept = 0;
+  let depth = 0;
+  let at = 0;
+  while (at < line.length) {
+    const code = line.charCodeAt(at);
+    if (code === 34) {
+      const end = stringEnd(line, at);
+      if (end === -1) break;
+      if ((depth === 2 || depth === 3) && end - at - 1 <= CODEX_HEADER_KEY_MAX && CODEX_HEADER_KEYS.has(line.slice(at + 1, end))) {
+        CODEX_HEADER_VALUE.lastIndex = end + 1;
+        const value = CODEX_HEADER_VALUE.exec(line);
+        if (value) {
+          parts.push(line.slice(kept, at), " ");
+          at = end + 1 + value[0].length;
+          kept = at;
+          continue;
+        }
+      }
+      at = end + 1;
+      continue;
+    }
+    if (code === 123 || code === 91) depth += 1;
+    else if (code === 125 || code === 93) depth -= 1;
+    at += 1;
+  }
+  if (parts.length === 0) return line;
+  parts.push(line.slice(kept));
+  return parts.join("");
+}
 function rawToolText(line) {
-  return line.replace(RAW_ENVELOPE_FIELD, " ");
+  const prefix = line.slice(0, OVERSIZE_PREFIX_BYTES);
+  const codex = RAW_CODEX_OUTPUT.test(prefix) || RAW_CODEX_ITEM.test(prefix);
+  return (codex ? blankCodexHeaders(line) : line).replace(
+    RAW_ENVELOPE_FIELD,
+    " "
+  );
 }
 function isRawToolCarrier(prefix) {
   if (RAW_SKIP_TYPES.test(prefix)) return false;

@@ -9,6 +9,7 @@ import {
   codexCollabAgentToolCall,
   codexCommandExecution,
   codexFunctionCall,
+  codexMcpToolCall,
   codexMessage,
   codexSessionMeta,
   codexToolOutput,
@@ -908,6 +909,59 @@ describe('deep raw fallback for oversize lines', () => {
     ]);
   });
 
+  it('keeps ids inside oversize MCP arguments and structured results', async () => {
+    const resultId = '7c1e2f4a-9b3d-4e8f-a6c5-1d2e3f4a5b6c';
+    const argumentId = '0f9e8d7c-6b5a-4c3d-9e2f-1a0b9c8d7e6f';
+    writeCodexRollout(temp.home, {
+      id: CODEX_ID,
+      startedAtMs: NOW - DAY_MS,
+      records: [
+        codexSessionMeta({ id: CODEX_ID, cwd: '/work/repo' }),
+        codexMcpToolCall(
+          {
+            server: 'tracker',
+            tool: 'get_issue',
+            arguments: { id: argumentId, status: 'open-args' },
+            content: ['log line\n'.repeat(12_000)],
+            structuredContent: {
+              id: resultId,
+              status: 'in-review-state',
+              source: 'tracker-import',
+            },
+          },
+          1,
+        ),
+      ],
+    });
+    const file = await onlyFile();
+    const deep = (pattern: string) =>
+      scanFile(
+        file,
+        adapterFor(file.runtime),
+        compileMatcher([pattern], { literal: true }),
+        options({ includeTools: true }),
+      );
+
+    for (const pattern of [
+      resultId,
+      argumentId,
+      'in-review-state',
+      'tracker-import',
+      'open-args',
+    ]) {
+      const { hits, stats } = await deep(pattern);
+      expect(stats.linesSkippedOversize, pattern).toBe(1);
+      expect(
+        hits.map((hit) => [hit.role, hit.tier]),
+        pattern,
+      ).toEqual([['tool', 'deep']]);
+    }
+    // The item's own header (id, status, duration) is still blanked.
+    for (const pattern of ['item_1', 'completed', '"duration"']) {
+      expect((await deep(pattern)).hits, pattern).toEqual([]);
+    }
+  });
+
   it('blanks envelope fields but keeps escaped keys inside tool content', () => {
     const line = JSON.stringify({
       cwd: '/work/zorbaproj',
@@ -932,8 +986,14 @@ describe('deep raw fallback for oversize lines', () => {
     // An unterminated value is left alone rather than overflowing the stack.
     expect(rawToolText(huge)).toBe(huge);
     expect(rawToolText(`{"cwd":"/a",${huge}`)).toBe(`{ ,${huge}`);
-    const durations = `"duration":{ "secs":1,${' '.repeat(64)}`.repeat(200_000);
-    expect(rawToolText(durations)).not.toContain(`"secs"`);
+    // Codex header scan: many header keys, and a huge string full of
+    // escaped quotes that never closes.
+    const header =
+      '{"timestamp":"t","ordinal":1,"type":"event_msg","payload":{"type":"item_completed","item":{"type":"McpToolCall",';
+    const keys = `${header}${`"status":${' '.repeat(64)}"x",`.repeat(200_000)}`;
+    expect(rawToolText(keys)).not.toContain('"status"');
+    const unterminated = `${header}"stdout":"${'\\\\\\"'.repeat(1_000_000)}`;
+    expect(rawToolText(unterminated)).toContain('"stdout"');
     expect(Date.now() - started).toBeLessThan(2000);
   });
 
