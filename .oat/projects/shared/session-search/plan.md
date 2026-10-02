@@ -1333,6 +1333,40 @@ With and without rg, results must be identical. The tests must fail before the f
 
 ---
 
+### Task p05-t09: (review) Scope structural-field blanking to the item header
+
+Source: reviews/archived/final-review-2026-10-02T122041Z.md, Medium M1 (recall regression from p05-t06: on the local store, 28 of 203 oversize MCP lines lose 488 entity ids).
+
+**Files:** `lib/scan.ts`, `lib/scan.test.ts`.
+
+**Behavior:**
+
+- Codex structural keys (`id`, `status`, `source`, `process_id`, `exit_code`, timing/duration fields, …) are blanked **only** in the `event_msg`/`item_completed` envelope and the item's own top-level header.
+- Never inside `arguments`, `result`, `structuredContent`, `aggregated_output`, or other tool content.
+- Keep the 1024-char cap and linearity.
+
+**Tests:**
+
+- A positive test: an oversize MCP line whose only occurrence of an entity id is in `result.structuredContent.id` (and in `arguments`) is found on deep.
+- The existing `unified_exec_startup` negative stays green.
+- Show fail-before.
+
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint; `pnpm run build` and `pnpm run build:check`.
+**Commit:** `fix(p05-t09): scope codex structural blanking to item headers`
+
+### Task p05-t10: (review) Update prefilter-skip guidance in docs
+
+Source: reviews/archived/final-review-2026-10-02T122041Z.md, Low L1.
+
+**Files:** `src/skills/session-search/SKILL.md`, `documentation/docs/user-guide/skills/session-search.md` (then regenerate).
+
+**Behavior:** describe the current rule. Patterns using only ASCII letters, digits, space, `-`, and `_` (plus `.*`, `.+`, `|`, groups) can use the fast rg prefilter. Patterns with paths, URLs, or other punctuation scan fully in Node (slower, same results).
+
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint; `pnpm run build` and `pnpm run build:check`.; also run `cd documentation && pnpm build`.
+**Commit:** `docs(p05-t10): update rg prefilter guidance`
+
+---
+
 ## Reviews
 
 | Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target       |
@@ -1350,6 +1384,7 @@ With and without rg, results must be identical. The tests must fail before the f
 | plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -                                        | gate       | codex-6-sol-xhigh |
 | plan  | artifact | passed          | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T055258Z.md | -                                        | gate       | codex-6-sol-xhigh |
 | final | code | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T120208Z.md | bc7aea7bed64a51938e51a4f241a5bff8584806f | gate | codex-6-sol-xhigh |
+| final | code     | fixes_added | 2026-10-02 | reviews/archived/final-review-2026-10-02T122041Z.md | aaec2be03690af795026b08c4565e315a08272f5 | auto | - |
 
 For code-review events, `Reviewed Head` is the full 40-character SHA at the
 head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
@@ -1373,9 +1408,9 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 - Phase 2: 21 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 12 p02 review fixes (t08–t19) and 2 root follow-ups (t20–t21).
 - Phase 3: 10 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests. Includes 2 root follow-ups (t04 Codex MCP results, t05 ladder guidance) and 5 p03 review fixes (t06–t10).
 - Phase 4: 7 tasks. Docs, stale-path fix, changelog plus premerge. Includes 4 p04 review fixes (t04–t07).
-- Phase 5: 8 tasks. Final-review fixes (deep raw-fallback scoping, token families, bounded hit memory, ask-user unit split, help text).
+- Phase 5: 10 tasks. Final-review fixes (deep raw-fallback scoping, token families, bounded hit memory, ask-user unit split, help text).
 
-**Total: 62 tasks**
+**Total: 64 tasks**
 
 ## References
 

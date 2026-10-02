@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: null
+oat_current_task_id: p05-t09
 oat_generated: false
 ---
 
@@ -37,9 +37,9 @@ oat_generated: false
 | Phase 2 | complete    | 21    | 21/21     |
 | Phase 3 | complete    | 10    | 10/10     |
 | Phase 4 | complete    | 7     | 7/7       |
-| Phase 5 | complete    | 8     | 8/8       |
+| Phase 5 | in_progress | 10    | 8/10      |
 
-**Total:** 62/62 tasks completed
+**Total:** 62/64 tasks completed
 
 ---
 
@@ -367,7 +367,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 ## Phase 5: Final review fixes
 
-**Status:** complete. The combined p05 + final re-review **passed** (0C/0H/0M/3L). Low fixes t06 61f49382 and t07 da20282a (via `cont-session-search-p05-fix-1`). 648 tests pass. Real-store `unified_exec_startup` noise dropped from 15 sessions to 0, and the motivating search still finds Codex `01a053ba`.
+**Status:** in_progress. Final re-reviews: cycle 2 passed. Exit-gate M1 was fixed by t08. The cycle-3 narrowed re-review found a recall regression (M) from t06, so t09–t10 are queued.
 
 | Task | Status | Commit |
 | ---- | ------ | ------ |
@@ -416,6 +416,21 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 - **L3 (remote history fallback excerpt can drop the match and session id): deferred.** It only affects the opt-in no-install remote fallback; the primary remote path runs the CLI. It is a follow-up.
 
 **Follow-ups (post-PR):** gate L1–L3, listed in the PR description.
+
+---
+
+### Review Received: final (re-review, cycle 3; changed basis after exit-gate fix)
+
+**Date:** 2026-10-02
+**Review artifact:** reviews/archived/final-review-2026-10-02T122041Z.md (request `session-search-final-review-3`, narrowed `3fb6dc1f..aaec2be0`, invocation auto, **Reconnaissance:** not-attempted)
+
+**Findings:** Critical 0, High 0, Medium 1, Low 2. The t08 superset fix is verified against real stores (no escaped letters, digits, space, `-`, or `_` are found). The gate L1–L3 deferrals were judged acceptable; the reviewer recommends durable tracking, so they are listed in the PR description and in this file.
+
+**Dispositions:**
+
+- **p05-t09**: M1, a recall regression from t06's `id` blanking inside MCP arguments and structuredContent.
+- **p05-t10**: L1, stale prefilter guidance in SKILL.md and the user guide.
+- **L2** (stale Phase 5 status, final summary, and missing fix-2 dispatch record): fixed by root in this receive commit.
 
 ---
 
@@ -521,6 +536,12 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 **p05 phase outcome:** pass. The final review is `passed` (`session-search-final-review-2`).
 
+- Continuation `cont-session-search-p05-fix-2` (exit-gate M1 → t08): `6adf4ab8..5dbc5806`, DONE.
+
+#### Dispatch record: session-search-final-review-3
+
+- Narrowed final re-review of the changed basis. Outcome: 0C/0H/1M/2L, so fixes were added. Artifact: `reviews/archived/final-review-2026-10-02T122041Z.md`.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -589,7 +610,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 **Verification performed:**
 
-- 248 session-search unit and integration tests, plus `pnpm run premerge` (2733 passed, 1 skipped; build, type-check, build:check, validate, smoke).
+- 272+ session-search unit and integration tests, plus `pnpm run premerge` (2733 passed, 1 skipped at p04; build, type-check, build:check, validate, smoke). Re-verified after each later phase.
 - `validate:skill-versions` against the merge base.
 - The docs production build, and a Playwright mermaid render check at 1440 and 390 px in light and dark themes.
 - **Real-store checks** (read-only) on the developer laptop. The motivating "Perceive Now" search finds the current Claude session, and with `--include-tools` it finds the original Codex rollout whose ChatGPT thread titles live in MCP tool output. Results are identical with and without `rg`.
@@ -601,6 +622,13 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 - Added the `snippetFor` redact-then-window helper, plus the `agentAuthored`, `fileClassifier`, `deadline`, and `scopeReads` contracts.
 - The deep rung requires the content tier. The deep tier always skips the `rg` prefilter, and there is no Node fallback after an `rg` deadline timeout.
 - Codex `item_completed` MCP, Extension, and FileChange extraction; `CollabAgentToolCall` excluded.
+- Final-review and exit-gate hardening (Phase 5):
+  - deep raw fallback confined to tool content, with header-scoped structural blanking
+  - more token families (Google, GitLab, Stripe, Hugging Face, AWS ASIA, npm)
+  - bounded per-hit memory (peak RSS about 1.5 GB to about 0.4 GB on broad deep queries)
+  - ask-user prompts and answers emitted as separate units
+  - the rg prefilter restricted to never-escaped characters (real stores escape `/` and HTML-sensitive characters)
+- **Known follow-ups (deferred from the exit gate):** a custom title in the prefix losing to a generated tail title; metadata-only Codex orphans losing archived/child facts; the remote history fallback excerpt dropping the match and session id.
 - design.md was aligned at each review. See Deviations.
 
 ## References
