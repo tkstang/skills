@@ -164,7 +164,9 @@ only on the host they name; never guess hosts. Read
 [remote-fallback.md](references/remote-fallback.md) for the recipe: a `BatchMode`
 reachability check, a remote script that locates the install and runs the CLI
 with a PATH prefix for Homebrew tools, and read-only history and thread queries
-when the skill is not installed there. Use its scripts exactly: search text goes
+when the skill is not installed there. That fallback's raw matches are
+**unranked and unredacted**: show only short matching excerpts, mask
+credential-shaped strings as `[REDACTED]` yourself, and never echo them. Use its scripts exactly: search text goes
 only inside their quoted heredocs, never onto the `ssh` command line. Report
 which host each result came from (`host.hostname`).
 

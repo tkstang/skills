@@ -115,7 +115,10 @@ offer, and only against an SSH host you name; it never guesses or stores
 hostnames. The recipe checks key-based reachability with `BatchMode`, then
 locates the installed skill on the remote host and runs the CLI there. When the
 skill is not installed remotely, it falls back to read-only history and Codex
-thread queries. Search text travels only inside quoted heredocs, never on the
+thread queries. That fallback covers only prompt history and thread titles, and
+its raw matches are **unranked** and **unredacted**: the agent shows only short
+matching excerpts, masks credential-shaped strings itself, and suggests
+installing the skill on that host for full search. Search text travels only inside quoted heredocs, never on the
 `ssh` command line, so a remote shell cannot interpret it. Each result names the
 host it came from.
 
