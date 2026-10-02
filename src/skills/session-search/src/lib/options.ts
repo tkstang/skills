@@ -220,7 +220,9 @@ export function resolveOptions(
   const home = context.home ?? os.homedir();
   const base = context.cwd ?? process.cwd();
 
-  const patterns = valueList(raw, 'pattern');
+  // Repeated patterns add nothing to matching or scoring; keeping them would
+  // stop the scanner's "every pattern credited" early stop from firing.
+  const patterns = [...new Set(valueList(raw, 'pattern'))];
   if (patterns.some((pattern) => pattern === '')) {
     throw new UsageError('A --pattern value must not be empty.');
   }

@@ -141,6 +141,13 @@ describe('resolveOptions', () => {
     expect(options.tiers).toEqual(['history', 'meta']);
   });
 
+  it('deduplicates repeated patterns, keeping first-seen order', () => {
+    const options = resolveOptions({
+      pattern: ['zebra', 'okapi', 'zebra', 'okapi', 'gnu'],
+    });
+    expect(options.patterns).toEqual(['zebra', 'okapi', 'gnu']);
+  });
+
   it('resolves the time window through parseTimeSpec bounds', () => {
     const options = resolveOptions(
       { pattern: 'x', since: 'yesterday', until: 'yesterday' },

@@ -25,6 +25,7 @@ import { createClaudeCodeAdapter } from './adapters/claude-code.js';
 import { createCodexAdapter } from './adapters/codex.js';
 import { createCursorAdapter } from './adapters/cursor.js';
 import { compileMatcher } from './matcher.js';
+import { resolveOptions } from './options.js';
 import {
   isPrefilterSafe,
   isRawToolCarrier,
@@ -205,6 +206,30 @@ describe('scanFile', () => {
 
     expect(hits).toHaveLength(26);
     expect(hits.at(-1)?.patterns).toEqual(['okapi']);
+  });
+
+  it('stops streaming after the cap when a pattern is repeated', async () => {
+    writeClaudeSession(temp.home, {
+      cwd: '/work/repo',
+      records: (e) =>
+        Array.from({ length: 40 }, (_, i) =>
+          claudeAssistant(e, `zebra ${i} ${'x'.repeat(20_000)}`),
+        ),
+    });
+    const file = await onlyFile();
+    const { patterns, literal } = resolveOptions({
+      pattern: ['zebra', 'zebra'],
+    });
+
+    const { hits, stats } = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      compileMatcher(patterns, { literal }),
+      options({ maxHitsPerSession: 3 }),
+    );
+
+    expect(hits).toHaveLength(3);
+    expect(stats.bytesScanned).toBeLessThan(file.size);
   });
 
   it('stops a file after maxHitsPerSession hits', async () => {
