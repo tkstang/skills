@@ -5,6 +5,8 @@ import {
   codexCommandExecution,
   codexEventUserMessage,
   codexFunctionCall,
+  codexItemCompleted,
+  codexMcpToolCall,
   codexMessage,
   codexSessionMeta,
   codexToolOutput,
@@ -232,6 +234,94 @@ describe('Codex record classification', () => {
     expect(matches(classifyCodexRecord(item, false), 'perceive-now')).toEqual(
       [],
     );
+  });
+
+  it('matches McpToolCall result text, structured content, and arguments only with includeTools', () => {
+    const call = record(
+      codexMcpToolCall(
+        {
+          server: 'chat',
+          tool: 'search_threads',
+          arguments: { query: 'zebra' },
+          content: [
+            'Threads:',
+            'Perceive Now vetting',
+            { id: 9, rank: 'kiwi' },
+          ],
+          structuredContent: { threads: [{ title: 'Mango review' }] },
+        },
+        11,
+      ),
+    );
+
+    const units = classifyCodexRecord(call, true);
+    for (const phrase of ['Perceive Now', 'kiwi', 'Mango review', 'zebra']) {
+      expect(matches(units, phrase), phrase).toHaveLength(1);
+    }
+    expect(units.every((unit) => unit.role === 'tool')).toBe(true);
+    expect(classifyCodexRecord(call, false)).toEqual([]);
+  });
+
+  it('reads other item_completed tool items defensively', () => {
+    const collab = record(
+      codexItemCompleted(
+        {
+          type: 'CollabAgentToolCall',
+          tool: 'spawn',
+          output: 'helper said papaya',
+        },
+        12,
+      ),
+    );
+    const extension = record(
+      codexItemCompleted(
+        {
+          type: 'Extension',
+          kind: 'web_search',
+          results: [{ type: 'page', title: 'Guava handbook', snippet: 's' }],
+        },
+        13,
+      ),
+    );
+    const fileChange = record(
+      codexItemCompleted(
+        {
+          type: 'FileChange',
+          changes: {
+            '/repo/a.md': { type: 'update', unified_diff: '+lychee' },
+          },
+          stdout: 'Success. Updated the following files: M /repo/a.md',
+          stderr: '',
+        },
+        14,
+      ),
+    );
+
+    expect(matches(classifyCodexRecord(collab, true), 'papaya')).toHaveLength(
+      1,
+    );
+    expect(
+      matches(classifyCodexRecord(extension, true), 'Guava handbook'),
+    ).toHaveLength(1);
+    expect(
+      matches(classifyCodexRecord(fileChange, true), 'Updated the following'),
+    ).toHaveLength(1);
+    for (const item of [collab, extension, fileChange]) {
+      expect(classifyCodexRecord(item, false)).toEqual([]);
+    }
+  });
+
+  it('emits nothing for Reasoning, AgentMessage, or UserMessage items', () => {
+    for (const item of [
+      { type: 'Reasoning', summary: ['durian plan'], content: ['durian plan'] },
+      { type: 'AgentMessage', text: 'durian plan' },
+      { type: 'UserMessage', content: [{ type: 'text', text: 'durian plan' }] },
+    ]) {
+      expect(
+        classifyCodexRecord(record(codexItemCompleted(item, 15)), true),
+        item.type,
+      ).toEqual([]);
+    }
   });
 
   it('reads function_call output and arguments in every documented shape', () => {

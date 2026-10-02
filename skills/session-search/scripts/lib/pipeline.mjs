@@ -1752,6 +1752,54 @@ function codexOutputText(output, depth = 0) {
   }
   return output === null || output === void 0 ? "" : JSON.stringify(output);
 }
+var MCP_RESULT_KNOWN_KEYS = /* @__PURE__ */ new Set([
+  "content",
+  "structuredContent",
+  "isError"
+]);
+function optionalOutputText(value) {
+  return value === void 0 || value === null ? "" : codexOutputText(value);
+}
+function toolArgumentsText(name, args) {
+  if (args === void 0 || args === null) return "";
+  return `[${name}] ${typeof args === "string" ? args : JSON.stringify(args)}`;
+}
+function itemCompletedToolTexts(item) {
+  switch (item.type) {
+    case "CommandExecution":
+      return [asString3(item.aggregated_output) ?? asString3(item.stdout) ?? ""];
+    case "McpToolCall": {
+      const name = [asString3(item.server), asString3(item.tool)].filter((part) => part !== void 0).join(".");
+      const result = item.result;
+      const texts = [toolArgumentsText(name || "mcp", item.arguments)];
+      if (isObject3(result)) {
+        texts.push(optionalOutputText(result.content));
+        if (result.structuredContent !== void 0) {
+          texts.push(JSON.stringify(result.structuredContent));
+        }
+        const rest = Object.entries(result).filter(
+          ([key]) => !MCP_RESULT_KNOWN_KEYS.has(key)
+        );
+        if (rest.length > 0) {
+          texts.push(JSON.stringify(Object.fromEntries(rest)));
+        }
+      } else {
+        texts.push(optionalOutputText(result));
+      }
+      texts.push(optionalOutputText(item.error));
+      return texts;
+    }
+    case "CollabAgentToolCall":
+    case "Extension":
+      return ["result", "results", "output", "content"].map(
+        (key) => optionalOutputText(item[key])
+      );
+    case "FileChange":
+      return [asString3(item.summary) ?? asString3(item.stdout) ?? ""];
+    default:
+      return [];
+  }
+}
 function codexToolUnits(record) {
   const payload = isObject3(record.payload) ? record.payload : null;
   if (!payload) return [];
@@ -1778,12 +1826,7 @@ function codexToolUnits(record) {
     }
   } else if (record.type === "event_msg") {
     if (payload.type === "item_completed" && isObject3(payload.item)) {
-      const item = payload.item;
-      if (item.type === "CommandExecution") {
-        texts.push(
-          asString3(item.aggregated_output) ?? asString3(item.stdout) ?? ""
-        );
-      }
+      texts.push(...itemCompletedToolTexts(payload.item));
     } else if (payload.type === "exec_command_end") {
       texts.push(
         asString3(payload.aggregated_output) ?? asString3(payload.stdout) ?? asString3(payload.formatted_output) ?? ""
@@ -2957,7 +3000,7 @@ function prefilterWithRg(rgPath, patterns, files, { literal, deadline = null }) 
 }
 var RAW_SKIP_TYPES = /"type"\s*:\s*"(?:world_state|session_meta|turn_context|compacted)"/u;
 var RAW_CODEX_OUTPUT = /"type"\s*:\s*"response_item"[\s\S]*?"payload"\s*:\s*\{\s*"type"\s*:\s*"(?:function_call_output|custom_tool_call_output)"/u;
-var RAW_CODEX_ITEM = /"type"\s*:\s*"item_completed"[\s\S]*?"item"\s*:\s*\{\s*"type"\s*:\s*"(?:CommandExecution|McpToolCall|FileChange)"/u;
+var RAW_CODEX_ITEM = /"type"\s*:\s*"item_completed"[\s\S]*?"item"\s*:\s*\{\s*"type"\s*:\s*"(?:CommandExecution|McpToolCall|CollabAgentToolCall|Extension|FileChange)"/u;
 var RAW_CLAUDE_RESULT = /"type"\s*:\s*"tool_result"/u;
 var RAW_ORDINAL = /"ordinal"\s*:\s*(\d+)/u;
 function isRawToolCarrier(prefix) {

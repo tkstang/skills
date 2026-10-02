@@ -1322,6 +1322,54 @@ function codexOutputText(output, depth = 0) {
   }
   return output === null || output === void 0 ? "" : JSON.stringify(output);
 }
+var MCP_RESULT_KNOWN_KEYS = /* @__PURE__ */ new Set([
+  "content",
+  "structuredContent",
+  "isError"
+]);
+function optionalOutputText(value) {
+  return value === void 0 || value === null ? "" : codexOutputText(value);
+}
+function toolArgumentsText(name, args) {
+  if (args === void 0 || args === null) return "";
+  return `[${name}] ${typeof args === "string" ? args : JSON.stringify(args)}`;
+}
+function itemCompletedToolTexts(item) {
+  switch (item.type) {
+    case "CommandExecution":
+      return [asString2(item.aggregated_output) ?? asString2(item.stdout) ?? ""];
+    case "McpToolCall": {
+      const name = [asString2(item.server), asString2(item.tool)].filter((part) => part !== void 0).join(".");
+      const result = item.result;
+      const texts = [toolArgumentsText(name || "mcp", item.arguments)];
+      if (isObject2(result)) {
+        texts.push(optionalOutputText(result.content));
+        if (result.structuredContent !== void 0) {
+          texts.push(JSON.stringify(result.structuredContent));
+        }
+        const rest = Object.entries(result).filter(
+          ([key]) => !MCP_RESULT_KNOWN_KEYS.has(key)
+        );
+        if (rest.length > 0) {
+          texts.push(JSON.stringify(Object.fromEntries(rest)));
+        }
+      } else {
+        texts.push(optionalOutputText(result));
+      }
+      texts.push(optionalOutputText(item.error));
+      return texts;
+    }
+    case "CollabAgentToolCall":
+    case "Extension":
+      return ["result", "results", "output", "content"].map(
+        (key) => optionalOutputText(item[key])
+      );
+    case "FileChange":
+      return [asString2(item.summary) ?? asString2(item.stdout) ?? ""];
+    default:
+      return [];
+  }
+}
 function codexToolUnits(record) {
   const payload = isObject2(record.payload) ? record.payload : null;
   if (!payload) return [];
@@ -1348,12 +1396,7 @@ function codexToolUnits(record) {
     }
   } else if (record.type === "event_msg") {
     if (payload.type === "item_completed" && isObject2(payload.item)) {
-      const item = payload.item;
-      if (item.type === "CommandExecution") {
-        texts.push(
-          asString2(item.aggregated_output) ?? asString2(item.stdout) ?? ""
-        );
-      }
+      texts.push(...itemCompletedToolTexts(payload.item));
     } else if (payload.type === "exec_command_end") {
       texts.push(
         asString2(payload.aggregated_output) ?? asString2(payload.stdout) ?? asString2(payload.formatted_output) ?? ""

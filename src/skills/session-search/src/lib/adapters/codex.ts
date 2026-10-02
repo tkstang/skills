@@ -16,7 +16,9 @@
  *
  * Only `response_item` messages feed the shared normalizer; `event_msg`
  * user/agent messages duplicate them and are ignored. The normalizer drops
- * tool output, so with `includeTools` the adapter emits tool text directly.
+ * tool output, so with `includeTools` the adapter emits tool text directly,
+ * including `event_msg` `item_completed` tool items (`CommandExecution`,
+ * `McpToolCall`, `CollabAgentToolCall`, `Extension`, `FileChange`).
  */
 import { spawnSync } from 'node:child_process';
 import { statSync, type Dirent } from 'node:fs';
@@ -281,6 +283,70 @@ export function codexOutputText(output: unknown, depth = 0): string {
   return output === null || output === undefined ? '' : JSON.stringify(output);
 }
 
+/** McpToolCall `result` keys read explicitly; any others are serialized. */
+const MCP_RESULT_KNOWN_KEYS = new Set([
+  'content',
+  'structuredContent',
+  'isError',
+]);
+
+/** Text of an optional tool field: absent fields contribute nothing. */
+function optionalOutputText(value: unknown): string {
+  return value === undefined || value === null ? '' : codexOutputText(value);
+}
+
+/** Tool arguments as one searchable line, labeled with the tool name. */
+function toolArgumentsText(name: string, args: unknown): string {
+  if (args === undefined || args === null) return '';
+  return `[${name}] ${typeof args === 'string' ? args : JSON.stringify(args)}`;
+}
+
+/**
+ * Tool text carried by an `event_msg` `item_completed` item. Only tool-like
+ * items are read: `Reasoning` is never emitted, and `AgentMessage` /
+ * `UserMessage` duplicate `response_item` messages, so they are skipped.
+ */
+function itemCompletedToolTexts(item: JsonObject): string[] {
+  switch (item.type) {
+    case 'CommandExecution':
+      return [asString(item.aggregated_output) ?? asString(item.stdout) ?? ''];
+    case 'McpToolCall': {
+      const name = [asString(item.server), asString(item.tool)]
+        .filter((part) => part !== undefined)
+        .join('.');
+      const result = item.result;
+      const texts = [toolArgumentsText(name || 'mcp', item.arguments)];
+      if (isObject(result)) {
+        // `content` blocks decode like any tool output (never losing text);
+        // structured content and any other result fields are serialized.
+        texts.push(optionalOutputText(result.content));
+        if (result.structuredContent !== undefined) {
+          texts.push(JSON.stringify(result.structuredContent));
+        }
+        const rest = Object.entries(result).filter(
+          ([key]) => !MCP_RESULT_KNOWN_KEYS.has(key),
+        );
+        if (rest.length > 0) {
+          texts.push(JSON.stringify(Object.fromEntries(rest)));
+        }
+      } else {
+        texts.push(optionalOutputText(result));
+      }
+      texts.push(optionalOutputText(item.error));
+      return texts;
+    }
+    case 'CollabAgentToolCall':
+    case 'Extension':
+      return ['result', 'results', 'output', 'content'].map((key) =>
+        optionalOutputText(item[key]),
+      );
+    case 'FileChange':
+      return [asString(item.summary) ?? asString(item.stdout) ?? ''];
+    default:
+      return [];
+  }
+}
+
 function codexToolUnits(record: JsonObject): TextUnit[] {
   const payload = isObject(record.payload) ? record.payload : null;
   if (!payload) return [];
@@ -307,12 +373,7 @@ function codexToolUnits(record: JsonObject): TextUnit[] {
     }
   } else if (record.type === 'event_msg') {
     if (payload.type === 'item_completed' && isObject(payload.item)) {
-      const item = payload.item;
-      if (item.type === 'CommandExecution') {
-        texts.push(
-          asString(item.aggregated_output) ?? asString(item.stdout) ?? '',
-        );
-      }
+      texts.push(...itemCompletedToolTexts(payload.item));
     } else if (payload.type === 'exec_command_end') {
       texts.push(
         asString(payload.aggregated_output) ??

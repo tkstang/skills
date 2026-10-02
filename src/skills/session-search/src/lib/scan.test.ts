@@ -600,6 +600,19 @@ describe('deep raw fallback for oversize lines', () => {
         '{"timestamp":"t","ordinal":3,"type":"event_msg","payload":{"type":"item_completed","thread_id":"a","turn_id":"b","item":{"type":"McpToolCall"',
       ),
     ).toBe(true);
+    for (const itemType of ['CollabAgentToolCall', 'Extension']) {
+      expect(
+        isRawToolCarrier(
+          `{"timestamp":"t","ordinal":3,"type":"event_msg","payload":{"type":"item_completed","thread_id":"a","turn_id":"b","item":{"type":"${itemType}"`,
+        ),
+        itemType,
+      ).toBe(true);
+    }
+    expect(
+      isRawToolCarrier(
+        '{"timestamp":"t","ordinal":3,"type":"event_msg","payload":{"type":"item_completed","thread_id":"a","turn_id":"b","item":{"type":"Reasoning"',
+      ),
+    ).toBe(false);
     expect(
       isRawToolCarrier(
         '{"parentUuid":null,"type":"user","message":{"role":"user","content":[{"tool_use_id":"x","type":"tool_result"',

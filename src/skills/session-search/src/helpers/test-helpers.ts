@@ -559,6 +559,59 @@ export function codexCommandExecution(output: string, ordinal: number) {
   };
 }
 
+/** An `event_msg` `item_completed` record wrapping an arbitrary `item`. */
+export function codexItemCompleted(
+  item: Record<string, unknown>,
+  ordinal: number,
+) {
+  return {
+    timestamp: '2026-09-20T10:02:03.000Z',
+    ordinal,
+    type: 'event_msg',
+    payload: {
+      type: 'item_completed',
+      thread_id: 'thread',
+      turn_id: 'turn',
+      item: { id: `item_${ordinal}`, status: 'completed', ...item },
+      started_at_ms: 1_790_000_000_000,
+      completed_at_ms: 1_790_000_001_000,
+    },
+  };
+}
+
+export interface CodexMcpToolCallSpec {
+  server?: string;
+  tool?: string;
+  arguments?: unknown;
+  /** `result.content` blocks; strings become `{type: 'text', text}`. */
+  content: Array<string | Record<string, unknown>>;
+  structuredContent?: unknown;
+  isError?: boolean;
+}
+
+/** An `item_completed` `McpToolCall` in the shape real Codex rollouts record. */
+export function codexMcpToolCall(spec: CodexMcpToolCallSpec, ordinal: number) {
+  return codexItemCompleted(
+    {
+      type: 'McpToolCall',
+      server: spec.server ?? 'chat',
+      tool: spec.tool ?? 'list_threads',
+      arguments: spec.arguments ?? { limit: 20 },
+      result: {
+        content: spec.content.map((block) =>
+          typeof block === 'string' ? { type: 'text', text: block } : block,
+        ),
+        isError: spec.isError ?? false,
+        ...(spec.structuredContent === undefined
+          ? {}
+          : { structuredContent: spec.structuredContent }),
+      },
+      duration: { secs: 1, nanos: 0 },
+    },
+    ordinal,
+  );
+}
+
 /** A Codex `world_state` record carrying AGENTS.md text. */
 export function codexWorldState(agentsMd: string, ordinal: number) {
   return {

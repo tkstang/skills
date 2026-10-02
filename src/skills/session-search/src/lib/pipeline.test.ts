@@ -6,6 +6,7 @@ import {
   claudeAssistant,
   claudeToolResult,
   claudeUser,
+  codexMcpToolCall,
   codexMessage,
   codexSessionMeta,
   codexToolOutput,
@@ -216,6 +217,36 @@ describe('runSearch', () => {
     expect(
       deep.results.map((hit) => [hit.sessionId, hit.matchedTiers]),
     ).toEqual([[PARENT, ['deep']]]);
+    expect(noDeep.results).toEqual([]);
+  });
+
+  it('finds a Codex MCP tool result phrase only on the deep rung or with --include-tools', async () => {
+    writeCodexRollout(temp.home, {
+      id: PARENT,
+      startedAtMs: NOW - HOUR_MS,
+      records: [
+        codexSessionMeta({ id: PARENT, cwd: '/work/repo' }),
+        codexMessage('user', 'list my chat threads', 1),
+        codexMcpToolCall(
+          { content: ['Recent threads: Perceive Now vetting, Weekly plan'] },
+          2,
+        ),
+      ],
+    });
+
+    const deep = await search({ pattern: ['perceive now'] });
+    const tools = await search({
+      pattern: ['perceive now'],
+      'include-tools': true,
+      'no-deep': true,
+    });
+    const noDeep = await search({ pattern: ['perceive now'], 'no-deep': true });
+
+    for (const result of [deep, tools]) {
+      expect(
+        result.results.map((hit) => [hit.sessionId, hit.matchedTiers]),
+      ).toEqual([[PARENT, ['deep']]]);
+    }
     expect(noDeep.results).toEqual([]);
   });
 
