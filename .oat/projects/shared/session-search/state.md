@@ -77,9 +77,9 @@ oat_workflow_origin: native # native | imported
 #   failure: null
 #   updated_at: '2026-07-18T00:00:00Z'
 oat_implement_exit_gate:
-  status: pending
+  status: allowed
   resolution: configured
-  disposition: null
+  disposition: passed
   config_fingerprint: 'a43cbbb47e7ded76ad62bdcab5e1942f49b48288f5b17682279a78cc055924ab'
   resolved_command: "OAT_GATE_EXEC_TIMEOUT_MS=2400000 oat --json gate review --project \"$PROJECT_PATH\" --review-type code --review-scope final --exit-nonzero-on important \"Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings. Run every verification command in the foreground of your own turn: do not use background tasks, monitors, or waiters, and do not end your turn until the review artifact has been written and committed.\""
   resolved_description: "Semantic cross-family final implementation review before oat-project-implement exits."
@@ -102,17 +102,17 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md
   handoff: "Run oat-project-review-receive for .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md before treating this gate review as consumed."
-  receive_state: intent_persisted
+  receive_state: completed
   receive_correlation: {gate_run_id: 578d2977-81dc-42a4-bb93-a71adabbb844, scope: final, type: code, source_filename: final-review-2026-10-02T173611Z.md}
   receive_source_artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md
   receive_archived_artifact: .oat/projects/shared/session-search/reviews/archived/final-review-2026-10-02T173611Z.md
   receive_event_identity: 'final|code|final-review-2026-10-02T173611Z.md'
   receive_pre_head: 'fee6f7d638934ff245e15e9de43469f1d351fa5f'
-  receive_commit: null
+  receive_commit: 'd52616241936624eba02c36e36b8291386fcde9f'
   receive_eligible: true
-  receive_completed: false
+  receive_completed: true
   failure: null
-  updated_at: '2026-10-02T17:28:29Z'
+  updated_at: '2026-10-02T17:41:33Z'
 oat_docs_updated: null # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
