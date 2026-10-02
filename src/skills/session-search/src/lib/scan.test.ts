@@ -7,6 +7,7 @@ import {
   claudeToolUse,
   claudeUser,
   codexCollabAgentToolCall,
+  codexCommandExecution,
   codexFunctionCall,
   codexMessage,
   codexSessionMeta,
@@ -843,6 +844,70 @@ describe('deep raw fallback for oversize lines', () => {
     expect(deep.hits).toEqual([]);
   });
 
+  it('ignores Codex item structural fields on an oversize command line', async () => {
+    const commandLine = (output: string) => {
+      const record = codexCommandExecution(output, 1);
+      return {
+        ...record,
+        payload: {
+          ...record.payload,
+          item: {
+            ...record.payload.item,
+            source: 'unified_exec_startup',
+            process_id: '48213',
+            duration: { secs: 3, nanos: 120_000_000 },
+          },
+          started_at_ms: 1_790_000_000_000,
+          completed_at_ms: 1_790_000_003_120,
+        },
+      };
+    };
+    const scan = async (output: string) => {
+      writeCodexRollout(temp.home, {
+        id: CODEX_ID,
+        startedAtMs: NOW - DAY_MS,
+        records: [
+          codexSessionMeta({ id: CODEX_ID, cwd: '/work/repo' }),
+          commandLine(output),
+        ],
+      });
+      const file = await onlyFile();
+      return scanFile(
+        file,
+        adapterFor(file.runtime),
+        compileMatcher(
+          [
+            'unified_exec_startup',
+            'completed',
+            '48213',
+            '"duration"',
+            'nanos',
+            '1790000000000',
+          ],
+          { literal: true },
+        ),
+        options({ includeTools: true }),
+      );
+    };
+
+    const structural = await scan('log line\n'.repeat(12_000));
+    expect(structural.stats.linesSkippedOversize).toBe(1);
+    expect(structural.hits).toEqual([]);
+
+    temp.cleanup();
+    temp = makeTempHome('session-search-scan-');
+    const inOutput = await scan(
+      `${'log line\n'.repeat(12_000)}source=unified_exec_startup`,
+    );
+    expect(inOutput.hits).toEqual([
+      expect.objectContaining({
+        role: 'tool',
+        tier: 'deep',
+        patterns: ['unified_exec_startup'],
+      }),
+    ]);
+  });
+
   it('blanks envelope fields but keeps escaped keys inside tool content', () => {
     const line = JSON.stringify({
       cwd: '/work/zorbaproj',
@@ -867,6 +932,8 @@ describe('deep raw fallback for oversize lines', () => {
     // An unterminated value is left alone rather than overflowing the stack.
     expect(rawToolText(huge)).toBe(huge);
     expect(rawToolText(`{"cwd":"/a",${huge}`)).toBe(`{ ,${huge}`);
+    const durations = `"duration":{ "secs":1,${' '.repeat(64)}`.repeat(200_000);
+    expect(rawToolText(durations)).not.toContain(`"secs"`);
     expect(Date.now() - started).toBeLessThan(2000);
   });
 

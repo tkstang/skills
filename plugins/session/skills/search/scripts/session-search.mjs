@@ -3208,7 +3208,7 @@ var RAW_CODEX_OUTPUT = /"type"\s*:\s*"response_item"[\s\S]*?"payload"\s*:\s*\{\s
 var RAW_CODEX_ITEM = /"type"\s*:\s*"item_completed"[\s\S]*?"item"\s*:\s*\{\s*"type"\s*:\s*"(?:CommandExecution|McpToolCall|Extension|FileChange)"/u;
 var RAW_CLAUDE_RESULT = /"type"\s*:\s*"tool_result"/u;
 var RAW_ORDINAL = /"ordinal"\s*:\s*(\d+)/u;
-var RAW_ENVELOPE_FIELD = /"(?:parentUuid|logicalParentUuid|leafUuid|isSidechain|userType|cwd|sessionId|version|gitBranch|slug|agentId|uuid|timestamp|requestId|promptId|messageId|sourceToolAssistantUUID|sourceToolUseID|toolUseID|tool_use_id|type|role|is_error|isMeta|isApiErrorMessage|entrypoint|permissionMode|ordinal|call_id|thread_id|turn_id|client_authored)"\s*:\s*(?:"(?:[^"\\]|\\[\s\S]){0,1024}"|-?\d[\d.eE+-]{0,64}|true|false|null)/gu;
+var RAW_ENVELOPE_FIELD = /"(?:parentUuid|logicalParentUuid|leafUuid|isSidechain|userType|cwd|sessionId|version|gitBranch|slug|agentId|uuid|timestamp|requestId|promptId|messageId|sourceToolAssistantUUID|sourceToolUseID|toolUseID|tool_use_id|type|role|is_error|isMeta|isApiErrorMessage|entrypoint|permissionMode|ordinal|call_id|thread_id|turn_id|client_authored|id|status|source|process_id|exit_code|started_at_ms|completed_at_ms|duration_ms|duration|secs|nanos|readOnlyHint)"\s*:\s*(?:"(?:[^"\\]|\\[\s\S]){0,1024}"|-?\d[\d.eE+-]{0,64}|true|false|null|\{\s*"secs"\s*:\s*\d{1,20}\s*,\s*"nanos"\s*:\s*\d{1,20}\s*\})/gu;
 function rawToolText(line) {
   return line.replace(RAW_ENVELOPE_FIELD, " ");
 }

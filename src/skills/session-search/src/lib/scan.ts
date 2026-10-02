@@ -197,8 +197,10 @@ const RAW_CODEX_ITEM =
 const RAW_CLAUDE_RESULT = /"type"\s*:\s*"tool_result"/u;
 const RAW_ORDINAL = /"ordinal"\s*:\s*(\d+)/u;
 /**
- * Record-envelope and structural fields of Claude and Codex tool carriers,
- * with a scalar value. They are blanked before an oversize line is raw-matched,
+ * Record-envelope and structural fields of Claude and Codex tool carriers
+ * (including Codex `item_completed` item fields such as `status`, `source`,
+ * `id`, `process_id`, `exit_code`, and the `{secs, nanos}` duration), with a
+ * scalar value. They are blanked before an oversize line is raw-matched,
  * so a pattern that names only a repo path, branch, session id, record type,
  * or timestamp never becomes a tool hit. Values are length-bounded (envelope
  * values are short), which keeps each attempt O(1) and avoids the regex
@@ -207,7 +209,7 @@ const RAW_ORDINAL = /"ordinal"\s*:\s*(\d+)/u;
  * content and are kept.
  */
 const RAW_ENVELOPE_FIELD =
-  /"(?:parentUuid|logicalParentUuid|leafUuid|isSidechain|userType|cwd|sessionId|version|gitBranch|slug|agentId|uuid|timestamp|requestId|promptId|messageId|sourceToolAssistantUUID|sourceToolUseID|toolUseID|tool_use_id|type|role|is_error|isMeta|isApiErrorMessage|entrypoint|permissionMode|ordinal|call_id|thread_id|turn_id|client_authored)"\s*:\s*(?:"(?:[^"\\]|\\[\s\S]){0,1024}"|-?\d[\d.eE+-]{0,64}|true|false|null)/gu;
+  /"(?:parentUuid|logicalParentUuid|leafUuid|isSidechain|userType|cwd|sessionId|version|gitBranch|slug|agentId|uuid|timestamp|requestId|promptId|messageId|sourceToolAssistantUUID|sourceToolUseID|toolUseID|tool_use_id|type|role|is_error|isMeta|isApiErrorMessage|entrypoint|permissionMode|ordinal|call_id|thread_id|turn_id|client_authored|id|status|source|process_id|exit_code|started_at_ms|completed_at_ms|duration_ms|duration|secs|nanos|readOnlyHint)"\s*:\s*(?:"(?:[^"\\]|\\[\s\S]){0,1024}"|-?\d[\d.eE+-]{0,64}|true|false|null|\{\s*"secs"\s*:\s*\d{1,20}\s*,\s*"nanos"\s*:\s*\d{1,20}\s*\})/gu;
 
 /**
  * The raw text of an oversize tool-carrier line with its envelope fields
