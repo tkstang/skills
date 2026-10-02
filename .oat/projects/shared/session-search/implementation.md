@@ -723,6 +723,10 @@ oat_implement_exit_gate:
 
 Generation 3 started at reviewed head `43b5ea4e8e568ad192d41e6694c2197787e60b8c` after final review cycle 5 passed.
 
+#### Implementation exit gate — generation 3
+
+- Gate run `63e85fdb` (codex-6-sol-xhigh, different-family). Envelope `ok`, 0C/0H/0M/0L. Received in judgment sweep with nothing to disposition. Artifact `reviews/archived/final-review-2026-10-02T194727Z.md`. Disposition: allowed/passed. Revision p-rev1 is complete and the phase status has returned to `pr_open`.
+
 <!-- orchestration-runs-end -->
 
 ---
