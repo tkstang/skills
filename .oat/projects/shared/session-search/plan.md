@@ -1022,6 +1022,77 @@ Source: the same real-store verification. Without `--include-tools`, the top hit
 
 ---
 
+### Task p03-t06: (review) Make the remote fallback recipe single-shell and injection-safe
+
+Source: reviews/archived/p03-review-2026-10-02T080403Z.md, **Medium** (security: a pattern containing `$(…)` or backticks would execute on the remote host).
+
+**Files:** `src/skills/session-search/references/remote-fallback.md`, `src/skills/session-search/SKILL.md` (remote section, if it repeats the recipe), plus the regenerated outputs.
+
+**Behavior:**
+
+- Every remote recipe pipes a script through a quoted heredoc (`ssh -o BatchMode=yes <host> 'bash -s' <<'EOF' … EOF`) so only one shell parses it.
+- Use sqlite3 parameter binding (`.parameter set :q '%term%'`, `… LIKE :q`) or remote single quotes, and `-readonly`.
+- Fallback terms must be **plain substrings**: no regex operators, quotes, `$`, backticks, or backslashes. Reduce each regex pattern to a distinctive literal fragment. `LIKE` is a substring match, not a regex.
+- Fix the step-3 CLI invocation and its quoting note to the same single-layer pattern.
+
+**Verify:** run each recipe locally against a temp HOME by substituting `bash -s` for the ssh hop. A pattern containing `$(id -un)` must appear literally in the SQL or be rejected, and must never be expanded. Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint touched files; `pnpm run build` and `pnpm run build:check` when SKILL.md, references, or runtime code change.
+**Commit:** `fix(p03-t06): make remote fallback recipes injection-safe`
+
+### Task p03-t07: (review) De-duplicate Codex tool text per file
+
+Source: reviews/archived/p03-review-2026-10-02T080403Z.md, Low.
+
+**Files:** `lib/adapters/codex.ts`, `lib/adapters/codex.test.ts`.
+
+**Behavior:** `createCodexFileClassifier` keeps a bounded per-file set of tool-unit text hashes (cap of about 4096 entries) and drops identical repeats. This covers `item_completed` items alongside `function_call_output`/`custom_tool_call_output`.
+
+**Test:** the same output recorded both ways yields one `tool` unit.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint touched files; `pnpm run build` and `pnpm run build:check` when SKILL.md, references, or runtime code change.
+**Commit:** `fix(p03-t07): dedupe repeated codex tool text per file`
+
+### Task p03-t08: (review) Use template slots for sibling-skill and invocation names in SKILL.md
+
+Source: reviews/archived/p03-review-2026-10-02T080403Z.md, Low.
+
+**Files:** `src/skills/session-search/SKILL.md`, `src/distributions.ts` (declare `optionalSkills` for `session-export-transcript` and `session-observer` on the session-search entry, following session-handoff), plus the regenerated outputs.
+
+**Behavior:**
+
+- Replace hard-coded `session-export-transcript` with `{{skill:session-export-transcript}}` (and observer likewise).
+- Phrase invocation generically, or build it from `{{distribution.name}}`, so the plugin copy renders `export-transcript`/`search` correctly.
+
+**Verify:** the generated `plugins/session/skills/search/SKILL.md` names `export-transcript`, and the standalone copy names `session-export-transcript`. Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint touched files; `pnpm run build` and `pnpm run build:check` when SKILL.md, references, or runtime code change.
+**Commit:** `fix(p03-t08): render sibling skill names per distribution`
+
+### Task p03-t09: (review) Correct the incomplete-run exit-code wording
+
+Source: reviews/archived/p03-review-2026-10-02T080403Z.md, Low.
+
+**Files:** `src/skills/session-search/SKILL.md`, plus the regenerated outputs.
+
+**Behavior:** "An incomplete run exits by its results (0 or 2), or 3 when `needsConfirmation` is also set."
+
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint touched files; `pnpm run build` and `pnpm run build:check` when SKILL.md, references, or runtime code change.
+**Commit:** `docs(p03-t09): fix incomplete-run exit-code wording`
+
+### Task p03-t10: (review) Align item_completed extraction with observed record shapes
+
+Source: reviews/archived/p03-review-2026-10-02T080403Z.md, Low.
+
+**Files:** `lib/adapters/codex.ts`, `lib/adapters/codex.test.ts`, `lib/scan.ts`, `lib/scan.test.ts`, `helpers/test-helpers.ts`.
+
+**Behavior:**
+
+- Add the `Extension` `query` string to the extracted fields.
+- Drop `CollabAgentToolCall` from both parsed extraction and `RAW_CODEX_ITEM`: observed records carry no searchable text (`tool`, `receiver_agents`, `agents_states`), so parsed and raw behavior now agree.
+- Fixtures use observed key shapes.
+
+**Test:** an Extension web-search `query` phrase is found with includeTools. A CollabAgentToolCall line, normal or oversize, yields no tool unit.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint touched files; `pnpm run build` and `pnpm run build:check` when SKILL.md, references, or runtime code change.
+**Commit:** `fix(p03-t10): align codex item_completed extraction with observed shapes`
+
+---
+
 ## Phase 4: Documentation, stale-path fix, release notes, full verification
 
 ### Task p04-t01: User-guide and architecture docs
@@ -1104,7 +1175,7 @@ Source: the same real-store verification. Without `--include-tools`, the top hit
 | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T062929Z.md | e4ae386d889d279a69e859fa7bd44aaca422b67d | auto | - |
 | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md | 0367021c | auto | - |
 | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md | e09b9afe | auto | - |
-| p03   | code     | pending         | -          | -                                                           | -             | -          | -                 |
+| p03   | code     | fixes_added | 2026-10-02 | reviews/archived/p03-review-2026-10-02T080403Z.md | 7ff0c270 | auto | - |
 | p04   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | final | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -             | auto       | -                 |
@@ -1131,10 +1202,10 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 
 - Phase 1: 16 tasks. Core library: types/shim, options/time, matcher/snippets, redaction, tool probe, plus 11 p01 review fixes (t06–t16).
 - Phase 2: 21 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 12 p02 review fixes (t08–t19) and 2 root follow-ups (t20–t21).
-- Phase 3: 5 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests. Includes 2 root follow-ups (t04 Codex MCP results, t05 ladder guidance).
+- Phase 3: 10 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests. Includes 2 root follow-ups (t04 Codex MCP results, t05 ladder guidance) and 5 p03 review fixes (t06–t10).
 - Phase 4: 3 tasks. Docs, stale-path fix, changelog plus premerge.
 
-**Total: 45 tasks**
+**Total: 50 tasks**
 
 ## References
 

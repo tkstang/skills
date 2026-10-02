@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p04-t01
+oat_current_task_id: p03-t06
 oat_generated: false
 ---
 
@@ -35,10 +35,10 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 16    | 16/16     |
 | Phase 2 | complete    | 21    | 21/21     |
-| Phase 3 | in_progress | 5     | 5/5       |
+| Phase 3 | in_progress | 10    | 5/10      |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 42/45 tasks completed
+**Total:** 42/50 tasks completed
 
 ---
 
@@ -249,7 +249,7 @@ Residual (Low, accepted): final-result per-session reads do not check the deadli
 
 ## Phase 3: Skill packaging, distribution, CLI integration tests
 
-**Status:** in_progress (all 5 tasks done; root review pending)
+**Status:** in_progress (review passed 0C/0H; fix tasks p03-t06..t10 queued)
 
 | Task | Status | Commit |
 | ---- | ------ | ------ |
@@ -265,6 +265,26 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 **Root real-store verification (2026-10-02):** the generated CLI found the current "Perceive Now vetting" session first (about 2.1 s over 743 MB). The motivating Codex rollout was **not** found even with `--include-tools`: its phrase lives only in `item_completed` `McpToolCall` results, which the Codex adapter does not extract (a p02 adapter gap). Fixes queued as **p03-t04** (extraction) and **p03-t05** (SKILL.md ladder guidance).
 
+
+### Review Received: p03
+
+**Date:** 2026-10-02
+**Review artifact:** reviews/archived/p03-review-2026-10-02T080403Z.md (request `session-search-p03-review-1`, invocation auto, reviewed head `7ff0c270`, **Reconnaissance:** not-attempted)
+
+**Findings:** Critical 0, High 0, Medium 1, Low 5. **Passes.**
+
+**Dispositions:**
+
+- p03-t06: M, remote recipe shell injection
+- p03-t07: L, Codex tool text double-count
+- p03-t08: L, hard-coded sibling and invocation names
+- p03-t09: L, incomplete exit wording
+- p03-t10: L, item_completed observed shapes
+- design.md raw-carrier and Codex classification drift (L): **aligned by root** to the intended post-t07/t10 behavior.
+
+**Governance:** after t06–t10 pass the implementer's and the root's verification, p03 closes; the final review covers them.
+
+---
 
 ## Phase 4: Documentation, stale-path fix, release notes, full verification
 
@@ -337,6 +357,10 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 - Target `oat-phase-implementer-claude-claude-opus-5-5-high`. Task class: default-implementation. Validated-only, then accepted. Outcome: DONE_WITH_CONCERNS (expected changelog gate). Range `4c00cc97..d3618da9`.
 - Continuation `cont-session-search-p03-1` (root follow-ups t04–t05): `a3488242..7ff0c270`, DONE_WITH_CONCERNS.
 - Dispatch stamp: `Dispatch: scope=p03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high`
+
+#### Dispatch record: session-search-p03-review-1
+
+- Root phase review, same reviewer target. Outcome: **pass**, 0C/0H/1M/5L. Artifact: `reviews/archived/p03-review-2026-10-02T080403Z.md`.
 
 <!-- orchestration-runs-end -->
 
