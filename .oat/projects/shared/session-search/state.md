@@ -66,11 +66,11 @@ oat_workflow_origin: native # native | imported
 #   artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T120208Z.md
 #   handoff: "Gate passed at the high threshold, but the final review still contains non-blocking findings (medium=1, low=3). Run oat-project-review-receive for .oat/projects/shared/session-search/reviews/final-review-2026-10-02T120208Z.md to disposition them before marking the final review row passed."
 #   receive_state: not_started # not_started | intent_persisted | completed | reconciliation_required
-#   receive_correlation: null
-#   receive_source_artifact: null
-#   receive_archived_artifact: null
-#   receive_event_identity: null
-#   receive_pre_head: null
+#   receive_correlation: {gate_run_id: c5a7745f-9dcf-4f4f-b0e4-d153568e960b, scope: final, type: code, source_filename: final-review-2026-10-02T120208Z.md}
+#   receive_source_artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T120208Z.md
+#   receive_archived_artifact: .oat/projects/shared/session-search/reviews/archived/final-review-2026-10-02T120208Z.md
+#   receive_event_identity: 'final|code|final-review-2026-10-02T120208Z.md'
+#   receive_pre_head: 'c17a1569fafa8188e843834c299d5f27eb050c1c'
 #   receive_commit: null
 #   receive_eligible: true
 #   receive_completed: false
@@ -102,7 +102,7 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: null
   handoff: null
-  receive_state: not_started
+  receive_state: intent_persisted
   receive_correlation: null
   receive_source_artifact: null
   receive_archived_artifact: null
