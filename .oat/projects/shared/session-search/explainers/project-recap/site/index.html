@@ -1,0 +1,973 @@
+<!doctype html>
+<!--
+  Neutral production shell. Worked content: ../examples/
+  TEMPLATE CONTRACT: THEME_CSS, TITLE, DESCRIPTION, EYEBROW, NAVIGATION, CONTENT, FOOTER
+  All replacement values are validated and escaped by the renderer.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>session-search: project recap</title>
+    <meta name="description" content="A new skill and bundled CLI that let any coding agent find a past Claude Code, Codex, or Cursor session from a fuzzy description, searching local stores cheapest tier first." />
+    <style>
+      :root {
+        --canvas: hsl(210 20% 98%);
+        --panel: hsl(0 0% 100%);
+        --panel-muted: hsl(210 16% 94%);
+        --border: hsl(210 14% 82%);
+        --ink: hsl(215 24% 16%);
+        --muted: hsl(215 12% 38%);
+        --accent: hsl(215 28% 32%);
+        --success: hsl(145 45% 28%);
+        --warning: hsl(38 70% 30%);
+        --danger: hsl(0 55% 36%);
+        --sans: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        --serif: ui-serif, Georgia, serif;
+        --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+        --radius: 0.65rem;
+        --canvas: #f4f6f9;
+        --panel: #ffffff;
+        --panel-muted: #eef1f5;
+        --border: #d3d9e2;
+        --ink: #16202e;
+        --muted: #4a5568;
+        --accent: #2f56c9;
+        --accent-2: #0e7180;
+        --success: #157a54;
+        --warning: #965108;
+        --danger: #bd3a2c;
+        --series-1: #2f56c9;
+        --series-2: #965108;
+        --series-3: #0e7180;
+        --series-4: #6a4fc4;
+        --sans: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        --serif: ui-serif, Georgia, serif;
+        --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+        --radius: 0.5rem;
+        --shadow-low: 0 1px 2px rgb(22 32 46 / 0.08);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        color-scheme: light dark;
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family: var(--sans);
+        line-height: 1.6;
+      }
+      a {
+        color: var(--accent);
+      }
+      .wrap {
+        display: grid;
+        grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
+        gap: 2rem;
+        max-width: 74rem;
+        margin: auto;
+        padding: 2rem;
+      }
+      .toc {
+        position: sticky;
+        top: 2rem;
+        align-self: start;
+        max-height: calc(100dvh - 4rem);
+        overflow-y: auto;
+      }
+      .toc-label,
+      .eyebrow {
+        color: var(--muted);
+        font: 0.72rem/1.4 var(--mono);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .toc a {
+        display: block;
+        border-inline-start: 2px solid transparent;
+        padding: 0.3rem 0.7rem;
+        text-decoration: none;
+      }
+      .toc a.active {
+        border-inline-start-color: var(--accent);
+        font-weight: 650;
+      }
+      main {
+        min-width: 0;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: var(--serif);
+        line-height: 1.2;
+        text-wrap: balance;
+      }
+      h1 {
+        font-size: clamp(2rem, 5vw, 3.4rem);
+        margin-block: 0.5rem 1rem;
+      }
+      h2 {
+        border-block-end: 1px solid var(--border);
+        padding-block-end: 0.45rem;
+        scroll-margin-top: 1rem;
+      }
+      section {
+        margin-block: 2.5rem;
+      }
+      .cards,
+      .lanes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+        gap: 1rem;
+      }
+      .card,
+      .lane,
+      .callout {
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--panel);
+        padding: 1rem;
+        overflow-wrap: anywhere;
+      }
+      .callout {
+        border-inline-start: 0.25rem solid var(--accent);
+      }
+      .callout--tip,
+      .callout--note {
+        border-inline-start-color: var(--accent);
+      }
+      .callout--important {
+        border-inline-start-color: var(--success);
+      }
+      .callout--warning {
+        border-inline-start-color: var(--warning);
+      }
+      .callout--caution {
+        border-inline-start-color: var(--danger);
+      }
+      .callout__label {
+        color: var(--muted);
+        font: 0.72rem/1.4 var(--mono);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      blockquote {
+        margin-inline: 0;
+        border-inline-start: 0.2rem solid var(--border);
+        padding-inline-start: 1rem;
+        color: var(--muted);
+      }
+      .task-list {
+        padding-inline-start: 0;
+        list-style: none;
+      }
+      .task-list li {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+      }
+      .task-list li > p {
+        margin-block: 0.2rem;
+      }
+      .timeline {
+        display: grid;
+        gap: 0.8rem;
+        padding-inline-start: 0;
+        list-style: none;
+      }
+      .timeline li {
+        display: grid;
+        grid-template-columns: minmax(7rem, 0.25fr) 1fr;
+        gap: 1rem;
+        border-inline-start: 0.2rem solid var(--accent);
+        padding-inline-start: 1rem;
+      }
+      .timeline time {
+        color: var(--muted);
+        font-family: var(--mono);
+      }
+      .table-scroll,
+      .diagram-scroll,
+      pre {
+        max-width: 100%;
+        overflow-x: auto;
+      }
+      .diagram-scroll > svg {
+        display: block;
+      }
+      pre {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--panel-muted);
+        padding: 1rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border-block-end: 1px solid var(--border);
+        padding: 0.6rem;
+        text-align: start;
+      }
+      code,
+      pre {
+        font-family: var(--mono);
+      }
+      :not(pre) > code {
+        border-radius: calc(var(--radius) / 2);
+        background: var(--panel-muted);
+        padding: 0.1em 0.3em;
+      }
+      figure {
+        margin-inline: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--panel);
+        padding: 1rem;
+      }
+      figcaption {
+        margin-block-start: 0.5rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      footer {
+        border-block-start: 1px solid var(--border);
+        color: var(--muted);
+        margin-block-start: 3rem;
+        padding-block-start: 1rem;
+      }
+      @media (max-width: 46rem) {
+        .wrap {
+          grid-template-columns: 1fr;
+          padding: 1rem;
+        }
+        .toc {
+          position: sticky;
+          top: 0;
+          z-index: 2;
+          display: flex;
+          gap: 0.25rem;
+          max-height: none;
+          overflow-x: auto;
+          background: var(--canvas);
+          border-block-end: 1px solid var(--border);
+          padding-block: 0.5rem;
+        }
+        .toc-label {
+          display: none;
+        }
+        .toc a {
+          flex: none;
+          white-space: nowrap;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+    <style>
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --canvas: #111827;
+          --panel: #1f2937;
+          --panel-muted: #374151;
+          --border: #4b5563;
+          --ink: #f9fafb;
+          --muted: #d1d5db;
+          --accent: #93c5fd;
+          --accent-2: #5eead4;
+          --success: #86efac;
+          --warning: #fde047;
+          --danger: #fca5a5;
+          --series-1: #93c5fd;
+          --series-2: #fde047;
+          --series-3: #5eead4;
+          --series-4: #c4b5fd;
+          --shadow-low: none;
+        }
+      }
+      header p {
+        max-width: 46rem;
+        color: var(--muted);
+        font-size: 1.12rem;
+      }
+      .status-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+        gap: 0.75rem;
+        margin-block: 1.5rem 0.5rem;
+      }
+      .stat {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--panel);
+        box-shadow: var(--shadow-low);
+        padding: 0.85rem 1rem;
+      }
+      .stat--lead {
+        grid-column: 1 / -1;
+        border-inline-start: 0.3rem solid var(--success);
+      }
+      .stat__label {
+        color: var(--muted);
+        font: 600 0.7rem/1.3 var(--mono);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .stat__value {
+        font: 650 1.35rem/1.2 var(--serif);
+      }
+      .stat--lead .stat__value {
+        font-size: 1.55rem;
+      }
+      .stat__note {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      .lede {
+        font-size: 1.08rem;
+        max-width: 48rem;
+      }
+      h3 {
+        font-size: 1.12rem;
+        margin-block: 1.6rem 0.6rem;
+      }
+      caption {
+        caption-side: top;
+        color: var(--muted);
+        font: 600 0.75rem/1.4 var(--mono);
+        letter-spacing: 0.08em;
+        padding-block-end: 0.4rem;
+        text-align: start;
+        text-transform: uppercase;
+      }
+      .table-scroll {
+        margin-block: 1rem;
+      }
+      table {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        font-size: 0.94rem;
+      }
+      thead th {
+        background: var(--panel-muted);
+        color: var(--muted);
+        font-size: 0.78rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      td:first-child {
+        font-weight: 600;
+        min-width: 9rem;
+      }
+      td.num {
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+        text-align: end;
+      }
+      .timeline-table td:first-child {
+        font: 500 0.82rem/1.4 var(--mono);
+        color: var(--muted);
+      }
+      tr.total td {
+        border-block-start: 2px solid var(--border);
+      }
+      .pill {
+        display: inline-block;
+        border: 1px solid var(--success);
+        border-radius: 999px;
+        color: var(--success);
+        font: 600 0.75rem/1.5 var(--mono);
+        padding: 0 0.55rem;
+      }
+      .two-col {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+        gap: 0.5rem 2rem;
+      }
+      .decision-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+        gap: 1rem;
+      }
+      .decision {
+        min-width: 0;
+        border-block-start: 3px solid var(--accent);
+        background: var(--panel);
+        border-radius: 0 0 var(--radius) var(--radius);
+        box-shadow: var(--shadow-low);
+        padding: 0.9rem 1rem 0.4rem;
+      }
+      .decision--wide {
+        grid-column: 1 / -1;
+        border-block-start-color: var(--accent-2);
+      }
+      .decision h3 {
+        margin-block: 0 0.5rem;
+        font-size: 1.02rem;
+      }
+      .decision p {
+        margin-block: 0 0.6rem;
+        font-size: 0.94rem;
+      }
+      .decision strong {
+        color: var(--muted);
+        font: 700 0.72rem/1.4 var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .steps li {
+        margin-block-end: 0.4rem;
+      }
+      .callout p {
+        margin-block: 0.4rem 0;
+      }
+      svg.arch {
+        width: 100%;
+        min-width: 44rem;
+        height: auto;
+        font-family: var(--sans);
+      }
+      .arch .node {
+        fill: var(--panel);
+        stroke: var(--border);
+        stroke-width: 1.5;
+      }
+      .arch .node--agent {
+        stroke: var(--series-4);
+        stroke-width: 2;
+      }
+      .arch .node--guide {
+        stroke: var(--series-3);
+        stroke-width: 2;
+      }
+      .arch .node--pipe {
+        fill: var(--panel-muted);
+        stroke: var(--series-1);
+        stroke-width: 2;
+      }
+      .arch .node--adapter {
+        stroke: var(--series-1);
+      }
+      .arch .node--out {
+        stroke: var(--series-2);
+        stroke-width: 2;
+      }
+      .arch .node--store {
+        fill: var(--panel-muted);
+        stroke-dasharray: 5 4;
+      }
+      .arch .label {
+        fill: var(--ink);
+        font-size: 15px;
+        font-weight: 650;
+        text-anchor: middle;
+      }
+      .arch .sub {
+        fill: var(--muted);
+        font-size: 12.5px;
+        text-anchor: middle;
+      }
+      .arch .edge {
+        fill: none;
+        stroke: var(--muted);
+        stroke-width: 1.6;
+      }
+      .arch .edge--loop {
+        stroke-dasharray: 6 4;
+      }
+      .arch .arrowhead {
+        fill: var(--muted);
+      }
+      .arch .edge-label {
+        fill: var(--muted);
+        font: 11.5px var(--mono);
+        text-anchor: middle;
+      }
+      .arch .edge-label--start {
+        text-anchor: start;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <nav class="toc" aria-label="Page sections">
+        <div class="toc-label">OAT project recap</div>
+        <a href="#original-request">Original request</a>
+        <a href="#key-agent-decisions">Key agent decisions</a>
+        <a href="#as-built-architecture">As-built architecture</a>
+        <a href="#implementation-record">Implementation record</a>
+        <a href="#validation-evidence">Validation evidence</a>
+        <a href="#outcome">Outcome and next steps</a>
+      </nav>
+      <main>
+        <header>
+          <div class="eyebrow">OAT project recap</div>
+          <h1>session-search: project recap</h1>
+          <p>A new skill and bundled CLI that let any coding agent find a past Claude Code, Codex, or Cursor session from a fuzzy description, searching local stores cheapest tier first.</p>
+        </header>
+                <div class="status-strip" role="group" aria-label="Project state at a glance">
+          <div class="stat stat--lead">
+            <span class="stat__label">State</span>
+            <span class="stat__value">Implementation done, final PR next</span>
+            <span class="stat__note">Summary and docs steps finished; PR creation is the last pre-approval step.</span>
+          </div>
+          <div class="stat">
+            <span class="stat__label">Tasks</span>
+            <span class="stat__value">64 / 64</span>
+            <span class="stat__note">across five phases</span>
+          </div>
+          <div class="stat">
+            <span class="stat__label">Premerge suite</span>
+            <span class="stat__value">2733 passed</span>
+            <span class="stat__note">1 skipped, at the p04 checkpoint</span>
+          </div>
+          <div class="stat">
+            <span class="stat__label">Reviews</span>
+            <span class="stat__value">Gate passed</span>
+            <span class="stat__note">Final review cycle 4 passed; exit gate second generation clean</span>
+          </div>
+        </div>
+
+        <section id="original-request">
+          <h2>Original request</h2>
+          <p class="lede">
+            Past coding-agent sessions were hard to find again. The user wanted a
+            repeatable skill in the <code>~/code/skills</code> repository that lets any
+            agent locate an earlier session from a fuzzy description, using the
+            repository's existing notes on session schemas and store locations to keep
+            searches fast.
+          </p>
+          <div class="table-scroll">
+            <table>
+              <caption>What triggered the project</caption>
+              <thead>
+                <tr><th scope="col">Source section</th><th scope="col">What it records</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Overview</td>
+                  <td>On 2026-09-29 the user could not place a “Perceive Now” discussion among Claude Code, Codex, Cursor, or two machines. An ad-hoc grep over about 12 GB ran for more than 5 minutes without finishing.</td>
+                </tr>
+                <tr>
+                  <td>Initial Request</td>
+                  <td>Requirements were settled in a brainstorm that ran from 2026-09-29 to 2026-10-01, then handed to an autonomous quick-mode run.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            The discussion turned out to be a ChatGPT thread. It surfaced only because one
+            Codex session happened to capture ChatGPT thread titles in its tool output.
+            That near-miss shaped several later choices.
+          </p>
+          <div class="two-col">
+            <div>
+              <h3>Success criteria</h3>
+              <ul>
+                <li>An agent in Claude Code, Codex, or Cursor gets a ranked list containing the target session from a fuzzy description plus optional time or repo hints.</li>
+                <li>History and metadata lookups return in seconds; full-content scans honor time windows and line-length caps.</li>
+                <li>A repo hint that misses widens the search and says so.</li>
+                <li>Tool output stays out of results until the last, deepest search step.</li>
+                <li>Subagent transcripts do not flood results; archived Codex sessions are found and labeled.</li>
+                <li>When nothing is found, the skill asks about ChatGPT and about other machines.</li>
+                <li>Vitest coverage, repository build and drift checks, a user-guide page, and a fix for the stale export-transcript path.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>Constraints and exclusions</h3>
+              <ul>
+                <li>Read-only over session stores, with no user-specific hosts, paths, or names shipped.</li>
+                <li>A dependency-free bundled Node CLI; <code>rg</code> and <code>sqlite3</code> are optional speed-ups.</li>
+                <li>Short, redacted snippets only, because transcripts can hold secrets.</li>
+                <li>Graceful handling when internal store schemas drift.</li>
+                <li>Out of scope: a ChatGPT adapter, the Cursor SQLite chat store, persistent indexes, semantic search, session summarization, and automatic multi-machine fan-out.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="key-agent-decisions">
+          <h2>Key agent decisions</h2>
+          <p>Seven choices shaped what shipped. Each card pairs the decision with its reason and what it changed.</p>
+          <div class="decision-grid">
+            <article class="decision">
+              <h3>Stateless, tiered search</h3>
+              <p><strong>Why:</strong> a persistent full-text index needs upkeep and would create a new store that can hold secrets.</p>
+              <p><strong>Effect:</strong> the CLI keeps no cache. Speed comes from trying cheap tiers first, time windows, cwd hints, and skipping noisy records.</p>
+            </article>
+            <article class="decision">
+              <h3>Optional rg prefilter, Node verifies</h3>
+              <p><strong>Why:</strong> <code>rg</code> and <code>sqlite3</code> may be missing on some hosts.</p>
+              <p><strong>Effect:</strong> <code>rg -l</code> only narrows candidate files and Node classifies every hit, so results match with or without <code>rg</code>.</p>
+            </article>
+            <article class="decision">
+              <h3>Repo hints widen, never filter</h3>
+              <p><strong>Why:</strong> a wrong hint should not turn into a false “not found”.</p>
+              <p><strong>Effect:</strong> a <code>--cwd</code> hint is searched first, and an empty result reruns everywhere with <code>widened: true</code>.</p>
+            </article>
+            <article class="decision">
+              <h3>Adapters own record classification</h3>
+              <p><strong>Why:</strong> the shared transcript normalizers truncate or drop text that search needs.</p>
+              <p><strong>Effect:</strong> each runtime adapter extracts and classifies its own records while still reusing the shared parser.</p>
+            </article>
+            <article class="decision">
+              <h3>Tool output only on the deep step</h3>
+              <p><strong>Why:</strong> routine results should show what people and agents wrote, yet cases like the ChatGPT titles must stay reachable.</p>
+              <p><strong>Effect:</strong> tool output is searched on the final deep step or with <code>--include-tools</code>; that step always bypasses the prefilter.</p>
+            </article>
+            <article class="decision">
+              <h3>Redact snippets at scan time</h3>
+              <p><strong>Why:</strong> keeping full hit text until ranking let memory balloon on broad queries.</p>
+              <p><strong>Effect:</strong> each hit holds a short, already redacted snippet. Peak memory dropped sharply; broad queries got slower.</p>
+            </article>
+            <article class="decision decision--wide">
+              <h3>Local-only, with opt-in remote recipe</h3>
+              <p><strong>Why:</strong> the shipped skill must stay machine-agnostic and never embed hostnames.</p>
+              <p><strong>Effect:</strong> the CLI searches only the local machine. To reach another machine, the agent runs a documented, injection-safe ssh recipe on a host the user names, which also copes with remote shells that lack Homebrew on PATH.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="as-built-architecture">
+          <h2>As-built architecture</h2>
+          <p>
+            The skill ships two ways from one canonical source under
+            <code>src/skills/session-search/</code>: standalone as
+            <code>skills/session-search</code> and as <code>session:search</code> in the
+            <code>session</code> plugin. The agent follows the SKILL.md guidance and calls a
+            bundled CLI that reads local stores and writes only to stdout and stderr.
+          </p>
+          <figure>
+            <div class="diagram-scroll">
+              <svg class="arch" viewBox="0 -36 980 596" role="img" aria-labelledby="arch-title arch-desc">
+                <title id="arch-title">session-search architecture</title>
+                <desc id="arch-desc">The agent follows SKILL.md guidance and calls the CLI. The pipeline runs history, metadata, content, and deep tiers through three runtime adapters that read local stores, with optional rg and sqlite3 accelerators. Ranked, redacted JSON returns to the agent, which can widen and search again.</desc>
+                <defs>
+                  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                    <path d="M0,0 L10,5 L0,10 z" class="arrowhead" />
+                  </marker>
+                </defs>
+
+                <rect x="20" y="20" width="250" height="76" rx="10" class="node node--agent" />
+                <text x="145" y="52" class="label">Coding agent</text>
+                <text x="145" y="74" class="sub">Claude Code, Codex, Cursor</text>
+
+                <rect x="340" y="20" width="300" height="76" rx="10" class="node node--guide" />
+                <text x="490" y="52" class="label">SKILL.md guidance</text>
+                <text x="490" y="74" class="sub">intake, patterns, widening ladder</text>
+
+                <rect x="710" y="20" width="250" height="76" rx="10" class="node node--out" />
+                <text x="835" y="52" class="label">session-search/v1 JSON</text>
+                <text x="835" y="74" class="sub">ranked sessions, redacted snippets</text>
+
+                <rect x="340" y="140" width="300" height="70" rx="10" class="node" />
+                <text x="490" y="170" class="label">CLI: search, estimate</text>
+                <text x="490" y="192" class="sub">options and time window, matcher</text>
+
+                <rect x="260" y="250" width="460" height="104" rx="12" class="node node--pipe" />
+                <text x="490" y="278" class="label">Pipeline</text>
+                <text x="490" y="302" class="sub">history, then metadata, then content, then deep</text>
+                <text x="490" y="324" class="sub">cwd-first scope that widens, large-scan guard, deadline</text>
+
+                <rect x="760" y="250" width="200" height="104" rx="10" class="node node--out" />
+                <text x="860" y="285" class="label">Rank and redact</text>
+                <text x="860" y="308" class="sub">roll subagents up</text>
+                <text x="860" y="328" class="sub">to parent sessions</text>
+
+                <rect x="40" y="400" width="200" height="60" rx="10" class="node node--adapter" />
+                <text x="140" y="436" class="label">claude-code adapter</text>
+                <rect x="390" y="400" width="200" height="60" rx="10" class="node node--adapter" />
+                <text x="490" y="436" class="label">codex adapter</text>
+                <rect x="740" y="400" width="200" height="60" rx="10" class="node node--adapter" />
+                <text x="840" y="436" class="label">cursor adapter</text>
+
+                <rect x="20" y="490" width="940" height="52" rx="10" class="node node--store" />
+                <text x="490" y="514" class="label">Local stores under $HOME (read-only)</text>
+                <text x="490" y="533" class="sub">history files, Codex SQLite threads and session index, transcripts; optional rg -l prefilter and sqlite3</text>
+
+                <path d="M270,58 L332,58" class="edge" marker-end="url(#arrow)" />
+                <text x="301" y="48" class="edge-label">reads</text>
+                <path d="M490,96 L490,132" class="edge" marker-end="url(#arrow)" />
+                <text x="500" y="120" class="edge-label edge-label--start">invokes</text>
+                <path d="M490,210 L490,242" class="edge" marker-end="url(#arrow)" />
+                <path d="M420,354 L160,394" class="edge" marker-end="url(#arrow)" />
+                <path d="M490,354 L490,392" class="edge" marker-end="url(#arrow)" />
+                <path d="M560,354 L820,394" class="edge" marker-end="url(#arrow)" />
+                <path d="M140,460 L140,484" class="edge" marker-end="url(#arrow)" />
+                <path d="M490,460 L490,484" class="edge" marker-end="url(#arrow)" />
+                <path d="M840,460 L840,484" class="edge" marker-end="url(#arrow)" />
+                <path d="M720,302 L752,302" class="edge" marker-end="url(#arrow)" />
+                <text x="736" y="292" class="edge-label">hits</text>
+                <path d="M860,250 L860,104" class="edge" marker-end="url(#arrow)" />
+                <text x="870" y="180" class="edge-label edge-label--start">emits</text>
+                <path d="M710,36 C620,-14 360,-14 278,32" class="edge edge--loop" marker-end="url(#arrow)" />
+                <text x="490" y="-18" class="edge-label">results; agent may widen and rerun</text>
+              </svg>
+            </div>
+            <figcaption>Request flow. The pipeline fans out to one adapter per runtime; every adapter reads the same family of local stores. The agent loops back through the widening ladder when results are thin.</figcaption>
+          </figure>
+          <div class="two-col">
+            <div>
+              <h3>Search tiers, cheapest first</h3>
+              <ol class="steps">
+                <li><strong>History</strong>: the Claude and Codex prompt history files.</li>
+                <li><strong>Metadata</strong>: Codex threads via a read-only, schema-probed <code>sqlite3</code>, the Codex session index, and Claude titles.</li>
+                <li><strong>Content</strong>: a bounded scan of user and assistant text, optionally narrowed by <code>rg -l</code>.</li>
+                <li><strong>Deep</strong>: adds tool output, including Codex MCP results that live only in <code>item_completed</code> items.</li>
+              </ol>
+            </div>
+            <div>
+              <h3>Ranking and safety</h3>
+              <ul>
+                <li>Ranking favors more distinct patterns, user-typed hits, title or first-prompt hits, cwd matches, and recency.</li>
+                <li>Subagent and Codex-child hits roll up to their parent session.</li>
+                <li>Redaction masks credential families, URL userinfo, auth headers, and multi-level escaped JSON.</li>
+                <li>A large-scan guard asks before huge scans; <code>--deadline-ms</code> bounds the run, including <code>rg</code>.</li>
+                <li>A missing table, locked database, or absent <code>sqlite3</code> marks the metadata tier degraded instead of crashing.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="implementation-record">
+          <h2>Implementation record</h2>
+          <p>Five phases ran under the autonomous high dispatch policy. The fifth phase existed only to absorb final-review and exit-gate fixes.</p>
+          <div class="table-scroll">
+            <table>
+              <caption>Phases and task counts</caption>
+              <thead>
+                <tr><th scope="col">Phase</th><th scope="col">Scope</th><th scope="col">Tasks</th><th scope="col">Status</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Phase 1</td><td>Core library: options, matching, redaction, tool probe</td><td class="num">16</td><td><span class="pill">complete</span></td></tr>
+                <tr><td>Phase 2</td><td>Adapters, scanner, pipeline, ranker, CLI</td><td class="num">21</td><td><span class="pill">complete</span></td></tr>
+                <tr><td>Phase 3</td><td>Skill packaging, distribution, CLI integration tests</td><td class="num">10</td><td><span class="pill">complete</span></td></tr>
+                <tr><td>Phase 4</td><td>Documentation, stale-path fix, release notes, full verification</td><td class="num">7</td><td><span class="pill">complete</span></td></tr>
+                <tr><td>Phase 5</td><td>Final-review and exit-gate fixes</td><td class="num">10</td><td><span class="pill">complete</span></td></tr>
+                <tr class="total"><td>Implementation: session-search</td><td>All phases</td><td class="num">all</td><td><span class="pill">complete</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Components delivered</h3>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th scope="col">Component</th><th scope="col">Notable changes</th><th scope="col">Durable reference</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Core library</td><td>Time-window parsing, pattern matcher, linear-time redaction, rg and sqlite3 probe with Homebrew fallbacks</td><td><code>src/lib/options.ts</code>, <code>matcher.ts</code>, <code>redact.ts</code>, <code>tools.ts</code></td></tr>
+                <tr><td>Runtime adapters</td><td>Store enumeration including subagents, Codex children, and archived sessions; Codex MCP, Extension, and FileChange extraction</td><td><code>src/lib/adapters/</code></td></tr>
+                <tr><td>Scanner and pipeline</td><td>LF-only streaming reader, superset-safe prefilter limited to never-escaped characters, tier orchestration, widening, deadline</td><td><code>scan.ts</code>, <code>pipeline.ts</code></td></tr>
+                <tr><td>Ranker and CLI</td><td>Deterministic ranking with parent roll-up; <code>search</code> and <code>estimate</code> subcommands with JSON output</td><td><code>rank.ts</code>, <code>session-search.ts</code></td></tr>
+                <tr><td>Skill packaging</td><td>SKILL.md guidance, store-layout references, opt-in remote recipe, plugin and distribution entries</td><td><a href="https://github.com/tkstang/skills/tree/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/src/skills/session-search">session-search source on GitHub</a></td></tr>
+                <tr><td>Docs and release</td><td>User-guide page, session-schemas discovery indexes, CHANGELOG entry, stale Codex transcript path corrected in the export-transcript and observer docs</td><td><code>documentation/</code>, <code>CHANGELOG.md</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Release footprint</h3>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th scope="col">Source section</th><th scope="col">Recorded detail</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>What Was Implemented</td><td>session plugin 0.4.0 adds <code>session:search</code>; owner skill bumps include session-export-transcript 2.0.39; the CLI uses exit codes 0, 1, 2, and 3; premerge recorded 2733 passed and 1 skipped.</td></tr>
+                <tr><td>Final Summary (for PR/docs)</td><td>Further owner bumps: session-observer 1.0.88, session-observer-collab 1.0.76, session-fork-to-destination 0.2.56.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Run timeline</h3>
+          <div class="table-scroll">
+            <table class="timeline-table">
+              <thead>
+                <tr><th scope="col">Workflow observation</th><th scope="col">What happened</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>2026-10-02 · structural · oat gate review · plan</td><td>Plan gate first blocked on 3 High and 1 Medium findings, then passed with 0 findings.</td></tr>
+                <tr><td>2026-10-02 · structural · oat-project-implement · p01</td><td>Phase passed after two fix iterations.</td></tr>
+                <tr><td>2026-10-02 · structural · oat-project-implement · p02</td><td>Phase passed after one blocking fix iteration.</td></tr>
+                <tr><td>2026-10-02 · structural · oat-project-implement · p03</td><td>Phase passed after one fix iteration.</td></tr>
+                <tr><td>2026-10-02 · structural · oat-project-implement · p04</td><td>Phase passed after one fix iteration and one recovery.</td></tr>
+                <tr><td>2026-10-02 · structural · oat-project-implement · p05</td><td>Phase passed together with the final review.</td></tr>
+                <tr><td>2026-10-02 · structural · oat-project-review-provide · final</td><td>Final code review ran three read-only recon lanes that root reconciled.</td></tr>
+                <tr><td>2026-10-02 · structural · oat gate review · final</td><td>Exit gate, first generation: 0 Critical, 0 High, 1 Medium, 3 Low.</td></tr>
+                <tr><td>2026-10-02 · structural · oat-project-autonomous · final</td><td>Run stopped at the review-cycle cap of 3 with fixes t09–t10 complete, awaiting operator override.</td></tr>
+                <tr><td>2026-10-02 · structural · oat gate review · final</td><td>Exit gate, second generation: 0 findings.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Where the build departed from the design</h3>
+          <ul>
+            <li>Real Codex stores keep MCP results only in <code>item_completed</code> items, so extraction grew to cover them (p03-t04).</li>
+            <li>The deep step runs only when the content tier is selected, and the reported tier list names only scans that ran (p02-t06).</li>
+            <li>A single <code>snippetFor</code> helper redacts and then windows text, replacing a two-step composition.</li>
+            <li>Redaction covers more token families than designed, plus URL userinfo, auth headers, and escaped JSON.</li>
+            <li>Hits keep a bounded snippet and a sequence number instead of full text (p05-t03).</li>
+            <li>The design was realigned to the shipped code at every review; the code is the source of truth.</li>
+          </ul>
+        </section>
+
+        <section id="validation-evidence">
+          <h2>Validation evidence</h2>
+          <p>Evidence comes from repeated suite runs, root re-verification, and read-only checks against the developer's real session stores.</p>
+          <div class="table-scroll">
+            <table>
+              <caption>Test results by phase</caption>
+              <thead>
+                <tr><th scope="col">Phase</th><th scope="col">Tests run</th><th scope="col">Passed</th><th scope="col">Failures</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>1</td><td class="num">129</td><td class="num">129</td><td class="num">0</td></tr>
+                <tr><td>2</td><td class="num">230</td><td class="num">230</td><td class="num">0</td></tr>
+                <tr><td>3</td><td class="num">624</td><td class="num">624</td><td class="num">0</td></tr>
+                <tr><td>4 (premerge)</td><td class="num">2734</td><td class="num">2733</td><td class="num">0 (1 skipped)</td></tr>
+                <tr><td>5</td><td class="num">648</td><td class="num">648</td><td class="num">0</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-scroll">
+            <table>
+              <caption>Checks, observed results, and limits</caption>
+              <thead>
+                <tr><th scope="col">Source section</th><th scope="col">Observed result</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Phase Summary</td><td>p01 suite: 78 tests plus 321 tooling and repo tests. p02: 200 tests. A real-store smoke run over 10 days and 697 MiB took about 1.9 s and ranked the motivating session first, identically with and without rg.</td></tr>
+                <tr><td>p03</td><td>624 tests pass after review fixes; the real-store check still finds the motivating Codex session.</td></tr>
+                <tr><td>Phase 4: Documentation, stale-path fix, release notes, full verification</td><td>Root premerge: 2733 passed, 1 skipped; the docs production build passes with 61 pages.</td></tr>
+                <tr><td>Phase 5: Final review fixes</td><td>268 skill tests pass. On a 4.9 GiB store, broad deep-query peak RSS fell 1.31 to 0.40 GB and 1.50 to 0.41 GB; wall time rose 9.9 to 11.9 s and 10.5 to 17.4 s.</td></tr>
+                <tr><td>Final Summary (for PR/docs)</td><td>A Playwright mermaid render check of the docs ran at 1440 and 390 px in light and dark themes.</td></tr>
+                <tr><td>Notable Challenges</td><td>The first credential regex took 4.2 s on a 64 KiB line; anchoring brought it under 2 ms, and a 256 KiB regression test guards it. The prefilter escape problem was measured in about 1,340 files.</td></tr>
+                <tr><td>Tradeoffs Made</td><td>Limit: identifier exemptions leak about 0.06 per 10k samples in a seeded test.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout--important">
+            <div class="callout__label">Real stores found what tests missed</div>
+            <p>Green tests and reviews hid three silent misses that only read-only runs against real stores exposed: MCP text living only in <code>item_completed</code>, JSON-escaped characters breaking the prefilter guarantee, and blanked MCP entity ids. Fixes landed in p03-t04, p05-t08, and p05-t09.</p>
+          </div>
+
+          <h3>Review cycles</h3>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th scope="col">Phase review</th><th scope="col">Outcome</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Phase 1: Core library (options, matching, redaction, tool probe)</td><td>complete; cycle 1 and re-review cycle 2 both passed; 11 review-fix tasks.</td></tr>
+                <tr><td>Phase 2: Adapters, scanner, pipeline, ranker, CLI</td><td>complete; cycle 1 blocked by 1 High on Codex non-text tool output, then cycle 2 passed.</td></tr>
+                <tr><td>Phase 3: Skill packaging, distribution, CLI integration tests</td><td>Passed in one cycle with no Critical or High findings.</td></tr>
+                <tr><td>Phase 5: Final review fixes</td><td>complete; final review cycle 4 passed with one Low, which is deferred.</td></tr>
+                <tr><td>Recorded process deviations</td><td>The final scope hit the cap of 3 review cycles (REVIEWRECEIVE-02). The run stopped instead of self-authorizing, and the operator approved cycle 4.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="outcome">
+          <h2>Outcome</h2>
+          <p class="lede">Any coding agent can now find a past local session from a fuzzy description. The original motivating Codex rollout is findable on the deep step.</p>
+          <div class="two-col">
+            <div>
+              <h3>What now works</h3>
+              <ul>
+                <li><code>/session-search</code> standalone and <code>session:search</code> in the plugin, routed from requests like “find the session where we…”.</li>
+                <li>Ranked, redacted results across Claude Code, Codex, and Cursor stores.</li>
+                <li>Automatic widening from a repo hint, large-scan confirmation, and deadline control.</li>
+                <li>An opt-in recipe for searching another machine the user names.</li>
+                <li>Docs, including a user-guide page and the corrected Codex transcript path.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>What did not ship</h3>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr><th scope="col">Source section</th><th scope="col">Items</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Follow-up Items</td><td>deferred: exit-gate Lows L1–L3 and the final cycle-four Low; tooling fixes for the version-bump quote style, a load-sensitive diagnostics test, and format:check failures in 3 untouched test files.</td></tr>
+                    <tr><td>Deferred Ideas</td><td>deferred in discovery: a Cursor store.db adapter, a metadata cache or FTS index, a recall or summary mode, and adapters for other agent stores.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>None of the review follow-ups are regressions; affected sessions stay findable through other tiers.</p>
+            </div>
+          </div>
+
+          <h3>Artifact status</h3>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th scope="col">Artifact</th><th scope="col">Recorded status</th><th scope="col">Last updated</th><th scope="col">Note</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><a href="https://github.com/tkstang/skills/blob/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/.oat/projects/shared/session-search/summary.md">summary.md</a></td><td>complete</td><td>2026-10-02</td><td>0 revisions since generation</td></tr>
+                <tr><td><a href="https://github.com/tkstang/skills/blob/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/.oat/projects/shared/session-search/implementation.md">implementation.md</a></td><td>in_progress</td><td>2026-10-02</td><td>All tasks done; frontmatter awaits closeout</td></tr>
+                <tr><td><a href="https://github.com/tkstang/skills/blob/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/.oat/projects/shared/session-search/plan.md">plan.md</a></td><td>complete</td><td>2026-10-02</td><td>Phases, tasks, and review table</td></tr>
+                <tr><td><a href="https://github.com/tkstang/skills/blob/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/.oat/projects/shared/session-search/design.md">design.md</a></td><td>complete</td><td>2026-10-02</td><td>Realigned to the shipped code</td></tr>
+                <tr><td><a href="https://github.com/tkstang/skills/blob/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/.oat/projects/shared/session-search/discovery.md">discovery.md</a></td><td>complete</td><td>2026-10-02</td><td>Request, evidence, and scope</td></tr>
+                <tr><td><a href="https://github.com/tkstang/skills/blob/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/.oat/projects/shared/session-search/project-log.md">project-log.md</a></td><td>Workflow log</td><td>2026-10-02</td><td>Structural observations</td></tr>
+                <tr><td>2026-10-02 · structural · oat-project-autonomous · final</td><td>complete</td><td>—</td><td>Review fixes finished before the cap stop</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Next steps for the reader</h3>
+          <ul>
+            <li>Create the final PR from branch <a href="https://github.com/tkstang/skills/tree/feat/session-search">feat/session-search</a>; it is the remaining pre-approval step.</li>
+            <li>Triage the four Low review follow-ups and decide which become backlog items.</li>
+            <li>Address the tooling follow-ups: keep single-quoted versions in the bump script, and raise or reduce the diagnostics test load.</li>
+            <li>Consider lengthening the OAT gate availability probe so slow-starting wrapper CLIs are not reported as unavailable.</li>
+          </ul>
+        </section>
+        <footer>Recap generated by explainer-kit (recipe project-recap) from the approved OAT artifacts of <code>.oat/projects/shared/session-search</code> on branch <code>feat/session-search</code> of <a href="https://github.com/tkstang/skills/tree/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7">tkstang/skills</a>. Every figure is taken from summary.md, implementation.md, plan.md, design.md, discovery.md, or project-log.md; the shipped code is the source of truth where those differ from the design.</footer>
+      </main>
+    </div>
+    <script>
+      (() => {
+        const links = [...document.querySelectorAll('.toc a[href^="#"]')];
+        const targets = links
+          .map((link) => document.querySelector(link.getAttribute('href')))
+          .filter(Boolean);
+        const observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              links.forEach((link) =>
+                link.classList.toggle(
+                  'active',
+                  link.getAttribute('href') === `#${entry.target.id}`,
+                ),
+              );
+            }
+          },
+          { rootMargin: '-15% 0px -70% 0px' },
+        );
+        targets.forEach((target) => observer.observe(target));
+      })();
+    </script>
+  </body>
+</html>

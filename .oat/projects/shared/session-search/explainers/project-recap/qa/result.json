@@ -1,0 +1,36 @@
+{
+  "artifactSha256": "sha256:842ffd37539fa597d9fc249e430b95fe250d6532734392f5f1ce7f22e68f0d09",
+  "checks": {
+    "parse": {
+      "status": "pass"
+    },
+    "requiredNarrative": {
+      "status": "pass"
+    },
+    "structure": {
+      "status": "pass"
+    },
+    "sourceDumping": {
+      "status": "pass"
+    },
+    "shellScripts": {
+      "status": "pass"
+    },
+    "ledgerToPage": {
+      "status": "pass"
+    },
+    "pageToLedger": {
+      "status": "pass"
+    }
+  },
+  "rung": "host",
+  "screenshots": [
+    "qa/320.png",
+    "qa/768.png",
+    "qa/1440.png"
+  ],
+  "visual": {
+    "verdict": "pass",
+    "notes": "Inspected full-page captures at 320, 768, and 1440 px: no horizontal page overflow, all six required sections visible, headings readable at 320 px, no overlapping text. Architecture diagram and wide tables scroll inside bounded containers at 320 px by design. The 320 px full page is 19633 px tall, so the stored 320 capture is its top 16384 px (decoder limit); the remainder was inspected from the uncropped capture."
+  }
+}
