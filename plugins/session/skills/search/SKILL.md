@@ -162,9 +162,11 @@ into one candidate.
 Search another machine only when the user asks or accepts the ladder offer, and
 only on the host they name; never guess hosts. Read
 [remote-fallback.md](references/remote-fallback.md) for the recipe: a `BatchMode`
-reachability check, locating the remote install, running the CLI with a PATH
-prefix for Homebrew tools, and read-only one-liners when the skill is not
-installed there. Report which host each result came from (`host.hostname`).
+reachability check, a remote script that locates the install and runs the CLI
+with a PATH prefix for Homebrew tools, and read-only history and thread queries
+when the skill is not installed there. Use its scripts exactly: search text goes
+only inside their quoted heredocs, never onto the `ssh` command line. Report
+which host each result came from (`host.hostname`).
 
 Environment knobs for constrained hosts: `SESSION_SEARCH_RG` and
 `SESSION_SEARCH_SQLITE3` (explicit tool paths), `SESSION_SEARCH_NO_RG=1` and
