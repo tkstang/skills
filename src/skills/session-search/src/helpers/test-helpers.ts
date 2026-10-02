@@ -404,6 +404,8 @@ export interface CodexMetaSpec {
   subagentHistoryStartOrdinal?: number;
   /** Size of a synthetic `base_instructions.text` (bytes). */
   baseInstructionsBytes?: number;
+  /** Override `payload.source` (e.g. `{ subagent: 'review' }`). */
+  source?: unknown;
 }
 
 /** A Codex `session_meta` header record (ordinal 0). */
@@ -420,17 +422,20 @@ export function codexSessionMeta(spec: CodexMetaSpec, ordinal = 0) {
       cwd: spec.cwd,
       originator: 'codex_cli_rs',
       cli_version: '0.153.0',
-      source: isChild
-        ? {
-            subagent: {
-              thread_spawn: {
-                parent_thread_id: spec.sessionId,
-                depth: 1,
-                agent_nickname: 'helper',
-              },
-            },
-          }
-        : 'cli',
+      source:
+        spec.source !== undefined
+          ? spec.source
+          : isChild
+            ? {
+                subagent: {
+                  thread_spawn: {
+                    parent_thread_id: spec.sessionId,
+                    depth: 1,
+                    agent_nickname: 'helper',
+                  },
+                },
+              }
+            : 'cli',
       model_provider: 'openai',
       base_instructions: {
         text: 'x'.repeat(spec.baseInstructionsBytes ?? 2048),

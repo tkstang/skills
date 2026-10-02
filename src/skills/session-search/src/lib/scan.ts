@@ -281,7 +281,10 @@ export async function scanFile(
           hits.push({
             ...base,
             role: unit.role,
-            userTyped: unit.role === 'user' && !file.isSubagent,
+            userTyped:
+              unit.role === 'user' &&
+              !file.isSubagent &&
+              file.agentAuthored !== true,
             patterns: match.patterns,
             text: unit.text,
             firstIndex: match.firstIndex,

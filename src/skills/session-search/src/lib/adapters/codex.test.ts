@@ -388,6 +388,65 @@ describe.skipIf(process.platform === 'win32')(
       expect(degraded[0]).toContain('rollout_path');
     });
 
+    it('does not count agent-authored thread first messages as user-typed', async () => {
+      const child = writeCodexRollout(temp.home, {
+        id: CHILD,
+        startedAtMs: NOW - DAY_MS,
+        records: [
+          codexSessionMeta({ id: CHILD, sessionId: PARENT, cwd: '/w' }),
+        ],
+      });
+      const consolidation = writeCodexRollout(temp.home, {
+        id: ARCHIVED,
+        startedAtMs: NOW - DAY_MS,
+        records: [codexSessionMeta({ id: ARCHIVED, cwd: '/w' })],
+      });
+      const row = (id: string, rollout: string, source: string) => ({
+        id,
+        rollout_path: rollout,
+        created_at: Math.floor((NOW - DAY_MS) / 1000),
+        updated_at: Math.floor(NOW / 1000),
+        source,
+        cwd: '/w',
+        title: null,
+        archived: 0,
+        git_origin_url: null,
+        first_user_message: 'please summarize perceive now',
+      });
+      const stub = writeSqliteStub(temp, columns, [
+        row(
+          CHILD,
+          child,
+          JSON.stringify({
+            subagent: { thread_spawn: { parent_thread_id: PARENT, depth: 1 } },
+          }),
+        ),
+        row(
+          ARCHIVED,
+          consolidation,
+          JSON.stringify({ subagent: 'memory_consolidation' }),
+        ),
+      ]);
+      const adapter = createCodexAdapter();
+      const { ctx } = adapterContext(adapter, temp, {
+        tools: { sqlite3: stub },
+      });
+
+      const files = await adapter.enumerate(ctx);
+      const hits = await adapter.metadataHits(
+        ctx,
+        compileMatcher(['perceive now'], { literal: false }),
+      );
+
+      expect(
+        hits.map((hit) => [hit.sessionId, hit.role, hit.userTyped]),
+      ).toEqual([
+        [CHILD, 'user', false],
+        [ARCHIVED, 'user', false],
+      ]);
+      expect(files.map((file) => file.agentAuthored)).toEqual([true, true]);
+    });
+
     it('skips the sqlite tier cleanly when SESSION_SEARCH_NO_SQLITE3=1', async () => {
       const stub = writeSqliteStub(temp, columns, [
         { id: PARENT, rollout_path: '/nowhere', title: 'Perceive Now' },

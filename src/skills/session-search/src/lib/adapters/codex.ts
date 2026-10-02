@@ -145,6 +145,21 @@ export interface CodexHeader {
   cwd: string | null;
   timestamp: string | null;
   subagentHistoryStartOrdinal: number | null;
+  /** The header `source` carries a `subagent` key. */
+  agentAuthored: boolean;
+}
+
+/**
+ * True for a `source` value (object or JSON string) carrying a `subagent`
+ * key: `thread_spawn`, `review`, `memory_consolidation`, `{other: …}`, and any
+ * future agent-started kind.
+ */
+export function isAgentSource(source: unknown): boolean {
+  const value =
+    typeof source === 'string' && source.trim().startsWith('{')
+      ? parseJsonObject(source.trim())
+      : source;
+  return isObject(value) && Object.hasOwn(value, 'subagent');
 }
 
 function headerFrom(records: readonly JsonObject[]): CodexHeader | null {
@@ -164,6 +179,7 @@ function headerFrom(records: readonly JsonObject[]): CodexHeader | null {
       typeof start === 'number' && Number.isInteger(start) && start >= 0
         ? start
         : null,
+    agentAuthored: isAgentSource(payload.source),
   };
 }
 
@@ -317,6 +333,8 @@ export interface CodexThread {
   parentId: string | null;
   /** True when `source` shows an ordinary (non-subagent) thread. */
   plainSource: boolean;
+  /** True when `source` shows an agent- or automation-started thread. */
+  agentAuthored: boolean;
 }
 
 function sqliteJson(
@@ -384,6 +402,7 @@ function threadFromRow(row: JsonObject): CodexThread | null {
     gitOriginUrl: nonEmpty(row.git_origin_url),
     parentId,
     plainSource,
+    agentAuthored: isAgentSource(source),
   };
 }
 
@@ -551,6 +570,7 @@ export function createCodexAdapter(): CodexAdapter {
           size: stats.size,
           createdAtMs: thread?.createdAtMs ?? name.startedAtMs,
           cwd: thread?.cwd ?? undefined,
+          agentAuthored: thread?.agentAuthored === true,
         };
         // Headers are read lazily, and only for files inside the time window.
         // A thread row with an ordinary source already settles cwd and lineage.
@@ -568,6 +588,7 @@ export function createCodexAdapter(): CodexAdapter {
             file.subagentHistoryStartOrdinal =
               header.subagentHistoryStartOrdinal;
             file.cwd ??= header.cwd;
+            if (header.agentAuthored) file.agentAuthored = true;
           }
         }
         files.push(file);
@@ -651,7 +672,7 @@ export function createCodexAdapter(): CodexAdapter {
           push({
             ...base,
             role,
-            userTyped: role === 'user',
+            userTyped: role === 'user' && !thread.agentAuthored,
             text: thread.firstUserMessage,
           });
         }

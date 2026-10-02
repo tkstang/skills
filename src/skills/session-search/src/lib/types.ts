@@ -86,6 +86,12 @@ export interface SessionFile {
   createdAtMs?: number | null;
   /** Codex child rollouts: records below this ordinal are inherited history. */
   subagentHistoryStartOrdinal?: number | null;
+  /**
+   * True when the session was started by an agent or automation rather than
+   * a person (e.g. a Codex `source` with a `subagent` key). Its user-role
+   * text is never counted as user-typed.
+   */
+  agentAuthored?: boolean;
 }
 
 /** Bounded-read session facts used for scoping and presentation. */

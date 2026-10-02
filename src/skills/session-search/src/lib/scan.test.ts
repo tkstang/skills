@@ -179,6 +179,43 @@ describe('scanFile', () => {
   });
 });
 
+describe('agent-authored Codex threads', () => {
+  it.each([
+    [{ subagent: 'review' }],
+    [{ subagent: 'memory_consolidation' }],
+    [{ subagent: { other: 'guardian' } }],
+  ])(
+    'never scores user-role text from source %j as user-typed',
+    async (source) => {
+      writeCodexRollout(temp.home, {
+        id: CODEX_ID,
+        startedAtMs: NOW - DAY_MS,
+        records: [
+          codexSessionMeta({ id: CODEX_ID, cwd: '/work/repo', source }),
+          codexMessage(
+            'user',
+            'restating perceive now from another session',
+            1,
+          ),
+        ],
+      });
+      const file = await onlyFile();
+      expect(file.agentAuthored).toBe(true);
+
+      const { hits } = await scanFile(
+        file,
+        adapterFor(file.runtime),
+        compileMatcher(['perceive now'], { literal: true }),
+        options(),
+      );
+
+      expect(hits.map((hit) => [hit.role, hit.userTyped])).toEqual([
+        ['user', false],
+      ]);
+    },
+  );
+});
+
 describe('deep raw fallback for oversize lines', () => {
   const bigOutput = `${'log line\n'.repeat(12_000)}ChatGPT thread: Perceive Now vetting`;
 
