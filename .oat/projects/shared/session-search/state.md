@@ -88,9 +88,9 @@ oat_post_implement_sequence:
   post_approval_completed: []
   failure: null
 oat_implement_exit_gate:
-  status: stale
+  status: pending
   resolution: configured
-  disposition: passed
+  disposition: null
   config_fingerprint: 'a43cbbb47e7ded76ad62bdcab5e1942f49b48288f5b17682279a78cc055924ab'
   resolved_command: "OAT_GATE_EXEC_TIMEOUT_MS=2400000 oat --json gate review --project \"$PROJECT_PATH\" --review-type code --review-scope final --exit-nonzero-on important \"Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings. Run every verification command in the foreground of your own turn: do not use background tasks, monitors, or waiters, and do not end your turn until the review artifact has been written and committed.\""
   resolved_description: "Semantic cross-family final implementation review before oat-project-implement exits."
@@ -98,32 +98,32 @@ oat_implement_exit_gate:
   on_failure: block
   max_attempts: 2
   attempts_completed: 0
-  reviewed_head: '76e1b108abf51192af2d2f99d1dab3c7c3a70d50'
+  reviewed_head: '43b5ea4e8e568ad192d41e6694c2197787e60b8c'
   implementation_base_ref: origin/main
-  implementation_fingerprint: 'sha256:effective-delta-v2:bc56701335df222b6ae9a0c02d15dc058ddd0598da40d87e47441f53f1f5b7ca'
-  freshness_head: '3e0b8c77fd61a41f72a665cb370b0af1e32b6e51'
-  freshness_fingerprint: 'sha256:effective-delta-v2:57ddded63ebdf7a54bd22acfe07680ad4ea02043cc863e55cd86fed1c7909180'
+  implementation_fingerprint: 'sha256:effective-delta-v2:2a781fece5fb1396ddca6a3b6058a3b098e3b5b8a4219fcc135417c28004284b'
+  freshness_head: '43b5ea4e8e568ad192d41e6694c2197787e60b8c'
+  freshness_fingerprint: 'sha256:effective-delta-v2:2a781fece5fb1396ddca6a3b6058a3b098e3b5b8a4219fcc135417c28004284b'
   waivers: []
-  launch_state: result_persisted
-  launch_attempt_id: impl-gate-70b256c8a3cc
-  launch_started_at: '2026-10-02T17:28:29Z'
-  launch_result_receipt: .oat/projects/shared/session-search/gate-receipts/impl-gate-70b256c8a3cc.json
-  gate_run_marker: /var/folders/ch/kmbmcdfd4gb807zjsjt2td4h0000gp/T/oat-gate-runs/578d2977-81dc-42a4-bb93-a71adabbb844.json
-  gate_run_id: 578d2977-81dc-42a4-bb93-a71adabbb844
-  envelope_status: ok
-  artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md
-  handoff: "Run oat-project-review-receive for .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md before treating this gate review as consumed."
-  receive_state: completed
-  receive_correlation: {gate_run_id: 578d2977-81dc-42a4-bb93-a71adabbb844, scope: final, type: code, source_filename: final-review-2026-10-02T173611Z.md}
-  receive_source_artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md
-  receive_archived_artifact: .oat/projects/shared/session-search/reviews/archived/final-review-2026-10-02T173611Z.md
-  receive_event_identity: 'final|code|final-review-2026-10-02T173611Z.md'
-  receive_pre_head: 'fee6f7d638934ff245e15e9de43469f1d351fa5f'
-  receive_commit: 'd52616241936624eba02c36e36b8291386fcde9f'
-  receive_eligible: true
-  receive_completed: true
+  launch_state: intent_persisted
+  launch_attempt_id: impl-gate-bd09c50beaa0
+  launch_started_at: '2026-10-02T19:39:14Z'
+  launch_result_receipt: .oat/projects/shared/session-search/gate-receipts/impl-gate-bd09c50beaa0.json
+  gate_run_marker: null
+  gate_run_id: null
+  envelope_status: null
+  artifact: null
+  handoff: null
+  receive_state: not_started
+  receive_correlation: null
+  receive_source_artifact: null
+  receive_archived_artifact: null
+  receive_event_identity: null
+  receive_pre_head: null
+  receive_commit: null
+  receive_eligible: false
+  receive_completed: false
   failure: null
-  updated_at: '2026-10-02T17:41:33Z'
+  updated_at: '2026-10-02T19:39:14Z'
 oat_docs_updated: complete # null | skipped | complete — documentation sync status
 oat_pr_status: open # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: "https://github.com/tkstang/skills/pull/115" # null | string — tracked PR URL when a PR exists

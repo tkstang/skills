@@ -679,6 +679,50 @@ This generation went stale after fix p05-t08 changed the effective delta. Genera
 - L1 (cwd >1024 chars escapes the blanker): deferred into BL-261002 (5th item).
 - L2 (state.md artifact list and progress): fixed by root in state.md.
 
+#### Implementation exit gate — generation 2 (stale after p-rev1; audit)
+
+```yaml
+oat_implement_exit_gate:
+  status: stale
+  resolution: configured
+  disposition: passed
+  config_fingerprint: 'a43cbbb47e7ded76ad62bdcab5e1942f49b48288f5b17682279a78cc055924ab'
+  resolved_command: "OAT_GATE_EXEC_TIMEOUT_MS=2400000 oat --json gate review --project \"$PROJECT_PATH\" --review-type code --review-scope final --exit-nonzero-on important \"Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings. Run every verification command in the foreground of your own turn: do not use background tasks, monitors, or waiters, and do not end your turn until the review artifact has been written and committed.\""
+  resolved_description: "Semantic cross-family final implementation review before oat-project-implement exits."
+  project_override: null
+  on_failure: block
+  max_attempts: 2
+  attempts_completed: 0
+  reviewed_head: '76e1b108abf51192af2d2f99d1dab3c7c3a70d50'
+  implementation_base_ref: origin/main
+  implementation_fingerprint: 'sha256:effective-delta-v2:bc56701335df222b6ae9a0c02d15dc058ddd0598da40d87e47441f53f1f5b7ca'
+  freshness_head: '3e0b8c77fd61a41f72a665cb370b0af1e32b6e51'
+  freshness_fingerprint: 'sha256:effective-delta-v2:57ddded63ebdf7a54bd22acfe07680ad4ea02043cc863e55cd86fed1c7909180'
+  waivers: []
+  launch_state: result_persisted
+  launch_attempt_id: impl-gate-70b256c8a3cc
+  launch_started_at: '2026-10-02T17:28:29Z'
+  launch_result_receipt: .oat/projects/shared/session-search/gate-receipts/impl-gate-70b256c8a3cc.json
+  gate_run_marker: /var/folders/ch/kmbmcdfd4gb807zjsjt2td4h0000gp/T/oat-gate-runs/578d2977-81dc-42a4-bb93-a71adabbb844.json
+  gate_run_id: 578d2977-81dc-42a4-bb93-a71adabbb844
+  envelope_status: ok
+  artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md
+  handoff: "Run oat-project-review-receive for .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md before treating this gate review as consumed."
+  receive_state: completed
+  receive_correlation: {gate_run_id: 578d2977-81dc-42a4-bb93-a71adabbb844, scope: final, type: code, source_filename: final-review-2026-10-02T173611Z.md}
+  receive_source_artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md
+  receive_archived_artifact: .oat/projects/shared/session-search/reviews/archived/final-review-2026-10-02T173611Z.md
+  receive_event_identity: 'final|code|final-review-2026-10-02T173611Z.md'
+  receive_pre_head: 'fee6f7d638934ff245e15e9de43469f1d351fa5f'
+  receive_commit: 'd52616241936624eba02c36e36b8291386fcde9f'
+  receive_eligible: true
+  receive_completed: true
+  failure: null
+  updated_at: '2026-10-02T17:41:33Z'
+```
+
+Generation 3 started at reviewed head `43b5ea4e8e568ad192d41e6694c2197787e60b8c` after final review cycle 5 passed.
+
 <!-- orchestration-runs-end -->
 
 ---
