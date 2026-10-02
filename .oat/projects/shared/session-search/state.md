@@ -101,8 +101,8 @@ oat_implement_exit_gate:
   reviewed_head: '76e1b108abf51192af2d2f99d1dab3c7c3a70d50'
   implementation_base_ref: origin/main
   implementation_fingerprint: 'sha256:effective-delta-v2:bc56701335df222b6ae9a0c02d15dc058ddd0598da40d87e47441f53f1f5b7ca'
-  freshness_head: '76e1b108abf51192af2d2f99d1dab3c7c3a70d50'
-  freshness_fingerprint: 'sha256:effective-delta-v2:bc56701335df222b6ae9a0c02d15dc058ddd0598da40d87e47441f53f1f5b7ca'
+  freshness_head: '3e0b8c77fd61a41f72a665cb370b0af1e32b6e51'
+  freshness_fingerprint: 'sha256:effective-delta-v2:57ddded63ebdf7a54bd22acfe07680ad4ea02043cc863e55cd86fed1c7909180'
   waivers: []
   launch_state: result_persisted
   launch_attempt_id: impl-gate-70b256c8a3cc
