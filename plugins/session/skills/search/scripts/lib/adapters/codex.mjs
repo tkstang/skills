@@ -1360,11 +1360,13 @@ function itemCompletedToolTexts(item) {
       texts.push(optionalOutputText(item.error));
       return texts;
     }
-    case "CollabAgentToolCall":
     case "Extension":
-      return ["result", "results", "output", "content"].map(
-        (key) => optionalOutputText(item[key])
-      );
+      return [
+        asString2(item.query) ?? "",
+        ...["results", "result", "output", "content"].map(
+          (key) => optionalOutputText(item[key])
+        )
+      ];
     case "FileChange":
       return [asString2(item.summary) ?? asString2(item.stdout) ?? ""];
     default:

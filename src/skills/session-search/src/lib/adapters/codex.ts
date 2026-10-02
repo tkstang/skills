@@ -18,7 +18,8 @@
  * user/agent messages duplicate them and are ignored. The normalizer drops
  * tool output, so with `includeTools` the adapter emits tool text directly,
  * including `event_msg` `item_completed` tool items (`CommandExecution`,
- * `McpToolCall`, `CollabAgentToolCall`, `Extension`, `FileChange`).
+ * `McpToolCall`, `Extension`, `FileChange`). `CollabAgentToolCall` items carry
+ * only agent-routing metadata and are not searched.
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -336,11 +337,15 @@ function itemCompletedToolTexts(item: JsonObject): string[] {
       texts.push(optionalOutputText(item.error));
       return texts;
     }
-    case 'CollabAgentToolCall':
     case 'Extension':
-      return ['result', 'results', 'output', 'content'].map((key) =>
-        optionalOutputText(item[key]),
-      );
+      // Observed web searches carry `query` and `results[{title, snippet}]`;
+      // `result`/`output`/`content` are read defensively.
+      return [
+        asString(item.query) ?? '',
+        ...['results', 'result', 'output', 'content'].map((key) =>
+          optionalOutputText(item[key]),
+        ),
+      ];
     case 'FileChange':
       return [asString(item.summary) ?? asString(item.stdout) ?? ''];
     default:

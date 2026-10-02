@@ -6,6 +6,7 @@ import {
   claudeToolResult,
   claudeToolUse,
   claudeUser,
+  codexCollabAgentToolCall,
   codexFunctionCall,
   codexMessage,
   codexSessionMeta,
@@ -533,6 +534,31 @@ describe('deep raw fallback for oversize lines', () => {
     ]);
   });
 
+  it('never raw-matches an oversize CollabAgentToolCall line', async () => {
+    writeCodexRollout(temp.home, {
+      id: CODEX_ID,
+      startedAtMs: NOW - DAY_MS,
+      records: [
+        codexSessionMeta({ id: CODEX_ID, cwd: '/work/repo' }),
+        codexCollabAgentToolCall(
+          { 'thread-child': { status: `${'x'.repeat(80_000)} Perceive Now` } },
+          1,
+        ),
+      ],
+    });
+    const file = await onlyFile();
+
+    const deep = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      compileMatcher(['perceive now'], { literal: true }),
+      options({ includeTools: true }),
+    );
+
+    expect(deep.stats.linesSkippedOversize).toBe(1);
+    expect(deep.hits).toEqual([]);
+  });
+
   it('never raw-matches an oversize world_state line', async () => {
     writeCodexRollout(temp.home, {
       id: CODEX_ID,
@@ -600,13 +626,16 @@ describe('deep raw fallback for oversize lines', () => {
         '{"timestamp":"t","ordinal":3,"type":"event_msg","payload":{"type":"item_completed","thread_id":"a","turn_id":"b","item":{"type":"McpToolCall"',
       ),
     ).toBe(true);
-    for (const itemType of ['CollabAgentToolCall', 'Extension']) {
+    for (const [itemType, carrier] of [
+      ['Extension', true],
+      ['CollabAgentToolCall', false],
+    ] as const) {
       expect(
         isRawToolCarrier(
           `{"timestamp":"t","ordinal":3,"type":"event_msg","payload":{"type":"item_completed","thread_id":"a","turn_id":"b","item":{"type":"${itemType}"`,
         ),
         itemType,
-      ).toBe(true);
+      ).toBe(carrier);
     }
     expect(
       isRawToolCarrier(

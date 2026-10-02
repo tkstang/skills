@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   adapterContext,
+  codexCollabAgentToolCall,
   codexCommandExecution,
   codexEventUserMessage,
+  codexExtensionWebSearch,
   codexFunctionCall,
   codexItemCompleted,
   codexMcpToolCall,
@@ -263,24 +265,11 @@ describe('Codex record classification', () => {
     expect(classifyCodexRecord(call, false)).toEqual([]);
   });
 
-  it('reads other item_completed tool items defensively', () => {
-    const collab = record(
-      codexItemCompleted(
-        {
-          type: 'CollabAgentToolCall',
-          tool: 'spawn',
-          output: 'helper said papaya',
-        },
-        12,
-      ),
-    );
+  it('reads Extension web searches and FileChange summaries only with includeTools', () => {
     const extension = record(
-      codexItemCompleted(
-        {
-          type: 'Extension',
-          kind: 'web_search',
-          results: [{ type: 'page', title: 'Guava handbook', snippet: 's' }],
-        },
+      codexExtensionWebSearch(
+        'guava growing season',
+        [{ title: 'Orchard handbook', snippet: 'pruning notes' }],
         13,
       ),
     );
@@ -298,18 +287,26 @@ describe('Codex record classification', () => {
       ),
     );
 
-    expect(matches(classifyCodexRecord(collab, true), 'papaya')).toHaveLength(
-      1,
-    );
-    expect(
-      matches(classifyCodexRecord(extension, true), 'Guava handbook'),
-    ).toHaveLength(1);
+    for (const phrase of ['guava growing', 'Orchard handbook']) {
+      expect(
+        matches(classifyCodexRecord(extension, true), phrase),
+        phrase,
+      ).toHaveLength(1);
+    }
     expect(
       matches(classifyCodexRecord(fileChange, true), 'Updated the following'),
     ).toHaveLength(1);
-    for (const item of [collab, extension, fileChange]) {
+    for (const item of [extension, fileChange]) {
       expect(classifyCodexRecord(item, false)).toEqual([]);
     }
+  });
+
+  it('emits nothing for CollabAgentToolCall routing metadata', () => {
+    const collab = record(
+      codexCollabAgentToolCall({ 'thread-child': { status: 'papaya' } }, 12),
+    );
+
+    expect(classifyCodexRecord(collab, true)).toEqual([]);
   });
 
   it('drops tool text repeated within one file, whichever record carries it', () => {

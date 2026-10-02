@@ -559,7 +559,7 @@ export function codexCommandExecution(output: string, ordinal: number) {
   };
 }
 
-/** An `event_msg` `item_completed` record wrapping an arbitrary `item`. */
+/** An `event_msg` `item_completed` record wrapping an `item` (type first). */
 export function codexItemCompleted(
   item: Record<string, unknown>,
   ordinal: number,
@@ -572,7 +572,14 @@ export function codexItemCompleted(
       type: 'item_completed',
       thread_id: 'thread',
       turn_id: 'turn',
-      item: { id: `item_${ordinal}`, status: 'completed', ...item },
+      // Observed records lead with `type`, which the raw-carrier prefix
+      // check relies on.
+      item: {
+        type: item.type,
+        id: `item_${ordinal}`,
+        status: 'completed',
+        ...item,
+      },
       started_at_ms: 1_790_000_000_000,
       completed_at_ms: 1_790_000_001_000,
     },
@@ -607,6 +614,49 @@ export function codexMcpToolCall(spec: CodexMcpToolCallSpec, ordinal: number) {
           : { structuredContent: spec.structuredContent }),
       },
       duration: { secs: 1, nanos: 0 },
+    },
+    ordinal,
+  );
+}
+
+/** An `item_completed` `Extension` web search, in the observed key shape. */
+export function codexExtensionWebSearch(
+  query: string,
+  results: Array<{ title: string; snippet: string }>,
+  ordinal: number,
+) {
+  return codexItemCompleted(
+    {
+      type: 'Extension',
+      kind: 'web_search',
+      query,
+      action: { type: 'search', url: 'https://example.invalid/search' },
+      results: results.map((result, index) => ({
+        type: 'web_result',
+        ref_id: `ref_${index}`,
+        ...result,
+      })),
+    },
+    ordinal,
+  );
+}
+
+/**
+ * An `item_completed` `CollabAgentToolCall`, in the observed key shape: agent
+ * routing metadata only, with no result, output, or content text.
+ */
+export function codexCollabAgentToolCall(
+  agentsStates: Record<string, unknown>,
+  ordinal: number,
+) {
+  return codexItemCompleted(
+    {
+      type: 'CollabAgentToolCall',
+      tool: 'spawn_agent',
+      sender_thread_id: 'thread-parent',
+      receiver_thread_ids: ['thread-child'],
+      receiver_agents: [],
+      agents_states: agentsStates,
     },
     ordinal,
   );

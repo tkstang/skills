@@ -1790,11 +1790,13 @@ function itemCompletedToolTexts(item) {
       texts.push(optionalOutputText(item.error));
       return texts;
     }
-    case "CollabAgentToolCall":
     case "Extension":
-      return ["result", "results", "output", "content"].map(
-        (key) => optionalOutputText(item[key])
-      );
+      return [
+        asString3(item.query) ?? "",
+        ...["results", "result", "output", "content"].map(
+          (key) => optionalOutputText(item[key])
+        )
+      ];
     case "FileChange":
       return [asString3(item.summary) ?? asString3(item.stdout) ?? ""];
     default:
@@ -3010,7 +3012,7 @@ function prefilterWithRg(rgPath, patterns, files, { literal, deadline = null }) 
 }
 var RAW_SKIP_TYPES = /"type"\s*:\s*"(?:world_state|session_meta|turn_context|compacted)"/u;
 var RAW_CODEX_OUTPUT = /"type"\s*:\s*"response_item"[\s\S]*?"payload"\s*:\s*\{\s*"type"\s*:\s*"(?:function_call_output|custom_tool_call_output)"/u;
-var RAW_CODEX_ITEM = /"type"\s*:\s*"item_completed"[\s\S]*?"item"\s*:\s*\{\s*"type"\s*:\s*"(?:CommandExecution|McpToolCall|CollabAgentToolCall|Extension|FileChange)"/u;
+var RAW_CODEX_ITEM = /"type"\s*:\s*"item_completed"[\s\S]*?"item"\s*:\s*\{\s*"type"\s*:\s*"(?:CommandExecution|McpToolCall|Extension|FileChange)"/u;
 var RAW_CLAUDE_RESULT = /"type"\s*:\s*"tool_result"/u;
 var RAW_ORDINAL = /"ordinal"\s*:\s*(\d+)/u;
 function isRawToolCarrier(prefix) {

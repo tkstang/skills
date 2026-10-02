@@ -188,7 +188,7 @@ const RAW_SKIP_TYPES =
 const RAW_CODEX_OUTPUT =
   /"type"\s*:\s*"response_item"[\s\S]*?"payload"\s*:\s*\{\s*"type"\s*:\s*"(?:function_call_output|custom_tool_call_output)"/u;
 const RAW_CODEX_ITEM =
-  /"type"\s*:\s*"item_completed"[\s\S]*?"item"\s*:\s*\{\s*"type"\s*:\s*"(?:CommandExecution|McpToolCall|CollabAgentToolCall|Extension|FileChange)"/u;
+  /"type"\s*:\s*"item_completed"[\s\S]*?"item"\s*:\s*\{\s*"type"\s*:\s*"(?:CommandExecution|McpToolCall|Extension|FileChange)"/u;
 const RAW_CLAUDE_RESULT = /"type"\s*:\s*"tool_result"/u;
 const RAW_ORDINAL = /"ordinal"\s*:\s*(\d+)/u;
 
