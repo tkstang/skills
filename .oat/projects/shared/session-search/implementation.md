@@ -671,6 +671,8 @@ This generation went stale after fix p05-t08 changed the effective delta. Genera
 
 - Target `oat-phase-implementer-claude-claude-opus-5-5-high`. Outcome: DONE. Range `e3a3b847..3e329e66`.
 
+- **Operator authorization (2026-10-02T19:33:15Z):** the user chose "Fix all, then complete (Recommended)". That option explicitly included a phase review, a narrowed final review, and a new exit gate. This authorizes final-review cycle 5, which covers p-rev1 and also serves as its phase review (same recorded deviation as p05).
+
 <!-- orchestration-runs-end -->
 
 ---
