@@ -11,6 +11,22 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
+oat_phase_recovery_policy:
+  default_attempt_limit: 10
+  phase_attempt_limits: {}
+  phase_attempt_usage:
+    p04:
+      used_attempts: 1
+      pending_attempt:
+        attempt: 1
+        event_id: session-search-p04-recovery-1
+        status: completed
+        original_request: session-search-p04-implementation-1
+        original_task: p04-t02
+        original_commit: 24620c53b1cbd33682835df52d5e6ca405fb4474
+        discovered_by: pnpm run format:check
+        dispatch_target: oat-phase-implementer-claude-claude-opus-5-5-medium
+        reservation_head: 9ca31d5dc664b14faabbd91104af7fcdd1d93cfb
 oat_phase: implement
 oat_phase_status: in_progress
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
