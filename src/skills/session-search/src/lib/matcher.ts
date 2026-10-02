@@ -1,8 +1,8 @@
 /**
  * Pattern compilation and snippet windowing for session-search.
  *
- * Patterns are supplied by the calling agent. They are case-insensitive
- * regexes by default; `--literal` escapes them. Emitted snippets go through
+ * Patterns are supplied by the calling agent. They are case-insensitive,
+ * dotAll (`.` matches newlines) regexes by default; `--literal` escapes them. Emitted snippets go through
  * `snippetFor`, which redacts the whole unit before windowing. Text passed
  * directly to `buildSnippet` must already be redacted as a whole unit.
  */
@@ -35,7 +35,9 @@ export function compileMatcher(
   const compiled = patterns.map((pattern) => {
     let regex: RegExp;
     try {
-      regex = new RegExp(literal ? escapeRegExp(pattern) : pattern, 'i');
+      // `i`: case-insensitive. `s` (dotAll): `.` also matches newlines, so
+      // `perceive.*now` spans lines inside one text unit.
+      regex = new RegExp(literal ? escapeRegExp(pattern) : pattern, 'is');
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       throw new UsageError(

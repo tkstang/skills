@@ -40,6 +40,21 @@ describe('compileMatcher', () => {
     });
   });
 
+  it('lets . cross newlines (dotAll)', () => {
+    const matcher = compileMatcher(['perceive.*now'], { literal: false });
+    expect(matcher.match('we should perceive\nthe vendor now')).toEqual({
+      patterns: ['perceive.*now'],
+      firstIndex: 10,
+      firstLength: 23,
+    });
+    expect(
+      compileMatcher(['a.b'], { literal: false }).match('a\r\nb'),
+    ).toBeNull();
+    expect(
+      compileMatcher(['a.b'], { literal: false }).match('a\nb'),
+    ).not.toBeNull();
+  });
+
   it('attributes every matching pattern and reports the earliest hit', () => {
     const matcher = compileMatcher(['gamma', 'alpha', 'missing', 'beta'], {
       literal: false,
