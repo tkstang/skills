@@ -60,8 +60,8 @@ oat_workflow_origin: native # native | imported
 #   launch_attempt_id: null
 #   launch_started_at: null
 #   launch_result_receipt: null
-#   gate_run_marker: null
-#   gate_run_id: null
+#   gate_run_marker: /var/folders/ch/kmbmcdfd4gb807zjsjt2td4h0000gp/T/oat-gate-runs/c5a7745f-9dcf-4f4f-b0e4-d153568e960b.json
+#   gate_run_id: c5a7745f-9dcf-4f4f-b0e4-d153568e960b
 #   envelope_status: null # ok | blocked | review_failed | other terminal status
 #   artifact: null
 #   handoff: null
@@ -93,7 +93,7 @@ oat_implement_exit_gate:
   freshness_head: '724783c80ba743c8a4b7c26b2961cba3a6ae5189'
   freshness_fingerprint: 'sha256:effective-delta-v2:3e45191a52facc2ec76fb5ce9a76005e9b6df906c9faf5b843a6593f76d07e5c'
   waivers: []
-  launch_state: intent_persisted
+  launch_state: accepted
   launch_attempt_id: impl-gate-fc42bc0a38ac
   launch_started_at: '2026-10-02T11:47:17Z'
   launch_result_receipt: .oat/projects/shared/session-search/gate-receipts/impl-gate-fc42bc0a38ac.json
