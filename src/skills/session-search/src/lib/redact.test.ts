@@ -19,6 +19,13 @@ const GITHUB_FINE = join(
 const SLACK = join('xo', 'xb-', '123456789012-abcdefABCDEF');
 const AWS_ID = join('AK', 'IA', 'Z2Y3X4W5V6U7T8S9');
 const AWS_SECRET = join('wJalrXUtnFEMI', '/K7MDENG/', 'bPxRfiCY+EXAMPLEKEY01');
+const AWS_STS_ID = join('AS', 'IA', 'Q7R8S9T0U1V2W3X4');
+const GOOGLE_KEY = join('AI', 'za', 'SyA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q');
+const GITLAB_PAT = join('gl', 'pat-', 'A1b2C3d4E5f6G7h8I9j0');
+const STRIPE_LIVE = join('sk', '_live_', 'A1b2C3d4E5f6G7h8');
+const STRIPE_RESTRICTED = join('rk', '_live_', 'Z9y8X7w6V5u4T3s2R1q0');
+const STRIPE_TEST = join('pk', '_test_', 'Q1w2E3r4T5y6U7i8O9p0');
+const HUGGING_FACE = join('hf', '_', 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789');
 const SHA = 'a'.repeat(8) + '0123456789abcdef0123456789abcdef';
 const SYNTHETIC = 'synthetic-only';
 
@@ -32,6 +39,17 @@ describe('redact: credential shapes', () => {
     ['GitHub fine-grained PAT', `got ${GITHUB_FINE}`, GITHUB_FINE],
     ['Slack token', `slack ${SLACK} ok`, SLACK],
     ['AWS access key id', `id ${AWS_ID} ok`, AWS_ID],
+    ['AWS temporary (STS) key id', `id ${AWS_STS_ID} ok`, AWS_STS_ID],
+    ['Google API key', `maps ${GOOGLE_KEY} ok`, GOOGLE_KEY],
+    ['GitLab PAT', `export GL=${GITLAB_PAT}`, GITLAB_PAT],
+    ['Stripe short live secret key', `stripe ${STRIPE_LIVE} ok`, STRIPE_LIVE],
+    [
+      'Stripe restricted key',
+      `stripe ${STRIPE_RESTRICTED} ok`,
+      STRIPE_RESTRICTED,
+    ],
+    ['Stripe test key', `stripe ${STRIPE_TEST} ok`, STRIPE_TEST],
+    ['Hugging Face token', `hub ${HUGGING_FACE} ok`, HUGGING_FACE],
     [
       'Bearer token',
       `Authorization: Bearer ${join('eyJhbGci', 'OiJIUzI1NiJ9.e30.x1')}`,
@@ -278,6 +296,9 @@ describe('redact: ordinary text stays intact', () => {
     // Long camelCase identifiers.
     'call compileMatcherWithLiteralEscapingForV2Patterns() first',
     'HTTPServerRequestHandlerFactoryForSessionSearch2 is unused',
+    // Token-family prefixes in prose, and a bare 32-hex (MD5-looking) hash.
+    'Ask Asia about the AIza docs, glpat- tokens, sk_live mode, and hf_ repos.',
+    'md5 9e107d9d372bb6826bd81d3542a419d6 matches the fixture',
   ])('leaves %j untouched', (text) => {
     expect(redact(text)).toBe(text);
   });
@@ -356,6 +377,11 @@ describe('redact: oversize input', () => {
       `postgres://u:${'p@'.repeat(128 * 1024)}`,
       `https://${'t'.repeat(256 * 1024)}@host`,
       'Authorization: Basic '.repeat(12 * 1024),
+      'AIza'.repeat(64 * 1024),
+      `glpat-${'-'.repeat(256 * 1024)}`,
+      'sk_live_'.repeat(32 * 1024),
+      `hf_${'a'.repeat(256 * 1024)}`,
+      'ASIA'.repeat(64 * 1024),
     ];
     const started = performance.now();
     for (const input of inputs) redact(input);

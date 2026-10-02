@@ -2699,8 +2699,19 @@ var TOKEN_RULES = [
   /(?<![A-Za-z0-9])github_pat_[A-Za-z0-9_]{20,}/g,
   // Slack tokens.
   /(?<![A-Za-z0-9])xox[abprs]-[A-Za-z0-9-]{10,}/g,
-  // AWS access key ids.
-  /(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}(?![A-Za-z0-9])/g
+  // AWS access key ids: long-term (AKIA) and temporary STS (ASIA).
+  /(?<![A-Za-z0-9])(?:AKIA|ASIA)[0-9A-Z]{16}(?![A-Za-z0-9])/g,
+  // Google API keys.
+  /(?<![A-Za-z0-9])AIza[0-9A-Za-z_-]{35}/g,
+  // GitLab personal access tokens.
+  /(?<![A-Za-z0-9])glpat-[0-9A-Za-z_-]{20,}/g,
+  // Stripe secret, restricted, and publishable keys, short forms included.
+  /(?<![A-Za-z0-9])[srp]k_(?:live|test)_[0-9A-Za-z]{16,}/g,
+  // Hugging Face tokens.
+  /(?<![A-Za-z0-9])hf_[A-Za-z0-9]{30,}/g
+  // Bare 32-hex values are deliberately NOT masked: they would blank MD5
+  // hashes and other ids people search for. Keyed hex secrets are caught by
+  // the key-value rule.
 ];
 var BEARER_RE = /\b(Bearer\s+)([A-Za-z0-9._~+/-]+=*)/gi;
 var HEX_RE = /(?<![A-Za-z0-9])[0-9a-fA-F]{40,}(?![A-Za-z0-9])/g;
