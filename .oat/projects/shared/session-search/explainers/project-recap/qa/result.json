@@ -1,5 +1,5 @@
 {
-  "artifactSha256": "sha256:842ffd37539fa597d9fc249e430b95fe250d6532734392f5f1ce7f22e68f0d09",
+  "artifactSha256": "sha256:bf92d021afe55fba31938233888518189c188a8cf71e84bf19803e1956ade060",
   "checks": {
     "parse": {
       "status": "pass"
@@ -31,6 +31,6 @@
   ],
   "visual": {
     "verdict": "pass",
-    "notes": "Inspected full-page captures at 320, 768, and 1440 px: no horizontal page overflow, all six required sections visible, headings readable at 320 px, no overlapping text. Architecture diagram and wide tables scroll inside bounded containers at 320 px by design. The 320 px full page is 19633 px tall, so the stored 320 capture is its top 16384 px (decoder limit); the remainder was inspected from the uncropped capture."
+    "notes": "Inspected full-page captures at 320, 768, and 1440 px (served over a local loopback HTTP server because the host browser blocks file URLs): no horizontal page overflow, all six required sections visible, headings readable at 320 px, no overlapping text. Wide tables and the architecture diagram scroll inside bounded containers at narrow widths by design. The 320 and 768 pages are 25805 and 19934 px tall, so the stored captures are their top 16384 px (decoder limit); the remainder was inspected from separate scrolled viewport captures."
   }
 }

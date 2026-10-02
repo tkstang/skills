@@ -1,23 +1,23 @@
 {
   "schemaVersion": "explainer-kit.manifest/v2",
-  "runId": "318a847d-5f30-44d8-a35f-f5592d06cae0",
+  "runId": "d5d9765d-c30e-46f2-8dc8-6e1ed8d70f3b",
   "slug": "project-recap",
   "recipe": {
     "id": "project-recap",
     "version": "2"
   },
-  "createdAt": "2026-10-02T18:00:26.743Z",
+  "createdAt": "2026-10-02T20:07:10.482Z",
   "mode": "unattended",
   "source": {
     "factBasePath": "source/fact-base.json",
-    "factBaseHash": "sha256:b8ae08ce06f220e3c1c3084d8b1d16bd8e7180578aa982d65904545dd61e600c",
+    "factBaseHash": "sha256:a388452550dd967f051c46d0dfdb93baaede81b516c583e581c8aeabf89ec810",
     "inputHashes": {
       "design.md": "sha256:5761c09ed5d5dc5621d1eca439754ee5716a3acdc2e84ee937e3834cdafb5406",
       "discovery.md": "sha256:4e1897310a96fffd54de90863476e8443c1001511be40179ec52cbdb845a76c6",
-      "implementation.md": "sha256:252620641ee2b80e172ed46fadd5734070929b61d72a4696cd8709aae1fbda6a",
-      "plan.md": "sha256:c1f12f332136807f048863abf51f858e36995f1751872f3fe027f455a954b077",
-      "project-log.md": "sha256:ecc889678119b0f64e69aff5c5a694b91e3e3377cf4a45d9996f42e0088e82c9",
-      "summary.md": "sha256:a8cb6e9daa6c978f0958bf56a0d2e37ffbce3cac9f1b9bb48500a3f8c05507aa"
+      "implementation.md": "sha256:4d306ae829959d50a2ecd29f8af9197fd8443b56a8e2377f7c186697dccda7eb",
+      "plan.md": "sha256:894155e2b3836be0582b965ed67dd23f63acabf7e4eaecd0ff9bf1741fe366b3",
+      "project-log.md": "sha256:6519be7813c586b887fcb382e504fa8cb296c0e19c79489975225c29aa5d0e96",
+      "summary.md": "sha256:f85276dd251972ef2dad5f805cd4e5ba5079386f1f67b75e107afc72970708fc"
     }
   },
   "theme": {
@@ -29,19 +29,19 @@
       "id": "project-recap",
       "type": "hub",
       "contentPath": "site/index.html",
-      "hash": "sha256:842ffd37539fa597d9fc249e430b95fe250d6532734392f5f1ce7f22e68f0d09",
+      "hash": "sha256:bf92d021afe55fba31938233888518189c188a8cf71e84bf19803e1956ade060",
       "status": "built"
     }
   ],
   "immutableHashes": {
-    "qa/1440.png": "sha256:fe069526d6d6236d3d3c4068fb20128b6ecf07b28c5d6a3457a1b98f2fcedf55",
-    "qa/320.png": "sha256:4c844bd2d669b99553f85ff2c6e0c8db901c34c4af3bd4d61eca9c92131c6860",
-    "qa/768.png": "sha256:1589a7605b41829cbaff0e2d4549e2fe6a2fe5034c5c5dcdc18284a8b0747a90",
-    "qa/result.json": "sha256:ad75c574e30a80fbe995629a55e744156796a32cbb68cca6d7b095168e6f81c8",
-    "site/index.html": "sha256:842ffd37539fa597d9fc249e430b95fe250d6532734392f5f1ce7f22e68f0d09",
-    "source/fact-base.json": "sha256:b8ae08ce06f220e3c1c3084d8b1d16bd8e7180578aa982d65904545dd61e600c",
-    "source/fact-base.md": "sha256:40c6bb13b9071f29976665b264ab7f7b2e9fe9e07be192af546cc7d4de028d69",
-    "source/ledger.json": "sha256:a32a8408e60a1b35dd4f6ac30184d83af6d277e8e910d2fc71443365516ddbcb",
+    "qa/1440.png": "sha256:37e4544ad2335418e12312b69b8b35e29ac883d8d88e27a20140b831791e50ae",
+    "qa/320.png": "sha256:fc80ab48bada8bf8d64eaf96f2c2b2ccdea7db05a8d8f37af1e24d09c2b2272f",
+    "qa/768.png": "sha256:f5d1c07adc0ebfdc018eaa07c5f9604b4969eb8f57987604b7e7e8ee2b6a0fb8",
+    "qa/result.json": "sha256:9168769d0db833f00ad88a34c05e6367a7ac486cf3870355cf6ba9bbabd13444",
+    "site/index.html": "sha256:bf92d021afe55fba31938233888518189c188a8cf71e84bf19803e1956ade060",
+    "source/fact-base.json": "sha256:a388452550dd967f051c46d0dfdb93baaede81b516c583e581c8aeabf89ec810",
+    "source/fact-base.md": "sha256:fcebabfcc6dea52f2bcd8ab426fddf92fd7802a6801b04c2075d8677c4d5b728",
+    "source/ledger.json": "sha256:0a1d50e71d3d109ab37254d01a3530aac3c60f039ddeb14eb11e39bb9ca01e75",
     "theme.resolved.json": "sha256:82c4bf82ac817bb8c04c83bb971d2c2b22aa621384689fb4e0d0fa3a62498f27"
   },
   "outcome": "built",

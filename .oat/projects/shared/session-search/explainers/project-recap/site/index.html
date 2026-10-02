@@ -503,6 +503,65 @@
         text-anchor: start;
       }
     </style>
+    <style>
+      td.src,
+      th.src {
+        color: var(--muted);
+        font: 500 0.78rem/1.45 var(--mono);
+        width: 30%;
+        min-width: 8rem;
+        max-width: 18rem;
+        overflow-wrap: anywhere;
+      }
+      td code {
+        white-space: nowrap;
+      }
+      .stat--wide {
+        grid-column: span 2;
+      }
+      @media (max-width: 46rem) {
+        .stat--wide {
+          grid-column: auto;
+        }
+        td.src,
+        th.src,
+        td:first-child {
+          min-width: 0;
+          width: 34%;
+          font-size: 0.72rem;
+          overflow-wrap: anywhere;
+        }
+        th,
+        td {
+          padding: 0.45rem;
+        }
+        table {
+          font-size: 0.88rem;
+        }
+      }
+      .phase-note {
+        color: var(--muted);
+        font-size: 0.94rem;
+        max-width: 48rem;
+      }
+      .story {
+        display: grid;
+        gap: 0.6rem;
+        padding-inline-start: 0;
+        list-style: none;
+        counter-reset: story;
+      }
+      .story li {
+        position: relative;
+        border-inline-start: 0.2rem solid var(--accent);
+        background: var(--panel);
+        border-radius: 0 var(--radius) var(--radius) 0;
+        padding: 0.55rem 0.9rem;
+      }
+      .story li strong {
+        font-weight: 650;
+      }
+    </style>
   </head>
   <body>
     <div class="wrap">
@@ -521,26 +580,31 @@
           <h1>session-search: project recap</h1>
           <p>A new skill and bundled CLI that let any coding agent find a past Claude Code, Codex, or Cursor session from a fuzzy description, searching local stores cheapest tier first.</p>
         </header>
-                <div class="status-strip" role="group" aria-label="Project state at a glance">
+        <div class="status-strip" role="group" aria-label="Project state at a glance">
           <div class="stat stat--lead">
             <span class="stat__label">State</span>
-            <span class="stat__value">Implementation done, final PR next</span>
-            <span class="stat__note">Summary and docs steps finished; PR creation is the last pre-approval step.</span>
+            <span class="stat__value">Shipped in <a href="https://github.com/tkstang/skills/pull/115">pull request #115</a>; completion under way</span>
+            <span class="stat__note">Revision p-rev1 answered the PR review. Final review cycle 5 and exit-gate generation 3 then passed, and the project is in its completion step.</span>
           </div>
           <div class="stat">
             <span class="stat__label">Tasks</span>
-            <span class="stat__value">64 / 64</span>
-            <span class="stat__note">across five phases</span>
+            <span class="stat__value">68 / 68</span>
+            <span class="stat__note">five phases plus revision p-rev1</span>
           </div>
           <div class="stat">
-            <span class="stat__label">Premerge suite</span>
-            <span class="stat__value">2733 passed</span>
-            <span class="stat__note">1 skipped, at the p04 checkpoint</span>
+            <span class="stat__label">Tests after p-rev1</span>
+            <span class="stat__value">650 passed</span>
+            <span class="stat__note">including 274 skill tests; premerge recorded 2733 passed, 1 skipped</span>
           </div>
           <div class="stat">
-            <span class="stat__label">Reviews</span>
-            <span class="stat__value">Gate passed</span>
-            <span class="stat__note">Final review cycle 4 passed; exit gate second generation clean</span>
+            <span class="stat__label">Final review</span>
+            <span class="stat__value">5 cycles</span>
+            <span class="stat__note">cycles 4 and 5 authorized by the operator past the cap of 3</span>
+          </div>
+          <div class="stat">
+            <span class="stat__label">Exit gate</span>
+            <span class="stat__value">3 generations</span>
+            <span class="stat__note">cross-family; generations 2 and 3 found nothing</span>
           </div>
         </div>
 
@@ -747,7 +811,7 @@
 
         <section id="implementation-record">
           <h2>Implementation record</h2>
-          <p>Five phases ran under the autonomous high dispatch policy. The fifth phase existed only to absorb final-review and exit-gate fixes.</p>
+          <p>The work ran in five planned phases and one revision phase under the autonomous high dispatch policy. The fifth phase existed only to absorb final-review and exit-gate fixes. The revision phase answered CodeRabbit feedback on the pull request.</p>
           <div class="table-scroll">
             <table>
               <caption>Phases and task counts</caption>
@@ -760,7 +824,8 @@
                 <tr><td>Phase 3</td><td>Skill packaging, distribution, CLI integration tests</td><td class="num">10</td><td><span class="pill">complete</span></td></tr>
                 <tr><td>Phase 4</td><td>Documentation, stale-path fix, release notes, full verification</td><td class="num">7</td><td><span class="pill">complete</span></td></tr>
                 <tr><td>Phase 5</td><td>Final-review and exit-gate fixes</td><td class="num">10</td><td><span class="pill">complete</span></td></tr>
-                <tr class="total"><td>Implementation: session-search</td><td>All phases</td><td class="num">all</td><td><span class="pill">complete</span></td></tr>
+                <tr><td>Phase p-rev1</td><td>Pull-request review feedback</td><td class="num">4</td><td><span class="pill">complete</span></td></tr>
+                <tr class="total"><td>Progress Overview</td><td>All phases and the revision</td><td class="num">68</td><td>all tasks done</td></tr>
               </tbody>
             </table>
           </div>
@@ -776,7 +841,7 @@
                 <tr><td>Runtime adapters</td><td>Store enumeration including subagents, Codex children, and archived sessions; Codex MCP, Extension, and FileChange extraction</td><td><code>src/lib/adapters/</code></td></tr>
                 <tr><td>Scanner and pipeline</td><td>LF-only streaming reader, superset-safe prefilter limited to never-escaped characters, tier orchestration, widening, deadline</td><td><code>scan.ts</code>, <code>pipeline.ts</code></td></tr>
                 <tr><td>Ranker and CLI</td><td>Deterministic ranking with parent roll-up; <code>search</code> and <code>estimate</code> subcommands with JSON output</td><td><code>rank.ts</code>, <code>session-search.ts</code></td></tr>
-                <tr><td>Skill packaging</td><td>SKILL.md guidance, store-layout references, opt-in remote recipe, plugin and distribution entries</td><td><a href="https://github.com/tkstang/skills/tree/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/src/skills/session-search">session-search source on GitHub</a></td></tr>
+                <tr><td>Skill packaging</td><td>SKILL.md guidance, store-layout references, opt-in remote recipe, plugin and distribution entries</td><td><a href="https://github.com/tkstang/skills/tree/feat/session-search/src/skills/session-search">session-search source on GitHub</a></td></tr>
                 <tr><td>Docs and release</td><td>User-guide page, session-schemas discovery indexes, CHANGELOG entry, stale Codex transcript path corrected in the export-transcript and observer docs</td><td><code>documentation/</code>, <code>CHANGELOG.md</code></td></tr>
               </tbody>
             </table>
@@ -786,11 +851,53 @@
           <div class="table-scroll">
             <table>
               <thead>
-                <tr><th scope="col">Source section</th><th scope="col">Recorded detail</th></tr>
+                <tr><th scope="col" class="src">Source section</th><th scope="col">Recorded detail</th></tr>
               </thead>
               <tbody>
-                <tr><td>What Was Implemented</td><td>session plugin 0.4.0 adds <code>session:search</code>; owner skill bumps include session-export-transcript 2.0.39; the CLI uses exit codes 0, 1, 2, and 3; premerge recorded 2733 passed and 1 skipped.</td></tr>
-                <tr><td>Final Summary (for PR/docs)</td><td>Further owner bumps: session-observer 1.0.88, session-observer-collab 1.0.76, session-fork-to-destination 0.2.56.</td></tr>
+                <tr><td class="src">What Was Implemented</td><td>session plugin 0.4.0 adds <code>session:search</code>; owner skill bumps include session-export-transcript 2.0.39; the CLI uses exit codes 0, 1, 2, and 3; delivery totals 68 of 68 tasks across five phases plus revision p-rev1; premerge recorded 2733 passed and 1 skipped.</td></tr>
+                <tr><td class="src">Final Summary (for PR/docs)</td><td>Further owner bumps: session-observer 1.0.88, session-observer-collab 1.0.76, session-fork-to-destination 0.2.56.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Final-review and exit-gate hardening</h3>
+          <p class="phase-note">The fifth phase was added when the first final review raised three Mediums. Later review cycles and the exit gate added more fix tasks to it. Every row below is a shipped change.</p>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th scope="col" class="src">Plan task</th><th scope="col">What changed</th><th scope="col">Commit</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="src">Task p05-t01: (review) Confine deep raw-fallback matching to tool content</td><td>The deep raw fallback is confined to tool content, so it no longer matches Claude metadata.</td><td><code>c81e974b</code></td></tr>
+                <tr><td class="src">Task p05-t02: (review) Cover more common token families in redaction</td><td>Adds Google, GitLab, Stripe, Hugging Face, and AWS ASIA tokens. Masking bare 32-hex strings was rejected because users search for hashes and ids.</td><td><code>cd609320</code></td></tr>
+                <tr><td class="src">Task p05-t03: (review) Bound per-hit memory during scans</td><td>Each hit keeps a bounded, redacted snippet and a sequence number instead of full text.</td><td><code>f3fb6888</code></td></tr>
+                <tr><td class="src">Task p05-t04: (review) Emit ask-user prompts and answers as separate units</td><td>Restores prefilter parity for ask-user composite text.</td><td><code>a5e48390</code></td></tr>
+                <tr><td class="src">Task p05-t05: (review) List SESSION_SEARCH_PROBE_TIMEOUT_MS in --help</td><td>The tool-probe timeout variable is documented in CLI help.</td><td><code>3fb6dc1f</code></td></tr>
+                <tr><td class="src">Task p05-t06: (review) Blank Codex structural fields before raw matching</td><td>Codex structural fields on oversize lines stop producing false hits.</td><td><code>61f49382</code></td></tr>
+                <tr><td class="src">Task p05-t07: (review) Redact npm tokens</td><td>npm tokens are masked in snippets.</td><td><code>da20282a</code></td></tr>
+                <tr><td class="src">Task p05-t08: (gate review) Restrict the rg prefilter to never-escaped characters</td><td>Real stores JSON-escape <code>/</code> in about 1,340 files and HTML-sensitive characters in 77, so the prefilter now runs only on characters the stores never escape.</td><td><code>5dbc5806</code></td></tr>
+                <tr><td class="src">p05-t09</td><td>Commit 98372735 restores recall for MCP entity ids that p05-t06 had blanked, found by final review cycle 3.</td><td><code>98372735</code></td></tr>
+                <tr><td class="src">Task p05-t10: (review) Update prefilter-skip guidance in docs</td><td>SKILL.md and the user guide describe when the prefilter does not run.</td><td><code>20b7b261</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <ul>
+            <li>p05 is complete: its phase review shared one narrowed re-review with the second final-review cycle, a recorded deviation that avoided reviewing the same range twice.</li>
+          </ul>
+
+          <h3>Revision p-rev1: pull-request feedback</h3>
+          <p class="phase-note">CodeRabbit reviewed the pull request during project completion. The user chose to fix everything before completing, so the completion step paused before any completion write.</p>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th scope="col" class="src">Source record</th><th scope="col">What changed</th><th scope="col">Commit</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="src">Revision History</td><td>CodeRabbit left 4 inline and 1 outside-diff comment on <a href="https://github.com/tkstang/skills/pull/115">PR #115</a>. The user chose “Fix all, then complete”. The token-shaped test literal is now built by concatenation, and the PJM snapshot reflects the open PR. Of the two Lows from final review cycle five, one was fixed and one deferred to BL-261002.</td><td>—</td></tr>
+                <tr><td class="src">Task prev1-t01: (revision) Build the fake GitHub token fixture by concatenation</td><td>The <code>ghp_</code>-shaped literal in <code>rank.test.ts</code> is now assembled by concatenation instead of appearing as one literal.</td><td><code>f795eb34</code></td></tr>
+                <tr><td class="src">prev1-t02</td><td>Claude <code>tool_result</code> carriers are detected within an 8 KiB prefix instead of 512 B, hardening older key orders and long <code>cwd</code> values. Commit 16180754.</td><td><code>16180754</code></td></tr>
+                <tr><td class="src">Task prev1-t03: (revision) Correct the Codex cwd source record in the export-transcript reference</td><td>The reference names the record Codex actually uses for the session cwd.</td><td><code>b124ebff</code></td></tr>
+                <tr><td class="src">Task prev1-t04: (revision) Refresh the PJM current-state snapshot after PR creation</td><td>The current-state snapshot now records PR #115 as open.</td><td><code>3e329e66</code></td></tr>
               </tbody>
             </table>
           </div>
@@ -812,6 +919,8 @@
                 <tr><td>2026-10-02 · structural · oat gate review · final</td><td>Exit gate, first generation: 0 Critical, 0 High, 1 Medium, 3 Low.</td></tr>
                 <tr><td>2026-10-02 · structural · oat-project-autonomous · final</td><td>Run stopped at the review-cycle cap of 3 with fixes t09–t10 complete, awaiting operator override.</td></tr>
                 <tr><td>2026-10-02 · structural · oat gate review · final</td><td>Exit gate, second generation: 0 findings.</td></tr>
+                <tr><td>2026-10-02 · structural · oat-project-autonomous · complete</td><td>Autonomous run complete and PR #115 created, after final review cycle 4 and exit gate generation 2 passed.</td></tr>
+                <tr><td>2026-10-02 · structural · oat gate review · final</td><td>Exit gate, third generation after revision p-rev1: 0 findings.</td></tr>
               </tbody>
             </table>
           </div>
@@ -829,7 +938,7 @@
 
         <section id="validation-evidence">
           <h2>Validation evidence</h2>
-          <p>Evidence comes from repeated suite runs, root re-verification, and read-only checks against the developer's real session stores.</p>
+          <p>Evidence comes from repeated suite runs, root re-verification, independent reviews, and read-only checks against the developer's real session stores.</p>
           <div class="table-scroll">
             <table>
               <caption>Test results by phase</caption>
@@ -842,6 +951,7 @@
                 <tr><td>3</td><td class="num">624</td><td class="num">624</td><td class="num">0</td></tr>
                 <tr><td>4 (premerge)</td><td class="num">2734</td><td class="num">2733</td><td class="num">0 (1 skipped)</td></tr>
                 <tr><td>5</td><td class="num">648</td><td class="num">648</td><td class="num">0</td></tr>
+                <tr><td>Phase p-rev1 tasks</td><td class="num">650</td><td class="num">650</td><td>none recorded; includes 274 skill tests</td></tr>
               </tbody>
             </table>
           </div>
@@ -850,16 +960,17 @@
             <table>
               <caption>Checks, observed results, and limits</caption>
               <thead>
-                <tr><th scope="col">Source section</th><th scope="col">Observed result</th></tr>
+                <tr><th scope="col" class="src">Source section</th><th scope="col">Observed result</th></tr>
               </thead>
               <tbody>
-                <tr><td>Phase Summary</td><td>p01 suite: 78 tests plus 321 tooling and repo tests. p02: 200 tests. A real-store smoke run over 10 days and 697 MiB took about 1.9 s and ranked the motivating session first, identically with and without rg.</td></tr>
-                <tr><td>p03</td><td>624 tests pass after review fixes; the real-store check still finds the motivating Codex session.</td></tr>
-                <tr><td>Phase 4: Documentation, stale-path fix, release notes, full verification</td><td>Root premerge: 2733 passed, 1 skipped; the docs production build passes with 61 pages.</td></tr>
-                <tr><td>Phase 5: Final review fixes</td><td>268 skill tests pass. On a 4.9 GiB store, broad deep-query peak RSS fell 1.31 to 0.40 GB and 1.50 to 0.41 GB; wall time rose 9.9 to 11.9 s and 10.5 to 17.4 s.</td></tr>
-                <tr><td>Final Summary (for PR/docs)</td><td>A Playwright mermaid render check of the docs ran at 1440 and 390 px in light and dark themes.</td></tr>
-                <tr><td>Notable Challenges</td><td>The first credential regex took 4.2 s on a 64 KiB line; anchoring brought it under 2 ms, and a 256 KiB regression test guards it. The prefilter escape problem was measured in about 1,340 files.</td></tr>
-                <tr><td>Tradeoffs Made</td><td>Limit: identifier exemptions leak about 0.06 per 10k samples in a seeded test.</td></tr>
+                <tr><td class="src">Phase Summary</td><td>p01 suite: 78 tests plus 321 tooling and repo tests. p02: 200 tests. A real-store smoke run over 10 days and 697 MiB took about 1.9 s and ranked the motivating session first, identically with and without rg.</td></tr>
+                <tr><td class="src">p03</td><td>624 tests pass after review fixes; the real-store check still finds the motivating Codex session.</td></tr>
+                <tr><td class="src">Phase 4: Documentation, stale-path fix, release notes, full verification</td><td>Root premerge: 2733 passed, 1 skipped; the docs production build passes with 61 pages.</td></tr>
+                <tr><td class="src">Phase 5: Final review fixes</td><td>268 skill tests pass. On a 4.9 GiB store, broad deep-query peak RSS fell 1.31 to 0.40 GB and 1.50 to 0.41 GB; wall time rose 9.9 to 11.9 s and 10.5 to 17.4 s.</td></tr>
+                <tr><td class="src">Phase p-rev1 tasks</td><td>274 skill tests and 650 skill, repo, release, and tooling tests pass, re-verified by root. Real-store results are identical before and after the revision.</td></tr>
+                <tr><td class="src">Final Summary (for PR/docs)</td><td>A Playwright mermaid render check of the docs ran at 1440 and 390 px in light and dark themes.</td></tr>
+                <tr><td class="src">Notable Challenges</td><td>The first credential regex took 4.2 s on a 64 KiB line; anchoring brought it under 2 ms, and a 256 KiB regression test guards it. The prefilter escape problem was measured in about 1,340 files.</td></tr>
+                <tr><td class="src">Tradeoffs Made</td><td>Limit: identifier exemptions leak about 0.06 per 10k samples in a seeded test.</td></tr>
               </tbody>
             </table>
           </div>
@@ -869,18 +980,50 @@
             <p>Green tests and reviews hid three silent misses that only read-only runs against real stores exposed: MCP text living only in <code>item_completed</code>, JSON-escaped characters breaking the prefilter guarantee, and blanked MCP entity ids. Fixes landed in p03-t04, p05-t08, and p05-t09.</p>
           </div>
 
-          <h3>Review cycles</h3>
+          <h3>Phase reviews</h3>
           <div class="table-scroll">
             <table>
               <thead>
-                <tr><th scope="col">Phase review</th><th scope="col">Outcome</th></tr>
+                <tr><th scope="col" class="src">Phase review</th><th scope="col">Outcome</th></tr>
               </thead>
               <tbody>
-                <tr><td>Phase 1: Core library (options, matching, redaction, tool probe)</td><td>complete; cycle 1 and re-review cycle 2 both passed; 11 review-fix tasks.</td></tr>
-                <tr><td>Phase 2: Adapters, scanner, pipeline, ranker, CLI</td><td>complete; cycle 1 blocked by 1 High on Codex non-text tool output, then cycle 2 passed.</td></tr>
-                <tr><td>Phase 3: Skill packaging, distribution, CLI integration tests</td><td>Passed in one cycle with no Critical or High findings.</td></tr>
-                <tr><td>Phase 5: Final review fixes</td><td>complete; final review cycle 4 passed with one Low, which is deferred.</td></tr>
-                <tr><td>Recorded process deviations</td><td>The final scope hit the cap of 3 review cycles (REVIEWRECEIVE-02). The run stopped instead of self-authorizing, and the operator approved cycle 4.</td></tr>
+                <tr><td class="src">Phase 1: Core library (options, matching, redaction, tool probe)</td><td>complete; cycle 1 and re-review cycle 2 both passed; 11 review-fix tasks.</td></tr>
+                <tr><td class="src">Phase 2: Adapters, scanner, pipeline, ranker, CLI</td><td>complete; cycle 1 blocked by 1 High on Codex non-text tool output, then cycle 2 passed.</td></tr>
+                <tr><td class="src">Phase 3: Skill packaging, distribution, CLI integration tests</td><td>Passed in one cycle with no Critical or High findings.</td></tr>
+                <tr><td class="src">Phase 4</td><td>complete after one review cycle and one recovery attempt.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Final review: five cycles</h3>
+          <p class="phase-note">The final scope has a cap of three standard review cycles. The autonomous run stopped at the cap instead of authorizing more on its own. The operator authorized each later cycle.</p>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th scope="col" class="src">Review record</th><th scope="col">Findings and result</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="src">Review Received: final</td><td>Cycle 1 at reviewed head 79416011: Critical 0, High 0, Medium 3, Low 4. Its fixes became the fifth phase, tasks t01 to t05.</td></tr>
+                <tr><td class="src">Review Received: final (re-review, cycle 2; also p05 phase review)</td><td>Passed with no Critical, High, or Medium findings and 3 Low over <code>79416011..3fb6dc1f</code>; it also served as the p05 phase review.</td></tr>
+                <tr><td class="src">Review Received: final (re-review, cycle 3; changed basis after exit-gate fix)</td><td>Re-review after the exit-gate fix: 0 Critical, 0 High, 1 Medium, 2 Low. This used the last of the 3 standard cycles.</td></tr>
+                <tr><td class="src">Recorded process deviations</td><td>The final scope hit the cap of 3 review cycles (REVIEWRECEIVE-02). The run stopped instead of self-authorizing, and the operator approved cycle 4.</td></tr>
+                <tr><td class="src">Review Received: final (re-review, cycle 4; operator-authorized)</td><td>Passed with 0 Critical, 0 High, 0 Medium, 1 Low, which was deferred. All 488 local MCP ids are searchable again.</td></tr>
+                <tr><td class="src">Dispatch record: session-search-final-review-5</td><td>Operator-authorized after the revision, and also the p-rev1 phase review. Passed with two Lows: one fixed in state.md, and one, a cwd over 1024 characters escaping the blanker, deferred into BL-261002.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Implementation exit gate: three generations</h3>
+          <p class="phase-note">The exit gate is an independent final review by a different model family. Any code change after a generation marks it stale, so each fix round required a new generation.</p>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th scope="col" class="src">Gate record</th><th scope="col">Findings and result</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="src">Review Received: implementation exit gate (gate run c5a7745f, codex-6-sol-xhigh, different-family)</td><td>Generation one: 0 Critical, 0 High, 1 Medium, 3 Low. The Medium (rg prefilter versus JSON escapes) was fixed in p05-t08, which made this generation stale. Lows L1 to L3 were deferred.</td></tr>
+                <tr><td class="src">Review Received: implementation exit gate, generation 2 (gate run 578d2977, codex-6-sol-xhigh, different-family)</td><td>Passed clean with 0 findings. Revision p-rev1 later changed the code and made it stale.</td></tr>
+                <tr><td class="src">Implementation exit gate — generation 3</td><td>Gate run <code>63e85fdb</code> found nothing at any severity after p-rev1. Disposition allowed and passed; the phase returned to <code>pr_open</code>.</td></tr>
               </tbody>
             </table>
           </div>
@@ -888,7 +1031,7 @@
 
         <section id="outcome">
           <h2>Outcome</h2>
-          <p class="lede">Any coding agent can now find a past local session from a fuzzy description. The original motivating Codex rollout is findable on the deep step.</p>
+          <p class="lede">Any coding agent can now find a past local session from a fuzzy description. The original motivating Codex rollout is findable on the deep step, and results were identical before and after the final revision.</p>
           <div class="two-col">
             <div>
               <h3>What now works</h3>
@@ -905,17 +1048,27 @@
               <div class="table-scroll">
                 <table>
                   <thead>
-                    <tr><th scope="col">Source section</th><th scope="col">Items</th></tr>
+                    <tr><th scope="col" class="src">Source record</th><th scope="col">Items</th></tr>
                   </thead>
                   <tbody>
-                    <tr><td>Follow-up Items</td><td>deferred: exit-gate Lows L1–L3 and the final cycle-four Low; tooling fixes for the version-bump quote style, a load-sensitive diagnostics test, and format:check failures in 3 untouched test files.</td></tr>
-                    <tr><td>Deferred Ideas</td><td>deferred in discovery: a Cursor store.db adapter, a metadata cache or FTS index, a recall or summary mode, and adapters for other agent stores.</td></tr>
+                    <tr><td class="src">BL-261002-resolve-deferred-session</td><td>deferred: all five review follow-ups listed below.</td></tr>
+                    <tr><td class="src">Follow-up Items</td><td>deferred: a cwd over 1024 characters can escape the deep blanker; tooling fixes for the version-bump quote style, a load-sensitive diagnostics test, and format:check failures in 3 untouched test files.</td></tr>
+                    <tr><td class="src">Deferred Ideas</td><td>deferred in discovery: a Cursor store.db adapter, a metadata cache or FTS index, a recall or summary mode, and adapters for other agent stores.</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p>None of the review follow-ups are regressions; affected sessions stay findable through other tiers.</p>
             </div>
           </div>
+
+          <h3>Review follow-ups in the backlog</h3>
+          <p>None of these are regressions. Affected sessions stay findable through other tiers or content.</p>
+          <ul>
+            <li><strong>Exit-gate L1:</strong> a custom title in the bounded prefix can lose to a generated title in the tail. Only title-tier ranking is affected.</li>
+            <li><strong>Exit-gate L2:</strong> Codex sessions that exist only as metadata lose their archived, child, and title labels when the rollout file was pruned.</li>
+            <li><strong>Exit-gate L3:</strong> the remote history fallback excerpt can drop the match and session id, only on hosts without the skill installed.</li>
+            <li><strong>Final cycle-four Low:</strong> Claude-only <code>slug</code> and <code>sessionId</code> keys are blanked on Codex lines. This predates p05-t06 and touches 12 local lines, mostly Stoa memory slugs.</li>
+            <li><strong>Final cycle-five Low:</strong> a very long <code>cwd</code> on an oversize old-key-order Claude tool line can yield a path-only deep hit.</li>
+          </ul>
 
           <h3>Artifact status</h3>
           <div class="table-scroll">
@@ -924,26 +1077,26 @@
                 <tr><th scope="col">Artifact</th><th scope="col">Recorded status</th><th scope="col">Last updated</th><th scope="col">Note</th></tr>
               </thead>
               <tbody>
-                <tr><td><a href="https://github.com/tkstang/skills/blob/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/.oat/projects/shared/session-search/summary.md">summary.md</a></td><td>complete</td><td>2026-10-02</td><td>0 revisions since generation</td></tr>
-                <tr><td><a href="https://github.com/tkstang/skills/blob/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/.oat/projects/shared/session-search/implementation.md">implementation.md</a></td><td>in_progress</td><td>2026-10-02</td><td>All tasks done; frontmatter awaits closeout</td></tr>
-                <tr><td><a href="https://github.com/tkstang/skills/blob/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/.oat/projects/shared/session-search/plan.md">plan.md</a></td><td>complete</td><td>2026-10-02</td><td>Phases, tasks, and review table</td></tr>
-                <tr><td><a href="https://github.com/tkstang/skills/blob/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/.oat/projects/shared/session-search/design.md">design.md</a></td><td>complete</td><td>2026-10-02</td><td>Realigned to the shipped code</td></tr>
-                <tr><td><a href="https://github.com/tkstang/skills/blob/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/.oat/projects/shared/session-search/discovery.md">discovery.md</a></td><td>complete</td><td>2026-10-02</td><td>Request, evidence, and scope</td></tr>
-                <tr><td><a href="https://github.com/tkstang/skills/blob/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7/.oat/projects/shared/session-search/project-log.md">project-log.md</a></td><td>Workflow log</td><td>2026-10-02</td><td>Structural observations</td></tr>
-                <tr><td>2026-10-02 · structural · oat-project-autonomous · final</td><td>complete</td><td>—</td><td>Review fixes finished before the cap stop</td></tr>
+                <tr><td><a href="https://github.com/tkstang/skills/blob/feat/session-search/.oat/projects/shared/session-search/summary.md">summary.md</a></td><td>complete</td><td>2026-10-02</td><td>1 revision included (p-rev1)</td></tr>
+                <tr><td><a href="https://github.com/tkstang/skills/blob/feat/session-search/.oat/projects/shared/session-search/implementation.md">implementation.md</a></td><td>in_progress</td><td>2026-10-02</td><td>All tasks done; frontmatter awaits closeout</td></tr>
+                <tr><td><a href="https://github.com/tkstang/skills/blob/feat/session-search/.oat/projects/shared/session-search/plan.md">plan.md</a></td><td>complete</td><td>2026-10-02</td><td>Phases, tasks, and review table</td></tr>
+                <tr><td><a href="https://github.com/tkstang/skills/blob/feat/session-search/.oat/projects/shared/session-search/design.md">design.md</a></td><td>complete</td><td>2026-10-02</td><td>Realigned to the shipped code</td></tr>
+                <tr><td><a href="https://github.com/tkstang/skills/blob/feat/session-search/.oat/projects/shared/session-search/discovery.md">discovery.md</a></td><td>complete</td><td>2026-10-02</td><td>Request, evidence, and scope</td></tr>
+                <tr><td><a href="https://github.com/tkstang/skills/blob/feat/session-search/.oat/projects/shared/session-search/project-log.md">project-log.md</a></td><td>Workflow log</td><td>2026-10-02</td><td>Structural observations</td></tr>
+                <tr><td>Explainer Outcome</td><td>built</td><td>—</td><td>The earlier recap run predates revision p-rev1; this page replaces it.</td></tr>
               </tbody>
             </table>
           </div>
 
           <h3>Next steps for the reader</h3>
           <ul>
-            <li>Create the final PR from branch <a href="https://github.com/tkstang/skills/tree/feat/session-search">feat/session-search</a>; it is the remaining pre-approval step.</li>
-            <li>Triage the four Low review follow-ups and decide which become backlog items.</li>
+            <li>Finish project completion, then merge <a href="https://github.com/tkstang/skills/pull/115">the session-search pull request</a> from branch <a href="https://github.com/tkstang/skills/tree/feat/session-search">feat/session-search</a>.</li>
+            <li>Work the review follow-ups tracked in BL-261002-resolve-deferred-session.</li>
             <li>Address the tooling follow-ups: keep single-quoted versions in the bump script, and raise or reduce the diagnostics test load.</li>
             <li>Consider lengthening the OAT gate availability probe so slow-starting wrapper CLIs are not reported as unavailable.</li>
           </ul>
         </section>
-        <footer>Recap generated by explainer-kit (recipe project-recap) from the approved OAT artifacts of <code>.oat/projects/shared/session-search</code> on branch <code>feat/session-search</code> of <a href="https://github.com/tkstang/skills/tree/0414e7f3ab8e8006425aeb45a457d900f5ddc3d7">tkstang/skills</a>. Every figure is taken from summary.md, implementation.md, plan.md, design.md, discovery.md, or project-log.md; the shipped code is the source of truth where those differ from the design.</footer>
+        <footer>Recap generated by explainer-kit (recipe project-recap) from the approved OAT artifacts of <code>.oat/projects/shared/session-search</code> on branch <code>feat/session-search</code> of <a href="https://github.com/tkstang/skills/tree/feat/session-search">tkstang/skills</a>, after revision p-rev1. Every figure is taken from summary.md, implementation.md, plan.md, design.md, discovery.md, or project-log.md; the shipped code is the source of truth where those differ from the design.</footer>
       </main>
     </div>
     <script>

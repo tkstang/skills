@@ -5,9 +5,9 @@
 - oat_blockers: []
 - oat_last_updated: 2026-10-02
 - oat_generated: true
-- oat_summary_last_task: p05-t10
-- oat_summary_revision_count: 0
-- oat_summary_includes_revisions: []
+- oat_summary_last_task: prev1-t04
+- oat_summary_revision_count: 1
+- oat_summary_includes_revisions: [p-rev1]
 - Past coding-agent sessions were hard to find again. On 2026-09-29 the user could not tell whether a "Perceive Now" discussion had happened in Claude Code, Codex, or Cursor, or on which machine. An ad-hoc grep over about 12 GB ran for more than 5 minutes without finishing. The discussion turned out to be a ChatGPT thread, found only because one Codex session had captured ChatGPT thread titles in tool output. This quick-mode project, run autonomously with the `high` dispatch policy, added a repeatable `session-search` skill that any agent can use to find a past session from a fuzzy description.
 - - **`session-search` skill**, shipped standalone (`skills/session-search`) and as `session:search` in the `session` plugin (plugin 0.4.0). The agent guidance in SKILL.md covers:
 - - intake, including asking for remembered exact phrases
@@ -38,11 +38,11 @@
 - - a session-schemas "Discovery indexes" section
 - - a CHANGELOG entry
 - - the stale Codex `session-<id>.jsonl` path corrected in the export-transcript and observer docs. This bumped four owner skills: session-export-transcript 2.0.39, session-observer 1.0.88, session-observer-collab 1.0.76, and session-fork-to-destination 0.2.56.
-- - **Delivery:** 64 of 64 tasks across five phases. Phase 5 consisted entirely of final-review and exit-gate fixes.
+- - **Delivery:** 68 of 68 tasks across five phases plus revision p-rev1. Phase 5 consisted entirely of final-review and exit-gate fixes; p-rev1 addressed CodeRabbit feedback on PR #115 (see Revision History).
 - Verification:
 - - `pnpm run premerge`: 2733 tests passed and 1 was skipped.
-- - About 648 skill, repo, release, and tooling tests passed in the last phase.
-- - Read-only checks against the real local stores found the motivating Codex rollout `01a053ba`.
+- - About 650 skill, repo, release, and tooling tests passed after p-rev1, including 274 skill tests.
+- - Read-only checks against the real local stores found the motivating Codex rollout `01a053ba`, with identical results before and after p-rev1.
 - - **Stateless tiered session search.** The CLI keeps no index or cache. Speed comes from searching cheaper tiers first, from time windows and cwd hints, and from skipping noise: oversize lines, subagent primaries, and tool output by default. A persistent FTS index was rejected because it needs maintenance and would create a new store that can hold secrets.
 - - **Optional rg prefilter with Node verification.** `rg` and `sqlite3` are optional accelerators detected at runtime. `rg -l` only narrows the candidate files, and Node verifies and classifies every hit, so results are the same with or without `rg`. Since t08, the prefilter only runs on characters that the stores never JSON-escape.
 - - **Repo hints widen instead of filtering.** A `--cwd` hint is searched first. If it finds nothing, the search reruns over everything and reports `widened: true`; a hint never produces "not found".
@@ -69,13 +69,11 @@
 - - p05-t06 blanked MCP entity ids.
 - Each was fixed: p03-t04, p05-t08, and p05-t09.
 - - **Quadratic redaction regex.** The first credential regex took 4.2 s on a 64 KiB line. Anchoring it at the start of the identifier run brought that under 2 ms, and a 256 KiB regression test guards it.
-- - **Review volume.** Every phase review passed with 0 Critical and 0 High, except p02 cycle 1, which was blocked by one High: Codex non-text JSON tool output. p01 and p02 each took two review cycles.
-- - **Tooling friction.**
-- - `scripts/bump-version.ts` wrote double-quoted versions, which needed one recovery commit in p04.
-- - `diagnostics.test.ts` timed out under host load until it was rerun.
-- - super.engineering CLI shims made the gate's availability probe time out.
+- - **Review volume.** Every phase review passed with 0 Critical and 0 High, except p02 cycle 1, which was blocked by one High: Codex non-text JSON tool output. p01 and p02 each took two review cycles. The final scope took five cycles (cycles 4 and 5 operator-authorized), and the cross-family implementation exit gate ran three generations: generation 1 raised the prefilter-escape finding, and generations 2 and 3 passed clean.
+- - **Tooling friction.** `scripts/bump-version.ts` wrote double-quoted versions, which needed one recovery commit in p04; `diagnostics.test.ts` timed out under host load until it was rerun; and super.engineering CLI shims made the gate's availability probe time out.
 - - **Combined p05 and final review.** One narrowed final re-review over `79416011..3fb6dc1f`, exactly the p05 range, served as both the p05 phase review and final cycle 2. Separate reviews would have covered the same range.
 - - **Operator override for final review cycle 4.** The final scope reached the cap of 3 review cycles (REVIEWRECEIVE-02), and the autonomous run stopped rather than authorize another cycle itself. At 2026-10-02T17:22:14Z the operator replied "Proceed", which authorized cycle 4. It passed with 0C/0H/0M/1L.
+- - **Operator-authorized cycle 5, combined with the p-rev1 phase review.** At 2026-10-02T19:33:15Z the operator chose "Fix all, then complete", which included a phase review, a narrowed final review, and a new exit gate. One narrowed re-review over `336bfd80..34cc7fb5` served as both, as for p05.
 - - **Redact at scan time, accept slower broad queries.** Broad deep queries went from 9.9 s to 11.9 s and from 10.5 s to 17.4 s in exchange for about 3× lower peak memory. Narrow queries were unchanged.
 - - **Don't mask bare 32-hex strings.** Masking them would hide hashes and ids that users search for, and keyed hex values are already covered (final M2).
 - - **Accept that lowercase-only url-safe secrets may go unmasked.** A secret made entirely of lowercase word segments would not be masked, which is very unlikely for random tokens. The identifier exemptions leak about 0.06 per 10k samples in a seeded test.
@@ -83,6 +81,7 @@
 - - Only canonical sources under `src/skills/session-search/` should be edited. `skills/` and `plugins/*/skills/` are generated, and a drift guard enforces this. `src/distributions.ts` allows the source roots `src/shared/transcript` and `src/skills/session-export-transcript`.
 - - The Codex meta tier depends on `state_5.sqlite`, an internal, versioned schema. A missing table or column, a locked database, or a missing `sqlite3` marks that tier `degraded`, and the search continues.
 - - Test overrides: `SESSION_SEARCH_RG`, `SESSION_SEARCH_SQLITE3`, `SESSION_SEARCH_NO_RG=1`, and `SESSION_SEARCH_NO_SQLITE3=1`.
+- - **p-rev1 (PR #115 CodeRabbit feedback, 4 tasks).** CodeRabbit left 4 inline and 1 outside-diff comment; the user directed "Fix all, then complete" during `oat-project-complete`, before any completion write. Fixes: the `ghp_`-shaped test literal is built by concatenation (prev1-t01); Claude `tool_result` carriers are detected within an 8 KiB prefix instead of 512 B, hardening older key orders and long `cwd` values (prev1-t02); the export-transcript reference names the correct Codex cwd source record (prev1-t03); and the PJM current-state snapshot reflects the open PR (prev1-t04). Final review cycle 5 passed with 0C/0H/0M/2L; one Low was fixed in state.md and one deferred to BL-261002. Exit-gate generation 3 passed clean.
 - - For search and parsing tools over provider-owned stores, add a read-only real-store smoke step after each phase that reports counts and titles only. Measure store facts, such as an escape census and an item-type census, before asserting writer behavior. Real stores caught three defects that green tests and reviews missed. ([oat-execution-learnings.md — 2026-10-02T12:40:00Z — worked-well — Real-store verification caught defects that synthetic fixtures and reviews missed](oat-execution-learnings.md))
 - - When an autonomous run starts from another repository's session, record that originating context in discovery so reviewers can trace decisions back to it. This run was driven from a vault session by absolute path. ([oat-execution-learnings.md — 2026-10-02T05:00:00Z — environment-limited — Autonomous run orchestrated from a sibling-repo session](oat-execution-learnings.md))
 - - For headless gate runs inside super.engineering sessions, remove `~/.super.engineering/bin` from PATH for the gate command only. The shims take about 5 s to start, which exceeds the gate's 5000 ms availability probe, while the real binaries start in about 0.3 s. Upstream: reduce shim startup time for `--version`. This was observed only in that environment. ([oat-execution-learnings.md — 2026-10-02T06:30:00Z — environment-limited — super.engineering CLI shims exceed the gate availability probe timeout](oat-execution-learnings.md))
@@ -90,20 +89,15 @@
 - - Raise the timeout of `src/shared/collaboration/diagnostics.test.ts`, or reduce its 4097 sequential writes. It causes false premerge failures at a load of about 15 on 14 cores. ([oat-execution-learnings.md — 2026-10-02T12:40:00Z — environment-limited — Full-suite premerge flakes under host load](oat-execution-learnings.md))
 - - Upstream OAT: lengthen or cache the gate's availability check (`GATE_CHECK_TIMEOUT_MS = 5000`) so that slow-starting wrapper CLIs are not reported as unavailable. ([oat-execution-learnings.md — 2026-10-02T06:30:00Z — environment-limited — super.engineering CLI shims exceed the gate availability probe timeout](oat-execution-learnings.md))
 - - Keep the autonomous stop at the final-review cycle cap (REVIEWRECEIVE-02), with operator authorization as the only way past it. Changed-basis re-reviews after exit-gate fixes can use up the cap even when each cycle finds a real Medium. This was applied in this run; see Recorded process deviations and the boundary entry in Workflow Observations. ([oat-execution-learnings.md — 2026-10-02T12:40:00Z — decision — Stopped at the final-review cycle cap instead of self-authorizing a 4th cycle](oat-execution-learnings.md))
-- **Known follow-ups deferred from review.** None of these are regressions; the affected sessions stay findable through other tiers or content.
+- **Known follow-ups deferred from review**, all five tracked in `BL-261002-resolve-deferred-session`. None of these are regressions; the affected sessions stay findable through other tiers or content.
 - - **Exit-gate L1:** a custom title in the bounded prefix loses to a generated title in the tail. This needs about 600K characters between the two titles and affects only title-tier ranking.
 - - **Exit-gate L2:** Codex orphans that exist only as metadata lose their archived, child, and title facts. This happens only when a rollout file was pruned but sqlite still has the thread. The session is found but unlabeled.
 - - **Exit-gate L3:** the remote history fallback excerpt can drop the match and the session id. This affects only the opt-in fallback for hosts without the skill installed.
 - - **Final cycle-4 L1:** Claude-only `slug` and `sessionId` keys are blanked on Codex lines, including inside MCP results. This predates p05-t06 and is narrow: 12 local lines, mostly Stoa memory slugs.
-- **Tooling follow-ups (outside this feature's scope):**
-- - `bump-version.ts` quote style.
-- - The `diagnostics.test.ts` load flake.
-- - Pre-existing `format:check` failures in 3 untouched test files.
-- **Deferred in discovery:**
-- - a Cursor `store.db` adapter
-- - an optional metadata cache or FTS index
-- - a recall or summarization mode
-- - adapters for other agent stores
+- - **Final cycle-5 L1:** the deep raw fallback's envelope blanker caps values at 1024 characters, so a `cwd` over 1024 characters on an oversize old-key-order Claude tool line can yield a path-only deep hit. prev1-t02's wider prefix made this partly newly reachable; it affects only the deep tier or `--include-tools`.
+- **Tooling follow-ups (outside this feature's scope):** `bump-version.ts` quote style; the `diagnostics.test.ts` load flake; pre-existing `format:check` failures in 3 untouched test files.
+- **Deferred in discovery:** a Cursor `store.db` adapter; an optional metadata cache or FTS index; a recall or summarization mode; adapters for other agent stores.
+- - **project-recap:** generated — `explainers/project-recap/` (recipe `project-recap` v2, run `318a847d`, host verify rung; built before revision p-rev1)
 - 2026-10-02 · structural · oat gate review · plan
 - target=codex-6-sol-xhigh threshold=high findings=critical:0,high:3,medium:1,low:0 exit=1 status=blocked artifact=.oat/projects/shared/session-search/reviews/artifact-plan-review-2026-10-02T053829Z.md run=cd2b64af-97ab-437c-821a-d12b96d76e21
 - 2026-10-02 · structural · oat gate review · plan
@@ -126,6 +120,10 @@
 - ss-boundary-reviewcap-1 STOP: REVIEWRECEIVE-02 final review-cycle limit (3); fixes t09-t10 complete; operator override needed for re-review; resume /oat-project-autonomous session-search
 - 2026-10-02 · structural · oat gate review · final
 - target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:0,low:0 exit=0 status=ok artifact=.oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md run=578d2977-81dc-42a4-bb93-a71adabbb844
+- 2026-10-02 · structural · oat-project-autonomous · complete
+- ss-autonomous-complete-1 autonomous run complete; PR https://github.com/tkstang/skills/pull/115; final review cycle 4 passed; exit gate gen 2 passed
+- 2026-10-02 · structural · oat gate review · final
+- target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:0,low:0 exit=0 status=ok artifact=.oat/projects/shared/session-search/reviews/final-review-2026-10-02T194727Z.md run=63e85fdb-dba6-4845-877c-08216e4dc3a8
 - oat_status: in_progress
 - oat_ready_for: null
 - oat_blockers: []
@@ -154,7 +152,8 @@
 - | Phase 3 | complete    | 10    | 10/10     |
 - | Phase 4 | complete    | 7     | 7/7       |
 - | Phase 5 | complete    | 10    | 10/10     |
-- **Total:** 64/64 tasks completed
+- | Phase p-rev1 | complete | 4 | 4/4 |
+- **Total:** 68/68 tasks completed
 - Phase 1: Core library (options, matching, redaction, tool probe)
 - **Status:** complete. Root review cycle 1 passed (0C/0H). Re-review cycle 2 passed (0C/0H). All 11 review-fix tasks are done; t14–t16 are covered by the final review.
 - **Started:** 2026-10-02
@@ -389,6 +388,22 @@
 - **Date:** 2026-10-02
 - **Review artifact:** reviews/archived/final-review-2026-10-02T173611Z.md (envelope `ok`, receive-eligible, reviewed head `4abed1dc`)
 - **Findings:** Critical 0, High 0, Medium 0, Low 0. **Gate passed clean.** The judgment sweep has nothing to disposition. The generation is recorded as `allowed`/`passed`.
+- | Task | Status | Commit |
+- | prev1-t01 | completed | f795eb34 |
+- | prev1-t02 | completed | 16180754 (8 KiB Claude carrier prefix; real current key order already within 512 B, while older key order and fixtures exceeded it) |
+- | prev1-t03 | completed | b124ebff (no extra version bump needed) |
+- | prev1-t04 | completed | 3e329e66 |
+- 274 skill tests and 650 skill+repo/release/tooling tests pass (root re-verified). Real-store results are identical before and after.
+- Revision Received: PR #115 review feedback
+- **Date:** 2026-10-02
+- **Source:** CodeRabbit review on PR #115, with 4 inline comments and 1 outside-diff comment. Root triaged it, and the user directed "Fix all, then complete" during `oat-project-complete` (paused before any completion write).
+- **Changes requested:**
+- - `ghp_`-shaped literal in `rank.test.ts`: becomes **prev1-t01**.
+- - Claude `tool_result` carriers past the 512-byte prefix: becomes **prev1-t02**. Root measured 48/48 local oversize Claude tool lines within 512 B, so this is robustness hardening for a long `cwd`.
+- - Stale `session_started` wording in the export-transcript reference: becomes **prev1-t03**.
+- - PJM `current-state.md` stale after PR creation: becomes **prev1-t04**.
+- - `state.md` progress 61/61 and "scaffolded": resolved by the completion rewrite (no task).
+- **Next:** Execute the revision tasks via `oat-project-implement`. Then run the p-rev1 phase review, a narrowed final review, and a new exit-gate generation (the code change makes generation 2 stale). Then `oat-project-complete`.
 - <!-- orchestration-runs-start -->
 - Run 1 — 2026-10-02 (branch `feat/session-search`, Tier 1, policy `high`)
 - Dispatch record: session-search-p01-implementation-1
@@ -501,6 +516,61 @@
 - updated_at: '2026-10-02T12:10:49Z'
 - ```
 - This generation went stale after fix p05-t08 changed the effective delta. Generation 2 started at reviewed head `76e1b108abf51192af2d2f99d1dab3c7c3a70d50` after final review cycle 4 passed.
+- - **Ledger repair (2026-10-02T18:02:30Z):** gate PRFINAL-05 blocked PR creation. The `plan | artifact | fixes_completed` row carried the description `structured (in-memory) x3` in its Artifact cell, which the root wrote by mistake. The three plan reviews ran in structured (in-memory) mode and produced no artifact file. Per the Reviews Ledger Mutation Contract, unavailable provenance is written as `-`. Root corrected only that cell (the request IDs remain documented under the table) and re-ran `oat-project-pr-final`.
+- Final HiLL approval (gate IMPLEMENT-16, autonomous)
+- - 2026-10-02T18:05:50Z: `approval: approved`, `approval_source: oat-autonomous`. This follows the passing final review (`session-search-final-review-4`, `reviews/archived/final-review-2026-10-02T172654Z.md`), the passing implementation exit gate generation 2 (run `578d2977`, `reviews/archived/final-review-2026-10-02T173611Z.md`), and pre-approval steps summary, document, and pr. PR: https://github.com/tkstang/skills/pull/115.
+- - Project recap: **built** (`explainers/project-recap/manifest.json`, runId `318a847d-5f30-44d8-a35f-f5592d06cae0`, host verify rung). The terminal-outcome guard returned ok.
+- - Post-approval steps: none (configured `postApproval: []`).
+- Dispatch record: session-search-prev1-implementation-1
+- - Target `oat-phase-implementer-claude-claude-opus-5-5-high`. Outcome: DONE. Range `e3a3b847..3e329e66`.
+- - **Operator authorization (2026-10-02T19:33:15Z):** the user chose "Fix all, then complete (Recommended)". That option explicitly included a phase review, a narrowed final review, and a new exit gate. This authorizes final-review cycle 5, which covers p-rev1 and also serves as its phase review (same recorded deviation as p05).
+- Dispatch record: session-search-final-review-5
+- - Narrowed final re-review `336bfd80..34cc7fb5`, which also serves as the p-rev1 phase review. Outcome: **pass**, 0C/0H/0M/2L. Artifact: `reviews/archived/final-review-2026-10-02T193728Z.md`.
+- - L1 (cwd >1024 chars escapes the blanker): deferred into BL-261002 (5th item).
+- - L2 (state.md artifact list and progress): fixed by root in state.md.
+- Implementation exit gate — generation 2 (stale after p-rev1; audit)
+- ```yaml
+- oat_implement_exit_gate:
+- status: stale
+- resolution: configured
+- disposition: passed
+- config_fingerprint: 'a43cbbb47e7ded76ad62bdcab5e1942f49b48288f5b17682279a78cc055924ab'
+- resolved_command: "OAT_GATE_EXEC_TIMEOUT_MS=2400000 oat --json gate review --project \"$PROJECT_PATH\" --review-type code --review-scope final --exit-nonzero-on important \"Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings. Run every verification command in the foreground of your own turn: do not use background tasks, monitors, or waiters, and do not end your turn until the review artifact has been written and committed.\""
+- resolved_description: "Semantic cross-family final implementation review before oat-project-implement exits."
+- project_override: null
+- on_failure: block
+- max_attempts: 2
+- attempts_completed: 0
+- reviewed_head: '76e1b108abf51192af2d2f99d1dab3c7c3a70d50'
+- implementation_base_ref: origin/main
+- implementation_fingerprint: 'sha256:effective-delta-v2:bc56701335df222b6ae9a0c02d15dc058ddd0598da40d87e47441f53f1f5b7ca'
+- freshness_head: '3e0b8c77fd61a41f72a665cb370b0af1e32b6e51'
+- freshness_fingerprint: 'sha256:effective-delta-v2:57ddded63ebdf7a54bd22acfe07680ad4ea02043cc863e55cd86fed1c7909180'
+- waivers: []
+- launch_state: result_persisted
+- launch_attempt_id: impl-gate-70b256c8a3cc
+- launch_started_at: '2026-10-02T17:28:29Z'
+- launch_result_receipt: .oat/projects/shared/session-search/gate-receipts/impl-gate-70b256c8a3cc.json
+- gate_run_marker: /var/folders/ch/kmbmcdfd4gb807zjsjt2td4h0000gp/T/oat-gate-runs/578d2977-81dc-42a4-bb93-a71adabbb844.json
+- gate_run_id: 578d2977-81dc-42a4-bb93-a71adabbb844
+- envelope_status: ok
+- artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md
+- handoff: "Run oat-project-review-receive for .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md before treating this gate review as consumed."
+- receive_state: completed
+- receive_correlation: {gate_run_id: 578d2977-81dc-42a4-bb93-a71adabbb844, scope: final, type: code, source_filename: final-review-2026-10-02T173611Z.md}
+- receive_source_artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md
+- receive_archived_artifact: .oat/projects/shared/session-search/reviews/archived/final-review-2026-10-02T173611Z.md
+- receive_event_identity: 'final|code|final-review-2026-10-02T173611Z.md'
+- receive_pre_head: 'fee6f7d638934ff245e15e9de43469f1d351fa5f'
+- receive_commit: 'd52616241936624eba02c36e36b8291386fcde9f'
+- receive_eligible: true
+- receive_completed: true
+- failure: null
+- updated_at: '2026-10-02T17:41:33Z'
+- ```
+- Generation 3 started at reviewed head `43b5ea4e8e568ad192d41e6694c2197787e60b8c` after final review cycle 5 passed.
+- Implementation exit gate — generation 3
+- - Gate run `63e85fdb` (codex-6-sol-xhigh, different-family). Envelope `ok`, 0C/0H/0M/0L. Received in judgment sweep with nothing to disposition. Artifact `reviews/archived/final-review-2026-10-02T194727Z.md`. Disposition: allowed/passed. Revision p-rev1 is complete and the phase status has returned to `pr_open`.
 - <!-- orchestration-runs-end -->
 - | Task / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
 - | p01-t02 | plan.md | `parseTimeSpec(spec, now)` | `parseTimeSpec(spec, now, bound)`. As `--until`, `today` and a date-only value mean the start of the next day. | Makes the named day inclusive, consistent with the `yesterday` rule | implementation | none |
@@ -565,7 +635,7 @@
 - - bounded per-hit memory (peak RSS about 1.5 GB to about 0.4 GB on broad deep queries)
 - - ask-user prompts and answers emitted as separate units
 - - the rg prefilter restricted to never-escaped characters (real stores escape `/` and HTML-sensitive characters)
-- - **Known follow-ups (deferred from the exit gate):** a custom title in the prefix losing to a generated tail title; metadata-only Codex orphans losing archived/child facts; the remote history fallback excerpt dropping the match and session id; Claude-only `slug`/`sessionId` blanking applied to Codex MCP result content.
+- - **Known follow-ups (deferred from the exit gate):** a custom title in the prefix losing to a generated tail title; metadata-only Codex orphans losing archived/child facts; the remote history fallback excerpt dropping the match and session id; Claude-only `slug`/`sessionId` blanking applied to Codex MCP result content; a cwd longer than 1024 chars escaping the deep raw-fallback blanker (all five tracked in BL-261002).
 - - design.md was aligned at each review. See Deviations.
 - - Plan: `plan.md`
 - - Design: `design.md`
@@ -613,6 +683,10 @@
 - ss-boundary-reviewcap-1 STOP: REVIEWRECEIVE-02 final review-cycle limit (3); fixes t09-t10 complete; operator override needed for re-review; resume /oat-project-autonomous session-search
 - 2026-10-02 · structural · oat gate review · final
 - target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:0,low:0 exit=0 status=ok artifact=.oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md run=578d2977-81dc-42a4-bb93-a71adabbb844
+- 2026-10-02 · structural · oat-project-autonomous · complete
+- ss-autonomous-complete-1 autonomous run complete; PR https://github.com/tkstang/skills/pull/115; final review cycle 4 passed; exit gate gen 2 passed
+- 2026-10-02 · structural · oat gate review · final
+- target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:0,low:0 exit=0 status=ok artifact=.oat/projects/shared/session-search/reviews/final-review-2026-10-02T194727Z.md run=63e85fdb-dba6-4845-877c-08216e4dc3a8
 - Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
 - oat_status: complete
 - oat_ready_for: oat-project-implement
@@ -1439,23 +1513,46 @@
 - **Behavior:** describe the current rule. Patterns using only ASCII letters, digits, space, `-`, and `_` (plus `.*`, `.+`, `|`, groups) can use the fast rg prefilter. Patterns with paths, URLs, or other punctuation scan fully in Node (slower, same results).
 - **Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint; `pnpm run build` and `pnpm run build:check`.; also run `cd documentation && pnpm build`.
 - **Commit:** `docs(p05-t10): update rg prefilter guidance`
-- | Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target       |
-- | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T061433Z.md           | d2fdc0bed2f806ebbd0463e396cc66e747c3f488 | auto       | -                 |
-- | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T062929Z.md           | e4ae386d889d279a69e859fa7bd44aaca422b67d | auto       | -                 |
-- | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md           | 0367021c                                 | auto       | -                 |
-- | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md           | e09b9afe                                 | auto       | -                 |
-- | p03   | code     | fixes_completed | 2026-10-02 | reviews/archived/p03-review-2026-10-02T080403Z.md           | 7ff0c270                                 | auto       | -                 |
-- | p04   | code     | fixes_completed | 2026-10-02 | reviews/archived/p04-review-2026-10-02T083046Z.md           | 9ccaef4f                                 | auto       | -                 |
-- | p05   | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T114035Z.md         | 3fb6dc1fa82e8c49d0bb61f493778cc8e9df764f | auto       | -                 |
-- | final | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T084934Z.md         | 7941601149bdf9adf2a7d9e6d9b55f98152f1fb1 | auto       | -                 |
-- | final | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T114035Z.md         | 3fb6dc1fa82e8c49d0bb61f493778cc8e9df764f | auto       | -                 |
-- | plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -                                        | auto       | -                 |
-- | plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -                                        | gate       | codex-6-sol-xhigh |
-- | plan  | artifact | passed          | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T055258Z.md | -                                        | gate       | codex-6-sol-xhigh |
-- | final | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T120208Z.md         | bc7aea7bed64a51938e51a4f241a5bff8584806f | gate       | codex-6-sol-xhigh |
-- | final | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T122041Z.md         | aaec2be03690af795026b08c4565e315a08272f5 | auto       | -                 |
-- | final | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T172654Z.md         | 336bfd805170e527abc49a2f3310407d7645ff4e | auto       | -                 |
-- | final | code | passed | 2026-10-02 | reviews/archived/final-review-2026-10-02T173611Z.md | 4abed1dc8dda554eceaaf07dec2181cfacb41d8b | gate | codex-6-sol-xhigh |
+- Phase p-rev1: Revision 1
+- Source: PR #115 CodeRabbit review feedback (2026-10-02), triaged by root; the user directed "fix all, then complete". The state.md progress comment (61/61, "scaffolded") is resolved by the completion rewrite of state.md and needs no task.
+- **Files:** Modify `src/skills/session-search/src/lib/rank.test.ts`.
+- **Step 1:** Replace the literal `ghp_…` token near line 222 with a concatenated build, as `scan.test.ts` and `cli.test.ts` do, so secret scanners do not flag it. Keep the test's behavior identical.
+- **Step 2: Verify:** `rg -n 'ghp_[A-Za-z0-9]{20,}' src/skills/session-search` returns nothing. Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files; `pnpm run build` and `pnpm run build:check`.
+- **Step 3: Commit:** `test(prev1-t01): build fake github token fixture by concatenation`
+- Task prev1-t02: (revision) Detect Claude tool_result carriers beyond the 512-byte prefix
+- **Files:** Modify `src/skills/session-search/src/lib/scan.ts` and `src/skills/session-search/src/lib/scan.test.ts`.
+- **Step 1:** In the deep raw fallback, `isRawToolCarrier` must recognize Claude `tool_result` carriers even when a long `cwd` or other envelope fields push the marker past `OVERSIZE_PREFIX_BYTES`. Use a larger bounded prefix for the Claude check (e.g. 8 KiB) or an earlier Claude-specific marker, keeping linear time and the existing skip list (`world_state` and others).
+- **Step 2:** Add a fixture: an oversize Claude `tool_result` line with a very long `cwd` and the observed key order, whose phrase lives only in the tool content. It must be found on deep (fail-before). Existing negatives stay green.
+- **Step 3: Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files; `pnpm run build` and `pnpm run build:check`.
+- **Step 4: Commit:** `fix(prev1-t02): detect claude tool_result carriers past the prefix`
+- **Files:** Modify `src/skills/session-export-transcript/references/transcript-formats.md`, then regenerate.
+- **Step 1:** Change "the cwd is read from a `session_started` record's `cwd`" to "the first `session_meta` record's `cwd` (top-level or `payload.cwd`)", matching the observer reference and the session-search store layout.
+- **Step 2: Verify:** `pnpm run build`, `pnpm run build:check`, `pnpm run test:vitest tests/repo src/skills/session-export-transcript`, and `pnpm run validate:skill-versions -- --base-ref "$(git merge-base HEAD origin/main)"`. The skill is already bumped in this PR, so confirm the gate still passes without another bump.
+- **Step 3: Commit:** `docs(prev1-t03): correct codex cwd source record name`
+- **Files:** Modify `.oat/repo/pjm/current-state.md`.
+- **Step 1:** Update the session-search heading from "awaiting PR" to "PR #115 open", and update the snapshot date and active-item count to match `.oat/repo/pjm/backlog/index.md` (27). Keep everything else.
+- **Step 2: Verify:** the counts match the backlog index; `pnpm run validate`.
+- **Step 3: Commit:** `docs(prev1-t04): refresh pjm current state for open pr`
+- | Scope  | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target       |
+- | p01    | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T061433Z.md           | d2fdc0bed2f806ebbd0463e396cc66e747c3f488 | auto       | -                 |
+- | p01    | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T062929Z.md           | e4ae386d889d279a69e859fa7bd44aaca422b67d | auto       | -                 |
+- | p02    | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md           | 0367021c                                 | auto       | -                 |
+- | p02    | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md           | e09b9afe                                 | auto       | -                 |
+- | p03    | code     | fixes_completed | 2026-10-02 | reviews/archived/p03-review-2026-10-02T080403Z.md           | 7ff0c270                                 | auto       | -                 |
+- | p04    | code     | fixes_completed | 2026-10-02 | reviews/archived/p04-review-2026-10-02T083046Z.md           | 9ccaef4f                                 | auto       | -                 |
+- | p05    | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T114035Z.md         | 3fb6dc1fa82e8c49d0bb61f493778cc8e9df764f | auto       | -                 |
+- | final  | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T084934Z.md         | 7941601149bdf9adf2a7d9e6d9b55f98152f1fb1 | auto       | -                 |
+- | final  | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T114035Z.md         | 3fb6dc1fa82e8c49d0bb61f493778cc8e9df764f | auto       | -                 |
+- | plan   | artifact | fixes_completed | 2026-10-02 | -                                                           | -                                        | auto       | -                 |
+- | plan   | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -                                        | gate       | codex-6-sol-xhigh |
+- | plan   | artifact | passed          | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T055258Z.md | -                                        | gate       | codex-6-sol-xhigh |
+- | final  | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T120208Z.md         | bc7aea7bed64a51938e51a4f241a5bff8584806f | gate       | codex-6-sol-xhigh |
+- | final  | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T122041Z.md         | aaec2be03690af795026b08c4565e315a08272f5 | auto       | -                 |
+- | final  | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T172654Z.md         | 336bfd805170e527abc49a2f3310407d7645ff4e | auto       | -                 |
+- | final  | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T173611Z.md         | 4abed1dc8dda554eceaaf07dec2181cfacb41d8b | gate       | codex-6-sol-xhigh |
+- | final  | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T193728Z.md         | 34cc7fb5be4183a783e5f570738fd787c44f9ac9 | auto       | -                 |
+- | p-rev1 | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T193728Z.md         | 34cc7fb5be4183a783e5f570738fd787c44f9ac9 | auto       | -                 |
+- | final | code | passed | 2026-10-02 | reviews/archived/final-review-2026-10-02T194727Z.md | 0b94b4f6f75ea0216e078be45bfacc61ee9667ae | gate | codex-6-sol-xhigh |
 - For code-review events, `Reviewed Head` is the full 40-character SHA at the
 - head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
 - `Gate Target` is populated only for gate events. Legacy five-column rows remain
@@ -1471,7 +1568,8 @@
 - - Phase 3: 10 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests. Includes 2 root follow-ups (t04 Codex MCP results, t05 ladder guidance) and 5 p03 review fixes (t06–t10).
 - - Phase 4: 7 tasks. Docs, stale-path fix, changelog plus premerge. Includes 4 p04 review fixes (t04–t07).
 - - Phase 5: 10 tasks. Final-review fixes (deep raw-fallback scoping, token families, bounded hit memory, ask-user unit split, help text).
-- **Total: 64 tasks**
+- - Phase p-rev1: 4 tasks. PR #115 CodeRabbit feedback (fixture concat, Claude carrier prefix, session_meta doc, PJM current-state).
+- **Total: 68 tasks**
 - - Discovery: `discovery.md`
 - - Design: `design.md`
 - - Execution learnings: `oat-execution-learnings.md`
