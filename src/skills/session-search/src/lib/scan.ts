@@ -4,10 +4,14 @@
  *
  * The prefilter only narrows candidate files and must be a provable superset
  * of what the Node scan can match, so results are identical with or without
- * `rg`. Raw JSONL stores `"`, `\`, tab, and newline as two-byte escapes, so a
- * single-character wildcard over raw bytes can miss text that Node matches
- * after decoding. The prefilter therefore runs only when every pattern is
- * prefilter-safe (see `isPrefilterSafe`).
+ * `rg`. Raw JSONL stores `"`, `\`, tab, and newline as two-byte escapes, and
+ * real stores also escape `/` as `\/` and HTML-sensitive characters as
+ * `\u003c`, `\u003e`, `\u0026`, and `\u0027`. A pattern character or a
+ * single-character wildcard can therefore miss raw bytes that Node matches
+ * after decoding. The prefilter runs only when every pattern is
+ * prefilter-safe: built only from characters no JSON writer used by these
+ * stores escapes (ASCII letters, digits, space, `-`, `_`) plus `.*`, `.+`,
+ * `|`, and groups (see `isPrefilterSafe`).
  *
  * The superset argument holds only when Node matches the record's decoded
  * strings once. Deep-tier text breaks that: Codex tool output is often a
@@ -46,28 +50,32 @@ export const RG_ARG_CHUNK_BYTES = 100 * 1024;
 const RG_MAX_OUTPUT = 64 * 1024 * 1024;
 
 /**
+ * Characters no JSON writer used by these stores escapes: ASCII letters,
+ * digits, space, `-`, and `_`. Writers do escape `"`, `\`, and control
+ * characters, and some also escape `/` (`\/`) and HTML-sensitive characters
+ * (`\u003c`, `\u003e`, `\u0026`, `\u0027`), so any other character may be
+ * stored differently from the decoded text Node matches.
+ */
+const NEVER_ESCAPED = /^[A-Za-z0-9 _-]$/u;
+
+/**
  * True when `pattern` can be handed to `rg` over raw JSONL without losing a
  * match the decoded Node scan would find.
  *
- * Allowed: printable ASCII literal text without quotes or backslashes, the
- * wildcards `.*` and `.+`, alternation `|`, and groups (`(…)`, `(?:…)`).
- * Rejected: any backslash, a `.` not followed by `*` or `+`, any character
- * class, other quantifiers (`?`, `{n}`, `*`/`+` after a literal), anchors,
- * lookaround and other `(?` constructs, control and non-ASCII characters.
- * With `literal`, the text is matched with `--fixed-strings` and only
- * printable ASCII without quotes or backslashes qualifies.
+ * Allowed: literal text made only of never-escaped characters (ASCII letters,
+ * digits, space, `-`, `_`), the wildcards `.*` and `.+`, alternation `|`, and
+ * groups (`(…)`, `(?:…)`). Every other character (including `/`, `<`, `>`,
+ * `&`, `'`, `:`, a lone `.`, character classes, other quantifiers, anchors,
+ * lookaround, backslashes, and non-ASCII) makes the pattern unsafe, so the
+ * file set is scanned in Node. With `literal`, the text is matched with
+ * `--fixed-strings` and only never-escaped characters qualify.
  */
 export function isPrefilterSafe(pattern: string, literal: boolean): boolean {
   if (pattern === '') return false;
-  for (const char of pattern) {
-    const code = char.codePointAt(0) ?? 0;
-    if (code < 0x20 || code > 0x7e || char === '"' || char === '\\') {
-      return false;
-    }
-  }
-  if (literal) return true;
+  if (literal) return [...pattern].every((char) => NEVER_ESCAPED.test(char));
   for (let i = 0; i < pattern.length; i += 1) {
     const char = pattern[i];
+    if (NEVER_ESCAPED.test(char)) continue;
     if (char === '.') {
       const next = pattern[i + 1];
       if (next !== '*' && next !== '+') return false;
@@ -83,7 +91,8 @@ export function isPrefilterSafe(pattern: string, literal: boolean): boolean {
       }
       continue;
     }
-    if ('[]{}*+?^$'.includes(char)) return false;
+    if (char === ')' || char === '|') continue;
+    return false;
   }
   return true;
 }

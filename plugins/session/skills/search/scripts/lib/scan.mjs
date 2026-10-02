@@ -375,17 +375,13 @@ function precedesInFile(a, b) {
 // src/skills/session-search/src/lib/scan.ts
 var RG_ARG_CHUNK_BYTES = 100 * 1024;
 var RG_MAX_OUTPUT = 64 * 1024 * 1024;
+var NEVER_ESCAPED = /^[A-Za-z0-9 _-]$/u;
 function isPrefilterSafe(pattern, literal) {
   if (pattern === "") return false;
-  for (const char of pattern) {
-    const code = char.codePointAt(0) ?? 0;
-    if (code < 32 || code > 126 || char === '"' || char === "\\") {
-      return false;
-    }
-  }
-  if (literal) return true;
+  if (literal) return [...pattern].every((char) => NEVER_ESCAPED.test(char));
   for (let i = 0; i < pattern.length; i += 1) {
     const char = pattern[i];
+    if (NEVER_ESCAPED.test(char)) continue;
     if (char === ".") {
       const next = pattern[i + 1];
       if (next !== "*" && next !== "+") return false;
@@ -400,7 +396,8 @@ function isPrefilterSafe(pattern, literal) {
       }
       continue;
     }
-    if ("[]{}*+?^$".includes(char)) return false;
+    if (char === ")" || char === "|") continue;
+    return false;
   }
   return true;
 }

@@ -1006,11 +1006,20 @@ describe('rg prefilter safety', () => {
       '(?=look)',
       'say "hi"',
       'café',
+      // Characters JSON writers may escape (`\/`, `\u003c`, `\u0026`, ...).
+      'src/foo',
+      'a<b',
+      'a>b',
+      'a&b',
+      "it's",
+      'key: value',
     ]) {
       expect(isPrefilterSafe(unsafe, false)).toBe(false);
     }
-    expect(isPrefilterSafe('a.b*c', true)).toBe(true);
-    expect(isPrefilterSafe('say "hi"', true)).toBe(false);
+    expect(isPrefilterSafe('perceive now-ok_2', true)).toBe(true);
+    for (const literal of ['a.b*c', 'say "hi"', 'src/foo', 'a<b', "it's"]) {
+      expect(isPrefilterSafe(literal, true)).toBe(false);
+    }
   });
 });
 

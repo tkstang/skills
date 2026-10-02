@@ -9,7 +9,7 @@
  * large-scan guard). Ranking and adapter details stay in the lib suites.
  */
 import { spawnSync } from 'node:child_process';
-import { statSync } from 'node:fs';
+import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -413,6 +413,49 @@ describe('session-search CLI', () => {
       expect(withRg.json.results).toHaveLength(2);
       expect(withRg.json.results).toEqual(withoutRg.json.results);
       expect(withRg.json.tiersRun).toEqual(withoutRg.json.tiersRun);
+
+      // JSON writers may escape `/` as `\/` and HTML-sensitive characters as
+      // `\u003c`-style escapes, so the decoded text differs from the raw
+      // bytes rg sees. A cheap-tier history hit keeps the deep retry from
+      // masking a dropped content file.
+      const escaped = writeClaudeSession(temp.home, {
+        cwd: '/work/escaped',
+        mtimeMs: NOW - 2 * HOUR_MS,
+        records: (e) => [claudeUser(e, "open src/foo where a<b and it's fine")],
+      });
+      const raw = readFileSync(escaped.path, 'utf8')
+        .replace('src/foo', 'src\\/foo')
+        .replace('a<b', 'a\\u003cb')
+        .replace("it's", 'it\\u0027s');
+      expect(raw).toContain('src\\/foo');
+      expect(raw).toContain('a\\u003cb');
+      expect(raw).toContain('it\\u0027s');
+      writeFileSync(escaped.path, raw);
+      writeClaudeHistory(temp.home, [
+        {
+          display: "notes on src/foo, a<b, and it's",
+          project: '/work/history-only',
+          sessionId: '00000000-0000-4000-8000-0000000000f1',
+          timestamp: NOW - HOUR_MS,
+        },
+      ]);
+      for (const pattern of ['src/foo', 'a<b', "it's"]) {
+        const escapedArgs = ['-p', pattern];
+        const accelerated = runJson(escapedArgs, { SESSION_SEARCH_NO_RG: '' });
+        const fallback = runJson(escapedArgs, { SESSION_SEARCH_NO_RG: '1' });
+
+        expect(accelerated.json.tools.rg, pattern).not.toBeNull();
+        expect(
+          fallback.json.results.map((hit: { cwd: string }) => hit.cwd),
+          pattern,
+        ).toContain('/work/escaped');
+        expect(accelerated.json.results, pattern).toEqual(
+          fallback.json.results,
+        );
+        expect(accelerated.json.tiersRun, pattern).toEqual(
+          fallback.json.tiersRun,
+        );
+      }
     },
   );
 });
