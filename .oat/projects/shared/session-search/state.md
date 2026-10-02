@@ -77,7 +77,7 @@ oat_workflow_origin: native # native | imported
 #   failure: null
 #   updated_at: '2026-07-18T00:00:00Z'
 oat_post_implement_sequence:
-  status: post_approval
+  status: complete
   source: configured
   final_phase: p05
   pre_approval: [summary, document, pr]
