@@ -39,12 +39,12 @@ roughly when, and which repository.
 The selected tiers run cheapest first. Widening and the deep rung are fallbacks
 that run only when the earlier passes found nothing:
 
-| Tier      | What it searches                                                                                                                      |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `history` | Prompt history files: `~/.claude/history.jsonl` and `~/.codex/history.jsonl`. Cursor has none.                                        |
-| `meta`    | Session titles, Codex `session_index.jsonl`, and the Codex `state_5.sqlite` thread table (read-only, through `sqlite3` when present). |
-| `content` | User and assistant text inside transcripts, with an optional `rg -l` prefilter and streaming verification in Node.                    |
-| `deep`    | Tool output as well (command output, MCP tool results, file listings). Runs only when nothing else matched and `--no-deep` is absent. |
+| Tier      | What it searches                                                                                                                                                       |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `history` | Prompt history files: `~/.claude/history.jsonl` and `~/.codex/history.jsonl`. Cursor has none.                                                                         |
+| `meta`    | Session titles, Codex `session_index.jsonl`, and the Codex `state_5.sqlite` thread table (read-only, through `sqlite3` when present).                                  |
+| `content` | User and assistant text inside transcripts, with an optional `rg -l` prefilter and streaming verification in Node.                                                     |
+| `deep`    | Tool output as well (command output, MCP tool results, file listings). Runs only when nothing else matched, the `content` tier is selected, and `--no-deep` is absent. |
 
 `--tiers history,meta,content` restricts the scan. `--include-tools` searches
 tool output in the content scan itself and labels that scan `deep`. The JSON
