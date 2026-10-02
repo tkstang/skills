@@ -129,7 +129,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: "https://github.com/tkstang/skills/pull/115" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-10-02T04:59:03.168Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-10-02T19:33:00Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-10-02T19:38:57Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -149,18 +149,18 @@ Implementation — PR open; completion may run before or after merge.
 
 ## Artifacts
 
-- **Discovery:** `discovery.md` (in_progress)
+- **Discovery:** `discovery.md` (complete)
 - **Spec:** N/A (quick mode)
-- **Design:** N/A (quick mode unless lightweight design is needed)
-- **Plan:** `plan.md` (scaffolded template — not started)
-- **Implementation:** `implementation.md` (scaffolded template — not started)
+- **Design:** `design.md` (lightweight, complete)
+- **Plan:** `plan.md` (complete; 5 phases + revision p-rev1, 68 tasks)
+- **Implementation:** `implementation.md` (68/68 tasks complete)
 
 ## Progress
 
 - ✓ Discovery complete
 - ✓ Design (lightweight) complete
 - ✓ Plan complete
-- ✓ Implementation tasks complete (61/61)
+- ✓ Implementation tasks complete (68/68, including revision p-rev1)
 - ✓ Final review passed
 - ✓ Implementation exit gate passed (generation 2) and closeout sequence complete (summary, document, pr; recap built)
 - ✓ PR created

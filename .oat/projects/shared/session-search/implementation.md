@@ -38,7 +38,7 @@ oat_generated: false
 | Phase 3 | complete    | 10    | 10/10     |
 | Phase 4 | complete    | 7     | 7/7       |
 | Phase 5 | complete    | 10    | 10/10     |
-| Phase p-rev1 | in_progress | 4 | 4/4 |
+| Phase p-rev1 | complete | 4 | 4/4 |
 
 **Total:** 68/68 tasks completed
 
@@ -673,6 +673,12 @@ This generation went stale after fix p05-t08 changed the effective delta. Genera
 
 - **Operator authorization (2026-10-02T19:33:15Z):** the user chose "Fix all, then complete (Recommended)". That option explicitly included a phase review, a narrowed final review, and a new exit gate. This authorizes final-review cycle 5, which covers p-rev1 and also serves as its phase review (same recorded deviation as p05).
 
+#### Dispatch record: session-search-final-review-5
+
+- Narrowed final re-review `336bfd80..34cc7fb5`, which also serves as the p-rev1 phase review. Outcome: **pass**, 0C/0H/0M/2L. Artifact: `reviews/archived/final-review-2026-10-02T193728Z.md`.
+- L1 (cwd >1024 chars escapes the blanker): deferred into BL-261002 (5th item).
+- L2 (state.md artifact list and progress): fixed by root in state.md.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -759,7 +765,7 @@ This generation went stale after fix p05-t08 changed the effective delta. Genera
   - bounded per-hit memory (peak RSS about 1.5 GB to about 0.4 GB on broad deep queries)
   - ask-user prompts and answers emitted as separate units
   - the rg prefilter restricted to never-escaped characters (real stores escape `/` and HTML-sensitive characters)
-- **Known follow-ups (deferred from the exit gate):** a custom title in the prefix losing to a generated tail title; metadata-only Codex orphans losing archived/child facts; the remote history fallback excerpt dropping the match and session id; Claude-only `slug`/`sessionId` blanking applied to Codex MCP result content.
+- **Known follow-ups (deferred from the exit gate):** a custom title in the prefix losing to a generated tail title; metadata-only Codex orphans losing archived/child facts; the remote history fallback excerpt dropping the match and session id; Claude-only `slug`/`sessionId` blanking applied to Codex MCP result content; a cwd longer than 1024 chars escaping the deep raw-fallback blanker (all five tracked in BL-261002).
 - design.md was aligned at each review. See Deviations.
 
 ## References
