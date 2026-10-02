@@ -72,6 +72,10 @@ ss-p05-outcome-1 p05 pass and final review passed; reviews reviews/archived/fina
 
 c5a7745f-9dcf-4f4f-b0e4-d153568e960b final code review used one completed intelligent-recon wave with three read-only lanes; root reconciled source and foreground probes; artifact .oat/projects/shared/session-search/reviews/final-review-2026-10-02T120208Z.md.
 
+### 2026-10-02 · structural · oat gate review · final
+
+target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:1,low:3 exit=0 status=ok artifact=.oat/projects/shared/session-search/reviews/final-review-2026-10-02T120208Z.md run=c5a7745f-9dcf-4f4f-b0e4-d153568e960b
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
