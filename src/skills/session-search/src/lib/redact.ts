@@ -63,9 +63,22 @@ const FLAG_RE = new RegExp(
 );
 
 // URL userinfo passwords: mask only the password in scheme://user:pass@host.
-// The scheme may start only at the beginning of its run (linear time).
+// The password runs to the LAST `@` before whitespace, so unencoded `/` or
+// `@` inside it is masked too (a later `@` in the path is over-masked, which
+// is accepted). The scheme may start only at the beginning of its run and the
+// password scan is bounded to 256 characters, keeping the scan linear; only
+// the tail of an implausibly long password could escape.
 const USERINFO_RE =
-  /(?<![A-Za-z0-9+.-])([a-z][a-z0-9+.-]*:\/\/[^\s/:@]*:)[^\s/@]+@/gi;
+  /(?<![A-Za-z0-9+.-])([a-z][a-z0-9+.-]*:\/\/[^\s/:@]*:)\S{0,256}@/gi;
+
+// Token-only userinfo (scheme://<token>@host): mask tokens of 20+ characters.
+const TOKEN_USERINFO_RE =
+  /(?<![A-Za-z0-9+.-])([a-z][a-z0-9+.-]*:\/\/)[^\s/:@]{20,256}@/gi;
+
+// Authorization header values: `Authorization: Basic|Bearer|Token <value>`,
+// in plain, quoted, and escaped-quoted (serialized) forms.
+const AUTH_HEADER_RE =
+  /\b(Authorization(?:\\*["'])?\s*[:=]\s*(?:\\*["'])?(?:Basic|Bearer|Token)\s+)[^\s"'\\,;]+/gi;
 
 const TOKEN_RULES: RegExp[] = [
   // OpenAI / Anthropic style keys (sk-..., sk-ant-...).
@@ -180,6 +193,14 @@ export function redact(text: string): string {
   out = out.replace(
     USERINFO_RE,
     (_match, prefix: string) => `${prefix}${REDACTED}@`,
+  );
+  out = out.replace(
+    TOKEN_USERINFO_RE,
+    (_match, prefix: string) => `${prefix}${REDACTED}@`,
+  );
+  out = out.replace(
+    AUTH_HEADER_RE,
+    (_match, prefix: string) => `${prefix}${REDACTED}`,
   );
   out = out.replace(BEARER_RE, (match, prefix: string, token: string) =>
     token.length >= 16 || (token.length >= 8 && /\d/.test(token))

@@ -190,11 +190,48 @@ describe('redact: URL userinfo and CLI flags', () => {
   });
 
   it.each([
+    [
+      'password containing /',
+      'psql postgres://u:ab/cd@host/db',
+      `psql postgres://u:${REDACTED}@host/db`,
+    ],
+    [
+      'password containing an unencoded @',
+      'psql postgres://u:p@ss@host/db',
+      `psql postgres://u:${REDACTED}@host/db`,
+    ],
+    [
+      'token-only userinfo',
+      `git clone https://${join('glpat', '-', 'Ab12Cd34Ef56Gh78Ij90')}@gitlab.com/org/repo.git`,
+      `git clone https://${REDACTED}@gitlab.com/org/repo.git`,
+    ],
+    [
+      'Basic authorization header',
+      'curl -H "Authorization: Basic dXNlcjpwYXNz" https://api.test',
+      `curl -H "Authorization: Basic ${REDACTED}" https://api.test`,
+    ],
+    [
+      'JSON Token authorization header',
+      '{"Authorization": "Token abc123"}',
+      `{"Authorization": "Token ${REDACTED}"}`,
+    ],
+    [
+      'escaped Bearer authorization header',
+      '{\\"authorization\\":\\"Bearer short1\\"}',
+      `{\\"authorization\\":\\"Bearer ${REDACTED}\\"}`,
+    ],
+  ])('masks the %s', (_name, text, expected) => {
+    expect(redact(text)).toBe(expected);
+  });
+
+  it.each([
     'Remember that the token is rotated weekly by the platform team.',
     'The re-token step runs after the password reset email is sent.',
     'Browse https://example.com:8080/docs for details.',
     'Run with --verbose before the token refresh step.',
     'Contact user@example.com about the secret santa list.',
+    'Clone ssh://git@github.com/org/repo.git and see https://example.com/user@domain',
+    'The Authorization header carries a Bearer token for Basic auth fallback.',
   ])('leaves prose and plain URLs intact: %j', (text) => {
     expect(redact(text)).toBe(text);
   });
@@ -315,6 +352,10 @@ describe('redact: oversize input', () => {
       `--password${'-'.repeat(256 * 1024)}`,
       `https://${'a'.repeat(256 * 1024)}`,
       `postgres://user:${'p'.repeat(256 * 1024)}`,
+      'a://:'.repeat(52 * 1024),
+      `postgres://u:${'p@'.repeat(128 * 1024)}`,
+      `https://${'t'.repeat(256 * 1024)}@host`,
+      'Authorization: Basic '.repeat(12 * 1024),
     ];
     const started = performance.now();
     for (const input of inputs) redact(input);
