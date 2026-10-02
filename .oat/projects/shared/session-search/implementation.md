@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p02-t21
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -34,11 +34,11 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 16    | 16/16     |
-| Phase 2 | in_progress | 21    | 20/21     |
+| Phase 2 | complete    | 21    | 21/21     |
 | Phase 3 | pending     | 3     | 0/3       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 36/43 tasks completed
+**Total:** 37/43 tasks completed
 
 ---
 
@@ -154,7 +154,7 @@ Behavior notes:
 
 ## Phase 2: Adapters, scanner, pipeline, ranker, CLI
 
-**Status:** in_progress (t20 done at 083798c0, 230 tests; root follow-up p02-t21 queued for the atime-flaky test)
+**Status:** complete. Root review cycle 1 was blocked (1 High), then fixed; re-review cycle 2 passed (0C/0H). All review fixes and root follow-ups are done: t20 083798c0 (probe timeout), t21 42c03951 (scopeReads counter, load-stable). 230 tests.
 
 ### Phase Summary
 
@@ -300,6 +300,23 @@ Residual (Low, accepted): final-result per-session reads do not check the deadli
 - Range `8494c929..0367021c` (7 task commits). Recovery attempts: 0/10.
 - Dispatch stamp: `Dispatch: scope=p02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high`
 
+#### Dispatch record: session-search-p02-review-1
+
+- Root phase review, same reviewer target. Outcome: **blocked**, 0C/1H/3M/5L. Artifact: `reviews/archived/p02-review-2026-10-02T071003Z.md`.
+
+#### Continuations of session-search-p02-implementation-1
+
+- `cont-session-search-p02-fix-1`: t08–t15, range `289f8cc8..e09b9afe`, DONE_WITH_CONCERNS (Low).
+- `cont-session-search-p02-fix-2`: t16–t19, `b3885e66..92807a6b`, DONE_WITH_CONCERNS (flake reported).
+- `cont-session-search-p02-fix-3`: t20, `083798c0`, DONE_WITH_CONCERNS (atime flake reported).
+- `cont-session-search-p02-fix-4`: t21, `42c03951`, DONE.
+
+#### Dispatch record: session-search-p02-review-2
+
+- Narrowed re-review `0367021c..e09b9afe`. Outcome: **pass**, 0C/0H/1M/5L. Artifact: `reviews/archived/p02-review-2026-10-02T072802Z.md`.
+
+**p02 phase outcome:** pass. Blocking fix iterations: 1 (within retry limit 2), plus 3 non-blocking follow-up rounds. No phase gate is configured. No nested dispatches. The final review covers t16–t21.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -321,7 +338,7 @@ Residual (Low, accepted): final-result per-session reads do not check the deadli
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | 129       | 129    | 0      | -        |
-| 2     | 200 (cumulative) | 200 | 0 | -        |
+| 2     | 230 (cumulative) | 230 | 0 | -        |
 
 ## Final Summary (for PR/docs)
 
