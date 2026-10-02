@@ -610,6 +610,7 @@ export function writeSqliteStub(
   columns: string[],
   rows: Array<Record<string, unknown>>,
 ): string {
+  mkdirSync(path.join(temp.home, '.codex'), { recursive: true });
   writeFileSync(path.join(temp.home, '.codex', 'state_5.sqlite'), '', {
     flag: 'a',
   });
