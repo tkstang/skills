@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p03-t01
+oat_current_task_id: p02-t08
 oat_generated: false
 ---
 
@@ -34,11 +34,11 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 16    | 16/16     |
-| Phase 2 | in_progress | 7     | 7/7       |
+| Phase 2 | in_progress | 15    | 7/15      |
 | Phase 3 | pending     | 3     | 0/3       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 23/29 tasks completed
+**Total:** 23/37 tasks completed
 
 ---
 
@@ -154,7 +154,7 @@ Behavior notes:
 
 ## Phase 2: Adapters, scanner, pipeline, ranker, CLI
 
-**Status:** in_progress (tasks complete; root review pending)
+**Status:** in_progress (root review **blocked** with 1 High; fix tasks p02-t08..t15 queued)
 
 ### Phase Summary
 
@@ -180,6 +180,30 @@ Behavior notes:
 | p02-t05 | completed | 2ef33a65 |
 | p02-t06 | completed | 49976082 |
 | p02-t07 | completed | 0367021c |
+
+### Review Received: p02
+
+**Date:** 2026-10-02
+**Review artifact:** reviews/archived/p02-review-2026-10-02T071003Z.md (request `session-search-p02-review-1`, invocation auto, reviewed head `0367021c`, **Reconnaissance:** not-attempted)
+
+**Findings:** Critical 0, High 1, Medium 3, Low 5. The review is **blocking** (High), so the bounded fix loop runs (retry limit 2).
+
+**New tasks added:**
+
+- p02-t08: H1, Codex non-text JSON tool output
+- p02-t09: M1, agent-authored Codex text scored as user-typed
+- p02-t10: M2, vacuous negative tests
+- p02-t11: M3, deadline does not bound rg or the per-file loops
+- p02-t12: L1, per-file cap hides patterns
+- p02-t13: L2, notes dropped in JSON mode
+- p02-t14: L3, ask-user answers
+- p02-t15: L4, deep-tier prefilter superset
+
+**Design drift:** L5 (design.md deep-rung, tiersRun, and SourceAdapter `openHint`/`EnumerateContext`). The implementation is accepted as the source of truth, and design.md was aligned by root in the receive commit.
+
+**Next:** execute the fixes on the original p02 handle (`cont-session-search-p02-fix-1`), then re-review p02.
+
+---
 
 ## Phase 3: Skill packaging, distribution, CLI integration tests
 

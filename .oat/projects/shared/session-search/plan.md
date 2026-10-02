@@ -686,6 +686,126 @@ Source: reviews/archived/p01-review-2026-10-02T062929Z.md, Low L2.
 
 ---
 
+### Task p02-t08: (review) Never lose Codex tool-output text when decoding
+
+Source: reviews/archived/p02-review-2026-10-02T071003Z.md, **High** H1.
+
+**Files:** `lib/adapters/codex.ts`, `lib/adapters/codex.test.ts`, `lib/pipeline.test.ts`, `helpers/test-helpers.ts`.
+
+**Behavior:**
+
+- When decoding yields an empty string or no `.text` blocks, `codexOutputText` falls back to the raw `output` string.
+- Array or object blocks without a `.text` field are serialized with `JSON.stringify(block)` rather than dropped.
+
+**Tests:**
+
+- codex.test: a `function_call_output` whose string output is `[{"title":"Perceive Now vetting","id":1}]` yields a `tool` unit containing the phrase.
+- pipeline: a deep-rung case with that shape finds the session only on the deep rung.
+
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files. Each new test must fail against the pre-fix code (confirm by temporarily reverting the fix).
+**Commit:** `fix(p02-t08): keep codex tool output text when JSON decoding finds no text blocks`
+
+### Task p02-t09: (review) Treat agent-authored Codex threads as non-user-typed
+
+Source: reviews/archived/p02-review-2026-10-02T071003Z.md, Medium M1.
+
+**Files:** `lib/adapters/codex.ts`, `lib/types.ts` (add an `agentAuthored` flag to the session file), `lib/scan.ts`, the related tests.
+
+**Behavior:**
+
+- Any sqlite or header `source` carrying a `subagent` key marks the thread `agentAuthored`. This covers `thread_spawn`, `review`, `memory_consolidation`, and `{other: guardian}`.
+- Meta `first_user_message` hits for such threads have `userTyped: false`.
+- `scanFile` uses `userTyped = role === 'user' && !file.isSubagent && !file.agentAuthored`.
+
+**Tests:**
+
+- A `thread_spawn` row's first message is not user-typed.
+- A `memory_consolidation`/`review` source's user-role content is not user-typed.
+
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files. Each new test must fail against the pre-fix code (confirm by temporarily reverting the fix).
+**Commit:** `fix(p02-t09): stop scoring agent-authored codex text as user-typed`
+
+### Task p02-t10: (review) Make negative tests fail when their guarded feature is removed
+
+Source: reviews/archived/p02-review-2026-10-02T071003Z.md, Medium M2.
+
+**Files:** `lib/pipeline.test.ts`, `lib/scan.test.ts`, `helpers/test-helpers.ts` (tests only).
+
+**Tests:**
+
+- (a) The inherited-record skip: put the phrase only in the child's inherited range (the parent is out of window or uses different text) and expect no child-sourced hit.
+- (b) `acceptHit`: a `--since` case where a history hit points at an out-of-window transcript, and a `--cwd` case where an out-of-scope history hit must not prevent `widened: true`.
+- (c) A subagent file's user-role match is `userTyped: false`.
+
+Each must fail when the corresponding guard (`scan.ts` inherited skip, `pipeline.ts` acceptHit filter, `!file.isSubagent`) is removed.
+
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files. Each new test must fail against the pre-fix code (confirm by temporarily reverting the fix).
+**Commit:** `test(p02-t10): pin inherited-skip, scope-filter and subagent user-typed guards`
+
+### Task p02-t11: (review) Bound rg and per-file loops by --deadline-ms
+
+Source: reviews/archived/p02-review-2026-10-02T071003Z.md, Medium M3.
+
+**Files:** `lib/scan.ts`, `lib/pipeline.ts`, `lib/adapters/{codex,claude-code}.ts`, the related tests.
+
+**Behavior:**
+
+- Pass the remaining budget as `spawnSync`'s `timeout` for `rg`. On `ETIMEDOUT`, mark the run `incomplete` and skip that chunk; do not fall back to a full Node scan past the deadline.
+- Check the deadline inside the enumeration header-read, scoping `sessionInfo`, and title tail-read loops.
+
+**Test:** a pipeline test with a sleeping stub `rg` (via `SESSION_SEARCH_RG`) asserts `incomplete: true` within the budget.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files. Each new test must fail against the pre-fix code (confirm by temporarily reverting the fix).
+**Commit:** `fix(p02-t11): honor deadline in rg prefilter and per-file loops`
+
+### Task p02-t12: (review) Credit every pattern despite the per-file hit cap
+
+Source: reviews/archived/p02-review-2026-10-02T071003Z.md, Low L1.
+
+**Files:** `lib/scan.ts`, `lib/scan.test.ts`.
+
+**Behavior:** after `MAX_HITS_PER_SESSION`, keep streaming without storing text until every pattern has been seen at least once (or until EOF), then stop.
+
+**Test:** a file with 30 early hits of pattern A and a later pattern B credits both.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files. Each new test must fail against the pre-fix code (confirm by temporarily reverting the fix).
+**Commit:** `fix(p02-t12): keep distinct-pattern credit past the per-file hit cap`
+
+### Task p02-t13: (review) Surface diagnostic notes in JSON mode
+
+Source: reviews/archived/p02-review-2026-10-02T071003Z.md, Low L2.
+
+**Files:** `session-search.ts`.
+
+**Behavior:** in `--json` mode, diagnostic notes (rg skipped or failed, probe notes) go to stderr prefixed `[session-search]`; stdout stays pure JSON.
+
+**Verify:** `pnpm run type-check`, plus a manual CLI smoke run showing a stderr note with `SESSION_SEARCH_RG=/nonexistent --json` and valid JSON on stdout.
+**Commit:** `fix(p02-t13): emit diagnostic notes on stderr in json mode`
+
+### Task p02-t14: (review) Keep ask-user answers in the conversation tiers
+
+Source: reviews/archived/p02-review-2026-10-02T071003Z.md, Low L3.
+
+**Files:** `lib/scan.ts`, `lib/adapters/{claude-code,codex}.ts`, the related tests.
+
+**Behavior:** keep a per-file Claude tool-name map and a Codex call-id map in `scanFile`, so `AskUserQuestion`/`request_user_input` questions and answers route through `normalizeEntries` as user/assistant decision content (not tool).
+
+**Test:** an ask-user answer phrase is found on the content tier without `--include-tools`.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files. Each new test must fail against the pre-fix code (confirm by temporarily reverting the fix).
+**Commit:** `fix(p02-t14): include ask-user answers in conversation tiers`
+
+### Task p02-t15: (review) Skip the rg prefilter on the deep tier
+
+Source: reviews/archived/p02-review-2026-10-02T071003Z.md, Low L4.
+
+**Files:** `lib/scan.ts`, `lib/scan.test.ts`.
+
+**Behavior:** on the deep tier (`includeTools`), the prefilter is skipped. Deep-tier text is decoded or re-serialized, so raw bytes may differ (`\/`, `\u003c`). Document this in the superset comment.
+
+**Test:** a deep phrase `src/foo` stored as `src\\/foo` inside a JSON-encoded output gives identical results with and without rg.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files. Each new test must fail against the pre-fix code (confirm by temporarily reverting the fix).
+**Commit:** `fix(p02-t15): skip rg prefilter for deep-tier scans`
+
+---
+
 ## Phase 3: Skill packaging, distribution, CLI integration tests
 
 ### Task p03-t01: SKILL.md agent guidance and references
@@ -856,7 +976,7 @@ Source: reviews/archived/p01-review-2026-10-02T062929Z.md, Low L2.
 | ----- | -------- | --------------- | ---------- | ----------------------------------------------------------- | ------------- | ---------- | ----------------- |
 | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T061433Z.md | d2fdc0bed2f806ebbd0463e396cc66e747c3f488 | auto | - |
 | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T062929Z.md | e4ae386d889d279a69e859fa7bd44aaca422b67d | auto | - |
-| p02   | code     | pending         | -          | -                                                           | -             | -          | -                 |
+| p02   | code     | fixes_added | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md | 0367021c | auto | - |
 | p03   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | p04   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | final | code     | pending         | -          | -                                                           | -             | -          | -                 |
@@ -883,11 +1003,11 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 **Summary:**
 
 - Phase 1: 16 tasks. Core library: types/shim, options/time, matcher/snippets, redaction, tool probe, plus 11 p01 review fixes (t06–t16).
-- Phase 2: 7 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry.
+- Phase 2: 15 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 8 p02 review fixes (t08–t15).
 - Phase 3: 3 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests.
 - Phase 4: 3 tasks. Docs, stale-path fix, changelog plus premerge.
 
-**Total: 29 tasks**
+**Total: 37 tasks**
 
 ## References
 

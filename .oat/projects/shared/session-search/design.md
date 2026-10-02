@@ -98,8 +98,10 @@ The skill sits beside the existing `session-*` skills. It ships standalone (`ski
    → rg -l prefilter (if available) → Node stream verify (user/assistant only)
 8. if pass 1 had a cwd scope and produced 0 sessions → re-run 5–7 unscoped,
    set widened=true
-9. if still 0 sessions and the deep rung is enabled → T4: same as T3 with tool
-   output included, set tiersRun += deep
+9. if still 0 sessions, the content tier is selected, and the deep rung is
+   enabled → T4: same as T3 with tool output included. `--include-tools`
+   instead labels the content scan itself `deep`. tiersRun lists only scans
+   that actually ran (a guard-skipped or zero-file rung is omitted)
 10. rank, roll up subagents, redact, cap snippets, limit → emit
 ```
 
@@ -115,11 +117,12 @@ The skill sits beside the existing `session-*` skills. It ships standalone (`ski
 interface SourceAdapter {
   runtime: Runtime; // 'claude-code' | 'codex' | 'cursor'
   roots(home: string): StoreRoots; // existence-checked paths
-  enumerate(ctx: AdapterContext): Promise<SessionFile[]>;
+  enumerate(ctx: EnumerateContext): Promise<SessionFile[]>; // EnumerateContext = Omit<AdapterContext, 'files'>
   historyHits(ctx: AdapterContext, m: Matcher): Promise<Hit[]>; // tier 1
   metadataHits(ctx: AdapterContext, m: Matcher): Promise<Hit[]>; // tier 2
   sessionInfo(file: SessionFile): Promise<SessionInfo>; // cwd, title, firstPrompt, startedAt (bounded read)
   classifyRecord(record: JsonObject, includeTools: boolean): TextUnit[]; // role-tagged text for tier 3/4
+  openHint(file: SessionFile, info: SessionInfo): { command: string | null; hint: string };
 }
 ```
 
@@ -181,7 +184,7 @@ All adapters degrade gracefully. A missing root yields no sessions and adds a `s
   - Before tier 3, sum the bytes of the candidate files.
   - The sum is measured after the window and scope narrowing. If it exceeds `largeScanBytes` (default 2 GiB, flag `--large-scan-bytes`) and `--allow-large-scan` is unset, restrict tier 3 to sessions already hit in tiers 1–2 and set `needsConfirmation`. The restricted set's bytes are then recomputed. If they still exceed the threshold, the content and deep tiers are skipped and only cheap-tier results are returned with `needsConfirmation`.
   - The agent asks the user and re-runs with `--allow-large-scan`.
-- **Deep rung:** when everything above yields 0 sessions and `--no-deep` is unset, run tier 4 (tool output included) under the same guard.
+- **Deep rung:** when everything above yields 0 sessions, the content tier is selected, and `--no-deep` is unset, run tier 4 (tool output included) under the same guard. With `--include-tools`, the content scan itself is labeled `deep`. `tiersRun` records only scans that ran.
 - **Deadline:** an optional `--deadline-ms` (default none). When it is reached, the CLI returns partial results with `incomplete: true`.
 
 ### Ranker
