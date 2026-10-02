@@ -93,15 +93,15 @@ oat_implement_exit_gate:
   freshness_head: '76e1b108abf51192af2d2f99d1dab3c7c3a70d50'
   freshness_fingerprint: 'sha256:effective-delta-v2:bc56701335df222b6ae9a0c02d15dc058ddd0598da40d87e47441f53f1f5b7ca'
   waivers: []
-  launch_state: accepted
+  launch_state: result_persisted
   launch_attempt_id: impl-gate-70b256c8a3cc
   launch_started_at: '2026-10-02T17:28:29Z'
   launch_result_receipt: .oat/projects/shared/session-search/gate-receipts/impl-gate-70b256c8a3cc.json
   gate_run_marker: /var/folders/ch/kmbmcdfd4gb807zjsjt2td4h0000gp/T/oat-gate-runs/578d2977-81dc-42a4-bb93-a71adabbb844.json
   gate_run_id: 578d2977-81dc-42a4-bb93-a71adabbb844
-  envelope_status: null
-  artifact: null
-  handoff: null
+  envelope_status: ok
+  artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md
+  handoff: "Run oat-project-review-receive for .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md before treating this gate review as consumed."
   receive_state: not_started
   receive_correlation: null
   receive_source_artifact: null
@@ -109,7 +109,7 @@ oat_implement_exit_gate:
   receive_event_identity: null
   receive_pre_head: null
   receive_commit: null
-  receive_eligible: false
+  receive_eligible: true
   receive_completed: false
   failure: null
   updated_at: '2026-10-02T17:28:29Z'
