@@ -863,6 +863,23 @@ Source: reviews/archived/p02-review-2026-10-02T072802Z.md, Low.
 
 ---
 
+### Task p02-t20: (root) Make the tool-probe timeout configurable and de-flake stub tests
+
+Source: root follow-up to a p02 fix-round-2 implementer concern. Under heavy load, stub `--version` scripts exceed the fixed 3 s probe timeout (`lib/tools.ts` `VERSION_TIMEOUT_MS`), so stub-based tests flake. Slow PATH wrapper shims (e.g. super.engineering's, about 5 s) would be misreported as absent too.
+
+**Files:** `lib/tools.ts`, `lib/tools.test.ts`, `helpers/test-helpers.ts`, and the stub-using tests in `lib/adapters/codex.test.ts` and `lib/pipeline.test.ts` (env only).
+
+**Behavior:**
+
+- `probeTools(env)` honors `SESSION_SEARCH_PROBE_TIMEOUT_MS`: a positive integer, default 3000, clamped to [500, 60000]. Invalid values fall back to the default, with a probe note.
+- Tests that spawn stub executables set it to 20000 through a shared helper.
+
+**Test:** the override is honored (a stub that sleeps 1.5 s is found with 5000 and reported absent with 500), and invalid values fall back to the default.
+**Verify:** `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files.
+**Commit:** `fix(p02-t20): make tool probe timeout configurable`
+
+---
+
 ## Phase 3: Skill packaging, distribution, CLI integration tests
 
 ### Task p03-t01: SKILL.md agent guidance and references
@@ -1034,7 +1051,7 @@ Source: reviews/archived/p02-review-2026-10-02T072802Z.md, Low.
 | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T061433Z.md | d2fdc0bed2f806ebbd0463e396cc66e747c3f488 | auto | - |
 | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T062929Z.md | e4ae386d889d279a69e859fa7bd44aaca422b67d | auto | - |
 | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md | 0367021c | auto | - |
-| p02   | code     | fixes_added | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md | e09b9afe | auto | - |
+| p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md | e09b9afe | auto | - |
 | p03   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | p04   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | final | code     | pending         | -          | -                                                           | -             | -          | -                 |
@@ -1061,11 +1078,11 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 **Summary:**
 
 - Phase 1: 16 tasks. Core library: types/shim, options/time, matcher/snippets, redaction, tool probe, plus 11 p01 review fixes (t06–t16).
-- Phase 2: 19 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 12 p02 review fixes (t08–t19).
+- Phase 2: 20 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry, plus 12 p02 review fixes (t08–t19) and 1 root follow-up (t20).
 - Phase 3: 3 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests.
 - Phase 4: 3 tasks. Docs, stale-path fix, changelog plus premerge.
 
-**Total: 41 tasks**
+**Total: 42 tasks**
 
 ## References
 

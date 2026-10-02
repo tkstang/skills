@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p02-t16
+oat_current_task_id: p02-t20
 oat_generated: false
 ---
 
@@ -34,11 +34,11 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 16    | 16/16     |
-| Phase 2 | in_progress | 19    | 15/19     |
+| Phase 2 | in_progress | 20    | 19/20     |
 | Phase 3 | pending     | 3     | 0/3       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 31/41 tasks completed
+**Total:** 35/42 tasks completed
 
 ---
 
@@ -154,7 +154,7 @@ Behavior notes:
 
 ## Phase 2: Adapters, scanner, pipeline, ranker, CLI
 
-**Status:** in_progress (re-review passed 0C/0H; fix tasks p02-t16..t19 queued)
+**Status:** in_progress (t16–t19 done; root follow-up p02-t20 queued)
 
 ### Phase Summary
 
@@ -180,6 +180,16 @@ Behavior notes:
 | p02-t05 | completed | 2ef33a65 |
 | p02-t06 | completed | 49976082 |
 | p02-t07 | completed | 0367021c |
+
+### Review-fix tasks p02-t16..p02-t19
+
+**Status:** completed via `cont-session-search-p02-fix-2`, range `b3885e66..92807a6b`. Commits: t16 bf3adb40, t17 07d7a3b0, t18 7520d392, t19 92807a6b. 224 tests pass (root re-verified).
+
+- Ask-user answers are matched on untruncated raw text in both runtimes, with no duplicate tool units.
+- Question text is still truncated to 500 chars (assistant role). This is accepted as Low (the plan covered answers only).
+- Root added follow-up **p02-t20** for the load-induced probe-timeout flake the implementer reported.
+
+---
 
 ### Review Received: p02 (re-review, cycle 2)
 
