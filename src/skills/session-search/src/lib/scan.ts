@@ -9,6 +9,13 @@
  * after decoding. The prefilter therefore runs only when every pattern is
  * prefilter-safe (see `isPrefilterSafe`).
  *
+ * The superset argument holds only when Node matches the record's decoded
+ * strings once. Deep-tier text breaks that: Codex tool output is often a
+ * JSON-encoded string decoded a second time, and Claude tool input is
+ * re-serialized, so the raw bytes may hold escapes such as `\/` or `\u003c`
+ * that no safe pattern matches. The prefilter is therefore skipped on the deep
+ * tier (`includeTools`).
+ *
  * Verification streams each file with an LF-only splitter, skips oversize
  * lines before `JSON.parse`, and lets the runtime adapter classify each record
  * into role-tagged units. On the deep tier, oversize lines that are known
@@ -360,7 +367,8 @@ export async function scanFiles(
   const notes: string[] = [];
   const hits: Hit[] = [];
   let candidates = files;
-  if (options.rg && files.length > 0) {
+  // Deep-tier text is decoded twice or re-serialized; see the module comment.
+  if (options.rg && files.length > 0 && !options.includeTools) {
     const prefilter = prefilterWithRg(
       options.rg,
       matcher.patterns,

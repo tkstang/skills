@@ -590,6 +590,34 @@ describe.skipIf(RG === null)('rg prefilter against the Node scan', () => {
     expect(withRg.notes).toEqual([]);
   });
 
+  it('skips the prefilter on the deep tier, where text is decoded twice', async () => {
+    // The inner JSON escapes '/', so the raw bytes read `src\\/foo`.
+    const encoded = '{"output":"opened src\\/foo in the editor"}';
+    writeCodexRollout(temp.home, {
+      id: CODEX_ID,
+      startedAtMs: NOW - DAY_MS,
+      records: [
+        codexSessionMeta({ id: CODEX_ID, cwd: '/work/repo' }),
+        codexToolOutput('function_call_output', 'call_1', encoded, 1),
+      ],
+    });
+    const files = await enumerateAll();
+    const matcher = compileMatcher(['src/foo'], { literal: true });
+    const deep = { ...options({ includeTools: true }) };
+
+    const node = await scanFiles(files, adapterFor, matcher, {
+      ...deep,
+      rg: null,
+    });
+    const withRg = await scanFiles(files, adapterFor, matcher, {
+      ...deep,
+      rg: RG,
+    });
+
+    expect(node.hits).toHaveLength(1);
+    expect(withRg.hits).toEqual(node.hits);
+  });
+
   it.each([
     ['perceive\\s*now', 'perceive\nnow'],
     ['foo.bar', 'foo"bar'],
