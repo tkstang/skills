@@ -63,8 +63,8 @@ oat_workflow_origin: native # native | imported
 #   gate_run_marker: /var/folders/ch/kmbmcdfd4gb807zjsjt2td4h0000gp/T/oat-gate-runs/c5a7745f-9dcf-4f4f-b0e4-d153568e960b.json
 #   gate_run_id: c5a7745f-9dcf-4f4f-b0e4-d153568e960b
 #   envelope_status: null # ok | blocked | review_failed | other terminal status
-#   artifact: null
-#   handoff: null
+#   artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T120208Z.md
+#   handoff: "Gate passed at the high threshold, but the final review still contains non-blocking findings (medium=1, low=3). Run oat-project-review-receive for .oat/projects/shared/session-search/reviews/final-review-2026-10-02T120208Z.md to disposition them before marking the final review row passed."
 #   receive_state: not_started # not_started | intent_persisted | completed | reconciliation_required
 #   receive_correlation: null
 #   receive_source_artifact: null
@@ -72,7 +72,7 @@ oat_workflow_origin: native # native | imported
 #   receive_event_identity: null
 #   receive_pre_head: null
 #   receive_commit: null
-#   receive_eligible: false
+#   receive_eligible: true
 #   receive_completed: false
 #   failure: null
 #   updated_at: '2026-07-18T00:00:00Z'
@@ -93,13 +93,13 @@ oat_implement_exit_gate:
   freshness_head: '724783c80ba743c8a4b7c26b2961cba3a6ae5189'
   freshness_fingerprint: 'sha256:effective-delta-v2:3e45191a52facc2ec76fb5ce9a76005e9b6df906c9faf5b843a6593f76d07e5c'
   waivers: []
-  launch_state: accepted
+  launch_state: result_persisted
   launch_attempt_id: impl-gate-fc42bc0a38ac
   launch_started_at: '2026-10-02T11:47:17Z'
   launch_result_receipt: .oat/projects/shared/session-search/gate-receipts/impl-gate-fc42bc0a38ac.json
   gate_run_marker: null
   gate_run_id: null
-  envelope_status: null
+  envelope_status: ok
   artifact: null
   handoff: null
   receive_state: not_started
