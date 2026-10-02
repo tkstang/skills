@@ -205,6 +205,8 @@ export interface SearchDiagnostics {
   linesSkippedOversize: number;
   parseErrors: number;
   elapsedMs: number;
+  /** Bounded `sessionInfo` reads performed while applying `--cwd` scoping. */
+  scopeReads: number;
 }
 
 /** CLI JSON output (`--json`). */

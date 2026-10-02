@@ -137,6 +137,8 @@ async function inScope(
   file: SessionFile,
   adapter: SourceAdapter,
   hints: readonly string[],
+  /** Called before each bounded `sessionInfo` read. */
+  onRead: () => void = () => {},
 ): Promise<boolean> {
   if (file.runtime === 'cursor') {
     return hints.some((hint) =>
@@ -149,11 +151,13 @@ async function inScope(
     ) {
       return false;
     }
+    onRead();
     const info = await adapter.sessionInfo(file);
     return info.cwd === null ? true : cwdMatchesHint(info.cwd, hints);
   }
-  const cwd = file.cwd ?? (await adapter.sessionInfo(file)).cwd;
-  return cwdMatchesHint(cwd, hints);
+  if (file.cwd != null) return cwdMatchesHint(file.cwd, hints);
+  onRead();
+  return cwdMatchesHint((await adapter.sessionInfo(file)).cwd, hints);
 }
 
 interface GuardResult {
@@ -337,6 +341,7 @@ export async function runSearch(
 
   let candidates = windowFiles;
   let widened = false;
+  let scopeReads = 0;
   if (options.cwdHints.length > 0) {
     const scoped: SessionFile[] = [];
     for (const file of windowFiles) {
@@ -345,8 +350,15 @@ export async function runSearch(
         incomplete = true;
         break;
       }
-      if (await inScope(file, adapterFor(file.runtime), options.cwdHints))
-        scoped.push(file);
+      const matches = await inScope(
+        file,
+        adapterFor(file.runtime),
+        options.cwdHints,
+        () => {
+          scopeReads += 1;
+        },
+      );
+      if (matches) scoped.push(file);
     }
     candidates = scoped;
   }
@@ -410,6 +422,7 @@ export async function runSearch(
       linesSkippedOversize: stats.linesSkippedOversize,
       parseErrors: stats.parseErrors,
       elapsedMs: Date.now() - started,
+      scopeReads,
     },
   };
 }
