@@ -71,6 +71,24 @@ describe('compileMatcher', () => {
     expect(() => compileMatcher(['foo(bar'], { literal: true })).not.toThrow();
   });
 
+  it.each(['(perceive)?', 'x*', '^', '(?:)', 'now|'])(
+    'rejects %j because it matches empty text',
+    (pattern) => {
+      expect(() => compileMatcher([pattern], { literal: false })).toThrow(
+        UsageError,
+      );
+      expect(() => compileMatcher([pattern], { literal: false })).toThrow(
+        /pattern matches empty text/,
+      );
+    },
+  );
+
+  it('rejects an empty literal pattern', () => {
+    expect(() => compileMatcher([''], { literal: true })).toThrow(
+      /pattern matches empty text/,
+    );
+  });
+
   it('requires at least one pattern', () => {
     expect(() => compileMatcher([], { literal: false })).toThrow(UsageError);
   });

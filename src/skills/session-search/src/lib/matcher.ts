@@ -33,14 +33,20 @@ export function compileMatcher(
     throw new UsageError('At least one --pattern is required.');
   }
   const compiled = patterns.map((pattern) => {
+    let regex: RegExp;
     try {
-      return new RegExp(literal ? escapeRegExp(pattern) : pattern, 'i');
+      regex = new RegExp(literal ? escapeRegExp(pattern) : pattern, 'i');
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       throw new UsageError(
         `Invalid regex pattern "${pattern}" (${reason}). Pass --literal to match it as plain text.`,
       );
     }
+    // A pattern that matches empty text would hit every text unit.
+    if (regex.test('')) {
+      throw new UsageError(`pattern matches empty text: "${pattern}"`);
+    }
+    return regex;
   });
 
   return {
