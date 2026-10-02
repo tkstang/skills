@@ -231,6 +231,87 @@ describe('runSearch', () => {
     expect(noDeep.results).toEqual([]);
   });
 
+  it('never matches text that exists only in a child inherited range', async () => {
+    writeCodexRollout(temp.home, {
+      id: PARENT,
+      startedAtMs: NOW - 2 * HOUR_MS,
+      records: [
+        codexSessionMeta({ id: PARENT, cwd: '/work/repo' }),
+        codexMessage('user', 'parent text without the phrase', 1),
+      ],
+    });
+    writeCodexRollout(temp.home, {
+      id: CHILD,
+      startedAtMs: NOW - HOUR_MS,
+      records: [
+        codexSessionMeta({
+          id: CHILD,
+          sessionId: PARENT,
+          cwd: '/work/repo',
+          subagentHistoryStartOrdinal: 3,
+        }),
+        codexSessionMeta({ id: PARENT, cwd: '/work/repo' }, 1),
+        codexMessage('user', 'inherited-only zebra phrase', 2),
+        codexMessage('assistant', 'child work', 3),
+      ],
+    });
+
+    const result = await search({ pattern: ['zebra phrase'] });
+
+    expect(result.results).toEqual([]);
+    expect(result.tiersRun).toContain('deep');
+  });
+
+  it('drops cheap-tier hits for sessions whose transcript is outside --since', async () => {
+    const old = writeClaudeSession(temp.home, {
+      cwd: '/work/old',
+      mtimeMs: NOW - 30 * DAY_MS,
+      records: (e) => [claudeUser(e, 'ancient zebra chat')],
+    });
+    writeClaudeHistory(temp.home, [
+      {
+        display: 'ancient zebra chat',
+        project: '/work/old',
+        sessionId: old.sessionId,
+        timestamp: NOW - HOUR_MS,
+      },
+    ]);
+
+    const windowed = await search({ pattern: ['zebra'], since: '7d' });
+    const unwindowed = await search({ pattern: ['zebra'] });
+
+    expect(windowed.results).toEqual([]);
+    expect(unwindowed.results.map((hit) => hit.sessionId)).toEqual([
+      old.sessionId,
+    ]);
+  });
+
+  it('widens even when an out-of-scope history hit exists', async () => {
+    const other = writeClaudeSession(temp.home, {
+      cwd: '/work/other',
+      records: (e) => [claudeUser(e, 'zebra in another repo')],
+    });
+    writeClaudeSession(temp.home, {
+      cwd: '/work/hinted',
+      records: (e) => [claudeUser(e, 'nothing relevant')],
+    });
+    writeClaudeHistory(temp.home, [
+      {
+        display: 'zebra in another repo',
+        project: '/work/other',
+        sessionId: other.sessionId,
+        timestamp: NOW - HOUR_MS,
+      },
+    ]);
+
+    const result = await search({ pattern: ['zebra'], cwd: ['/work/hinted'] });
+
+    expect(result.widened).toBe(true);
+    expect(result.results.map((hit) => hit.sessionId)).toEqual([
+      other.sessionId,
+    ]);
+  });
+
   it('does not duplicate parent hits through inherited child records', async () => {
     writeCodexRollout(temp.home, {
       id: PARENT,

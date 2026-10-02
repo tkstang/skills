@@ -154,6 +154,33 @@ describe('scanFile', () => {
     ]);
   });
 
+  it('never marks a subagent transcript user-role match as user-typed', async () => {
+    const session = writeClaudeSession(temp.home, {
+      cwd: '/work/repo',
+      records: (e) => [claudeAssistant(e, 'parent only')],
+      subagents: [
+        {
+          agentId: 'a3333333333333333',
+          records: (e) => [claudeUser(e, 'delegated zebra task')],
+        },
+      ],
+    });
+    const files = await enumerateAll();
+    const agent = files.find((file) => file.path === session.subagentPaths[0]);
+    expect(agent?.isSubagent).toBe(true);
+
+    const { hits } = await scanFile(
+      agent as SessionFile,
+      adapterFor('claude-code'),
+      compileMatcher(['zebra'], { literal: true }),
+      options(),
+    );
+
+    expect(
+      hits.map((hit) => [hit.role, hit.userTyped, hit.fromSubagent]),
+    ).toEqual([['user', false, true]]);
+  });
+
   it('stops a file after maxHitsPerSession hits', async () => {
     writeClaudeSession(temp.home, {
       cwd: '/work/repo',
