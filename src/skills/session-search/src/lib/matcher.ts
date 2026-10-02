@@ -86,20 +86,36 @@ export function buildSnippet(
   length: number,
 ): string {
   const safeIndex = Math.min(Math.max(0, index), text.length);
-  const start = Math.max(0, safeIndex - SNIPPET_CONTEXT_CHARS);
-  const end = Math.min(
+  let start = Math.max(0, safeIndex - SNIPPET_CONTEXT_CHARS);
+  let end = Math.min(
     text.length,
     safeIndex + Math.max(0, length) + SNIPPET_CONTEXT_CHARS,
   );
+  // Keep window edges off the middle of a surrogate pair (e.g. an emoji):
+  // drop the orphaned half instead of emitting a lone surrogate.
+  if (splitsSurrogatePair(text, start)) start += 1;
+  if (splitsSurrogatePair(text, end)) end -= 1;
   const prefix = start > 0 ? ELLIPSIS : '';
   let suffix = end < text.length ? ELLIPSIS : '';
   let body = text.slice(start, end).replace(/\s+/g, ' ').trim();
 
   if (prefix.length + body.length + suffix.length > SNIPPET_MAX_CHARS) {
     suffix = ELLIPSIS;
-    body = body.slice(0, SNIPPET_MAX_CHARS - prefix.length - suffix.length);
+    let cut = SNIPPET_MAX_CHARS - prefix.length - suffix.length;
+    if (splitsSurrogatePair(body, cut)) cut -= 1;
+    body = body.slice(0, cut);
   }
   return `${prefix}${body}${suffix}`;
+}
+
+/** True when `position` falls between the two halves of a surrogate pair. */
+function splitsSurrogatePair(text: string, position: number): boolean {
+  if (position <= 0 || position >= text.length) return false;
+  const before = text.charCodeAt(position - 1);
+  const after = text.charCodeAt(position);
+  return (
+    before >= 0xd800 && before <= 0xdbff && after >= 0xdc00 && after <= 0xdfff
+  );
 }
 
 /**

@@ -143,6 +143,43 @@ describe('buildSnippet', () => {
   });
 });
 
+describe('buildSnippet: surrogate pairs', () => {
+  const EMOJI = '\u{1F600}';
+
+  it('does not split an emoji at the window start', () => {
+    // Emoji at 10-11; the hit at 91 puts the window start (91 - 80) on 11.
+    const text = `${'x'.repeat(10)}${EMOJI}${'y'.repeat(79)}TARGET${'z'.repeat(10)}`;
+    expect(text.indexOf('TARGET')).toBe(91);
+
+    const snippet = buildSnippet(text, 91, 6);
+
+    expect(snippet.isWellFormed()).toBe(true);
+    expect(snippet.startsWith('…y')).toBe(true);
+  });
+
+  it('does not split an emoji at the window end', () => {
+    // Window end is 0 + 6 + 80 = 86; the emoji occupies 85-86.
+    const text = `TARGET${'y'.repeat(79)}${EMOJI}${'z'.repeat(10)}`;
+
+    const snippet = buildSnippet(text, 0, 6);
+
+    expect(snippet.isWellFormed()).toBe(true);
+    expect(snippet.endsWith('y…')).toBe(true);
+  });
+
+  it('does not split an emoji at the length cap', () => {
+    // Prefix ellipsis (1) + 80 context chars + hit; the cap cut lands at
+    // body index 238, between the emoji halves at 237-238.
+    const hit = `${'H'.repeat(157)}${EMOJI}${'H'.repeat(300)}`;
+    const text = `${'x'.repeat(100)}${hit}${'y'.repeat(100)}`;
+
+    const snippet = buildSnippet(text, 100, hit.length);
+
+    expect(snippet.isWellFormed()).toBe(true);
+    expect(snippet.length).toBeLessThanOrEqual(SNIPPET_MAX_CHARS);
+  });
+});
+
 describe('snippetFor', () => {
   const secret = ['QmFzZTY0', 'RW5jb2RlZERhdGFXaXRoMURpZ2l0']
     .join('')
