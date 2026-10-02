@@ -1,17 +1,17 @@
 ---
-oat_status: in_progress
-oat_ready_for: null
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-10-02
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_plan_parallel_groups: []
 oat_plan_source: quick
 oat_import_reference: null
 oat_import_source_path: null
 oat_import_provider: null
 oat_generated: false
-oat_template: true
+oat_template: false
 ---
 
 # Implementation Plan: session-search
@@ -690,7 +690,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 | final | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -             | auto       | -                 |
 | plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -             | gate       | codex-6-sol-xhigh |
-| plan  | artifact | received        | 2026-10-02 | reviews/artifact-plan-review-2026-10-02T055258Z.md          | -             | -          | -                 |
+| plan  | artifact | passed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T055258Z.md | - | gate | codex-6-sol-xhigh |
 
 For code-review events, `Reviewed Head` is the full 40-character SHA at the
 head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
@@ -700,7 +700,7 @@ cell; never truncate a widened row back to five columns.
 
 Plan artifact review disposition (Step 3.6/3.7): the auto artifact-review loop ran 3 structured attempts with `oat-reviewer-claude-claude-opus-5-5-high`. Request IDs: session-search-plan-review-1/2/3. Route: native, policy-resolved under the `high` dispatch policy. Findings: attempt 1 had 3 High, 7 Medium, and 4 Low, all fixed. Attempt 2 had 1 High, 5 Medium, and 3 Low, all fixed. Attempt 3 had 1 High (deep-rung raw fallback scope) and 2 Medium (`validate:skill-versions` base ref; prefilter wildcard safety), all fixed in-artifact after the retry bound (2) was exhausted, so they have not been re-reviewed by this loop. They are re-reviewed by the configured cross-family `oat-project-quick-start` exit gate.
 
-Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `codex-6-sol-xhigh`, different-family) was **blocked** with 3 High and 1 Medium findings. All four were received as valid and resolved in-artifact: quoted/escaped JSON credential redaction; prefilter rejects character classes; Claude tool text extracted untruncated; bounded restricted large-scan. Gate attempt 2 re-reviews.
+Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `codex-6-sol-xhigh`, different-family) was **blocked** with 3 High and 1 Medium findings. All four were received as valid and resolved in-artifact: quoted/escaped JSON credential redaction; prefilter rejects character classes; Claude tool text extracted untruncated; bounded restricted large-scan. Gate attempt 2 (target `codex-6-sol-xhigh`, different-family) **passed** with 0 Critical, 0 High, 0 Medium, and 0 Low. Plan artifact review disposition: **passed**.
 
 **Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
 

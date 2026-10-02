@@ -26,8 +26,10 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | N     | 0/N       |
-| Phase 2 | pending     | N     | 0/N       |
+| Phase 1 | in_progress | 5     | 0/5       |
+| Phase 2 | pending     | 7     | 0/7       |
+| Phase 3 | pending     | 3     | 0/3       |
+| Phase 4 | pending     | 3     | 0/3       |
 
 **Total:** 0/{N} tasks completed
 
