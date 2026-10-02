@@ -110,6 +110,24 @@ describe('redact: key-value secrets', () => {
     expect(out).toBe(`{\\"private_key\\": ${REDACTED}, \\"k\\":1}`);
   });
 
+  it('masks two-level escaped JSON credentials', () => {
+    // A JSON-encoded tool output that itself contains JSON.
+    const raw = `{\\\\\\"password\\\\\\":\\\\\\"${SYNTHETIC}\\\\\\"}`;
+    expect(raw).toBe('{\\\\\\"password\\\\\\":\\\\\\"synthetic-only\\\\\\"}');
+
+    expect(redact(raw)).toBe(`{\\\\\\"password\\\\\\":${REDACTED}}`);
+  });
+
+  it('masks three-level escaped values whole, including deeper-escaped quotes', () => {
+    const q3 = '\\'.repeat(7) + '"';
+    const inner = '\\'.repeat(15) + '"';
+    const raw = `${q3}api_key${q3}: ${q3}pass ${inner}word${inner} tail${q3}, ${q3}k${q3}:1`;
+
+    const out = redact(raw);
+
+    expect(out).toBe(`${q3}api_key${q3}: ${REDACTED}, ${q3}k${q3}:1`);
+  });
+
   it('stops a bare value at a delimiter', () => {
     expect(redact(`token=${SYNTHETIC},other=1`)).toBe(
       `token=${REDACTED},other=1`,
@@ -172,6 +190,9 @@ describe('redact: oversize input', () => {
       'a'.repeat(256 * 1024),
       'token'.repeat(52 * 1024),
       `password=${'x'.repeat(256 * 1024)}`,
+      '\\'.repeat(256 * 1024),
+      `\\\\"password\\\\": \\\\"${'x'.repeat(256 * 1024)}`,
+      '\\"'.repeat(128 * 1024),
     ];
     const started = performance.now();
     for (const input of inputs) redact(input);

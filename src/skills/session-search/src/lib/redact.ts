@@ -16,27 +16,32 @@ const CREDENTIAL_WORD =
   'password|passwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret|private[_-]?key';
 
 // Key: an identifier containing a credential word (identifier prefixes and
-// suffixes allowed, e.g. AWS_SECRET_ACCESS_KEY), optionally wrapped in ", ',
-// or an escaped \" as found in raw serialized records.
-// The lookbehind anchors the identifier at the start of its run; the
+// suffixes allowed, e.g. AWS_SECRET_ACCESS_KEY), optionally wrapped in a
+// quote preceded by any backslash run: ", ', \" (one level of escaping, as in
+// raw serialized records), \\\" (two levels), and so on.
+// Linear-time anchoring: the wrapper may start only at the beginning of a
+// backslash run, and the identifier only at the start of its run; the
 // lookahead pair then requires a credential word inside the run and consumes
-// the whole run atomically. Together they keep a long identifier run linear
-// rather than quadratic to scan.
+// the whole run atomically.
 const IDENT = '[A-Za-z0-9_.-]';
-const KEY = `(?:\\\\"|["'])?(?<!${IDENT})(?=${IDENT}*?(?:${CREDENTIAL_WORD}))(?=(?<ident>${IDENT}+))\\k<ident>(?:\\\\"|["'])?`;
+const KEY = `(?:(?<!\\\\)\\\\*["'])?(?<!${IDENT})(?=${IDENT}*?(?:${CREDENTIAL_WORD}))(?=(?<ident>${IDENT}+))\\k<ident>(?:\\\\*["'])?`;
 const SEPARATOR = String.raw`\s*[:=]\s*`;
 // Value alternatives, most specific first. Every quoted form is masked whole,
 // quotes included.
 const VALUE = [
-  // Escaped-quoted string inside a serialized record: \"...\" where the body
-  // may hold escaped-escaped quotes (\\\") and backslashes (\\\\).
+  // One level of escaping: \"...\" where the body may hold escaped-escaped
+  // quotes (\\\") and backslashes (\\\\).
   String.raw`\\"(?:\\\\\\"|\\\\\\\\|\\\\[^"\\]|[^"\\])*\\"`,
   // Double-quoted string honoring escapes and spaces.
   String.raw`"(?:[^"\\\n]|\\.)*"`,
   // Single-quoted string.
   String.raw`'(?:[^'\\\n]|\\.)*'`,
-  // Unterminated quote: mask to the end of the line.
-  String.raw`(?:\\"|["'])[^\n]*`,
+  // Two or more levels of escaping: the value opens with a backslash run plus
+  // a quote and closes at the next occurrence of that same delimiter that is
+  // not itself preceded by a backslash (deeper-escaped quotes are skipped).
+  String.raw`(?<vq>\\{2,}["'])(?:(?!(?<!\\)\k<vq>)[^\n])*(?<!\\)\k<vq>`,
+  // Unterminated quote at any escaping level: mask to the end of the line.
+  String.raw`\\*["'][^\n]*`,
   // Bare value up to whitespace or a delimiter.
   String.raw`[^\s,}&]+`,
 ].join('|');
