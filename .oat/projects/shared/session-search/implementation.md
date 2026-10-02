@@ -1,9 +1,9 @@
 ---
-oat_status: complete
+oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: null
+oat_current_task_id: prev1-t01
 oat_generated: false
 ---
 
@@ -38,8 +38,9 @@ oat_generated: false
 | Phase 3 | complete    | 10    | 10/10     |
 | Phase 4 | complete    | 7     | 7/7       |
 | Phase 5 | complete    | 10    | 10/10     |
+| Phase p-rev1 | in_progress | 4 | 0/4 |
 
-**Total:** 64/64 tasks completed
+**Total:** 64/68 tasks completed
 
 ---
 
@@ -460,6 +461,23 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 **Review artifact:** reviews/archived/final-review-2026-10-02T173611Z.md (envelope `ok`, receive-eligible, reviewed head `4abed1dc`)
 
 **Findings:** Critical 0, High 0, Medium 0, Low 0. **Gate passed clean.** The judgment sweep has nothing to disposition. The generation is recorded as `allowed`/`passed`.
+
+---
+
+### Revision Received: PR #115 review feedback
+
+**Date:** 2026-10-02
+**Source:** CodeRabbit review on PR #115, with 4 inline comments and 1 outside-diff comment. Root triaged it, and the user directed "Fix all, then complete" during `oat-project-complete` (paused before any completion write).
+
+**Changes requested:**
+
+- `ghp_`-shaped literal in `rank.test.ts`: becomes **prev1-t01**.
+- Claude `tool_result` carriers past the 512-byte prefix: becomes **prev1-t02**. Root measured 48/48 local oversize Claude tool lines within 512 B, so this is robustness hardening for a long `cwd`.
+- Stale `session_started` wording in the export-transcript reference: becomes **prev1-t03**.
+- PJM `current-state.md` stale after PR creation: becomes **prev1-t04**.
+- `state.md` progress 61/61 and "scaffolded": resolved by the completion rewrite (no task).
+
+**Next:** Execute the revision tasks via `oat-project-implement`. Then run the p-rev1 phase review, a narrowed final review, and a new exit-gate generation (the code change makes generation 2 stale). Then `oat-project-complete`.
 
 ---
 

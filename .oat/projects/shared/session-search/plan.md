@@ -1367,6 +1367,45 @@ Source: reviews/archived/final-review-2026-10-02T122041Z.md, Low L1.
 
 ---
 
+## Phase p-rev1: Revision 1
+
+Source: PR #115 CodeRabbit review feedback (2026-10-02), triaged by root; the user directed "fix all, then complete". The state.md progress comment (61/61, "scaffolded") is resolved by the completion rewrite of state.md and needs no task.
+
+### Task prev1-t01: (revision) Build the fake GitHub token fixture by concatenation
+
+**Files:** Modify `src/skills/session-search/src/lib/rank.test.ts`.
+
+**Step 1:** Replace the literal `ghp_…` token near line 222 with a concatenated build, as `scan.test.ts` and `cli.test.ts` do, so secret scanners do not flag it. Keep the test's behavior identical.
+**Step 2: Verify:** `rg -n 'ghp_[A-Za-z0-9]{20,}' src/skills/session-search` returns nothing. Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files; `pnpm run build` and `pnpm run build:check`.
+**Step 3: Commit:** `test(prev1-t01): build fake github token fixture by concatenation`
+
+### Task prev1-t02: (revision) Detect Claude tool_result carriers beyond the 512-byte prefix
+
+**Files:** Modify `src/skills/session-search/src/lib/scan.ts` and `src/skills/session-search/src/lib/scan.test.ts`.
+
+**Step 1:** In the deep raw fallback, `isRawToolCarrier` must recognize Claude `tool_result` carriers even when a long `cwd` or other envelope fields push the marker past `OVERSIZE_PREFIX_BYTES`. Use a larger bounded prefix for the Claude check (e.g. 8 KiB) or an earlier Claude-specific marker, keeping linear time and the existing skip list (`world_state` and others).
+**Step 2:** Add a fixture: an oversize Claude `tool_result` line with a very long `cwd` and the observed key order, whose phrase lives only in the tool content. It must be found on deep (fail-before). Existing negatives stay green.
+**Step 3: Verify:** Verify `pnpm run test:vitest src/skills/session-search` and `pnpm run type-check`; format/lint the touched files; `pnpm run build` and `pnpm run build:check`.
+**Step 4: Commit:** `fix(prev1-t02): detect claude tool_result carriers past the prefix`
+
+### Task prev1-t03: (revision) Correct the Codex cwd source record in the export-transcript reference
+
+**Files:** Modify `src/skills/session-export-transcript/references/transcript-formats.md`, then regenerate.
+
+**Step 1:** Change "the cwd is read from a `session_started` record's `cwd`" to "the first `session_meta` record's `cwd` (top-level or `payload.cwd`)", matching the observer reference and the session-search store layout.
+**Step 2: Verify:** `pnpm run build`, `pnpm run build:check`, `pnpm run test:vitest tests/repo src/skills/session-export-transcript`, and `pnpm run validate:skill-versions -- --base-ref "$(git merge-base HEAD origin/main)"`. The skill is already bumped in this PR, so confirm the gate still passes without another bump.
+**Step 3: Commit:** `docs(prev1-t03): correct codex cwd source record name`
+
+### Task prev1-t04: (revision) Refresh the PJM current-state snapshot after PR creation
+
+**Files:** Modify `.oat/repo/pjm/current-state.md`.
+
+**Step 1:** Update the session-search heading from "awaiting PR" to "PR #115 open", and update the snapshot date and active-item count to match `.oat/repo/pjm/backlog/index.md` (27). Keep everything else.
+**Step 2: Verify:** the counts match the backlog index; `pnpm run validate`.
+**Step 3: Commit:** `docs(prev1-t04): refresh pjm current state for open pr`
+
+---
+
 ## Reviews
 
 | Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target       |
@@ -1387,6 +1426,7 @@ Source: reviews/archived/final-review-2026-10-02T122041Z.md, Low L1.
 | final | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T122041Z.md         | aaec2be03690af795026b08c4565e315a08272f5 | auto       | -                 |
 | final | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T172654Z.md         | 336bfd805170e527abc49a2f3310407d7645ff4e | auto       | -                 |
 | final | code | passed | 2026-10-02 | reviews/archived/final-review-2026-10-02T173611Z.md | 4abed1dc8dda554eceaaf07dec2181cfacb41d8b | gate | codex-6-sol-xhigh |
+| p-rev1 | code    | pending | -    | -        | -             | -          | -           |
 
 For code-review events, `Reviewed Head` is the full 40-character SHA at the
 head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
@@ -1411,8 +1451,9 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 - Phase 3: 10 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests. Includes 2 root follow-ups (t04 Codex MCP results, t05 ladder guidance) and 5 p03 review fixes (t06–t10).
 - Phase 4: 7 tasks. Docs, stale-path fix, changelog plus premerge. Includes 4 p04 review fixes (t04–t07).
 - Phase 5: 10 tasks. Final-review fixes (deep raw-fallback scoping, token families, bounded hit memory, ask-user unit split, help text).
+- Phase p-rev1: 4 tasks. PR #115 CodeRabbit feedback (fixture concat, Claude carrier prefix, session_meta doc, PJM current-state).
 
-**Total: 64 tasks**
+**Total: 68 tasks**
 
 ## References
 
