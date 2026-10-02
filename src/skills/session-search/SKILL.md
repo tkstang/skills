@@ -116,7 +116,7 @@ by the large-scan guard, the deadline, or flags is omitted.
 
 With `--deadline-ms`, check `incomplete`: when `true`, results are partial and
 the run may have stopped before widening or the deep rung. An incomplete run
-still exits 0 or 2. Say so and offer a re-run without the deadline.
+exits by its results (0 or 2), or 3 when `needsConfirmation` is also set. Say so and offer a re-run without the deadline.
 
 ## Step 5: Empty or weak results ladder
 
