@@ -553,6 +553,8 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 - The autonomous contract forbids self-authorizing a review beyond the cycle cap, so the run stops here.
 - **Operator action:** authorize one more final-review cycle (or perform a manual review), then resume with `/oat-project-autonomous session-search`.
 
+- **Operator override (2026-10-02T17:22:14Z):** the user replied "Proceed" to the REVIEWRECEIVE-02 boundary report. This authorizes one additional final-review cycle (cycle 4), after which closeout resumes. The source is an explicit chat instruction from the operator.
+
 <!-- orchestration-runs-end -->
 
 ---
