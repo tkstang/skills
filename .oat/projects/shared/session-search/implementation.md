@@ -31,7 +31,7 @@ oat_generated: false
 | Phase 3 | pending     | 3     | 0/3       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 0/{N} tasks completed
+**Total:** 0/18 tasks completed
 
 ---
 
