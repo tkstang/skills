@@ -76,6 +76,43 @@ oat_workflow_origin: native # native | imported
 #   receive_completed: false
 #   failure: null
 #   updated_at: '2026-07-18T00:00:00Z'
+oat_implement_exit_gate:
+  status: pending
+  resolution: configured
+  disposition: null
+  config_fingerprint: 'a43cbbb47e7ded76ad62bdcab5e1942f49b48288f5b17682279a78cc055924ab'
+  resolved_command: "OAT_GATE_EXEC_TIMEOUT_MS=2400000 oat --json gate review --project \"$PROJECT_PATH\" --review-type code --review-scope final --exit-nonzero-on important \"Use the oat-project-review-provide skill to review the current project. Use project state to determine the most appropriate review scope. If the project is complete, provide a final independent code review of the entire project. Return blocking findings clearly, or say no blocking findings. Run every verification command in the foreground of your own turn: do not use background tasks, monitors, or waiters, and do not end your turn until the review artifact has been written and committed.\""
+  resolved_description: "Semantic cross-family final implementation review before oat-project-implement exits."
+  project_override: null
+  on_failure: block
+  max_attempts: 2
+  attempts_completed: 0
+  reviewed_head: '724783c80ba743c8a4b7c26b2961cba3a6ae5189'
+  implementation_base_ref: origin/main
+  implementation_fingerprint: 'sha256:effective-delta-v2:3e45191a52facc2ec76fb5ce9a76005e9b6df906c9faf5b843a6593f76d07e5c'
+  freshness_head: '724783c80ba743c8a4b7c26b2961cba3a6ae5189'
+  freshness_fingerprint: 'sha256:effective-delta-v2:3e45191a52facc2ec76fb5ce9a76005e9b6df906c9faf5b843a6593f76d07e5c'
+  waivers: []
+  launch_state: intent_persisted
+  launch_attempt_id: impl-gate-fc42bc0a38ac
+  launch_started_at: '2026-10-02T11:47:17Z'
+  launch_result_receipt: .oat/projects/shared/session-search/gate-receipts/impl-gate-fc42bc0a38ac.json
+  gate_run_marker: null
+  gate_run_id: null
+  envelope_status: null
+  artifact: null
+  handoff: null
+  receive_state: not_started
+  receive_correlation: null
+  receive_source_artifact: null
+  receive_archived_artifact: null
+  receive_event_identity: null
+  receive_pre_head: null
+  receive_commit: null
+  receive_eligible: false
+  receive_completed: false
+  failure: null
+  updated_at: '2026-10-02T11:47:17Z'
 oat_docs_updated: null # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
