@@ -152,7 +152,7 @@ Past coding-agent sessions were hard to find again. On 2026-09-29 the user could
 
 ## Explainer Outcome
 
-- **project-recap:** generated — `explainers/project-recap/` (recipe `project-recap` v2, run `318a847d`, host verify rung; built before revision p-rev1)
+- **project-recap:** built — [.oat/repo/reference/project-recaps/20261002-session-search/site/index.html](https://github.com/tkstang/skills/blob/feat/session-search/.oat/repo/reference/project-recaps/20261002-session-search/site/index.html) (recipe `project-recap` v2, run `d5d9765d`, host verify rung; regenerated after revision p-rev1)
 
 ## Workflow Observations
 
