@@ -12,7 +12,7 @@ import path from "node:path";
 
 // src/skills/session-search/src/lib/jsonl.ts
 import { open } from "node:fs/promises";
-var OVERSIZE_PREFIX_BYTES = 512;
+var OVERSIZE_PREFIX_BYTES = 8 * 1024;
 var DEFAULT_MAX_OVERSIZE_BYTES = 32 * 1024 * 1024;
 var CHUNK_BYTES = 256 * 1024;
 async function readLines(file, options, onLine) {
@@ -481,7 +481,9 @@ var RAW_SKIP_TYPES = /"type"\s*:\s*"(?:world_state|session_meta|turn_context|com
 var RAW_CODEX_OUTPUT = /"type"\s*:\s*"response_item"[\s\S]*?"payload"\s*:\s*\{\s*"type"\s*:\s*"(?:function_call_output|custom_tool_call_output)"/u;
 var RAW_CODEX_ITEM = /"type"\s*:\s*"item_completed"[\s\S]*?"item"\s*:\s*\{\s*"type"\s*:\s*"(?:CommandExecution|McpToolCall|Extension|FileChange)"/u;
 var RAW_CLAUDE_RESULT = /"type"\s*:\s*"tool_result"/u;
+var RAW_CLAUDE_RECORD = /"parentUuid"\s*:/u;
 var RAW_ORDINAL = /"ordinal"\s*:\s*(\d+)/u;
+var RAW_HEAD_CHARS = 512;
 var RAW_ENVELOPE_FIELD = /"(?:parentUuid|logicalParentUuid|leafUuid|isSidechain|userType|cwd|sessionId|version|gitBranch|slug|agentId|uuid|timestamp|requestId|promptId|messageId|sourceToolAssistantUUID|sourceToolUseID|toolUseID|tool_use_id|type|role|is_error|isMeta|isApiErrorMessage|entrypoint|permissionMode|ordinal|call_id|thread_id|turn_id|client_authored)"\s*:\s*(?:"(?:[^"\\]|\\[\s\S]){0,1024}"|-?\d[\d.eE+-]{0,64}|true|false|null)/gu;
 var CODEX_HEADER_KEYS = /* @__PURE__ */ new Set([
   "id",
@@ -540,16 +542,20 @@ function blankCodexHeaders(line) {
   return parts.join("");
 }
 function rawToolText(line) {
-  const prefix = line.slice(0, OVERSIZE_PREFIX_BYTES);
-  const codex = RAW_CODEX_OUTPUT.test(prefix) || RAW_CODEX_ITEM.test(prefix);
+  const head = line.slice(0, RAW_HEAD_CHARS);
+  const codex = RAW_CODEX_OUTPUT.test(head) || RAW_CODEX_ITEM.test(head);
   return (codex ? blankCodexHeaders(line) : line).replace(
     RAW_ENVELOPE_FIELD,
     " "
   );
 }
 function isRawToolCarrier(prefix) {
-  if (RAW_SKIP_TYPES.test(prefix)) return false;
-  return RAW_CODEX_OUTPUT.test(prefix) || RAW_CODEX_ITEM.test(prefix) || RAW_CLAUDE_RESULT.test(prefix);
+  const head = prefix.slice(0, RAW_HEAD_CHARS);
+  if (RAW_SKIP_TYPES.test(head)) return false;
+  if (RAW_CODEX_OUTPUT.test(head) || RAW_CODEX_ITEM.test(head) || RAW_CLAUDE_RESULT.test(head)) {
+    return true;
+  }
+  return RAW_CLAUDE_RECORD.test(head) && RAW_CLAUDE_RESULT.test(prefix.slice(0, OVERSIZE_PREFIX_BYTES));
 }
 function emptyScanStats() {
   return {
@@ -614,7 +620,9 @@ async function scanFile(file, adapter, matcher, options) {
         if (event.kind === "oversize") {
           stats.linesSkippedOversize += 1;
           if (event.text === null) return;
-          const ordinal = RAW_ORDINAL.exec(event.prefix);
+          const ordinal = RAW_ORDINAL.exec(
+            event.prefix.slice(0, RAW_HEAD_CHARS)
+          );
           if (ordinal && isInheritedRecord(file, { ordinal: Number(ordinal[1]) })) {
             return;
           }

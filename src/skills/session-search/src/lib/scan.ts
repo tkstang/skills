@@ -204,7 +204,14 @@ const RAW_CODEX_OUTPUT =
 const RAW_CODEX_ITEM =
   /"type"\s*:\s*"item_completed"[\s\S]*?"item"\s*:\s*\{\s*"type"\s*:\s*"(?:CommandExecution|McpToolCall|Extension|FileChange)"/u;
 const RAW_CLAUDE_RESULT = /"type"\s*:\s*"tool_result"/u;
+const RAW_CLAUDE_RECORD = /"parentUuid"\s*:/u;
 const RAW_ORDINAL = /"ordinal"\s*:\s*(\d+)/u;
+/**
+ * Characters of an oversize line's head where record types, Codex carrier
+ * markers, and the Codex ordinal sit. Only the Claude `tool_result` check
+ * looks further, up to the reader's `OVERSIZE_PREFIX_BYTES`.
+ */
+const RAW_HEAD_CHARS = 512;
 /**
  * Record-envelope fields of Claude and Codex tool carriers, with a scalar
  * value. They are blanked anywhere on an oversize line before it is
@@ -302,8 +309,8 @@ function blankCodexHeaders(line: string): string {
  * fields (see `CODEX_HEADER_KEYS`), so only tool content can match.
  */
 export function rawToolText(line: string): string {
-  const prefix = line.slice(0, OVERSIZE_PREFIX_BYTES);
-  const codex = RAW_CODEX_OUTPUT.test(prefix) || RAW_CODEX_ITEM.test(prefix);
+  const head = line.slice(0, RAW_HEAD_CHARS);
+  const codex = RAW_CODEX_OUTPUT.test(head) || RAW_CODEX_ITEM.test(head);
   return (codex ? blankCodexHeaders(line) : line).replace(
     RAW_ENVELOPE_FIELD,
     ' ',
@@ -313,14 +320,25 @@ export function rawToolText(line: string): string {
 /**
  * True when an oversize line's prefix identifies a known tool-output carrier.
  * Injected-context records (`world_state`, `session_meta`, `turn_context`,
- * `compacted`) are never raw-matched.
+ * `compacted`) are never raw-matched. Record types and Codex markers are read
+ * from the line head. Some Claude versions write the envelope (a long `cwd`,
+ * `sessionId`, `version`, `gitBranch`, ...) before `message.content`, so a
+ * Claude record (`parentUuid` in the head) is checked for `tool_result` across
+ * the whole bounded prefix.
  */
 export function isRawToolCarrier(prefix: string): boolean {
-  if (RAW_SKIP_TYPES.test(prefix)) return false;
+  const head = prefix.slice(0, RAW_HEAD_CHARS);
+  if (RAW_SKIP_TYPES.test(head)) return false;
+  if (
+    RAW_CODEX_OUTPUT.test(head) ||
+    RAW_CODEX_ITEM.test(head) ||
+    RAW_CLAUDE_RESULT.test(head)
+  ) {
+    return true;
+  }
   return (
-    RAW_CODEX_OUTPUT.test(prefix) ||
-    RAW_CODEX_ITEM.test(prefix) ||
-    RAW_CLAUDE_RESULT.test(prefix)
+    RAW_CLAUDE_RECORD.test(head) &&
+    RAW_CLAUDE_RESULT.test(prefix.slice(0, OVERSIZE_PREFIX_BYTES))
   );
 }
 
@@ -435,7 +453,9 @@ export async function scanFile(
         if (event.kind === 'oversize') {
           stats.linesSkippedOversize += 1;
           if (event.text === null) return;
-          const ordinal = RAW_ORDINAL.exec(event.prefix);
+          const ordinal = RAW_ORDINAL.exec(
+            event.prefix.slice(0, RAW_HEAD_CHARS),
+          );
           if (
             ordinal &&
             isInheritedRecord(file, { ordinal: Number(ordinal[1]) })

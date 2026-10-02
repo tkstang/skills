@@ -110,7 +110,7 @@ function unitsFromEntries(entries, runtime) {
 
 // src/skills/session-search/src/lib/jsonl.ts
 import { open } from "node:fs/promises";
-var OVERSIZE_PREFIX_BYTES = 512;
+var OVERSIZE_PREFIX_BYTES = 8 * 1024;
 var DEFAULT_MAX_OVERSIZE_BYTES = 32 * 1024 * 1024;
 var CHUNK_BYTES = 256 * 1024;
 async function readLines(file, options, onLine) {

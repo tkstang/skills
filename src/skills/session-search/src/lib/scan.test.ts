@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -816,6 +818,46 @@ describe('deep raw fallback for oversize lines', () => {
     ]);
   });
 
+  it('finds Claude tool content when a long cwd pushes tool_result past the head', async () => {
+    // Observed older Claude key order: the envelope (cwd, sessionId,
+    // version, gitBranch, ...) precedes `message.content[].type`.
+    const longCwd = `/Users/dev/${'deeply-nested-zorba-directory/'.repeat(24)}repo`;
+    const written = writeClaudeSession(temp.home, {
+      cwd: '/work/repo',
+      records: (e) => [
+        { ...claudeToolResult(e, 'toolu_1', bigOutput), cwd: longCwd },
+      ],
+    });
+    const line = readFileSync(written.path, 'utf8');
+    expect(line.indexOf('"type":"tool_result"')).toBeGreaterThan(512);
+    expect(line.indexOf('"type":"tool_result"')).toBeLessThan(8 * 1024);
+    const file = await onlyFile();
+
+    const found = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      compileMatcher(['perceive now'], { literal: true }),
+      options({ includeTools: true }),
+    );
+    const cwdOnly = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      compileMatcher(['zorba-directory'], { literal: true }),
+      options({ includeTools: true }),
+    );
+
+    expect(found.stats.linesSkippedOversize).toBe(1);
+    expect(found.hits).toEqual([
+      expect.objectContaining({
+        role: 'tool',
+        tier: 'deep',
+        patterns: ['perceive now'],
+      }),
+    ]);
+    // The long cwd is still record envelope, never a tool hit.
+    expect(cwdOnly.hits).toEqual([]);
+  });
+
   it('ignores Codex envelope fields on an oversize tool-output line', async () => {
     writeCodexRollout(temp.home, {
       id: CODEX_ID,
@@ -1032,6 +1074,21 @@ describe('deep raw fallback for oversize lines', () => {
     expect(
       isRawToolCarrier(
         '{"timestamp":"t","ordinal":0,"type":"session_meta","payload":{"id":"x"',
+      ),
+    ).toBe(false);
+    // A Claude envelope can push the marker past the head; only Claude
+    // records get the wider window, and the skip list still wins.
+    const late = `"cwd":"/${'d/'.repeat(400)}","type":"user","message":{"role":"user","content":[{"tool_use_id":"x","type":"tool_result"`;
+    expect(isRawToolCarrier(`{"parentUuid":null,${late}`)).toBe(true);
+    expect(isRawToolCarrier(`{"timestamp":"t",${late}`)).toBe(false);
+    expect(
+      isRawToolCarrier(
+        `{"parentUuid":null,"type":"world_state",${late.replace('"type":"user",', '')}`,
+      ),
+    ).toBe(false);
+    expect(
+      isRawToolCarrier(
+        `{"parentUuid":null,"cwd":"/${'d/'.repeat(4_200)}","type":"tool_result"`,
       ),
     ).toBe(false);
     expect(

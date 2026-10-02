@@ -11,8 +11,12 @@
  */
 import { open } from 'node:fs/promises';
 
-/** Bytes of an oversize line handed to `keepOversize` for inspection. */
-export const OVERSIZE_PREFIX_BYTES = 512;
+/**
+ * Bytes of an oversize line handed to `keepOversize` for inspection. Wide
+ * enough to see past a record envelope that leads with a long path (a cwd up
+ * to PATH_MAX, 4096 bytes on Linux), yet a small constant per line.
+ */
+export const OVERSIZE_PREFIX_BYTES = 8 * 1024;
 /** Hard cap on an accepted oversize line; longer lines are dropped. */
 export const DEFAULT_MAX_OVERSIZE_BYTES = 32 * 1024 * 1024;
 const CHUNK_BYTES = 256 * 1024;
