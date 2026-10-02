@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p01-t06
+oat_current_task_id: p02-t01
 oat_generated: false
 ---
 
@@ -33,18 +33,18 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | 13    | 5/13      |
+| Phase 1 | in_progress | 13    | 13/13     |
 | Phase 2 | pending     | 7     | 0/7       |
 | Phase 3 | pending     | 3     | 0/3       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 5/26 tasks completed
+**Total:** 13/26 tasks completed
 
 ---
 
 ## Phase 1: Core library (options, matching, redaction, tool probe)
 
-**Status:** in_progress (review passed 0C/0H; 8 review-fix tasks p01-t06..t13 queued)
+**Status:** in_progress (review-fix tasks p01-t06..t13 complete; re-review pending)
 **Started:** 2026-10-02
 
 ### Phase Summary
@@ -93,6 +93,20 @@ The first credential regex was quadratic: 4.2 s on a 64 KiB line. It was rewritt
 
 **Status:** completed
 **Commit:** d2fdc0be
+
+---
+
+### Review-fix tasks p01-t06..p01-t13
+
+**Status:** completed. The fixes ran through the original handle (continuation `cont-session-search-p01-fix-1` of `session-search-p01-implementation-1`), range `d1f6f0ea..e4ae386d`.
+
+Commits: t06 3cec108b, t07 ac052647, t08 c9ae0d56, t09 b597f278, t10 8d1913c4, t11 ecf8b1b3, t12 25255aa2, t13 e4ae386d. Tests: 110 pass.
+
+Behavior notes:
+
+- `snippetFor(text, matcher)` is the production snippet path.
+- Patterns are dotAll, and patterns that match empty text are rejected. SKILL.md (p03-t01) must state both.
+- Accepted trade-off: a url-safe secret made entirely of lowercase word segments would not be masked. This is very unlikely for random tokens.
 
 ---
 
@@ -155,7 +169,7 @@ The first credential regex was quadratic: 4.2 s on a 64 KiB line. It was rewritt
 
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
-| 1     | 78        | 78     | 0      | -        |
+| 1     | 110       | 110    | 0      | -        |
 
 ## Final Summary (for PR/docs)
 

@@ -799,7 +799,7 @@ Source: reviews/archived/p01-review-2026-10-02T061433Z.md, Low L5.
 
 | Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head | Invocation | Gate Target       |
 | ----- | -------- | --------------- | ---------- | ----------------------------------------------------------- | ------------- | ---------- | ----------------- |
-| p01   | code     | fixes_added | 2026-10-02 | reviews/archived/p01-review-2026-10-02T061433Z.md | d2fdc0bed2f806ebbd0463e396cc66e747c3f488 | auto | - |
+| p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T061433Z.md | d2fdc0bed2f806ebbd0463e396cc66e747c3f488 | auto | - |
 | p02   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | p03   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | p04   | code     | pending         | -          | -                                                           | -             | -          | -                 |
