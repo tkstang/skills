@@ -250,6 +250,12 @@ export interface AdapterContext {
 /** Context for `SourceAdapter.enumerate`, which produces `files` itself. */
 export type EnumerateContext = Omit<AdapterContext, 'files'>;
 
+/** Classifies one raw record into role-tagged units. */
+export type RecordClassifier = (
+  record: JsonObject,
+  includeTools: boolean,
+) => TextUnit[];
+
 /** One runtime's store layout and record semantics. */
 export interface SourceAdapter {
   runtime: Runtime;
@@ -267,6 +273,12 @@ export interface SourceAdapter {
   sessionInfo(file: SessionFile): Promise<SessionInfo>;
   /** Role-tagged text for tiers 3 and 4. */
   classifyRecord(record: JsonObject, includeTools: boolean): TextUnit[];
+  /**
+   * Optional per-file classifier for records whose meaning depends on an
+   * earlier record in the same file (ask-user answers). The scanner creates
+   * one per file; without it, `classifyRecord` is used.
+   */
+  fileClassifier?(): RecordClassifier;
   /** Resume/open guidance for a session. */
   openHint(
     sessionId: string,

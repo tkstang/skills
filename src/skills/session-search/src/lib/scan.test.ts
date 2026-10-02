@@ -4,7 +4,9 @@ import {
   adapterContext,
   claudeAssistant,
   claudeToolResult,
+  claudeToolUse,
   claudeUser,
+  codexFunctionCall,
   codexMessage,
   codexSessionMeta,
   codexToolOutput,
@@ -226,6 +228,106 @@ describe('scanFile', () => {
       'zebra note 0',
       'zebra note 1',
       'zebra note 2',
+    ]);
+  });
+});
+
+describe('ask-user exchanges on the content tier', () => {
+  const matcher = () => compileMatcher(['okapi-stripes'], { literal: true });
+
+  it('finds a Claude AskUserQuestion answer without includeTools', async () => {
+    writeClaudeSession(temp.home, {
+      cwd: '/work/repo',
+      records: (e) => [
+        claudeToolUse(e, 'toolu_ask', 'AskUserQuestion', {
+          questions: [
+            {
+              question: 'Which animal pattern?',
+              header: 'Pattern',
+              options: [{ label: 'okapi-stripes' }, { label: 'spots' }],
+            },
+          ],
+        }),
+        claudeAssistant(e, 'waiting for the answer'),
+        {
+          ...claudeToolResult(
+            e,
+            'toolu_ask',
+            'User has answered your questions: "Which animal pattern?"="okapi-stripes"',
+          ),
+          toolUseResult: {
+            questions: [
+              { question: 'Which animal pattern?', header: 'Pattern' },
+            ],
+            answers: { 'Which animal pattern?': 'okapi-stripes' },
+          },
+        },
+      ],
+    });
+    const file = await onlyFile();
+
+    const { hits } = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      matcher(),
+      options(),
+    );
+
+    const answer = hits.find((hit) => hit.role === 'user');
+    expect(answer).toMatchObject({ tier: 'content', userTyped: true });
+    expect(answer?.text).toContain('okapi-stripes');
+  });
+
+  it('finds a Codex request_user_input answer without includeTools', async () => {
+    writeCodexRollout(temp.home, {
+      id: CODEX_ID,
+      startedAtMs: NOW - DAY_MS,
+      records: [
+        codexSessionMeta({ id: CODEX_ID, cwd: '/work/repo' }),
+        codexFunctionCall(
+          'call_ask',
+          'request_user_input',
+          {
+            questions: [
+              {
+                id: 'q1',
+                header: 'Pattern',
+                question: 'Which animal pattern?',
+                options: [{ label: 'striped' }, { label: 'spotted' }],
+              },
+            ],
+          },
+          1,
+        ),
+        codexMessage('assistant', 'waiting', 2),
+        codexToolOutput(
+          'function_call_output',
+          'call_ask',
+          JSON.stringify({ answers: { q1: { answers: ['okapi-stripes'] } } }),
+          3,
+        ),
+      ],
+    });
+    const file = await onlyFile();
+
+    const { hits } = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      matcher(),
+      options(),
+    );
+    const question = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      compileMatcher(['which animal pattern'], { literal: true }),
+      options(),
+    );
+
+    expect(hits.map((hit) => [hit.role, hit.tier])).toEqual([
+      ['user', 'content'],
+    ]);
+    expect(question.hits.map((hit) => [hit.role, hit.tier])).toEqual([
+      ['assistant', 'content'],
     ]);
   });
 });

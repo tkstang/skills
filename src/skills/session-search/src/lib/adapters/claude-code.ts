@@ -32,6 +32,7 @@ import type {
   Hit,
   JsonObject,
   Matcher,
+  RecordClassifier,
   SessionFile,
   SessionInfo,
   SourceAdapter,
@@ -127,7 +128,10 @@ function pickTitle(records: readonly JsonObject[]): string | null {
 }
 
 /** Full-length tool text from a raw record's content blocks. */
-function toolUnits(record: JsonObject): TextUnit[] {
+function toolUnits(
+  record: JsonObject,
+  skipResults: ReadonlySet<string> = new Set(),
+): TextUnit[] {
   const message = isObject(record.message) ? record.message : null;
   const content = message?.content;
   if (!Array.isArray(content)) return [];
@@ -135,6 +139,8 @@ function toolUnits(record: JsonObject): TextUnit[] {
   for (const block of content) {
     if (!isObject(block)) continue;
     if (block.type === 'tool_result') {
+      // Ask-user answers are conversation, classified by the normalizer.
+      if (skipResults.has(asString(block.tool_use_id) ?? '')) continue;
       let text = '';
       if (typeof block.content === 'string') text = block.content;
       else if (Array.isArray(block.content)) {
@@ -172,6 +178,50 @@ export function classifyClaudeRecord(
     );
   }
   return includeTools ? [...units, ...toolUnits(record)] : units;
+}
+
+/**
+ * Per-file Claude classifier. It remembers `AskUserQuestion` calls so the
+ * matching `tool_result` answers in later user records route through the
+ * shared normalizer as user decision content instead of tool output.
+ */
+export function createClaudeFileClassifier(): RecordClassifier {
+  const askCalls = new Map<string, JsonObject>();
+  return (record, includeTools) => {
+    const message = isObject(record.message) ? record.message : null;
+    const content = Array.isArray(message?.content) ? message.content : [];
+    const pairedCalls: JsonObject[] = [];
+    const answered = new Set<string>();
+    for (const block of content) {
+      if (!isObject(block)) continue;
+      const id = asString(block.id);
+      if (block.type === 'tool_use' && block.name === ASK_USER_TOOL && id) {
+        askCalls.set(id, block);
+      }
+      const answerOf = asString(block.tool_use_id);
+      const call = answerOf ? askCalls.get(answerOf) : undefined;
+      if (block.type === 'tool_result' && answerOf && call) {
+        pairedCalls.push(call);
+        answered.add(answerOf);
+      }
+    }
+    if (pairedCalls.length === 0) {
+      return classifyClaudeRecord(record, includeTools);
+    }
+    // Replay the question beside the answer record so the normalizer can
+    // correlate tool_use_id → AskUserQuestion; keep only the answer record.
+    const question = {
+      type: 'assistant',
+      message: { role: 'assistant', content: pairedCalls },
+    };
+    const units = unitsFromEntries(
+      normalizeEntries(RUNTIME, [question, record]).filter(
+        (entry) => entry.recordIndex === 1,
+      ),
+      RUNTIME,
+    );
+    return includeTools ? [...units, ...toolUnits(record, answered)] : units;
+  };
 }
 
 /**
@@ -387,6 +437,7 @@ export function createClaudeCodeAdapter(): ClaudeCodeAdapter {
     },
 
     classifyRecord: classifyClaudeRecord,
+    fileClassifier: createClaudeFileClassifier,
 
     openHint(sessionId: string, info: SessionInfo) {
       return {

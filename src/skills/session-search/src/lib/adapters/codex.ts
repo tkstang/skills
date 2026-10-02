@@ -36,6 +36,7 @@ import type {
   Hit,
   JsonObject,
   Matcher,
+  RecordClassifier,
   SessionFile,
   SessionInfo,
   SourceAdapter,
@@ -45,6 +46,8 @@ import type {
 import { inTimeWindow } from '../window.js';
 
 const RUNTIME = 'codex' as const;
+/** Codex's ask-user tool; its questions and answers are conversation. */
+const ASK_USER_TOOL = 'request_user_input';
 const ROLLOUT_NAME =
   /^rollout-(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})-(.+)\.jsonl$/u;
 /** First header read; a `session_meta` with large base instructions retries. */
@@ -312,11 +315,45 @@ export function classifyCodexRecord(
   includeTools: boolean,
 ): TextUnit[] {
   const payload = isObject(record.payload) ? record.payload : null;
-  const units =
-    record.type === 'response_item' && payload?.type === 'message'
-      ? unitsFromEntries(normalizeEntries(RUNTIME, [record]), RUNTIME)
-      : [];
+  // Messages, plus ask-user questions (human decision content, not tools).
+  const conversational =
+    record.type === 'response_item' &&
+    (payload?.type === 'message' ||
+      (payload?.type === 'function_call' && payload.name === ASK_USER_TOOL));
+  const units = conversational
+    ? unitsFromEntries(normalizeEntries(RUNTIME, [record]), RUNTIME)
+    : [];
   return includeTools ? [...units, ...codexToolUnits(record)] : units;
+}
+
+/**
+ * Per-file Codex classifier. It remembers `request_user_input` calls by
+ * `call_id` so the matching `function_call_output` answers route through the
+ * shared normalizer as user decision content instead of tool output.
+ */
+export function createCodexFileClassifier(): RecordClassifier {
+  const askCalls = new Map<string, JsonObject>();
+  return (record, includeTools) => {
+    const payload = isObject(record.payload) ? record.payload : null;
+    const callId = asString(payload?.call_id);
+    if (record.type === 'response_item' && payload && callId) {
+      if (payload.type === 'function_call' && payload.name === ASK_USER_TOOL) {
+        askCalls.set(callId, record);
+      } else if (payload.type === 'function_call_output') {
+        const call = askCalls.get(callId);
+        if (call) {
+          const units = unitsFromEntries(
+            normalizeEntries(RUNTIME, [call, record]).filter(
+              (entry) => entry.recordIndex === 1,
+            ),
+            RUNTIME,
+          );
+          return includeTools ? [...units, ...codexToolUnits(record)] : units;
+        }
+      }
+    }
+    return classifyCodexRecord(record, includeTools);
+  };
 }
 
 export interface CodexThread {
@@ -755,6 +792,7 @@ export function createCodexAdapter(): CodexAdapter {
     },
 
     classifyRecord: classifyCodexRecord,
+    fileClassifier: createCodexFileClassifier,
 
     openHint(sessionId: string, info: SessionInfo) {
       return {

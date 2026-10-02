@@ -22,6 +22,7 @@ import { parseJsonObject, readLines } from './jsonl.js';
 import type {
   Hit,
   Matcher,
+  RecordClassifier,
   Runtime,
   SessionFile,
   SourceAdapter,
@@ -239,6 +240,10 @@ export async function scanFile(
   options: ScanOptions,
 ): Promise<{ hits: Hit[]; stats: ScanStats }> {
   const tier: Tier = options.includeTools ? 'deep' : 'content';
+  // Per-file state (e.g. ask-user call ids) lives in the file classifier.
+  const classify: RecordClassifier = adapter.fileClassifier
+    ? adapter.fileClassifier()
+    : (record, includeTools) => adapter.classifyRecord(record, includeTools);
   const stats = emptyScanStats();
   const hits: Hit[] = [];
   const base = {
@@ -305,7 +310,7 @@ export async function scanFile(
         if (isInheritedRecord(file, parsed)) return;
         let units;
         try {
-          units = adapter.classifyRecord(parsed, options.includeTools);
+          units = classify(parsed, options.includeTools);
         } catch {
           stats.parseErrors += 1;
           return;
