@@ -268,6 +268,25 @@ describe('runSearch', () => {
     expect(noDeep.results).toEqual([]);
   });
 
+  it('returns no deep result when only oversize-line metadata matches', async () => {
+    writeClaudeSession(temp.home, {
+      cwd: '/work/zorbaproj',
+      records: (e) => [
+        claudeUser(e, 'dump the logs'),
+        {
+          ...claudeToolResult(e, 'toolu_1', 'log line\n'.repeat(12_000)),
+          gitBranch: 'feat/zorba-branch',
+        },
+      ],
+    });
+
+    const deep = await search({ pattern: ['zorba'], literal: true });
+
+    expect(deep.tiersRun).toContain('deep');
+    expect(deep.diagnostics.linesSkippedOversize).toBeGreaterThan(0);
+    expect(deep.results).toEqual([]);
+  });
+
   it('never matches text that exists only in a child inherited range', async () => {
     writeCodexRollout(temp.home, {
       id: PARENT,

@@ -31,6 +31,7 @@ import {
   isPrefilterSafe,
   isRawToolCarrier,
   prefilterWithRg,
+  rawToolText,
   scanFile,
   scanFiles,
   type ScanOptions,
@@ -613,6 +614,117 @@ describe('deep raw fallback for oversize lines', () => {
     expect(deep.stats.linesSkippedOversize).toBe(2);
     expect(deep.hits).toHaveLength(1);
     expect(deep.hits[0].fromSubagent).toBe(true);
+  });
+
+  it('ignores record metadata on an oversize Claude tool_result line', async () => {
+    writeClaudeSession(temp.home, {
+      cwd: '/work/zorbaproj',
+      records: (e) => [
+        {
+          ...claudeToolResult(e, 'toolu_1', 'log line\n'.repeat(12_000)),
+          gitBranch: 'feat/zorba-branch',
+          slug: 'zorba-slug',
+        },
+      ],
+    });
+    const file = await onlyFile();
+
+    const deep = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      compileMatcher(['zorba', '"gitBranch":"', 'tool_result'], {
+        literal: true,
+      }),
+      options({ includeTools: true }),
+    );
+
+    expect(deep.stats.linesSkippedOversize).toBe(1);
+    expect(deep.hits).toEqual([]);
+  });
+
+  it('still finds the pattern inside oversize Claude tool content', async () => {
+    writeClaudeSession(temp.home, {
+      cwd: '/work/zorbaproj',
+      records: (e) => [
+        {
+          ...claudeToolResult(e, 'toolu_1', bigOutput),
+          gitBranch: 'feat/zorba-branch',
+        },
+      ],
+    });
+    const file = await onlyFile();
+
+    const deep = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      compileMatcher(['zorba', 'perceive now'], { literal: true }),
+      options({ includeTools: true }),
+    );
+
+    expect(deep.stats.linesSkippedOversize).toBe(1);
+    expect(deep.hits).toEqual([
+      expect.objectContaining({
+        role: 'tool',
+        tier: 'deep',
+        patterns: ['perceive now'],
+      }),
+    ]);
+  });
+
+  it('ignores Codex envelope fields on an oversize tool-output line', async () => {
+    writeCodexRollout(temp.home, {
+      id: CODEX_ID,
+      startedAtMs: NOW - DAY_MS,
+      records: [
+        codexSessionMeta({ id: CODEX_ID, cwd: '/work/repo' }),
+        codexToolOutput(
+          'function_call_output',
+          'call_zorba',
+          'log line\n'.repeat(12_000),
+          1,
+        ),
+      ],
+    });
+    const file = await onlyFile();
+
+    const deep = await scanFile(
+      file,
+      adapterFor(file.runtime),
+      compileMatcher(['zorba', 'response_item', '2026-09-20T10'], {
+        literal: true,
+      }),
+      options({ includeTools: true }),
+    );
+
+    expect(deep.stats.linesSkippedOversize).toBe(1);
+    expect(deep.hits).toEqual([]);
+  });
+
+  it('blanks envelope fields but keeps escaped keys inside tool content', () => {
+    const line = JSON.stringify({
+      cwd: '/work/zorbaproj',
+      gitBranch: 'zorba',
+      timestamp: '2026-09-20T10:00:00.000Z',
+      type: 'user',
+      message: { content: 'cat out.json: {"cwd":"/kept/zorba"}' },
+    });
+
+    const text = rawToolText(line);
+
+    expect(text).not.toContain('zorbaproj');
+    expect(text).not.toContain('"gitBranch"');
+    expect(text).not.toContain('2026-09-20');
+    expect(text).toContain('\\"cwd\\":\\"/kept/zorba\\"');
+  });
+
+  it('blanks envelope fields in linear time on multi-megabyte values', () => {
+    const huge = `"cwd":"${'\\"cwd\\":'.repeat(2_000_000)}`;
+    const started = Date.now();
+
+    // An unterminated value is left alone rather than overflowing the stack.
+    expect(rawToolText(huge)).toBe(huge);
+    expect(rawToolText(`{"cwd":"/a",${huge}`)).toBe(`{ ,${huge}`);
+    expect(Date.now() - started).toBeLessThan(2000);
   });
 
   it('recognizes only known tool-output carriers from the line prefix', () => {

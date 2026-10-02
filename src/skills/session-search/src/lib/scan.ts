@@ -20,7 +20,9 @@
  * lines before `JSON.parse`, and lets the runtime adapter classify each record
  * into role-tagged units. On the deep tier, oversize lines that are known
  * tool-output carriers are still matched raw, so large tool dumps stay
- * searchable without surfacing injected context.
+ * searchable without surfacing injected context. Their record-envelope fields
+ * (cwd, branch, ids, timestamps, record types) are blanked first, so only tool
+ * content can match.
  */
 import { spawnSync } from 'node:child_process';
 
@@ -191,6 +193,26 @@ const RAW_CODEX_ITEM =
   /"type"\s*:\s*"item_completed"[\s\S]*?"item"\s*:\s*\{\s*"type"\s*:\s*"(?:CommandExecution|McpToolCall|Extension|FileChange)"/u;
 const RAW_CLAUDE_RESULT = /"type"\s*:\s*"tool_result"/u;
 const RAW_ORDINAL = /"ordinal"\s*:\s*(\d+)/u;
+/**
+ * Record-envelope and structural fields of Claude and Codex tool carriers,
+ * with a scalar value. They are blanked before an oversize line is raw-matched,
+ * so a pattern that names only a repo path, branch, session id, record type,
+ * or timestamp never becomes a tool hit. Values are length-bounded (envelope
+ * values are short), which keeps each attempt O(1) and avoids the regex
+ * engine's recursion limit on a multi-megabyte string, so the replace stays
+ * linear. Escaped keys inside a tool-output string (`\"cwd\"`) are tool
+ * content and are kept.
+ */
+const RAW_ENVELOPE_FIELD =
+  /"(?:parentUuid|logicalParentUuid|leafUuid|isSidechain|userType|cwd|sessionId|version|gitBranch|slug|agentId|uuid|timestamp|requestId|promptId|messageId|sourceToolAssistantUUID|sourceToolUseID|toolUseID|tool_use_id|type|role|is_error|isMeta|isApiErrorMessage|entrypoint|permissionMode|ordinal|call_id|thread_id|turn_id|client_authored)"\s*:\s*(?:"(?:[^"\\]|\\[\s\S]){0,1024}"|-?\d[\d.eE+-]{0,64}|true|false|null)/gu;
+
+/**
+ * The raw text of an oversize tool-carrier line with its envelope fields
+ * blanked (see `RAW_ENVELOPE_FIELD`), so only tool content can match.
+ */
+export function rawToolText(line: string): string {
+  return line.replace(RAW_ENVELOPE_FIELD, ' ');
+}
 
 /**
  * True when an oversize line's prefix identifies a known tool-output carrier.
@@ -295,14 +317,16 @@ export async function scanFile(
           ) {
             return;
           }
-          const match = matcher.match(event.text);
+          // Match tool content only, never the record envelope.
+          const text = rawToolText(event.text);
+          const match = matcher.match(text);
           if (!match || !accept(match.patterns)) return;
           keep({
             ...base,
             role: 'tool',
             userTyped: false,
             patterns: match.patterns,
-            text: event.text,
+            text,
             firstIndex: match.firstIndex,
             firstLength: match.firstLength,
             timestampMs: null,
