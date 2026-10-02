@@ -458,7 +458,56 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 ## Final Summary (for PR/docs)
 
-_(filled at closeout)_
+**What shipped:**
+
+- **`session-search` skill** (standalone `skills/session-search`, plus the `session` plugin member `search`, session plugin 0.4.0). Any coding agent (Claude Code, Codex, Cursor) can find a past session on the local machine from agent-expanded patterns plus optional time and repo hints.
+- **Bundled, dependency-free Node CLI** (`scripts/session-search.mjs`, subcommands `search` and `estimate`) that searches tiers cheapest-first:
+  - history files (`~/.claude/history.jsonl`, `~/.codex/history.jsonl`)
+  - metadata indexes (Codex `state_5.sqlite` threads via `sqlite3 -readonly` with a schema probe; `session_index.jsonl`; Claude titles)
+  - a bounded user/assistant content scan, with an optional provable-superset `rg -l` prefilter and Node LF-only streaming verification
+  - a deep rung that includes tool output, among them Codex MCP `item_completed` results
+- **Ranked `session-search/v1` JSON:**
+  - The ranking prefers distinct patterns, user-typed hits, title or first-prompt hits, cwd matches, and recency.
+  - Subagent and Codex-child hits roll up to their parent session.
+  - Snippets are redacted (credentials, URL userinfo, auth headers, multi-level escaped JSON) and bounded.
+- **Safety and speed:**
+  - cwd-first auto-widening
+  - a large-scan guard (exit 3, `--allow-large-scan`)
+  - `--deadline-ms`, which also bounds `rg`
+  - a configurable tool-probe timeout
+  - agent-authored Codex threads are never counted as user-typed
+- **Agent guidance (SKILL.md) and references** (store layouts; an injection-safe, opt-in remote fallback with no built-in hosts). It covers:
+  - intake, including asking for remembered phrases
+  - pattern expansion
+  - the widening ladder (broaden, then tool output for discussion-only hits, then large-scan confirmation, then deep, then the ChatGPT note, then another machine)
+  - privacy rules
+- **Docs:** a user-guide page, plugin, skill and installation enumerations, the session-schemas "Discovery indexes" section, and README and docs-home mentions.
+- **Fix:** corrected the stale Codex transcript path (`session-<id>.jsonl` became `rollout-<timestamp>-<uuid>.jsonl`) in the export-transcript and observer docs. This bumped session-export-transcript 2.0.39, session-observer 1.0.88, session-observer-collab 1.0.76, and session-fork-to-destination 0.2.56.
+
+**Behavioral changes (user-facing):**
+
+- A new `/session-search` (standalone) or `session:search` (plugin) skill. Requests such as "find the session where we…" route to it.
+
+**Key files / modules:**
+
+- `src/skills/session-search/` (SKILL.md, references/, build.json, `src/session-search.ts`, `src/lib/{options,matcher,redact,tools,classify,jsonl,window,scan,rank,pipeline}.ts`, `src/lib/adapters/{claude-code,codex,cursor}.ts`, plus shims to the shared transcript library and the export-transcript `HIDDEN_PAYLOAD_MATCHERS`)
+- `src/distributions.ts`, the session plugin manifests and marketplaces, the pinned repo tests, `documentation/**`, `CHANGELOG.md`
+
+**Verification performed:**
+
+- 248 session-search unit and integration tests, plus `pnpm run premerge` (2733 passed, 1 skipped; build, type-check, build:check, validate, smoke).
+- `validate:skill-versions` against the merge base.
+- The docs production build, and a Playwright mermaid render check at 1440 and 390 px in light and dark themes.
+- **Real-store checks** (read-only) on the developer laptop. The motivating "Perceive Now" search finds the current Claude session, and with `--include-tools` it finds the original Codex rollout whose ChatGPT thread titles live in MCP tool output. Results are identical with and without `rg`.
+- Per-phase reviews: p01 and p02 had 2 cycles each (p02 cycle 1 was blocked by 1 High, then fixed); p03 and p04 had 1 each. All passed with 0 Critical and 0 High.
+
+**Design deltas (if any):**
+
+- Classification is adapter-owned, because the shared normalizers truncate or drop text (Cursor emits only at `turn_ended`, Codex drops tool output, Claude truncates tool text).
+- Added the `snippetFor` redact-then-window helper, plus the `agentAuthored`, `fileClassifier`, `deadline`, and `scopeReads` contracts.
+- The deep rung requires the content tier. The deep tier always skips the `rg` prefilter, and there is no Node fallback after an `rg` deadline timeout.
+- Codex `item_completed` MCP, Extension, and FileChange extraction; `CollabAgentToolCall` excluded.
+- design.md was aligned at each review. See Deviations.
 
 ## References
 
