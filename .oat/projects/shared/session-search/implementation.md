@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p02-t01
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -34,11 +34,11 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 16    | 16/16     |
-| Phase 2 | pending     | 7     | 0/7       |
+| Phase 2 | in_progress | 7     | 7/7       |
 | Phase 3 | pending     | 3     | 0/3       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 16/29 tasks completed
+**Total:** 23/29 tasks completed
 
 ---
 
@@ -154,7 +154,32 @@ Behavior notes:
 
 ## Phase 2: Adapters, scanner, pipeline, ranker, CLI
 
-**Status:** pending
+**Status:** in_progress (tasks complete; root review pending)
+
+### Phase Summary
+
+**Outcome:**
+
+- Adds Claude Code, Codex, and Cursor adapters:
+  - store enumeration, including subagents, Codex children, and archived sessions
+  - history and metadata tiers, including Codex `state_5.sqlite` via a schema-probed, read-only `sqlite3`
+  - raw-record tool-text extraction
+- Adds an LF-only streaming scanner with a provable-superset `rg -l` prefilter and the narrow deep raw fallback.
+- Adds deterministic ranking with subagent roll-up, rendered through `snippetFor`.
+- Adds the tiered pipeline: time window, cwd-first widening, large-scan guard with a re-bounded restricted set, deep rung, deadline.
+- Adds the CLI (`search`, `estimate`) with `session-search/v1` JSON and exit codes 0/1/2/3.
+
+**Verification:** 200 tests pass (root re-verified); `type-check` and `build:check` pass. A smoke run against the real local stores (10 days, 697 MiB, about 1.9 s) ranked the motivating Perceive Now session first, with identical results with and without `rg`.
+
+| Task | Status | Commit |
+| ---- | ------ | ------ |
+| p02-t01 | completed | c5d490ad |
+| p02-t02 | completed | 8ab42954 |
+| p02-t03 | completed | 192716bc |
+| p02-t04 | completed | 3e24d1bc |
+| p02-t05 | completed | 2ef33a65 |
+| p02-t06 | completed | 49976082 |
+| p02-t07 | completed | 0367021c |
 
 ## Phase 3: Skill packaging, distribution, CLI integration tests
 
@@ -203,6 +228,12 @@ Behavior notes:
 
 **p01 phase outcome:** pass. Fix iterations: 2. No phase gate is configured. No optional nested dispatches. Outstanding: none (t14–t16 are covered by the final review).
 
+#### Dispatch record: session-search-p02-implementation-1
+
+- Target `oat-phase-implementer-claude-claude-opus-5-5-high` (candidate, native-catalog). Task class: hard-reasoning. Validated-only, then accepted. Terminal outcome: `DONE_WITH_CONCERNS` (Low only).
+- Range `8494c929..0367021c` (7 task commits). Recovery attempts: 0/10.
+- Dispatch stamp: `Dispatch: scope=p02 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high`
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -214,6 +245,9 @@ Behavior notes:
 | p01-t02 | plan.md | `parseTimeSpec(spec, now)` | `parseTimeSpec(spec, now, bound)`. As `--until`, `today` and a date-only value mean the start of the next day. | Makes the named day inclusive, consistent with the `yesterday` rule | implementation | none |
 | p01-t04 | plan.md | Base64 path exception: "all lowercase segments" | Segments may start with one capital letter (e.g. `Users/Shared/…`) | The literal rule could never fire on mixed-case runs | implementation | none |
 | p01 re-review M2/L3 | plan.md, design.md | `redact` → `buildSnippet` composition; original redaction shape list | `snippetFor` + expanded rules/exemptions | Review-found artifact drift | implementation (artifacts aligned by root) | none |
+| p02-t01/t02 | plan.md | Files listed per task | Added `lib/jsonl.ts` (shared LF-only reader) and `lib/window.ts` (window overlap), mechanically derived in-phase helpers | Shared by multiple p02 modules | implementation | p03-t02 build.json lists both (plan updated) |
+| p02-t04 | plan.md | `rg -l -i --no-messages [-F] -e …` | Adds `--no-config -a` | A user rg config or binary detection would break the superset guarantee | implementation | none |
+| p02-t06 | design.md | Deep rung after zero results | Deep runs only when the content tier is selected; `--include-tools` labels the content scan `deep`; `tiersRun` lists only scans that actually ran | Clear tier semantics | implementation | Document in SKILL.md (p03-t01) |
 | p01-t04 | design.md | Redaction shapes | Also covers `ghu_`/`ghr_`. Bearer is masked only when ≥16 chars, or ≥8 with a digit. Quoted values are masked including their quotes. | Fewer prose false positives; broader token coverage | implementation | Over-masking risk (`token: string`, long slug paths) to be watched in p02 ranking tests |
 
 ## Test Results
@@ -221,6 +255,7 @@ Behavior notes:
 | Phase | Tests Run | Passed | Failed | Coverage |
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | 129       | 129    | 0      | -        |
+| 2     | 200 (cumulative) | 200 | 0 | -        |
 
 ## Final Summary (for PR/docs)
 

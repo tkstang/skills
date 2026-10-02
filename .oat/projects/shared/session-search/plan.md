@@ -717,7 +717,7 @@ Source: reviews/archived/p01-review-2026-10-02T062929Z.md, Low L2.
 
 **Files:**
 
-- Create: `src/skills/session-search/build.json`. The file is `{ "runtime": [...] }` only; packaging rejects any other key. List the entry plus the runtime lib modules, including both shims. Do not list `src/helpers/**`, tests, or the type-only `lib/types.ts`; the packager exempts helpers and tests itself.
+- Create: `src/skills/session-search/build.json`. The file is `{ "runtime": [...] }` only; packaging rejects any other key. List the entry plus the runtime lib modules, including both shims. This includes the p02-derived helpers `lib/jsonl.ts` (the LF-only line reader) and `lib/window.ts` (the time-window overlap test), and `lib/classify.ts`. Do not list `src/helpers/**`, tests, or the type-only `lib/types.ts`; the packager exempts helpers and tests itself.
 - Modify: `src/distributions.ts`. Add an owner entry `session-search` with `source: 'src/skills/session-search'` and `allowedSourceRoots: ['src/shared/transcript', 'src/skills/session-export-transcript']`. Targets:
   - standalone `skills/session-search`
   - plugin `session` / `search` → `plugins/session/skills/search`
