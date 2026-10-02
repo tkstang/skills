@@ -102,12 +102,12 @@ oat_implement_exit_gate:
   envelope_status: ok
   artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md
   handoff: "Run oat-project-review-receive for .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md before treating this gate review as consumed."
-  receive_state: not_started
-  receive_correlation: null
-  receive_source_artifact: null
-  receive_archived_artifact: null
-  receive_event_identity: null
-  receive_pre_head: null
+  receive_state: intent_persisted
+  receive_correlation: {gate_run_id: 578d2977-81dc-42a4-bb93-a71adabbb844, scope: final, type: code, source_filename: final-review-2026-10-02T173611Z.md}
+  receive_source_artifact: .oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md
+  receive_archived_artifact: .oat/projects/shared/session-search/reviews/archived/final-review-2026-10-02T173611Z.md
+  receive_event_identity: 'final|code|final-review-2026-10-02T173611Z.md'
+  receive_pre_head: 'fee6f7d638934ff245e15e9de43469f1d351fa5f'
   receive_commit: null
   receive_eligible: true
   receive_completed: false
