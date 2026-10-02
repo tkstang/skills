@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p02-t08
+oat_current_task_id: p03-t01
 oat_generated: false
 ---
 
@@ -34,11 +34,11 @@ oat_generated: false
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 16    | 16/16     |
-| Phase 2 | in_progress | 15    | 7/15      |
+| Phase 2 | in_progress | 15    | 15/15     |
 | Phase 3 | pending     | 3     | 0/3       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 23/37 tasks completed
+**Total:** 31/37 tasks completed
 
 ---
 
@@ -154,7 +154,7 @@ Behavior notes:
 
 ## Phase 2: Adapters, scanner, pipeline, ranker, CLI
 
-**Status:** in_progress (root review **blocked** with 1 High; fix tasks p02-t08..t15 queued)
+**Status:** in_progress (fix tasks p02-t08..t15 complete; re-review pending)
 
 ### Phase Summary
 
@@ -180,6 +180,19 @@ Behavior notes:
 | p02-t05 | completed | 2ef33a65 |
 | p02-t06 | completed | 49976082 |
 | p02-t07 | completed | 0367021c |
+
+### Review-fix tasks p02-t08..p02-t15
+
+**Status:** completed via `cont-session-search-p02-fix-1`, range `289f8cc8..e09b9afe`. Commits: t08 554c9950, t09 52b76616, t10 24c58025, t11 53461061, t12 b3ee21b1, t13 d9405f3b, t14 1f93bcde, t15 e09b9afe. 215 tests pass (root re-verified). Every new test was shown to fail before its fix.
+
+Mechanically derived files:
+
+- `helpers/test-helpers.ts`: `codexSessionMeta` gained a `source` override.
+- `lib/types.ts`: adds `SessionFile.agentAuthored`, optional `AdapterContext.deadline`, and an optional `SourceAdapter.fileClassifier()`/`RecordClassifier` for the per-file ask-user maps.
+
+Residual (Low, accepted): final-result per-session reads do not check the deadline (small overshoot, hits only). Past the cap, only hits for new patterns are kept.
+
+---
 
 ### Review Received: p02
 

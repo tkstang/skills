@@ -976,7 +976,7 @@ Source: reviews/archived/p02-review-2026-10-02T071003Z.md, Low L4.
 | ----- | -------- | --------------- | ---------- | ----------------------------------------------------------- | ------------- | ---------- | ----------------- |
 | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T061433Z.md | d2fdc0bed2f806ebbd0463e396cc66e747c3f488 | auto | - |
 | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T062929Z.md | e4ae386d889d279a69e859fa7bd44aaca422b67d | auto | - |
-| p02   | code     | fixes_added | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md | 0367021c | auto | - |
+| p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md | 0367021c | auto | - |
 | p03   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | p04   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | final | code     | pending         | -          | -                                                           | -             | -          | -                 |
