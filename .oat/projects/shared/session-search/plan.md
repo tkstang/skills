@@ -161,7 +161,7 @@ This task has no runtime test: types-only code is verified by `type-check`, beca
 - hex runs of 40 or more chars
 - base64-like runs `[A-Za-z0-9+/_-]{40,}={0,2}` that include at least one digit and mixed case, **except** path-like runs whose `/`-split segments are all lowercase word-like (so `documentation/docs/engineering/architecture` survives while AWS-style secrets containing `/`/`+` are masked)
 
-Callers redact the **full text unit before snippet windowing**, so a secret cut at a window edge can never survive as an unmatched fragment. This contract is used by `rank.ts`.
+Callers redact the **full text unit before snippet windowing**, so a secret cut at a window edge can never survive as an unmatched fragment. Emitted snippets go through `snippetFor(text, matcher)` (p01-t06), which owns this ordering.
 
 **Steps:**
 
@@ -321,6 +321,61 @@ Source: reviews/archived/p01-review-2026-10-02T061433Z.md, Low L5.
 **Test:** an emoji at the window edge produces no lone surrogate.
 **Verify:** Verify `pnpm run test:vitest src/skills/session-search/src/lib` and `pnpm run type-check`; format/lint the touched files (`pnpm exec oxfmt --write <files>`, `pnpm exec oxlint <files>`).
 **Commit:** `fix(p01-t13): avoid splitting surrogate pairs in snippets`
+
+---
+
+### Task p01-t14: (review) Tighten the camelCase/segment exemption so random tokens stay masked
+
+Source: reviews/archived/p01-review-2026-10-02T062929Z.md, Medium M1.
+
+**Files:** `redact.ts`, `redact.test.ts`.
+
+**Behavior:**
+
+- `isCamelIdentifier` also requires at most 2 uppercase-only pieces and at most 2 digit pieces, with no capital split off before a capitalized word. Alternatively, require that lowercase words of 3+ letters cover most of the run.
+- The segmented-words exemption requires a lowercase-only first segment, so capitalized hyphen passphrases such as `Correct-Horse-Battery-Staple-Mountain-River7` are masked.
+- Update the docstring to state the remaining exemption precisely.
+
+**Tests:**
+
+- A **seeded statistical test**: a fixed-PRNG sample of ≥ 20,000 random 40-char alphanumeric strings that pass the digit and mixed-case gate. Assert that ≥ 99.99% are masked (at most 2 exemptions).
+- The reviewer's three leak samples are masked.
+- `compileMatcherWithLiteralEscapingForV2Patterns`, `HTTPServerRequestHandlerFactoryForSessionSearch2`, and a Claude slug stay unmasked.
+- Re-run the 256 KiB timing test.
+
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search/src/lib` and `pnpm run type-check`; format/lint the touched files (`pnpm exec oxfmt --write <files>`, `pnpm exec oxlint <files>`).
+**Commit:** `fix(p01-t14): keep random tokens masked under identifier exemptions`
+
+### Task p01-t15: (review) Harden URL-userinfo and auth-header redaction
+
+Source: reviews/archived/p01-review-2026-10-02T062929Z.md, Low L1, plus the reviewer's out-of-scope note on `Authorization: Basic`.
+
+**Files:** `redact.ts`, `redact.test.ts`.
+
+**Behavior:**
+
+- The userinfo password runs to the **last** `@` before whitespace, so passwords containing `/` or an unencoded `@` are fully masked. Keep the scheme anchoring that makes the scan linear, and accept over-masking when a later path contains `@`.
+- Mask token-only userinfo (`https://<token>@host`) when the token is ≥ 20 characters.
+- Mask `Authorization: (Basic|Bearer|Token) <value>` header values.
+
+**Tests:** positives for `postgres://u:ab/cd@host/db`, `postgres://u:p@ss@host/db`, token-only userinfo, and a Basic header; prose negatives. Re-run the timing test.
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search/src/lib` and `pnpm run type-check`; format/lint the touched files (`pnpm exec oxfmt --write <files>`, `pnpm exec oxlint <files>`).
+**Commit:** `fix(p01-t15): harden URL userinfo and auth header redaction`
+
+### Task p01-t16: (review) Anchor snippetFor at the real hit
+
+Source: reviews/archived/p01-review-2026-10-02T062929Z.md, Low L2.
+
+**Files:** `matcher.ts`, `matcher.test.ts`, `types.ts` (if the signature doc changes).
+
+**Behavior:**
+
+- `snippetFor(text, matcher, preHit?)` skips re-match hits that fall inside a `[REDACTED]` marker span.
+- When the hit itself was redacted, it prefers the marker nearest the redacted-prefix offset `redact(text.slice(0, preHit.firstIndex)).length` over the first marker in the unit.
+
+**Tests:** the reviewer's two repros (a pattern `redacted` with an earlier marker; an unrelated earlier `ghp_` token before a redacted hit).
+**Verify:** Verify `pnpm run test:vitest src/skills/session-search/src/lib` and `pnpm run type-check`; format/lint the touched files (`pnpm exec oxfmt --write <files>`, `pnpm exec oxlint <files>`).
+**Commit:** `fix(p01-t16): anchor redacted snippets at the original hit`
 
 ---
 
@@ -541,7 +596,7 @@ Source: reviews/archived/p01-review-2026-10-02T061433Z.md, Low L5.
   - Groups hits by session and rolls subagent hits up to an existing parent (`via: 'subagent'`, half weight). Orphans are listed with `isSubagent: true`.
   - Scores with the `design.md` formula.
   - Ties break by `lastActivity` desc, then `runtime`, then `sessionId`.
-  - Attaches up to 3 snippets (user > title > assistant > context > tool, then by tier order). Each snippet is built by **redacting the full text unit first, then windowing** (`redact` → `buildSnippet`). Also attaches `matchedPatterns` and `matchedTiers`.
+  - Attaches up to 3 snippets (user > title > assistant > context > tool, then by tier order). Each snippet is built with `snippetFor(hit.text, matcher, preHit)`, which redacts first and then windows. Never reuse pre-redaction `Hit.firstIndex` on redacted text. Also attaches `matchedPatterns` and `matchedTiers`.
   - Applies `limit` and assigns `rank`.
 
 **Steps:**
@@ -800,6 +855,7 @@ Source: reviews/archived/p01-review-2026-10-02T061433Z.md, Low L5.
 | Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head | Invocation | Gate Target       |
 | ----- | -------- | --------------- | ---------- | ----------------------------------------------------------- | ------------- | ---------- | ----------------- |
 | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T061433Z.md | d2fdc0bed2f806ebbd0463e396cc66e747c3f488 | auto | - |
+| p01   | code     | fixes_added | 2026-10-02 | reviews/archived/p01-review-2026-10-02T062929Z.md | e4ae386d889d279a69e859fa7bd44aaca422b67d | auto | - |
 | p02   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | p03   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | p04   | code     | pending         | -          | -                                                           | -             | -          | -                 |
@@ -826,12 +882,12 @@ Exit-gate attempt 1 (`oat-project-quick-start` gate, run `cd2b64af`, target `cod
 
 **Summary:**
 
-- Phase 1: 13 tasks. Core library: types/shim, options/time, matcher/snippets, redaction, tool probe, plus 8 p01 review fixes (t06–t13).
+- Phase 1: 16 tasks. Core library: types/shim, options/time, matcher/snippets, redaction, tool probe, plus 11 p01 review fixes (t06–t16).
 - Phase 2: 7 tasks. Adapters (Claude Code, Codex, Cursor), content scanner, ranker, pipeline, CLI entry.
 - Phase 3: 3 tasks. SKILL.md and references, build/distribution/plugin metadata/pinned lists, CLI integration tests.
 - Phase 4: 3 tasks. Docs, stale-path fix, changelog plus premerge.
 
-**Total: 26 tasks**
+**Total: 29 tasks**
 
 ## References
 

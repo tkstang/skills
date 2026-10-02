@@ -214,8 +214,14 @@ score = 40 * distinctPatternsMatched/patternCount
   - `sk-…`, `ghp_`/`gho_`/`github_pat_…`, `xox[abp]-…`, `AKIA…`
   - `Bearer <token>`
   - `password=…`/`token=…`-style pairs
-  - long hex or base64 runs of 40 or more characters
-- The full text unit is redacted **before** snippet windowing, so window edges cannot leave unmasked secret fragments. The base64 rule excludes `/`-separated paths and requires a digit and mixed case.
+  - `password=…`/`token=…`-style pairs with credential words in prefixed or suffixed identifiers (`AWS_SECRET_ACCESS_KEY=`), in plain, JSON-quoted, and **multi-level escaped** forms
+  - space-separated CLI flags (`--password X`, `--api-key X`)
+  - URL-userinfo passwords (`scheme://user:pass@host`) and token-only userinfo
+  - `Authorization: Basic|Bearer|Token …` header values
+  - long hex runs, and base64-like runs (`[A-Za-z0-9+/_-]{40,}`) that contain a digit and mixed case
+- **Exemptions** (to keep snippets readable): `/`, `-`, or `_`-separated word-segment runs with a lowercase-only first segment (paths and Claude project slugs), and genuine camelCase identifiers (bounded uppercase-only and digit pieces). A seeded statistical test keeps random tokens masked.
+- Redaction regexes anchor at the start of runs so the scan stays linear (256 KiB timing tests).
+- Emitted snippets always go through `snippetFor(text, matcher, preHit)`. It redacts the full unit first, then re-matches outside `[REDACTED]` markers and windows there. If the hit itself was redacted, it centers on the marker nearest the original hit. `Hit.firstIndex` is pre-redaction and is never reused on redacted text.
 - Snippets keep ±80 characters around the first hit in a unit, collapse whitespace, cap at 240 characters, and allow at most 3 per session. The CLI never emits whole records.
 
 ## Data Models

@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p02-t01
+oat_current_task_id: p01-t14
 oat_generated: false
 ---
 
@@ -33,18 +33,18 @@ oat_generated: false
 
 | Phase   | Status      | Tasks | Completed |
 | ------- | ----------- | ----- | --------- |
-| Phase 1 | in_progress | 13    | 13/13     |
+| Phase 1 | in_progress | 16    | 13/16     |
 | Phase 2 | pending     | 7     | 0/7       |
 | Phase 3 | pending     | 3     | 0/3       |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 13/26 tasks completed
+**Total:** 13/29 tasks completed
 
 ---
 
 ## Phase 1: Core library (options, matching, redaction, tool probe)
 
-**Status:** in_progress (review-fix tasks p01-t06..t13 complete; re-review pending)
+**Status:** in_progress (re-review passed 0C/0H; review-fix tasks p01-t14..t16 queued)
 **Started:** 2026-10-02
 
 ### Phase Summary
@@ -93,6 +93,25 @@ The first credential regex was quadratic: 4.2 s on a 64 KiB line. It was rewritt
 
 **Status:** completed
 **Commit:** d2fdc0be
+
+---
+
+### Review Received: p01 (re-review, cycle 2)
+
+**Date:** 2026-10-02
+**Review artifact:** reviews/archived/p01-review-2026-10-02T062929Z.md (request `session-search-p01-review-2`, narrowed `d1f6f0ea..e4ae386d`, invocation auto, **Reconnaissance:** not-attempted)
+
+**Findings:** Critical 0, High 0, Medium 2, Low 3. **Passes.** All eight prior findings were verified as resolved.
+
+**Dispositions:**
+
+- **M1** (the camelCase exemption leaks about 3 per 10k random tokens): fix task **p01-t14**.
+- **M2** (stale p02-t05 snippet guidance): **artifact alignment applied by root**. plan.md p02-t05 and p01-t04 now reference `snippetFor`. Design drift: the implementation (`snippetFor`) is the source of truth.
+- **L1** (URL userinfo `/` and `@` edges; plus the reviewer's out-of-scope `Authorization: Basic` note): fix task **p01-t15**.
+- **L2** (`snippetFor` anchoring): fix task **p01-t16**.
+- **L3** (stale design.md Redaction section): **artifact alignment applied by root**. design.md Redaction now matches the implemented rules plus the queued t14–t16 behavior.
+
+**Review-cycle governance:** p01 has used 2 of its 3 standard review cycles. After t14–t16 are verified, p01 closes on implementer verification plus root re-verification, with no third p01 review cycle. The final code review (p04 checkpoint) re-reviews these changes, which avoids hitting the cycle cap (REVIEWRECEIVE-02).
 
 ---
 
@@ -163,6 +182,7 @@ Behavior notes:
 | ------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
 | p01-t02 | plan.md | `parseTimeSpec(spec, now)` | `parseTimeSpec(spec, now, bound)`. As `--until`, `today` and a date-only value mean the start of the next day. | Makes the named day inclusive, consistent with the `yesterday` rule | implementation | none |
 | p01-t04 | plan.md | Base64 path exception: "all lowercase segments" | Segments may start with one capital letter (e.g. `Users/Shared/…`) | The literal rule could never fire on mixed-case runs | implementation | none |
+| p01 re-review M2/L3 | plan.md, design.md | `redact` → `buildSnippet` composition; original redaction shape list | `snippetFor` + expanded rules/exemptions | Review-found artifact drift | implementation (artifacts aligned by root) | none |
 | p01-t04 | design.md | Redaction shapes | Also covers `ghu_`/`ghr_`. Bearer is masked only when ≥16 chars, or ≥8 with a digit. Quoted values are masked including their quotes. | Fewer prose false positives; broader token coverage | implementation | Over-masking risk (`token: string`, long slug paths) to be watched in p02 ranking tests |
 
 ## Test Results
