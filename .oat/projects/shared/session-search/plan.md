@@ -6,7 +6,7 @@ oat_last_updated: 2026-10-02
 oat_phase: plan
 oat_phase_status: complete
 oat_plan_parallel_groups: []
-oat_plan_hill_phases: ["p05"]
+oat_plan_hill_phases: ['p05']
 oat_auto_review_at_hill_checkpoints: true
 oat_plan_source: quick
 oat_import_reference: null
@@ -1314,20 +1314,21 @@ Source: reviews/archived/final-review-2026-10-02T114035Z.md, Low 2.
 
 ## Reviews
 
-| Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head | Invocation | Gate Target       |
-| ----- | -------- | --------------- | ---------- | ----------------------------------------------------------- | ------------- | ---------- | ----------------- |
-| p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T061433Z.md | d2fdc0bed2f806ebbd0463e396cc66e747c3f488 | auto | - |
-| p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T062929Z.md | e4ae386d889d279a69e859fa7bd44aaca422b67d | auto | - |
-| p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md | 0367021c | auto | - |
-| p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md | e09b9afe | auto | - |
-| p03   | code     | fixes_completed | 2026-10-02 | reviews/archived/p03-review-2026-10-02T080403Z.md | 7ff0c270 | auto | - |
-| p04   | code     | fixes_completed | 2026-10-02 | reviews/archived/p04-review-2026-10-02T083046Z.md | 9ccaef4f | auto | - |
-| p05   | code     | passed | 2026-10-02 | reviews/archived/final-review-2026-10-02T114035Z.md | 3fb6dc1fa82e8c49d0bb61f493778cc8e9df764f | auto | - |
-| final | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T084934Z.md | 7941601149bdf9adf2a7d9e6d9b55f98152f1fb1 | auto | - |
-| final | code     | passed | 2026-10-02 | reviews/archived/final-review-2026-10-02T114035Z.md | 3fb6dc1fa82e8c49d0bb61f493778cc8e9df764f | auto | - |
-| plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -             | auto       | -                 |
-| plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -             | gate       | codex-6-sol-xhigh |
-| plan  | artifact | passed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T055258Z.md | - | gate | codex-6-sol-xhigh |
+| Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target       |
+| ----- | -------- | --------------- | ---------- | ----------------------------------------------------------- | ---------------------------------------- | ---------- | ----------------- |
+| p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T061433Z.md           | d2fdc0bed2f806ebbd0463e396cc66e747c3f488 | auto       | -                 |
+| p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T062929Z.md           | e4ae386d889d279a69e859fa7bd44aaca422b67d | auto       | -                 |
+| p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md           | 0367021c                                 | auto       | -                 |
+| p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md           | e09b9afe                                 | auto       | -                 |
+| p03   | code     | fixes_completed | 2026-10-02 | reviews/archived/p03-review-2026-10-02T080403Z.md           | 7ff0c270                                 | auto       | -                 |
+| p04   | code     | fixes_completed | 2026-10-02 | reviews/archived/p04-review-2026-10-02T083046Z.md           | 9ccaef4f                                 | auto       | -                 |
+| p05   | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T114035Z.md         | 3fb6dc1fa82e8c49d0bb61f493778cc8e9df764f | auto       | -                 |
+| final | code     | fixes_completed | 2026-10-02 | reviews/archived/final-review-2026-10-02T084934Z.md         | 7941601149bdf9adf2a7d9e6d9b55f98152f1fb1 | auto       | -                 |
+| final | code     | passed          | 2026-10-02 | reviews/archived/final-review-2026-10-02T114035Z.md         | 3fb6dc1fa82e8c49d0bb61f493778cc8e9df764f | auto       | -                 |
+| plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -                                        | auto       | -                 |
+| plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -                                        | gate       | codex-6-sol-xhigh |
+| plan  | artifact | passed          | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T055258Z.md | -                                        | gate       | codex-6-sol-xhigh |
+| final | code     | received        | 2026-10-02 | reviews/final-review-2026-10-02T120208Z.md                  | bc7aea7bed64a51938e51a4f241a5bff8584806f | gate       | codex-6-sol-xhigh |
 
 For code-review events, `Reviewed Head` is the full 40-character SHA at the
 head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
