@@ -154,6 +154,7 @@ This task has no runtime test: types-only code is verified by `type-check`, beca
     - otherwise the `\S+` run up to a delimiter (`,`, `}`, `&`)
 
   The credential words are `password|passwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret|private[_-]?key`. Examples: `API_KEY=…`, `AWS_SECRET_ACCESS_KEY=…`, `{"password":"x"}`, `{"API_KEY":"x y"}`, `{\"token\":\"x\"}`.
+
 - **Representation boundary:** every emitted string (snippet, title, firstPrompt) is redacted from the full text unit before windowing. On the deep raw fallback, the full raw line is redacted before the window is cut, so escaped forms are covered.
 - hex runs of 40 or more chars
 - base64-like runs `[A-Za-z0-9+/_-]{40,}={0,2}` that include at least one digit and mixed case, **except** path-like runs whose `/`-split segments are all lowercase word-like (so `documentation/docs/engineering/architecture` survives while AWS-style secrets containing `/`/`+` are masked)
@@ -680,15 +681,16 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 
 ## Reviews
 
-| Scope | Type     | Status          | Date       | Artifact                                           | Reviewed Head | Invocation | Gate Target |
-| ----- | -------- | --------------- | ---------- | -------------------------------------------------- | ------------- | ---------- | ----------- |
-| p01   | code     | pending         | -          | -                                                  | -             | -          | -           |
-| p02   | code     | pending         | -          | -                                                  | -             | -          | -           |
-| p03   | code     | pending         | -          | -                                                  | -             | -          | -           |
-| p04   | code     | pending         | -          | -                                                  | -             | -          | -           |
-| final | code     | pending         | -          | -                                                  | -             | -          | -           |
-| plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                          | -             | auto       | -           |
-| plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | - | gate | codex-6-sol-xhigh |
+| Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head | Invocation | Gate Target       |
+| ----- | -------- | --------------- | ---------- | ----------------------------------------------------------- | ------------- | ---------- | ----------------- |
+| p01   | code     | pending         | -          | -                                                           | -             | -          | -                 |
+| p02   | code     | pending         | -          | -                                                           | -             | -          | -                 |
+| p03   | code     | pending         | -          | -                                                           | -             | -          | -                 |
+| p04   | code     | pending         | -          | -                                                           | -             | -          | -                 |
+| final | code     | pending         | -          | -                                                           | -             | -          | -                 |
+| plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -             | auto       | -                 |
+| plan  | artifact | fixes_completed | 2026-10-02 | reviews/archived/artifact-plan-review-2026-10-02T053829Z.md | -             | gate       | codex-6-sol-xhigh |
+| plan  | artifact | received        | 2026-10-02 | reviews/artifact-plan-review-2026-10-02T055258Z.md          | -             | -          | -                 |
 
 For code-review events, `Reviewed Head` is the full 40-character SHA at the
 head of the reviewed range. `Invocation` records `manual`, `auto`, or `gate`;
