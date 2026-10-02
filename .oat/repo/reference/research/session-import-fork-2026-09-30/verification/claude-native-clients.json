@@ -1,0 +1,11 @@
+{
+  "provider": "claude",
+  "version": "2.1.284 (Claude Code)",
+  "preinitializedHomeLookup": "passed",
+  "nativeChildId": "8c126d64-b448-4984-840e-f1a89252fd88",
+  "sourceUnchanged": true,
+  "seedUnchanged": true,
+  "continuation": "CLI fork/resume with additional noninteractive flags passed",
+  "exactPrintedCommandCreation": "not exercised; noninteractive native CLI continuation adds flags",
+  "terminalContinuation": "not exercised"
+}

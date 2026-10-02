@@ -3,6 +3,8 @@
 **Last updated:** 2026-10-02
 **Verified baseline:** `origin/main` at `4150cfe2` on 2026-09-20. PR #100 corrected and live-checked installation documentation, and PR #101 merged Consensus `0.2.1` with Draft-07 Review/Panel schemas plus Review's 900-second default and explicit CLI override. PR #99 is open for review whose six-ticket session-evidence implementation has completed acceptance on its branch; it is not yet merged. Merged source does not establish release, global installation, marketplace discovery, or general live-provider acceptance.
 
+**2026-09-30 scoped update:** `session-fork-to-destination` 0.3.0 on `t3code/investigate-session-teleporter` adds reviewed cross-provider seed import followed by caller-run native fork. Opus design and implementation reviews and isolated native-client loops passed; exact interactive terminal acceptance, merge and installation remain pending. See [verification](../reference/research/session-import-fork-2026-09-30/verification.md). The September 20 baseline below is historical and was not broadly refreshed.
+
 ## What is available in the verified source tree
 
 Canonical authored skills live under `src/skills/`, shared transcript code under `src/shared/transcript/`, and Consensus shared runtime under `src/plugins/consensus/`. `src/distributions.ts` declares the generated, self-contained installation units under `skills/` and `plugins/*/skills/`. Runtime remains Node >=22, standard-library only; TypeScript, Vitest, bundling, and pnpm are developer tooling.

@@ -1,6 +1,6 @@
 ---
 title: 'Session Fork to Destination'
-description: 'An alpha skill for discovering sessions, previewing their context, and preparing destination-safe fork instructions for another Git worktree.'
+description: 'Discover a session, optionally import supported Claude/Codex history, and prepare a native fork in an existing destination worktree.'
 ---
 
 # Session Fork to Destination
@@ -11,11 +11,11 @@ candidates, shows a sanitized preview, and
 prepares destination-safe fork instructions. It never runs a provider itself,
 so no fork is created by discovery, preview, or preparation.
 
-Use this workflow only for native history continuation within one provider:
-Codex to Codex or Claude Code to Claude Code. For portable continuation between
-agents or providers, use [Session Handoff](session-handoff.md). A native fork
-does not receive a full handoff packet, and this skill does not transfer native
-runtime state across providers.
+For the same provider, prepare a native fork directly. For Claude ↔ Codex,
+`import` first writes supported history as a reconstructed target-provider seed;
+the user then forks that seed. This transfers conversation history, not source
+provider runtime state. For a concise continuation brief instead, use
+[Session Handoff](session-handoff.md).
 
 Automatic provider execution is not part of this skill. The user reviews and
 runs the prepared native command; preparation itself remains read-only.
@@ -50,7 +50,7 @@ Use one of three explicit entry points:
 Discovery is separate from qualification. A path match alone does not prove a
 current session identity, and display labels are not native provider IDs.
 
-### Qualification gates
+### Same-provider qualification gates
 
 `prepare` always runs discovery whatever the entry point. Cursor candidates must carry independent exact working-directory evidence, which the current store never supplies; every candidate then passes recorded-directory equality, the ambiguous-surface refusal, documented fork semantics for that exact surface, and the destination guard.
 
@@ -132,6 +132,53 @@ Cursor, mutate provider stores, or transfer uncommitted Git changes. Review the
 destination state and the prepared command before choosing whether to run it.
 Preparation also does not create a dormant or background fork for later use.
 
+## Import into the other provider
+
+Select an inactive Claude CLI or Codex CLI source and the other target provider.
+Both paths must be distinct registered worktrees of the same repository, with a
+clean source. End the source conversation after a completed assistant turn and exit
+it before importing. Cross-provider `source-current` refuses; invoke from another
+session (`source-other`) or the destination (`destination-fresh`).
+
+```bash
+node skills/session-fork-to-destination/scripts/session-fork-to-destination.mjs \
+  import --source /synthetic/source --target /synthetic/destination \
+  --session claude:cli:00000000-0000-4000-8000-000000000002 \
+  --to codex --entry-point destination-fresh --json
+```
+
+This plans without writing. Review the destination home, seed location, counts,
+omissions, and limitations, then repeat the command with
+`--apply --expect-plan DIGEST`, substituting the returned digest. Applying creates
+the seed only. Run the returned guarded native fork command from the canonical
+destination worktree to create the new conversation. A changed plan requires a new
+review; an exact repeated import reuses the same seed without replacing it.
+
+**Imports preserve raw supported text and tool payloads, which may contain secrets.**
+Preview sanitization does not apply to import. The converter omits reasoning and
+recognized provider context, replaces media with visible placeholders, and reports
+those omissions. It preserves completed, matched native function/custom calls and
+results. Unsupported or incomplete histories refuse instead of silently becoming
+plain text. Examples include pending tool calls, rollback, ambiguous runtime
+context, queued Claude input, incompatible tool identifiers and summary-only Codex
+compaction. Queued input is refused because its delivery order cannot yet be
+reconstructed safely. Other Claude attachment records also refuse until their
+content can be projected safely.
+
+`--target-home PATH` selects an existing target home outside both selected worktrees. Otherwise the target uses
+`CODEX_HOME` or `CLAUDE_CONFIG_DIR` when set, then its conventional home. The printed
+command preserves the selection. Source discovery still uses conventional homes
+and does not support alternate source-home environment routing. A permission-denied
+store write provides a terminal apply command; the skill does not elevate access.
+
+Changed seeds refuse import: manually fork the existing seed if its additional
+history is wanted. Archived seeds must be restored through the provider's supported
+workflow before replanning. Nothing overwrites or automatically unarchives them.
+Raw input/output is bounded to 32 MiB, source records to 100,000, and lines to 4 MiB;
+large embedded media may fail before conversion. Long Claude project keys over 200
+characters and symlinked store descendants are unsupported. A failed apply can
+leave empty store directories; it removes only staging files it created.
+
 ## Fork and resume are different
 
 A fork preserves the selected original session and creates a new conversation.
@@ -140,8 +187,9 @@ instruction when public evidence documents fork semantics for the exact
 provider surface. It never substitutes a resume command for a fork.
 
 Claude Code CLI documents `--resume ID --fork-session`. Codex CLI documents
-`codex fork ID`. These capabilities are documentation-backed as of 2026-09-12
-and have not been live verified for this experiment.
+`codex fork ID`. These same-provider capabilities are documentation-backed as of
+2026-09-12. The separate import checks below exercised reconstructed seeds through
+Codex RPC and Claude CLI with noninteractive flags.
 
 Cursor CLI documents resume, and Cursor IDE documents Duplicate Chat. Cursor
 CLI fork semantics, CLI-to-IDE identity interoperability, and reliable
@@ -151,8 +199,20 @@ future-facing evidence and do not make Cursor transcript discovery available.
 ## Current limitations
 
 - Alpha maturity: provider coverage and end-to-end verification are incomplete.
-- Provider capabilities are based on dated public documentation, not a live
-  provider run.
+- Generated-importer 0.3.1 checks passed with Codex 0.159.2 through app-server
+  fork/continuation/restart and Claude Code 2.1.285 through CLI fork/resume with
+  noninteractive flags. These use synthetic histories and loopback services in
+  preinitialized disposable homes.
+- Codex's exact printed terminal command passed fork creation, interactive
+  continuation, restart and resume with fixture-local `CODEX_EXEC_SERVER_URL=none`.
+  This validates the supported embedded-server configuration; default daemon
+  startup remains blocked by the test sandbox's refusal to execute setuid `/bin/ps`.
+- Claude Code 2.1.285 exact interactive terminal acceptance remains unverified:
+  startup tried `api.anthropic.com` and stopped under the network block before
+  child creation. No production model-service acceptance or GUI placement is claimed.
+- Completion checks reject final Codex commentary or trailing unfinished lifecycle
+  state, and check Claude's final retained assistant text and subsequent assistant
+  rows even when omitted context follows them. These checks cannot prove a writer is inactive; stop the source before import.
 - Discovery reads bounded transcript data and may require explicit selection.
 - Cursor discovery reports `discovery-incomplete` because the current store does not
   provide independent exact cwd evidence; no Cursor candidate can be selected or

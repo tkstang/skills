@@ -1,0 +1,15 @@
+{
+  "surface": "codex fork SESSION_ID interactive CLI",
+  "parent": "134a2658-eb47-56d7-9c11-f829e6deb439",
+  "child": "01a0efd4-4e3b-7b21-9fd8-2521316726b0",
+  "child_file": "/tmp/session-import-fork-7ZO9zB/isolated/codex/sessions/2026/09/29/rollout-2026-09-29T20-01-03-01a0efd4-4e3b-7b21-9fd8-2521316726b0.jsonl",
+  "child_source": "cli",
+  "forked_from_id": "134a2658-eb47-56d7-9c11-f829e6deb439",
+  "cwd": "/private/tmp/session-import-fork-7ZO9zB/destination",
+  "model_provider": "probe",
+  "imported_text_and_tool_markers": true,
+  "source_unchanged": true,
+  "seed_unchanged": true,
+  "model_turn_sent": false,
+  "exit_code": 0
+}

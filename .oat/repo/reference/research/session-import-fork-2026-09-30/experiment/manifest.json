@@ -1,0 +1,67 @@
+{
+  "kind": "historical-synthetic-experiment",
+  "sourceDirectory": "/tmp/session-import-fork-7ZO9zB",
+  "upstreamCommit": "39fd13ae4e4f1c7b484872561226da3764ab5a21",
+  "files": [
+    {
+      "file": "report.md",
+      "sha256": "f88a6952df61db2998e041d7a88751b7819d6abaf8e1993dea8a366704dfe689",
+      "bytes": 4817
+    },
+    {
+      "file": "probe.py",
+      "sha256": "37ecec2c2b3bd1ff57950a700f129f0da26aa6c9f9bf8b6ef60e617e32057bf9",
+      "bytes": 15094
+    },
+    {
+      "file": "loopback.sb",
+      "sha256": "cf35cca89f2e1b677995e788c0fe365bf627c641f260a3e4ea80cbde31a0c60e",
+      "bytes": 103
+    },
+    {
+      "file": "run-codex-cli-fork.py",
+      "sha256": "f87736eb83adbb2a46d2dfc2556186b0db2289a1578cb34f0206be466af1eaa6",
+      "bytes": 1003
+    },
+    {
+      "file": "codex-result.json",
+      "sha256": "963e2f58b7bc61f976d87df55a822879c5543884851ee736d076317a8defbd3c",
+      "bytes": 722
+    },
+    {
+      "file": "claude-result.json",
+      "sha256": "5937c8944b3d61c9285ca1baca1213ce0950af0c4ad68413bcee1929fd85ecdb",
+      "bytes": 1002
+    },
+    {
+      "file": "codex-cli-fork-result.json",
+      "sha256": "914a79f5442e4b17f289efa5611de2cd3286a2d10d4c972d1603d2c68101b4c8",
+      "bytes": 637
+    },
+    {
+      "file": "codex-first-request.json",
+      "sha256": "0443b94461b886f42a0b67cb1de32b92ebdc1f6676488953e761337b23555694",
+      "bytes": 50057
+    },
+    {
+      "file": "codex-second-request.json",
+      "sha256": "5c12aef4e0bb79e8c29a380c4c994f5860944d72aefcd4f95b896f72534fee58",
+      "bytes": 50558
+    },
+    {
+      "file": "claude-first-request.json",
+      "sha256": "189c89462442f0784fb885954a717f67b9f2dea3aef171ef780c1ae8d7fea766",
+      "bytes": 3728
+    },
+    {
+      "file": "claude-second-request.json",
+      "sha256": "0fe107b2a5c520e71315b15aa38d4d284c68b1bd3d025a42a10e670a3c846c46",
+      "bytes": 4078
+    },
+    {
+      "file": "codex-child-final.json",
+      "sha256": "51bf3764f3381f1d5bcabad26d9ce60ae2b1da2f68c3b24d66b19128c781a8db",
+      "bytes": 5604
+    }
+  ]
+}

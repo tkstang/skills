@@ -1,0 +1,13 @@
+{
+  "source": "/private/tmp/session-import-fork-7ZO9zB/sources/claude.jsonl",
+  "source_sha256": "5beccea0b90d313c5a690b7f078be7fad45dd1ac640759af3196541fc69c51ea",
+  "seed": "/private/tmp/session-import-fork-7ZO9zB/isolated/codex/sessions/2026/09/28/rollout-2026-09-28T10-00-00-134a2658-eb47-56d7-9c11-f829e6deb439.jsonl",
+  "seed_sha256": "8da3c10f14aeb7bd2db809f5705be729f8005992436360dcb087fb38d30c53a1",
+  "parent": "134a2658-eb47-56d7-9c11-f829e6deb439",
+  "child": "01a0efd3-0c80-7132-8aec-6d01a64e18b2",
+  "destination": "/private/tmp/session-import-fork-7ZO9zB/destination",
+  "first_reply": "CODEX_FORK_REPLY_91",
+  "second_reply": "CODEX_RESUME_REPLY_92",
+  "source_unchanged": true,
+  "seed_unchanged": true
+}

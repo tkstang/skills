@@ -1,0 +1,11 @@
+{
+  "provider": "codex",
+  "version": "codex-cli 0.159.2",
+  "preinitializedHomeLookup": "passed",
+  "nativeChildId": "01a0f303-9603-7022-a5f0-18dabcbc0ab3",
+  "sourceUnchanged": true,
+  "seedUnchanged": true,
+  "continuation": "RPC fork/start/restart/resume passed",
+  "exactPrintedCommandCreation": "unverified: no distinct child persisted within 12 seconds",
+  "terminalContinuation": "not exercised"
+}

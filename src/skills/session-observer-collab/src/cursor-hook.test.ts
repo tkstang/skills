@@ -286,7 +286,8 @@ describe('Cursor Stop continuation hook', () => {
           terminalFrame('success'),
         ],
         0,
-        { waitMs: 100 },
+        // This checks packaging correctness, not a 100ms startup deadline.
+        { waitMs: 5000 },
         Date.now(),
       );
       const installed = join(home, 'installed-observer');
@@ -315,6 +316,7 @@ describe('Cursor Stop continuation hook', () => {
       );
 
       expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout.trim(), result.stderr).not.toBe('');
       expect(JSON.parse(result.stdout)).toMatchObject({
         followup_message: expect.stringContaining('records="0-2"'),
       });

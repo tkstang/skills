@@ -10,6 +10,8 @@
 
 ## Completed Items
 
+- 2026-09-30 — BL-260930-import-sessions-before-native — Import sessions before native fork — Implemented session-fork-to-destination 0.3.0 plan/apply seed import with caller-run native fork, passed Opus design and implementation review plus isolated native-client loops; exact interactive terminal acceptance, merge, release and installation remain separate.
+
 - 2026-09-21 — BL-260919-session-retro-consume-activity — Session-retro: consume activity evidence — PR #99 implements a distinct-session review of exact paired frozen narrative/activity captures, preserving native identity, authorship and all seven coverage states while separating observation, interpretation and proposed changes; merge, release, installation and live-provider acceptance remain separate.
 - 2026-09-21 — BL-260919-uncapped-structured-activity — Uncapped structured activity export for cross-session analysis — PR #99 adds exact-session sensitive structured activity capture with one-snapshot identity/provenance, uncapped invocation retention, bounded previews, guarded destinations and atomic JSON replacement; merge and provider acceptance remain pending.
 - 2026-09-21 — BL-260919-token-and-usage-accounting — Token and usage accounting for session activity — PR #99 preserves native Claude deduplication and Codex cumulative/turn/response usage semantics with reset, extraction and uncertainty diagnostics, explicit model joins, Cursor not-recorded, and no invented prices.
