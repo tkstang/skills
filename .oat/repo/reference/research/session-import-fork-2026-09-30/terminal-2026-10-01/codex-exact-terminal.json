@@ -1,0 +1,27 @@
+{
+  "provider": "codex",
+  "networkIsolation": "verified loopback allowed/external denied before clients",
+  "configuredEnvironment": {
+    "CODEX_EXEC_SERVER_URL": "none"
+  },
+  "defaultDaemon": "not verified: sandbox rejects setuid /bin/ps",
+  "generatedImporter": "0.3.1",
+  "creation": "passed",
+  "continuation": "passed",
+  "restartResume": "passed",
+  "version": "codex-cli 0.159.2",
+  "bootstrap": "01a0f603-6a3d-7443-b1a0-5a9d54814fa4",
+  "sourceSha256": "13cee60cfe1bc4626f65712fbdf7e93b1786bf3878967ff5bb1181c47d63ac8f",
+  "seedId": "240ec535-78cd-82f8-89c3-00c5a5417615",
+  "seedSha256": "a3325c479f13e0c56a06b39601eda2ff220ccf063492b58ebc88b01f2bf6e940",
+  "destination": "/private/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/import-native-uZQHIj/destination with_spaces",
+  "exactForkCommand": "if test \"$(pwd -P)\" = '/private/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/import-native-uZQHIj/destination with_spaces'; then exec env CODEX_HOME=/private/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/import-native-uZQHIj/target-home codex fork 240ec535-78cd-82f8-89c3-00c5a5417615; else printf '%s\\n' 'Refusing: open the canonical destination and preserve the reviewed provider-home routing.' >&2; fi",
+  "childId": "01a0f603-6df4-7f20-8f0b-ce8b2fe7a494",
+  "childCwd": "/private/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/import-native-uZQHIj/destination with_spaces",
+  "resumeCommand": "env CODEX_HOME=/private/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/import-native-uZQHIj/target-home codex resume 01a0f603-6df4-7f20-8f0b-ce8b2fe7a494",
+  "sourceUnchanged": true,
+  "seedUnchanged": true,
+  "firstReply": "CODEX_EXACT_TERMINAL_REPLY_101",
+  "secondReply": "CODEX_EXACT_TERMINAL_REPLY_102",
+  "validated": true
+}

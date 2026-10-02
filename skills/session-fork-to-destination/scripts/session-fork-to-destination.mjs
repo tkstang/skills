@@ -2,7 +2,7 @@
 // GENERATED skill payload for session-fork-to-destination.
 
 // src/skills/session-fork-to-destination/src/guidance-cli.ts
-import { realpath as realpath4 } from "node:fs/promises";
+import { realpath as realpath7 } from "node:fs/promises";
 
 // src/shared/transcript/runtimes.ts
 import { open, readFile } from "node:fs/promises";
@@ -208,7 +208,7 @@ function parseAskUserQuestions(value) {
     return [{ ...header ? { header } : {}, prompt, options }];
   });
 }
-function formatAskUserQuestions(toolName, questions, opts) {
+function formatAskUserQuestions(toolName2, questions, opts) {
   const numbered = questions.length > 1;
   const lines = [];
   const questionHead = (question) => {
@@ -218,11 +218,11 @@ function formatAskUserQuestions(toolName, questions, opts) {
   };
   if (numbered) {
     const title = opts.title ? `${opts.title} \u2014 ` : "";
-    lines.push(`[${toolName}] ${title}${questions.length} questions:`);
+    lines.push(`[${toolName2}] ${title}${questions.length} questions:`);
   }
   questions.forEach((question, index) => {
     const head = questionHead(question);
-    lines.push(numbered ? `${index + 1}. ${head}` : `[${toolName}] ${head}`);
+    lines.push(numbered ? `${index + 1}. ${head}` : `[${toolName2}] ${head}`);
     if (question.options.length === 0) return;
     if (opts.includeDescriptions) {
       for (const option of question.options) {
@@ -239,11 +239,11 @@ function formatAskUserQuestions(toolName, questions, opts) {
   for (const note of opts.notes ?? []) lines.push(`   (${note})`);
   return lines.join("\n");
 }
-function formatAskUserAnswers(toolName, answers) {
+function formatAskUserAnswers(toolName2, answers) {
   const numbered = answers.length > 1;
   const lines = [];
   if (numbered) {
-    lines.push(`[${toolName} \u2192 answered]`);
+    lines.push(`[${toolName2} \u2192 answered]`);
   }
   answers.forEach(({ label, answer, note }, index) => {
     const body = `${truncate(label, ASK_USER_ANSWER_PROMPT_LIMIT)}: "${truncate(
@@ -251,7 +251,7 @@ function formatAskUserAnswers(toolName, answers) {
       ASK_USER_ANSWER_LIMIT
     )}"`;
     lines.push(
-      numbered ? `${index + 1}. ${body}` : `[${toolName} \u2192 answered] ${body}`
+      numbered ? `${index + 1}. ${body}` : `[${toolName2} \u2192 answered] ${body}`
     );
     if (note) {
       lines.push(`   note: ${truncate(note, ASK_USER_ANSWER_LIMIT)}`);
@@ -799,7 +799,7 @@ function claudeAskUserQuestionEntry(role, block, recordIndex, opts) {
   };
 }
 function claudeAskUserAnswerEntry(role, block, recordIndex, opts) {
-  const toolName = ASK_USER_TOOL_NAMES["claude-code"];
+  const toolName2 = ASK_USER_TOOL_NAMES["claude-code"];
   const result = isObject(opts.toolUseResult) ? opts.toolUseResult : null;
   const rawAnswers = result && isObject(result.answers) ? result.answers : null;
   if (result && rawAnswers) {
@@ -824,10 +824,10 @@ function claudeAskUserAnswerEntry(role, block, recordIndex, opts) {
     if (answers.length > 0) {
       return {
         role,
-        text: formatAskUserAnswers(toolName, answers),
+        text: formatAskUserAnswers(toolName2, answers),
         recordIndex,
         kind: "ask_user",
-        toolName,
+        toolName: toolName2,
         ...claudeAskUserAnswerProvenance(opts.userProvenance)
       };
     }
@@ -836,10 +836,10 @@ function claudeAskUserAnswerEntry(role, block, recordIndex, opts) {
   if (!fallback) return null;
   return {
     role,
-    text: `[${toolName} \u2192 answered] ${truncate(fallback, ASK_USER_ANSWER_LIMIT)}`,
+    text: `[${toolName2} \u2192 answered] ${truncate(fallback, ASK_USER_ANSWER_LIMIT)}`,
     recordIndex,
     kind: "ask_user",
-    toolName,
+    toolName: toolName2,
     ...claudeAskUserAnswerProvenance(opts.userProvenance)
   };
 }
@@ -1004,9 +1004,9 @@ function parseCodexFunctionArguments(value) {
   }
 }
 function codexAskUserAnswerEntry(payload, recordIndex, labelById, autoResolvable) {
-  const toolName = ASK_USER_TOOL_NAMES.codex;
-  const output = parseCodexFunctionArguments(payload.output);
-  const rawAnswers = output && isObject(output.answers) ? output.answers : null;
+  const toolName2 = ASK_USER_TOOL_NAMES.codex;
+  const output2 = parseCodexFunctionArguments(payload.output);
+  const rawAnswers = output2 && isObject(output2.answers) ? output2.answers : null;
   if (!rawAnswers) return null;
   const answers = Object.entries(rawAnswers).flatMap(([id, value]) => {
     const answer = askUserAnswerText(value);
@@ -1016,10 +1016,10 @@ function codexAskUserAnswerEntry(payload, recordIndex, labelById, autoResolvable
   if (answers.length === 0) return null;
   return {
     role: "user",
-    text: formatAskUserAnswers(toolName, answers),
+    text: formatAskUserAnswers(toolName2, answers),
     recordIndex,
     kind: "ask_user",
-    toolName,
+    toolName: toolName2,
     // Only attribute the answer to the operator when the call could not have
     // been resolved by Codex's own timer. The recorded output is identical
     // either way, so an auto-resolvable call leaves origin unset.
@@ -2451,7 +2451,7 @@ async function discoverGuidance(sourcePath, options = {}) {
     ),
     unattributable: [...unattributable.entries()].toSorted(([left], [right]) => compareKeys(left, right)).map(([provider2, reasons]) => ({
       provider: provider2,
-      reasons: [...reasons.entries()].toSorted(([left], [right]) => compareKeys(left, right)).map(([code, count]) => ({ code, count }))
+      reasons: [...reasons.entries()].toSorted(([left], [right]) => compareKeys(left, right)).map(([code, count2]) => ({ code, count: count2 }))
     }))
   };
 }
@@ -2542,23 +2542,23 @@ async function canonicalize(path, deps, failure) {
     throw new GitTargetError(failure);
   }
 }
-function oneLine(output) {
-  const value = output.trim();
+function oneLine(output2) {
+  const value = output2.trim();
   if (value.length === 0 || value.includes("\n") || value.includes("\0")) {
     throw new GitTargetError("not-worktree");
   }
   return value;
 }
-function pathOutputValue(output) {
-  if (!output.endsWith("\n") || output.includes("\0")) {
+function pathOutputValue(output2) {
+  if (!output2.endsWith("\n") || output2.includes("\0")) {
     throw new GitTargetError("not-worktree");
   }
-  const value = output.slice(0, -1);
+  const value = output2.slice(0, -1);
   if (value.length === 0) throw new GitTargetError("not-worktree");
   return value;
 }
-function registeredWorktreePaths(output) {
-  return output.split("\0").filter((field) => field.startsWith("worktree ")).map((field) => field.slice("worktree ".length));
+function registeredWorktreePaths(output2) {
+  return output2.split("\0").filter((field) => field.startsWith("worktree ")).map((field) => field.slice("worktree ".length));
 }
 async function inspectWorktree(requestedPath, targetOptions = {}) {
   const options = resolveOptions(targetOptions);
@@ -2663,6 +2663,23 @@ async function validateHandoffTarget(sourcePath, targetPath, options = {}) {
   return { source, target };
 }
 var validateGuidanceTarget = validateHandoffTarget;
+function evidenceMatches(expected, actual) {
+  return expected.requestedPath === actual.requestedPath && expected.canonicalPath === actual.canonicalPath && expected.worktreeRoot === actual.worktreeRoot && expected.commonGitDir === actual.commonGitDir && expected.branch === actual.branch && expected.head === actual.head && expected.dirty === actual.dirty && expected.statusFingerprint === actual.statusFingerprint;
+}
+async function revalidateHandoffTarget(expected, options = {}) {
+  const source = await inspectWorktree(expected.source.requestedPath, options);
+  if (!evidenceMatches(expected.source, source)) {
+    throw new GitTargetError("git-evidence-drift", "source");
+  }
+  const target = await inspectWorktree(expected.target.requestedPath, options);
+  if (!evidenceMatches(expected.target, target)) {
+    throw new GitTargetError("git-evidence-drift", "target");
+  }
+  if (source.worktreeRoot === target.worktreeRoot || source.commonGitDir !== target.commonGitDir || source.dirty) {
+    throw new GitTargetError("git-evidence-drift");
+  }
+  return { source, target };
+}
 
 // src/skills/session-fork-to-destination/src/guidance-capabilities.ts
 var RETRIEVED_ON = "2026-09-12";
@@ -2982,7 +2999,7 @@ async function prepareForkGuidance(input, deps = DEFAULT_DEPENDENCIES3) {
       input.candidate.nativeId
     )
   };
-  const instructions = input.entryPoint === "destination-fresh" && capability.destinationSwitch.status !== "documented" ? [
+  const instructions2 = input.entryPoint === "destination-fresh" && capability.destinationSwitch.status !== "documented" ? [
     {
       kind: "manual",
       action: "exit-current-session",
@@ -2999,7 +3016,7 @@ async function prepareForkGuidance(input, deps = DEFAULT_DEPENDENCIES3) {
     provider: input.candidate.provider,
     surface: input.candidate.surface,
     entryPoint: input.entryPoint,
-    instructions,
+    instructions: instructions2,
     expectedEffect: "Running the terminal command from the canonical destination should create and open a new fork while preserving the selected original session.",
     evidenceStatus: "documented-not-live-verified",
     limitations: [
@@ -3146,6 +3163,1345 @@ function sanitizePreviewConversationEntries(runtime, entries) {
   return sanitizeEntries(structurallySafe, { runtime }).map((entry) => ({ role: entry.role, text: entry.text.trim() })).filter((entry) => entry.text.length > 0);
 }
 
+// src/skills/session-fork-to-destination/src/session-import.ts
+import { realpath as realpath6 } from "node:fs/promises";
+import { homedir as homedir3 } from "node:os";
+import { isAbsolute as isAbsolute3, join as join4, relative as relative3, sep as sep2 } from "node:path";
+
+// src/skills/session-fork-to-destination/src/import-errors.ts
+var SessionImportError = class extends Error {
+  constructor(code, message = code, replayCommand) {
+    super(message);
+    this.code = code;
+    this.replayCommand = replayCommand;
+    this.name = "SessionImportError";
+  }
+  code;
+  replayCommand;
+};
+function refuse(code, message) {
+  throw new SessionImportError(code, message);
+}
+var IMPORT_MAX_BYTES = 32 * 1024 * 1024;
+function checkDeadline(deadline) {
+  if (Date.now() >= deadline) refuse("import-limit-exceeded");
+}
+function object(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    refuse("malformed-native-history");
+  return value;
+}
+function string(value) {
+  if (typeof value !== "string") refuse("malformed-native-history");
+  return value;
+}
+
+// src/skills/session-fork-to-destination/src/import-store.ts
+import { createHash as createHash2, randomUUID as randomUUID2 } from "node:crypto";
+import { constants } from "node:fs";
+import {
+  link,
+  lstat,
+  mkdir as mkdir2,
+  open as open3,
+  opendir as opendir2,
+  realpath as realpath4,
+  unlink as unlink2
+} from "node:fs/promises";
+import { dirname as dirname2, join as join3, relative as relative2, sep } from "node:path";
+var sha256 = (value) => createHash2("sha256").update(value).digest("hex");
+async function readImportSnapshot(path, deadline) {
+  checkDeadline(deadline);
+  let file;
+  try {
+    file = await open3(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  } catch {
+    refuse("source-unreadable");
+  }
+  try {
+    const before = await file.stat({ bigint: true });
+    if (!before.isFile()) refuse("source-unreadable");
+    if (before.size > BigInt(IMPORT_MAX_BYTES)) refuse("import-limit-exceeded");
+    const bytes = Buffer.alloc(Number(before.size));
+    let offset = 0;
+    while (offset < bytes.length) {
+      checkDeadline(deadline);
+      const read = await file.read(
+        bytes,
+        offset,
+        bytes.length - offset,
+        offset
+      );
+      if (!read.bytesRead) refuse("source-snapshot-changed");
+      offset += read.bytesRead;
+    }
+    const after = await file.stat({ bigint: true });
+    const identity = {
+      dev: String(before.dev),
+      ino: String(before.ino),
+      size: String(before.size),
+      mtimeNs: String(before.mtimeNs),
+      ctimeNs: String(before.ctimeNs)
+    };
+    if (before.dev !== after.dev || before.ino !== after.ino || before.size !== after.size || before.mtimeNs !== after.mtimeNs || before.ctimeNs !== after.ctimeNs)
+      refuse("source-snapshot-changed");
+    let text;
+    try {
+      text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch {
+      refuse("malformed-native-history");
+    }
+    if (!text.endsWith("\n")) refuse("malformed-native-history");
+    const lines = text.slice(0, -1).split("\n");
+    if (lines.length > 1e5) refuse("import-limit-exceeded");
+    const records = lines.map((line) => {
+      checkDeadline(deadline);
+      if (Buffer.byteLength(line) > 4 * 1024 * 1024)
+        refuse("import-limit-exceeded");
+      try {
+        return object(JSON.parse(line));
+      } catch (error) {
+        if (error instanceof SessionImportError) throw error;
+        refuse("malformed-native-history");
+      }
+    });
+    return { bytes, records, digest: sha256(bytes), identity };
+  } finally {
+    await file.close();
+  }
+}
+async function revalidateImportSnapshot(path, snapshot, deadline) {
+  const current = await readImportSnapshot(path, deadline);
+  if (current.digest !== snapshot.digest || JSON.stringify(current.identity) !== JSON.stringify(snapshot.identity))
+    refuse("source-snapshot-changed");
+}
+function within(home, path) {
+  const rel = relative2(home, path);
+  if (!rel || rel === ".." || rel.startsWith(`..${sep}`) || rel.startsWith(sep))
+    refuse("invalid-store-path");
+}
+async function exists(path) {
+  try {
+    return await lstat(path, { bigint: true });
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+async function storeWrite(operation) {
+  try {
+    return await operation();
+  } catch (error) {
+    const code = error.code;
+    if (code === "EACCES" || code === "EPERM")
+      throw new SessionImportError("store-write-denied");
+    throw error;
+  }
+}
+async function inspectParents(home, path, create, deadline) {
+  within(home, path);
+  const parts = relative2(home, dirname2(path)).split(sep).filter(Boolean);
+  const parents = [];
+  let current = home;
+  const root = await lstat(home, { bigint: true });
+  if (!root.isDirectory() || root.isSymbolicLink() || await realpath4(home) !== home)
+    refuse("store-path-drift");
+  parents.push({ path: home, dev: root.dev, ino: root.ino });
+  for (const part of parts) {
+    checkDeadline(deadline);
+    current = join3(current, part);
+    let stat2 = await exists(current);
+    if (!stat2 && create) {
+      try {
+        await storeWrite(() => mkdir2(current, { mode: 448 }));
+      } catch (error) {
+        if (error.code !== "EEXIST") throw error;
+      }
+      stat2 = await exists(current);
+    }
+    if (!stat2) break;
+    if (!stat2.isDirectory() || stat2.isSymbolicLink())
+      refuse("unsafe-store-path");
+    parents.push({ path: current, dev: stat2.dev, ino: stat2.ino });
+  }
+  return parents;
+}
+function sameSeedIdentity(left, right) {
+  return right.isFile() && !right.isSymbolicLink() && left.dev === right.dev && left.ino === right.ino && left.size === right.size && left.mtimeNs === right.mtimeNs && left.mode === right.mode && left.uid === right.uid && left.gid === right.gid;
+}
+async function matchesBytes(path, bytes, deadline) {
+  checkDeadline(deadline);
+  const anchor = await exists(path);
+  if (!anchor) return false;
+  if (!anchor.isFile() || anchor.isSymbolicLink()) refuse("unsafe-store-path");
+  if (anchor.size !== BigInt(bytes.length)) return false;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    checkDeadline(deadline);
+    const pathBefore = attempt === 0 ? anchor : await exists(path);
+    if (!pathBefore || !sameSeedIdentity(anchor, pathBefore))
+      refuse("store-path-drift");
+    let file;
+    try {
+      file = await open3(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+      const opened = await file.stat({ bigint: true });
+      if (!sameSeedIdentity(anchor, opened)) refuse("store-path-drift");
+      if (opened.ctimeNs !== pathBefore.ctimeNs) continue;
+      const existing = Buffer.alloc(bytes.length);
+      let offset = 0;
+      while (offset < existing.length) {
+        checkDeadline(deadline);
+        const read = await file.read(
+          existing,
+          offset,
+          existing.length - offset,
+          offset
+        );
+        if (!read.bytesRead) refuse("store-path-drift");
+        offset += read.bytesRead;
+      }
+      const after = await file.stat({ bigint: true });
+      if (!sameSeedIdentity(anchor, after)) refuse("store-path-drift");
+      if (after.ctimeNs !== opened.ctimeNs) continue;
+      const pathAfter = await exists(path);
+      if (!pathAfter || !sameSeedIdentity(anchor, pathAfter))
+        refuse("store-path-drift");
+      if (pathAfter.ctimeNs !== after.ctimeNs) continue;
+      return existing.equals(bytes);
+    } finally {
+      await file?.close();
+    }
+  }
+  refuse("store-path-drift");
+}
+async function enumerateMatches(dir, id, deadline, recursive, counter, matches) {
+  checkDeadline(deadline);
+  const stat2 = await exists(dir);
+  if (!stat2) return;
+  if (!stat2.isDirectory() || stat2.isSymbolicLink()) refuse("unsafe-store-path");
+  const handle = await opendir2(dir);
+  for await (const entry of handle) {
+    checkDeadline(deadline);
+    if (++counter.value > 5e4) refuse("import-limit-exceeded");
+    const path = join3(dir, entry.name);
+    if (entry.isSymbolicLink()) {
+      if (entry.name.endsWith(`${id}.jsonl`) || recursive)
+        refuse("unsafe-store-path");
+      continue;
+    }
+    if (entry.name.endsWith(`-${id}.jsonl`)) matches.push(path);
+    if (recursive && entry.isDirectory())
+      await enumerateMatches(path, id, deadline, true, counter, matches);
+  }
+}
+async function inspectImportOccupancy(home, path, id, provider2, bytes, deadline) {
+  await inspectParents(home, path, false, deadline);
+  if (provider2 === "codex") {
+    const counter = { value: 0 };
+    const archives = [];
+    await enumerateMatches(
+      join3(home, "archived_sessions"),
+      id,
+      deadline,
+      true,
+      counter,
+      archives
+    );
+    if (archives.length) return "archived";
+    const active = [];
+    await enumerateMatches(dirname2(path), id, deadline, false, counter, active);
+    if (active.some((p) => p !== path)) return "diverged";
+  }
+  const stat2 = await exists(path);
+  if (!stat2) return "absent";
+  return await matchesBytes(path, bytes, deadline) ? "exact" : "diverged";
+}
+async function publishImportSeed(home, path, id, provider2, bytes, deadline, revalidate) {
+  let temporary;
+  let published = false;
+  let ownsTemporary = false;
+  const publish = async () => {
+    try {
+      const occupancy = await inspectImportOccupancy(
+        home,
+        path,
+        id,
+        provider2,
+        bytes,
+        deadline
+      );
+      if (occupancy === "exact") {
+        await revalidate();
+        const current = await inspectImportOccupancy(
+          home,
+          path,
+          id,
+          provider2,
+          bytes,
+          deadline
+        );
+        if (current !== "exact")
+          refuse(current === "archived" ? "seed-archived" : "seed-diverged");
+        return "already-imported";
+      }
+      if (occupancy === "archived")
+        refuse(
+          "seed-archived",
+          "Restore the seed through the provider archive workflow, then replan."
+        );
+      if (occupancy === "diverged")
+        refuse(
+          "seed-diverged",
+          "The existing seed evolved. Manually fork that seed if its additional history is wanted."
+        );
+      const parents = await inspectParents(home, path, true, deadline);
+      const stagingPath = join3(
+        dirname2(path),
+        `.session-import-${randomUUID2()}.tmp`
+      );
+      temporary = stagingPath;
+      const file = await storeWrite(
+        () => open3(
+          stagingPath,
+          constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
+          384
+        )
+      );
+      ownsTemporary = true;
+      try {
+        await storeWrite(() => file.writeFile(bytes));
+        await storeWrite(() => file.sync());
+      } finally {
+        await file.close();
+      }
+      await revalidate();
+      checkDeadline(deadline);
+      for (const expected of parents) {
+        const actual = await lstat(expected.path, { bigint: true });
+        if (!actual.isDirectory() || actual.isSymbolicLink() || actual.dev !== expected.dev || actual.ino !== expected.ino)
+          refuse("store-path-drift");
+      }
+      const now = await inspectImportOccupancy(
+        home,
+        path,
+        id,
+        provider2,
+        bytes,
+        deadline
+      );
+      if (now === "archived") refuse("seed-archived");
+      if (now === "diverged") refuse("seed-diverged");
+      if (now === "exact") return "already-imported";
+      try {
+        await storeWrite(() => link(stagingPath, path));
+        published = true;
+      } catch (error) {
+        if (error.code === "EEXIST") {
+          if (await matchesBytes(path, bytes, deadline))
+            return "already-imported";
+          refuse("seed-diverged");
+        }
+        if (["ENOTSUP", "EOPNOTSUPP", "EXDEV"].includes(
+          error.code ?? ""
+        ))
+          throw new SessionImportError("store-publication-unsupported");
+        throw error;
+      }
+      const dir = await open3(dirname2(path), constants.O_RDONLY);
+      try {
+        await dir.sync();
+      } finally {
+        await dir.close();
+      }
+      return "imported";
+    } catch (error) {
+      if (published)
+        throw new SessionImportError(
+          "seed-published-durability-failed",
+          "The seed was published, but durability verification failed. Exact bytes are safe to retry."
+        );
+      throw error;
+    }
+  };
+  let result;
+  let failure;
+  try {
+    result = await publish();
+  } catch (error) {
+    failure = error;
+  }
+  if (temporary && ownsTemporary) {
+    try {
+      await unlink2(temporary);
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        const cleanupFailure = new SessionImportError(
+          published ? "seed-published-cleanup-failed" : "store-cleanup-failed",
+          "Owned staging-file cleanup failed; inspect the destination directory before retrying."
+        );
+        if (failure === void 0) throw cleanupFailure;
+        if (failure instanceof Error)
+          failure.message += ` Secondary cleanup failure (${cleanupFailure.code}): ${cleanupFailure.message}`;
+      }
+    }
+  }
+  if (failure !== void 0) throw failure;
+  return result;
+}
+
+// src/skills/session-fork-to-destination/src/native-history.ts
+import { createHash as createHash3 } from "node:crypto";
+import { realpath as realpath5 } from "node:fs/promises";
+import { basename as basename3 } from "node:path";
+var REMEDY = "Finish the source turn, exit the source session, then invoke from the destination or another session.";
+var ID = /^[A-Za-z0-9_-]{1,128}$/u;
+var phases = /* @__PURE__ */ new Set(["commentary", "final_answer"]);
+function count(history, key) {
+  history.omissions[key] = (history.omissions[key] ?? 0) + 1;
+}
+function stamp(value) {
+  const raw = string(value);
+  if (!/(?:Z|[+-]\d\d:\d\d)$/u.test(raw) || !Number.isFinite(Date.parse(raw)))
+    refuse("invalid-source-timestamp");
+  return new Date(raw).toISOString();
+}
+function toolId(value) {
+  const id = string(value);
+  if (!ID.test(id)) refuse("unsupported-tool-id");
+  return id;
+}
+function toolName(value) {
+  const name = string(value);
+  if (!ID.test(name)) refuse("unsupported-tool-name");
+  return name;
+}
+function argumentsObject(value) {
+  if (typeof value === "string") {
+    try {
+      object(JSON.parse(value));
+    } catch {
+      refuse("unsupported-tool-arguments");
+    }
+    return value;
+  }
+  object(value);
+  return JSON.stringify(value);
+}
+var envelopes = [
+  "environment_context",
+  "permissions",
+  "user_instructions",
+  "apps_instructions",
+  "skill",
+  "stoa-profile",
+  "local-command-caveat",
+  "local-command-stdout",
+  "system-reminder"
+];
+var commandEnvelopes = ["command-message", "command-name", "command-args"];
+function readCommandEnvelope(text, name) {
+  const opening = `<${name}>`, closing = `</${name}>`;
+  if (!text.startsWith(opening)) refuse("ambiguous-runtime-context");
+  const end = text.indexOf(closing, opening.length);
+  if (end < 0 || text.slice(opening.length, end).includes(opening))
+    refuse("ambiguous-runtime-context");
+  return {
+    value: text.slice(opening.length, end),
+    rest: text.slice(end + closing.length)
+  };
+}
+function commandRemainder(rest, expectedNext) {
+  if (rest.length && !/^[\r\n]/u.test(rest) && !(expectedNext && rest.startsWith(`<${expectedNext}>`)))
+    refuse("ambiguous-runtime-context");
+  return rest.replace(/^[\r\n]+/u, "");
+}
+function claudeCommandText(text) {
+  if (text.startsWith("<command-args>")) {
+    const args2 = readCommandEnvelope(text, "command-args");
+    return { text: args2.value, rest: commandRemainder(args2.rest) };
+  }
+  const command = readCommandEnvelope(text, "command-message");
+  const name = readCommandEnvelope(
+    commandRemainder(command.rest, "command-name"),
+    "command-name"
+  );
+  if (!/^[A-Za-z0-9_-][A-Za-z0-9_.:-]{0,127}$/u.test(command.value) || name.value !== `/${command.value}`)
+    refuse("ambiguous-runtime-context");
+  let rest = commandRemainder(name.rest, "command-args");
+  let args = "";
+  if (rest.startsWith("<command-args>")) {
+    const parsed = readCommandEnvelope(rest, "command-args");
+    args = parsed.value;
+    rest = commandRemainder(parsed.rest);
+  }
+  return { text: `${name.value}${args.length ? ` ${args}` : ""}`, rest };
+}
+function userText(raw, h, provider2) {
+  let text = raw;
+  const retainedCommands = [];
+  if (provider2 === "codex" && text.startsWith("# AGENTS.md instructions for ")) {
+    const match = /^# AGENTS\.md instructions for [^\n]+\n\n<INSTRUCTIONS>\n[\s\S]*?\n<\/INSTRUCTIONS>/u.exec(
+      text
+    );
+    if (!match) refuse("ambiguous-runtime-context");
+    count(h, "runtime-context");
+    text = text.slice(match[0].length).replace(/^[\r\n]+/u, "");
+  }
+  if (provider2 === "codex" && text.startsWith("<ambient_browser_context>")) {
+    const match = /^<ambient_browser_context>[\s\S]*?<\/ambient_browser_context>(?:\r?\n|$)/u.exec(
+      text
+    );
+    if (!match) refuse("ambiguous-runtime-context");
+    count(h, "runtime-context");
+    text = text.slice(match[0].length);
+  }
+  for (; ; ) {
+    if (provider2 === "claude" && commandEnvelopes.some((tag) => text.startsWith(`<${tag}>`))) {
+      const command = claudeCommandText(text);
+      if (command.text.length) retainedCommands.push(command.text);
+      count(h, "command-envelope");
+      text = command.rest;
+      continue;
+    }
+    const name = envelopes.find((tag) => text.startsWith(`<${tag}>`));
+    if (!name) break;
+    const end = text.indexOf(`</${name}>`);
+    if (end < 0 || text.slice(0, end).includes(`<${name}>`, name.length + 2))
+      refuse("ambiguous-runtime-context");
+    const after = end + name.length + 3;
+    if (text.length > after && !/^[\r\n]/u.test(text.slice(after)))
+      refuse("ambiguous-runtime-context");
+    count(h, "runtime-context");
+    text = text.slice(after).replace(/^[\r\n]+/u, "");
+  }
+  if ([...envelopes, ...commandEnvelopes].some(
+    (tag) => text.startsWith(`<${tag}`)
+  ) || text.startsWith("<permissions instructions>"))
+    refuse("ambiguous-runtime-context");
+  return [...retainedCommands, ...text.length ? [text] : []].join("\n");
+}
+function textContent(value, role, h, provider2) {
+  let text;
+  if (typeof value === "string") text = value;
+  else {
+    if (!Array.isArray(value)) refuse("malformed-native-history");
+    text = value.map((raw) => {
+      const block = object(raw);
+      const type = string(block.type);
+      if (["text", "input_text", "output_text"].includes(type))
+        return string(block.text);
+      if ([
+        "image",
+        "input_image",
+        "audio",
+        "input_audio",
+        "output_audio",
+        "file",
+        "document",
+        "video"
+      ].includes(type)) {
+        count(h, "media");
+        return `[Imported ${type} omitted.]`;
+      }
+      refuse("unsupported-content-block");
+    }).join("");
+  }
+  return role === "user" ? userText(text, h, provider2) : text;
+}
+function output(value, h) {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) refuse("unsupported-tool-output");
+  return value.map((raw) => {
+    const b = object(raw);
+    const type = string(b.type);
+    if (type === "text" || type === "input_text" || type === "output_text")
+      return { type: "input_text", text: string(b.text) };
+    if (["image", "input_image", "audio", "document", "file"].includes(type)) {
+      count(h, "media");
+      return {
+        type: "input_text",
+        text: `[Imported ${type} omitted.]`
+      };
+    }
+    refuse("unsupported-tool-output");
+  });
+}
+function codexItem(raw, h, compacted = false) {
+  const item = object(raw);
+  const type = string(item.type);
+  if (type === "reasoning") {
+    count(h, "private-reasoning");
+    return;
+  }
+  if (type === "message") {
+    if (item.role === "system" || item.role === "developer") {
+      count(h, "system-developer-instructions");
+      return;
+    }
+    if (item.role !== "user" && item.role !== "assistant")
+      refuse("unsupported-message-role");
+    if (item.phase !== void 0 && (typeof item.phase !== "string" || !phases.has(item.phase)))
+      refuse("unsupported-assistant-phase");
+    if (item.phase !== void 0 && item.role !== "assistant")
+      refuse("unsupported-assistant-phase");
+    const text = textContent(item.content, item.role, h, "codex");
+    if (text.length)
+      h.items.push({
+        kind: "text",
+        role: item.role,
+        text,
+        ...item.phase === void 0 ? {} : { phase: item.phase }
+      });
+    return;
+  }
+  if (type === "function_call" || type === "custom_tool_call") {
+    const namespace = item.namespace === void 0 ? void 0 : string(item.namespace);
+    h.items.push({
+      kind: "call",
+      callKind: type,
+      id: toolId(item.call_id),
+      name: toolName(item.name),
+      arguments: type === "function_call" ? argumentsObject(item.arguments) : string(item.input),
+      ...namespace === void 0 ? {} : { namespace }
+    });
+    return;
+  }
+  if (type === "function_call_output" || type === "custom_tool_call_output") {
+    h.items.push({
+      kind: "result",
+      callKind: type === "function_call_output" ? "function_call" : "custom_tool_call",
+      id: toolId(item.call_id),
+      output: output(item.output, h)
+    });
+    return;
+  }
+  refuse(
+    compacted ? "unsupported-codex-compaction" : "unsupported-response-item"
+  );
+}
+function validateHistory(h) {
+  const seen = /* @__PURE__ */ new Set();
+  const pending = /* @__PURE__ */ new Map();
+  let inResults = false;
+  for (const item of h.items) {
+    if (item.kind === "call") {
+      if (seen.has(item.id)) refuse("duplicate-tool-call");
+      if (inResults) refuse("interleaved-tool-exchange");
+      seen.add(item.id);
+      pending.set(item.id, item.callKind);
+    } else if (item.kind === "result") {
+      if (pending.get(item.id) !== item.callKind)
+        refuse("orphan-or-mismatched-tool-result");
+      pending.delete(item.id);
+      inResults = pending.size > 0;
+    } else if (pending.size > 0 && (item.role === "user" || inResults))
+      refuse("pending-tool-call", REMEDY);
+  }
+  if (pending.size) refuse("pending-tool-call", REMEDY);
+  const last = h.items.at(-1);
+  if (!last || last.kind !== "text" || last.role !== "assistant" || !last.text.trim() || last.phase === "commentary")
+    refuse("incomplete-source-turn", REMEDY);
+  if (h.items[0]?.kind !== "text" || h.items[0].role !== "user") {
+    h.items.unshift({
+      kind: "text",
+      role: "user",
+      text: "[Reconstructed imported history begins with an assistant message.]"
+    });
+    count(h, "synthetic-assistant-first-preface");
+  }
+}
+function validateClaudeAssistantCompletion(record) {
+  for (const flag of [
+    "isApiErrorMessage",
+    "isAbortedMidStream",
+    "truncatedAfterOutput"
+  ]) {
+    if (record[flag] !== void 0 && typeof record[flag] !== "boolean")
+      refuse("malformed-native-history");
+    if (record[flag] === true) refuse("incomplete-source-turn", REMEDY);
+  }
+  if (object(record.message).model === "<synthetic>")
+    refuse("incomplete-source-turn", REMEDY);
+}
+var CLAUDE_META = /* @__PURE__ */ new Set([
+  "file-history-snapshot",
+  "progress",
+  "summary",
+  "custom-title",
+  "last-prompt",
+  "agent-name",
+  "agent-color",
+  "pr-link",
+  "saved_hook_context",
+  "system",
+  "atis-latch",
+  "cost-state",
+  "mode"
+]);
+async function decodeNativeHistory(provider2, records, selectedId, selectedCwd, sourceFile, deadline) {
+  const h = {
+    items: [],
+    timestamp: "",
+    omissions: {},
+    inheritedIds: []
+  };
+  if (provider2 === "codex") {
+    const first = records[0];
+    if (first?.type !== "session_meta") refuse("source-identity-missing");
+    const meta = object(first.payload);
+    if (meta.id !== selectedId || await realpath5(string(meta.cwd)).catch(() => null) !== selectedCwd)
+      refuse("source-identity-conflict");
+    h.timestamp = stamp(meta.timestamp ?? first.timestamp);
+    let lastRetainedOrdinal = -1;
+    let lastLifecycle;
+    for (const [ordinal, record] of records.slice(1).entries()) {
+      checkDeadline(deadline);
+      const p = object(record.payload);
+      if (record.type === "response_item") {
+        const before = h.items.length;
+        codexItem(p, h);
+        if (h.items.length > before) lastRetainedOrdinal = ordinal;
+      } else if (record.type === "compacted") {
+        if (!Array.isArray(p.replacement_history))
+          refuse("unsupported-codex-compaction");
+        h.items = [];
+        count(h, "surviving-compaction-context");
+        for (const item of p.replacement_history) codexItem(item, h, true);
+        lastRetainedOrdinal = h.items.length ? ordinal : -1;
+      } else if (record.type === "event_msg") {
+        if (p.type === "thread_rolled_back") refuse("unsupported-rollback");
+        const type = string(p.type);
+        if (type === "task_started" || type === "task_complete" || type === "turn_aborted") {
+          const hasError = p.error !== null && typeof p.error === "object" && !Array.isArray(p.error);
+          lastLifecycle = {
+            ordinal,
+            outcome: type === "task_started" ? "pending" : type === "turn_aborted" ? "cancelled" : hasError ? "error" : "success"
+          };
+        }
+      } else if (record.type === "turn_context") count(h, "runtime-context");
+      else if (record.type === "session_meta") {
+        const id = string(p.id);
+        if (typeof p.cwd !== "string") refuse("source-identity-conflict");
+        h.inheritedIds.push(id);
+        count(h, "inherited-provenance");
+      } else refuse("unsupported-native-record");
+    }
+    if (lastLifecycle && lastLifecycle.ordinal > lastRetainedOrdinal && lastLifecycle.outcome !== "success")
+      refuse("incomplete-source-turn", REMEDY);
+  } else {
+    if (basename3(sourceFile) !== `${selectedId}.jsonl`)
+      refuse("source-identity-conflict");
+    const nodes = /* @__PURE__ */ new Map();
+    const order = new Map(records.map((record, index) => [record, index]));
+    for (const r of records) {
+      checkDeadline(deadline);
+      if (r.type === "queue-operation" || r.type === "queued_command" || r.attachment !== void 0 && object(r.attachment).type === "queued_command")
+        refuse(
+          "unsupported-queued-input",
+          "Queued input may contain human prompts; this importer cannot preserve its native delivery order safely."
+        );
+      if (r.type === "attachment")
+        refuse(
+          "unsupported-native-attachment",
+          "Top-level Claude attachments have no supported lossless projection in this release."
+        );
+      if (typeof r.type !== "string" || !["user", "assistant"].includes(r.type) && !CLAUDE_META.has(r.type))
+        refuse("unsupported-native-record");
+      for (const key of ["uuid", "parentUuid", "sourceToolAssistantUUID"])
+        if (r[key] !== void 0 && r[key] !== null) string(r[key]);
+      if (r.uuid !== void 0) {
+        const id = string(r.uuid);
+        if (nodes.has(id)) refuse("duplicate-native-id");
+        nodes.set(id, r);
+      }
+    }
+    const leaf = records.findLast(
+      (r) => (r.type === "user" || r.type === "assistant") && r.isSidechain !== true
+    );
+    if (!leaf || leaf.sessionId !== selectedId || await realpath5(string(leaf.cwd)).catch(() => null) !== selectedCwd)
+      refuse("source-identity-conflict");
+    if (leaf.type === "assistant") validateClaudeAssistantCompletion(leaf);
+    const chain = [];
+    const seen = /* @__PURE__ */ new Set();
+    let node = leaf;
+    while (node) {
+      checkDeadline(deadline);
+      const id = string(node.uuid);
+      if (seen.has(id)) refuse("native-parent-cycle");
+      seen.add(id);
+      chain.push(node);
+      if (node.isSidechain === true) refuse("invalid-active-chain");
+      if (node.subtype === "compact_boundary") {
+        count(h, "surviving-compaction-context");
+        break;
+      }
+      if (node.parentUuid === null || node.parentUuid === void 0) break;
+      node = nodes.get(string(node.parentUuid));
+      if (!node) refuse("native-parent-missing");
+    }
+    chain.reverse();
+    const calls = /* @__PURE__ */ new Map();
+    const results = /* @__PURE__ */ new Set();
+    for (const r of chain) {
+      const m = r.message;
+      if (m === void 0) continue;
+      const content = object(m).content;
+      if (!Array.isArray(content)) continue;
+      for (const raw of content) {
+        const b = object(raw);
+        if (b.type === "tool_use") calls.set(toolId(b.id), string(r.uuid));
+        if (b.type === "tool_result") results.add(toolId(b.tool_use_id));
+      }
+    }
+    for (const r of records) {
+      if (r.type !== "user" || seen.has(r.uuid) || r.isSidechain === true)
+        continue;
+      const content = object(r.message).content;
+      if (Array.isArray(content) && content.length && content.every((raw) => {
+        const b = object(raw);
+        return b.type === "tool_result" && calls.has(b.tool_use_id) && !results.has(b.tool_use_id) && [r.parentUuid, r.sourceToolAssistantUUID].includes(
+          calls.get(b.tool_use_id)
+        );
+      })) {
+        if (r.sessionId !== selectedId || await realpath5(string(r.cwd)).catch(() => null) !== selectedCwd)
+          refuse("source-identity-conflict");
+        chain.push(r);
+        for (const b of content) results.add(string(object(b).tool_use_id));
+      }
+    }
+    chain.sort((a, b) => order.get(a) - order.get(b));
+    checkDeadline(deadline);
+    h.timestamp = stamp(
+      chain.find((r) => r.timestamp !== void 0)?.timestamp
+    );
+    let finalAssistantTextSource;
+    for (const r of chain) {
+      checkDeadline(deadline);
+      if (r.sessionId !== void 0 && r.sessionId !== selectedId) {
+        const inherited = string(r.sessionId);
+        h.inheritedIds.push(inherited);
+        count(h, "inherited-provenance");
+      }
+      if (r.cwd !== void 0 && typeof r.cwd !== "string")
+        refuse("source-identity-conflict");
+      if (r.type !== "user" && r.type !== "assistant") {
+        if (r.type === "system" && r.subtype !== "compact_boundary" && r.subtype !== "local_command" && r.subtype !== "turn_duration" && r.subtype !== "stop_hook_summary")
+          refuse("unsupported-native-control");
+        count(h, "runtime-context");
+        continue;
+      }
+      const m = object(r.message);
+      if (m.role !== r.type) refuse("malformed-native-history");
+      if (r.isMeta === true) {
+        count(h, "runtime-context");
+        continue;
+      }
+      const blocks = typeof m.content === "string" ? [{ type: "text", text: m.content }] : m.content;
+      if (!Array.isArray(blocks)) refuse("malformed-native-history");
+      for (const raw of blocks) {
+        const b = object(raw);
+        if (b.type === "thinking" || b.type === "redacted_thinking") {
+          count(h, "private-reasoning");
+          continue;
+        }
+        if (b.type === "tool_use") {
+          if (r.type !== "assistant") refuse("malformed-native-history");
+          h.items.push({
+            kind: "call",
+            callKind: "function_call",
+            id: toolId(b.id),
+            name: toolName(b.name),
+            arguments: argumentsObject(b.input)
+          });
+        } else if (b.type === "tool_result") {
+          if (r.type !== "user" || b.is_error !== void 0 && typeof b.is_error !== "boolean")
+            refuse("malformed-native-history");
+          h.items.push({
+            kind: "result",
+            callKind: "function_call",
+            id: toolId(b.tool_use_id),
+            output: output(b.content, h),
+            ...b.is_error === void 0 ? {} : { isError: b.is_error }
+          });
+        } else {
+          const text = textContent([b], r.type, h, "claude");
+          if (text.length) {
+            h.items.push({ kind: "text", role: r.type, text });
+            if (r.type === "assistant") finalAssistantTextSource = r;
+          }
+        }
+      }
+    }
+    const final = h.items.at(-1);
+    if (final?.kind === "text" && final.role === "assistant" && finalAssistantTextSource) {
+      const finalTextOrdinal = order.get(finalAssistantTextSource);
+      for (const record of chain) {
+        checkDeadline(deadline);
+        if (record.type === "assistant" && order.get(record) >= finalTextOrdinal && record !== leaf)
+          validateClaudeAssistantCompletion(record);
+      }
+    }
+  }
+  validateHistory(h);
+  h.inheritedIds = [...new Set(h.inheritedIds)];
+  return h;
+}
+function deterministicUuid(value) {
+  const b = createHash3("sha256").update(value).digest().subarray(0, 16);
+  b[6] = b[6] & 15 | 128;
+  b[8] = b[8] & 63 | 128;
+  const s = b.toString("hex");
+  return `${s.slice(0, 8)}-${s.slice(8, 12)}-${s.slice(12, 16)}-${s.slice(16, 20)}-${s.slice(20)}`;
+}
+function encodeNativeHistory(provider2, h, id, cwd, provenance) {
+  const rows = [];
+  if (provider2 === "codex") {
+    rows.push({
+      type: "session_meta",
+      timestamp: h.timestamp,
+      payload: {
+        id,
+        timestamp: h.timestamp,
+        cwd,
+        originator: "session-fork-to-destination",
+        cli_version: "0.3.0",
+        source: "cli",
+        history_mode: "legacy",
+        session_import: provenance
+      }
+    });
+    const calls = /* @__PURE__ */ new Map();
+    for (const item of h.items) {
+      let p;
+      let event;
+      if (item.kind === "text") {
+        p = {
+          type: "message",
+          role: item.role,
+          content: [
+            {
+              type: item.role === "user" ? "input_text" : "output_text",
+              text: item.text
+            }
+          ],
+          ...item.phase ? { phase: item.phase } : {}
+        };
+        event = {
+          type: item.role === "user" ? "user_message" : "agent_message",
+          message: item.text,
+          ...item.role === "user" ? { images: [], local_images: [], text_elements: [] } : { phase: item.phase ?? "final_answer" }
+        };
+      } else if (item.kind === "call") {
+        calls.set(item.id, item);
+        p = {
+          type: item.callKind,
+          call_id: item.id,
+          name: item.name,
+          ...item.namespace ? { namespace: item.namespace } : {},
+          ...item.callKind === "function_call" ? { arguments: item.arguments } : { input: item.arguments }
+        };
+        event = {
+          type: "mcp_tool_call_begin",
+          call_id: item.id,
+          turn_id: "",
+          invocation: {
+            server: "imported_history",
+            tool: item.name,
+            arguments: item.callKind === "function_call" ? JSON.parse(item.arguments) : { input: item.arguments }
+          }
+        };
+      } else {
+        const out = item.isError ? typeof item.output === "string" ? `[Tool error]
+${item.output}` : [{ type: "input_text", text: "[Tool error]" }, ...item.output] : item.output;
+        p = { type: `${item.callKind}_output`, call_id: item.id, output: out };
+        const call = calls.get(item.id);
+        event = {
+          type: "mcp_tool_call_end",
+          call_id: item.id,
+          turn_id: "",
+          invocation: {
+            server: "imported_history",
+            tool: call.name,
+            arguments: call.callKind === "function_call" ? JSON.parse(call.arguments) : { input: call.arguments }
+          },
+          result: {
+            Ok: {
+              content: typeof out === "string" ? [{ type: "text", text: out }] : out.map((b) => ({ type: "text", text: b.text })),
+              isError: item.isError ?? false
+            }
+          },
+          duration: { secs: 0, nanos: 0 }
+        };
+      }
+      rows.push(
+        { type: "response_item", timestamp: h.timestamp, payload: p },
+        { type: "event_msg", timestamp: h.timestamp, payload: event }
+      );
+    }
+  } else {
+    const groups = [];
+    for (const item of h.items) {
+      const role = item.kind === "text" ? item.role : item.kind === "call" ? "assistant" : "user";
+      if (groups.at(-1)?.role === role) groups.at(-1).items.push(item);
+      else groups.push({ role, items: [item] });
+    }
+    let parent = null;
+    groups.forEach((g, index) => {
+      const uuid = deterministicUuid(`${id}:${index}`);
+      const content = g.items.map(
+        (item) => item.kind === "text" ? { type: "text", text: item.text } : item.kind === "call" ? {
+          type: "tool_use",
+          id: item.id,
+          name: item.name,
+          input: item.callKind === "function_call" ? JSON.parse(item.arguments) : { input: item.arguments }
+        } : {
+          type: "tool_result",
+          tool_use_id: item.id,
+          content: typeof item.output === "string" ? item.output : item.output.map((b) => ({ type: "text", text: b.text })),
+          ...item.isError === void 0 ? {} : { is_error: item.isError }
+        }
+      );
+      const message = {
+        role: g.role,
+        content,
+        ...g.role === "assistant" ? {
+          id: `msg_${uuid.replaceAll("-", "")}`,
+          type: "message",
+          model: "imported",
+          stop_reason: g.items.some((i) => i.kind === "call") ? "tool_use" : "end_turn",
+          stop_sequence: null,
+          usage: { input_tokens: 0, output_tokens: 0 }
+        } : {}
+      };
+      rows.push({
+        type: g.role,
+        uuid,
+        parentUuid: parent,
+        sessionId: id,
+        cwd,
+        timestamp: h.timestamp,
+        isSidechain: false,
+        userType: "external",
+        entrypoint: "cli",
+        version: "0.3.0",
+        message,
+        ...index === 0 ? { session_import: provenance } : {}
+      });
+      parent = uuid;
+    });
+  }
+  return rows.map((row) => JSON.stringify(row)).join("\n") + "\n";
+}
+
+// src/skills/session-fork-to-destination/src/session-import.ts
+var SESSION_IMPORT_CONVERTER_REVISION = "session-import-v1";
+function canonicalJson(value) {
+  if (value === null || typeof value === "string" || typeof value === "boolean")
+    return JSON.stringify(value);
+  if (typeof value === "number") {
+    if (!Number.isSafeInteger(value)) refuse("invalid-plan");
+    return String(value);
+  }
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (typeof value === "object")
+    return `{${Object.entries(value).toSorted(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, v]) => `${JSON.stringify(key)}:${canonicalJson(v)}`).join(",")}}`;
+  refuse("invalid-plan");
+}
+async function targetHome(input) {
+  const variable = input.to === "codex" ? "CODEX_HOME" : "CLAUDE_CONFIG_DIR";
+  const env = process.env[variable];
+  if (input.targetHome === void 0 && env === "")
+    refuse("invalid-target-home");
+  const source = input.targetHome !== void 0 ? "explicit" : env !== void 0 ? "environment" : "default";
+  const supplied = input.targetHome ?? env ?? join4(homedir3(), input.to === "codex" ? ".codex" : ".claude");
+  if (!supplied || supplied.includes("\0") || supplied.includes("\r") || supplied.includes("\n"))
+    refuse("invalid-target-home");
+  const routingPath = isAbsolute3(supplied) ? supplied : `${process.cwd()}${sep2}${supplied}`;
+  const canonicalPath2 = await realpath6(routingPath).catch(
+    () => refuse("target-home-unavailable")
+  );
+  return { source, routingPath, canonicalPath: canonicalPath2, variable };
+}
+function instructions(destination, home, provider2, id, entryPoint2) {
+  const route = home.source === "default" ? "" : `env ${quoteShellWord(`${home.variable}=${home.routingPath}`)} `;
+  const argv = provider2 === "codex" ? `codex fork ${quoteShellWord(id)}` : `claude --resume ${quoteShellWord(id)} --fork-session`;
+  const defaultGuard = home.source === "default" ? ` && test "\${${home.variable}+set}" != set` : "";
+  const command = `if test "$(pwd -P)" = ${quoteShellWord(destination)}${defaultGuard}; then exec ${route}${argv}; else printf '%s\\n' 'Refusing: open the canonical destination and preserve the reviewed provider-home routing.' >&2; fi`;
+  const terminal = {
+    kind: "terminal",
+    runIn: destination,
+    command
+  };
+  return entryPoint2 === "destination-fresh" ? [
+    {
+      kind: "manual",
+      action: "exit-current-session",
+      explanation: "Exit the fresh provider session, remain in the canonical destination, then run this terminal command."
+    },
+    terminal
+  ] : [terminal];
+}
+function replay(input, digest, home) {
+  const argv = [
+    process.execPath,
+    process.argv[1] ?? "session-fork-to-destination",
+    "import",
+    "--source",
+    input.sourcePath,
+    "--target",
+    input.destinationPath,
+    "--session",
+    input.session,
+    "--to",
+    input.to,
+    "--entry-point",
+    input.entryPoint,
+    ...input.targetHome === void 0 ? [] : ["--target-home", input.targetHome],
+    "--apply",
+    "--expect-plan",
+    digest,
+    "--json"
+  ];
+  const prefix = home.source === "environment" ? `env ${quoteShellWord(`${home.variable}=${home.routingPath}`)} ` : "";
+  const guard = home.source === "default" ? ` && test "\${${home.variable}+set}" != set` : "";
+  return `if test "$(pwd -P)" = ${quoteShellWord(process.cwd())}${guard}; then ${prefix}${argv.map(quoteShellWord).join(" ")}; else printf '%s\\n' 'Refusing: return to the original invocation directory and reviewed home environment.' >&2; fi`;
+}
+function importDiscoveryFailure(error) {
+  const e = error;
+  if (/BUDGET|DEADLINE|LIMIT/u.test(e.reason ?? e.code ?? ""))
+    refuse("import-limit-exceeded");
+  refuse("import-source-incomplete");
+}
+async function makePlan(input) {
+  const deadline = Date.now() + 3e4;
+  if (input.entryPoint === "source-current")
+    refuse(
+      "source-current-import-unsupported",
+      "Finish the source turn, exit the source session, then invoke from the destination or another session."
+    );
+  if (!["source-other", "destination-fresh"].includes(input.entryPoint) || !["codex", "claude"].includes(input.to))
+    refuse("invalid-import-selection");
+  if (!/^(claude|codex):cli:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(
+    input.session
+  ))
+    refuse("invalid-import-selection");
+  const provider2 = input.session.split(":")[0];
+  if (provider2 === input.to) refuse("same-provider-import-unsupported");
+  const git2 = await validateGuidanceTarget(
+    input.sourcePath,
+    input.destinationPath
+  );
+  checkDeadline(deadline);
+  const candidates = await discoverGuidanceCandidates(
+    git2.source.canonicalPath,
+    { providers: [provider2] }
+  ).catch(importDiscoveryFailure);
+  const candidate = (() => {
+    try {
+      return selectGuidanceCandidate(candidates, input.session);
+    } catch {
+      refuse("import-source-incomplete");
+    }
+  })();
+  checkDeadline(deadline);
+  const runtime = provider2 === "codex" ? "codex" : "claude-code";
+  const raw = await discover(
+    runtime,
+    git2.source.canonicalPath,
+    new ClassificationCache(),
+    { ...GUIDANCE_DISCOVERY_OPTIONS, unattributablePolicy: "summarize" }
+  ).catch(importDiscoveryFailure);
+  const matches = [];
+  for (const r of raw) {
+    checkDeadline(deadline);
+    if (r.recordedCwd === null || await realpath6(r.recordedCwd).catch(() => null) !== git2.source.canonicalPath)
+      continue;
+    const id2 = provider2 === "codex" ? await readGuidanceCodexNativeId(r) : r.sessionId;
+    if (id2 === candidate.nativeId) matches.push(r);
+  }
+  if (matches.length !== 1) refuse("import-source-incomplete");
+  const rawPath = matches[0].transcriptPath;
+  const snapshot = await readImportSnapshot(rawPath, deadline);
+  const history = await decodeNativeHistory(
+    provider2,
+    snapshot.records,
+    candidate.nativeId,
+    git2.source.canonicalPath,
+    rawPath,
+    deadline
+  );
+  if (input.to === "claude")
+    for (const item of history.items) {
+      if (item.kind === "call" && item.namespace !== void 0)
+        history.omissions["tool-namespace"] = (history.omissions["tool-namespace"] ?? 0) + 1;
+      if (item.kind === "call" && item.callKind === "custom_tool_call")
+        history.omissions["custom-call-kind"] = (history.omissions["custom-call-kind"] ?? 0) + 1;
+      if (item.kind === "text" && item.phase !== void 0)
+        history.omissions["assistant-phase"] = (history.omissions["assistant-phase"] ?? 0) + 1;
+    }
+  const home = await targetHome(input);
+  for (const worktree of [git2.source.canonicalPath, git2.target.canonicalPath]) {
+    const rel = relative3(worktree, home.canonicalPath);
+    if (rel === "" || rel !== ".." && !rel.startsWith(`..${sep2}`) && !rel.startsWith(sep2))
+      refuse(
+        "target-home-within-worktree",
+        "Provider homes inside either selected worktree are unsupported; choose a home outside the worktrees."
+      );
+  }
+  checkDeadline(deadline);
+  const id = deterministicUuid(
+    canonicalJson({
+      converterRevision: SESSION_IMPORT_CONVERTER_REVISION,
+      provider: provider2,
+      nativeId: candidate.nativeId,
+      sourceDigest: snapshot.digest,
+      to: input.to,
+      destination: git2.target.canonicalPath,
+      home: home.canonicalPath
+    })
+  );
+  let path;
+  if (input.to === "codex")
+    path = join4(
+      home.canonicalPath,
+      "sessions",
+      ...history.timestamp.slice(0, 10).split("-"),
+      `rollout-${history.timestamp.slice(0, 19).replaceAll(":", "-")}-${id}.jsonl`
+    );
+  else {
+    const key = git2.target.canonicalPath.replace(/[^A-Za-z0-9]/gu, "-");
+    if (key.length > 200) refuse("unsupported-claude-project-key");
+    path = join4(home.canonicalPath, "projects", key, `${id}.jsonl`);
+  }
+  const provenance = {
+    version: 1,
+    sourceProvider: provider2,
+    sourceId: candidate.nativeId,
+    sourceDigest: snapshot.digest,
+    converterRevision: SESSION_IMPORT_CONVERTER_REVISION,
+    omissions: history.omissions
+  };
+  const bytes = Buffer.from(
+    encodeNativeHistory(
+      input.to,
+      history,
+      id,
+      git2.target.canonicalPath,
+      provenance
+    )
+  );
+  if (bytes.length > IMPORT_MAX_BYTES) refuse("import-limit-exceeded");
+  const occupancy = await inspectImportOccupancy(
+    home.canonicalPath,
+    path,
+    id,
+    input.to,
+    bytes,
+    deadline
+  ).catch((error) => {
+    if (["EPERM", "EACCES"].includes(error.code ?? ""))
+      refuse("store-unreadable");
+    throw error;
+  });
+  const planWithoutDigest = {
+    version: 1,
+    converterRevision: SESSION_IMPORT_CONVERTER_REVISION,
+    source: {
+      key: input.session,
+      provider: provider2,
+      nativeId: candidate.nativeId,
+      byteSha256: snapshot.digest,
+      byteCount: snapshot.bytes.length,
+      recordCount: snapshot.records.length,
+      inheritedIds: history.inheritedIds
+    },
+    destination: git2.target.canonicalPath,
+    destinationDirty: git2.target.dirty,
+    targetProvider: input.to,
+    entryPoint: input.entryPoint,
+    targetHome: home,
+    git: git2,
+    seed: { id, path, sha256: sha256(bytes), byteCount: bytes.length },
+    counts: {
+      items: history.items.length,
+      messages: history.items.filter((i) => i.kind === "text").length,
+      calls: history.items.filter((i) => i.kind === "call").length,
+      results: history.items.filter((i) => i.kind === "result").length
+    },
+    omissions: history.omissions,
+    occupancy,
+    instructions: instructions(
+      git2.target.canonicalPath,
+      home,
+      input.to,
+      id,
+      input.entryPoint
+    ),
+    limitations: [
+      "Raw supported text and tool payloads are preserved and may contain secrets; metadata omission is not secret detection or redaction.",
+      "This is a reconstructed seed; native fork not created.",
+      "Source lookup uses conventional source homes and exact recorded cwd.",
+      "Provider client acceptance is version-specific; historical baselines Codex 0.157.1 and Claude Code 2.1.284 do not establish this generated importer acceptance or sidebar placement.",
+      "Requires an inactive completed CLI source; source-current is unsupported.",
+      "Provider homes inside either selected worktree are unsupported.",
+      "Source and output are capped at 32 MiB; source records at 100,000; lines at 4 MiB; operations at 30 seconds and store enumeration at 50,000 entries.",
+      "Summary-only Codex compaction is unsupported; Claude project keys over 200 characters are unsupported."
+    ]
+  };
+  const { occupancy: _occupancy, ...digestFields } = planWithoutDigest;
+  const plan = {
+    ...planWithoutDigest,
+    digest: sha256(canonicalJson(digestFields))
+  };
+  checkDeadline(deadline);
+  return { plan, bytes, snapshot, rawPath, deadline };
+}
+async function planSessionImport(input) {
+  return (await makePlan(input)).plan;
+}
+async function applySessionImport(input, expectedDigest) {
+  if (!/^[0-9a-f]{64}$/u.test(expectedDigest)) refuse("invalid-plan-digest");
+  const internal = await makePlan(input);
+  const { plan, bytes, snapshot, rawPath, deadline } = internal;
+  if (plan.digest !== expectedDigest)
+    refuse(
+      "import-plan-stale",
+      "The source, routing, Git evidence, or conversion changed. Review a new plan before applying."
+    );
+  const revalidate = async () => {
+    checkDeadline(deadline);
+    await revalidateHandoffTarget(plan.git);
+    await revalidateImportSnapshot(rawPath, snapshot, deadline);
+    const current = await targetHome(input);
+    if (canonicalJson(current) !== canonicalJson(plan.targetHome))
+      refuse("target-home-drift");
+    checkDeadline(deadline);
+  };
+  try {
+    const status = await publishImportSeed(
+      plan.targetHome.canonicalPath,
+      plan.seed.path,
+      plan.seed.id,
+      input.to,
+      bytes,
+      deadline,
+      revalidate
+    );
+    return {
+      status,
+      message: "seed imported; native fork not created",
+      plan: { ...plan, occupancy: "exact" }
+    };
+  } catch (error) {
+    if (error instanceof SessionImportError && error.code === "store-write-denied")
+      throw new SessionImportError(
+        error.code,
+        "The provider store is not writable. Run this exact reviewed apply command in a terminal." + (error.message === error.code ? "" : ` ${error.message}`),
+        replay(input, expectedDigest, plan.targetHome)
+      );
+    throw error;
+  }
+}
+
 // src/skills/session-fork-to-destination/src/guidance-cli.ts
 var HELP = `session-fork-to-destination \u2014 EXPERIMENTAL / NOT RELEASED
 
@@ -3157,6 +4513,12 @@ Usage:
   session-fork-to-destination preview --source PATH --session PROVIDER:SURFACE:ID [--json]
   session-fork-to-destination prepare --source PATH --target PATH --session PROVIDER:SURFACE:ID \\
     --entry-point source-current|source-other|destination-fresh [--json]
+  session-fork-to-destination import --source PATH --target PATH --session PROVIDER:cli:UUID \\
+    --to codex|claude --entry-point source-other|destination-fresh [--target-home PATH] [--json] \\
+    [--apply --expect-plan SHA256]
+
+Import defaults to a read-only plan. Apply imports a seed; native fork not created.
+Raw supported conversation and tool payloads may contain secrets.
 `;
 var GuidanceCliArgumentError = class extends Error {
   code = "invalid-arguments";
@@ -3166,17 +4528,26 @@ var VALUE_FLAGS = /* @__PURE__ */ new Set([
   "--target",
   "--session",
   "--provider",
-  "--entry-point"
+  "--entry-point",
+  "--to",
+  "--target-home",
+  "--expect-plan"
 ]);
 function parse(argv) {
   const command = argv[0];
-  if (!["discover", "preview", "prepare"].includes(command)) {
+  if (!["discover", "preview", "prepare", "import"].includes(command)) {
     throw new GuidanceCliArgumentError();
   }
   const values = /* @__PURE__ */ new Map();
   let json = false;
+  let apply = false;
   for (let index = 1; index < argv.length; index += 1) {
     const flag = argv[index];
+    if (flag === "--apply") {
+      if (apply || command !== "import") throw new GuidanceCliArgumentError();
+      apply = true;
+      continue;
+    }
     if (flag === "--json") {
       if (json) throw new GuidanceCliArgumentError();
       json = true;
@@ -3192,7 +4563,7 @@ function parse(argv) {
     values.set(flag, flagValue);
     index += 1;
   }
-  return { command, values, json };
+  return { command, values, json, apply };
 }
 function required(flags, name) {
   const result = flags.values.get(name);
@@ -3273,6 +4644,31 @@ async function runGuidanceCli(argv, dependencies = DEFAULT_DEPENDENCIES5, io = {
         required(flags, "--source"),
         session(flags)
       );
+    } else if (flags.command === "import") {
+      allowOnly(flags, [
+        "--source",
+        "--target",
+        "--session",
+        "--entry-point",
+        "--to",
+        "--target-home",
+        "--expect-plan"
+      ]);
+      if (flags.apply !== flags.values.has("--expect-plan"))
+        throw new GuidanceCliArgumentError();
+      const to = required(flags, "--to");
+      if (to !== "codex" && to !== "claude")
+        throw new GuidanceCliArgumentError();
+      const input = {
+        sourcePath: required(flags, "--source"),
+        destinationPath: required(flags, "--target"),
+        session: session(flags),
+        to,
+        entryPoint: entryPoint(flags),
+        ...flags.values.has("--target-home") ? { targetHome: required(flags, "--target-home") } : {}
+      };
+      const digest = flags.apply ? required(flags, "--expect-plan") : void 0;
+      data = await (dependencies.import ?? defaultImport)(input, digest);
     } else {
       allowOnly(flags, ["--source", "--target", "--session", "--entry-point"]);
       data = await dependencies.prepare(
@@ -3292,14 +4688,19 @@ async function runGuidanceCli(argv, dependencies = DEFAULT_DEPENDENCIES5, io = {
       error: {
         code,
         ...errorProvenance(error),
-        message: "The read-only guidance request could not be completed safely."
+        message: error instanceof SessionImportError ? error.message : "The guidance request could not be completed safely.",
+        ...error instanceof SessionImportError && error.replayCommand ? { replayCommand: error.replayCommand } : {}
       }
     };
     if (flags?.json ?? argv.includes("--json"))
       io.stdout(`${JSON.stringify(failure)}
 `);
-    else io.stderr(`error: ${code}
-`);
+    else
+      io.stderr(
+        `error: ${code}${error instanceof SessionImportError ? `: ${error.message}${error.replayCommand ? `
+${error.replayCommand}` : ""}` : ""}
+`
+      );
     return code === "unexpected-failure" ? 4 : 2;
   }
 }
@@ -3331,7 +4732,7 @@ async function rawMatch(source, selected) {
   const matches = [];
   for (const candidate of raw) {
     if (candidate.recordedCwd === null) continue;
-    const recorded = await realpath4(candidate.recordedCwd).catch(() => null);
+    const recorded = await realpath7(candidate.recordedCwd).catch(() => null);
     if (recorded !== selected.recordedCwd) continue;
     const nativeId = selected.provider === "codex" ? await readGuidanceCodexNativeId(candidate) : candidate.sessionId;
     if (nativeId === selected.nativeId) matches.push(candidate);
@@ -3387,7 +4788,11 @@ async function defaultPreview(source, key) {
     warning: "hidden-payload-sanitized-not-secret-free"
   };
 }
+async function defaultImport(input, digest) {
+  return digest === void 0 ? planSessionImport(input) : applySessionImport(input, digest);
+}
 var DEFAULT_DEPENDENCIES5 = {
+  import: defaultImport,
   discover: async (source, selectedProvider) => discoverGuidance(source, {
     providers: selectedProvider === "all" ? void 0 : [selectedProvider]
   }),

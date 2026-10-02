@@ -1,0 +1,11 @@
+{
+  "version": "codex-cli 0.159.2",
+  "exactPrintedCommand": "if test \"$(pwd -P)\" = '/private/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/import-native-9WIOut/destination with_spaces'; then exec env CODEX_HOME=/private/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/import-native-9WIOut/target-home codex fork eb753fcc-4900-8e6c-95b6-dfae4cfaa68a; else printf '%s\\n' 'Refusing: open the canonical destination and preserve the reviewed provider-home routing.' >&2; fi",
+  "status": 1,
+  "created": [],
+  "sourceUnchanged": true,
+  "seedUnchanged": true,
+  "terminalContinuation": "not exercised",
+  "validated": false,
+  "limitation": "Exact printed command reached the Codex TUI but daemon startup failed: failed to invoke ps for pid-managed app server: Operation not permitted (os error 1). Observed in the real PTY transcript captured by tools.write_stdin; no --no-daemon flag was added."
+}

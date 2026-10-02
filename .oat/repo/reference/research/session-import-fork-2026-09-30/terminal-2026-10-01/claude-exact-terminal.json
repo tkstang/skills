@@ -1,0 +1,24 @@
+{
+  "provider": "claude",
+  "networkIsolation": "verified loopback allowed/external denied before clients",
+  "configuredEnvironment": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:62590",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  },
+  "defaultDaemon": "not applicable",
+  "generatedImporter": "0.3.1",
+  "creation": "not reached",
+  "continuation": "not reached",
+  "restartResume": "not reached",
+  "version": "2.1.285 (Claude Code)",
+  "sourceSha256": "d6bf4144ab31c37bfe078d9bc7c17b52013e10cebc6003a91a5eace3f91eb01a",
+  "seedId": "08e5d9b5-042e-8153-b6f4-a3783b95e31e",
+  "seedSha256": "d8953d0a04f30079c651cebb0cf5c6903d1a378b9b64124cb79f44034e5d186a",
+  "destination": "/private/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/import-native-OGGUlK/destination with_spaces",
+  "exactForkCommand": "if test \"$(pwd -P)\" = '/private/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/import-native-OGGUlK/destination with_spaces'; then exec env CLAUDE_CONFIG_DIR=/private/var/folders/fp/rnl_nlcj5ngfqfh8nb92vktr0000gn/T/import-native-OGGUlK/target-home claude --resume 08e5d9b5-042e-8153-b6f4-a3783b95e31e --fork-session; else printf '%s\\n' 'Refusing: open the canonical destination and preserve the reviewed provider-home routing.' >&2; fi",
+  "failure": "AssertionError [ERR_ASSERTION]: fork exit status\n\n1 !== 0\n",
+  "validated": false,
+  "limitation": "Observed in the real PTY transcript: Claude Code 2.1.285 immediately printed Unable to connect to Anthropic services and Failed to connect to api.anthropic.com: ENOTFOUND, then exited 1 before terminal fork creation. The exact generated command was preserved; ANTHROPIC_BASE_URL pointed at the synthetic loopback server and CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1. Outbound network isolation remained enforced; no external service exception or provider fallback was attempted.",
+  "sourceUnchanged": "not rechecked after terminal startup refusal",
+  "seedUnchanged": "not rechecked after terminal startup refusal"
+}

@@ -25,6 +25,12 @@ import {
 } from './guidance-discovery.js';
 import { prepareForkGuidance, type GuidanceEntryPoint } from './guidance.js';
 import { sanitizePreviewConversationEntries } from './preview.js';
+import {
+  applySessionImport,
+  planSessionImport,
+  SessionImportError,
+  type SessionImportInput,
+} from './session-import.js';
 
 export interface GuidanceCliIo {
   stdout: (value: string) => void;
@@ -32,6 +38,10 @@ export interface GuidanceCliIo {
 }
 
 export interface GuidanceCliDependencies {
+  import?: (
+    input: SessionImportInput,
+    expectedDigest?: string,
+  ) => Promise<unknown>;
   discover: (
     source: string,
     provider: 'claude' | 'codex' | 'cursor' | 'all',
@@ -58,6 +68,12 @@ Usage:
   session-fork-to-destination preview --source PATH --session PROVIDER:SURFACE:ID [--json]
   session-fork-to-destination prepare --source PATH --target PATH --session PROVIDER:SURFACE:ID \\
     --entry-point source-current|source-other|destination-fresh [--json]
+  session-fork-to-destination import --source PATH --target PATH --session PROVIDER:cli:UUID \\
+    --to codex|claude --entry-point source-other|destination-fresh [--target-home PATH] [--json] \\
+    [--apply --expect-plan SHA256]
+
+Import defaults to a read-only plan. Apply imports a seed; native fork not created.
+Raw supported conversation and tool payloads may contain secrets.
 `;
 
 class GuidanceCliArgumentError extends Error {
@@ -65,9 +81,10 @@ class GuidanceCliArgumentError extends Error {
 }
 
 interface Flags {
-  command: 'discover' | 'preview' | 'prepare';
+  command: 'discover' | 'preview' | 'prepare' | 'import';
   values: Map<string, string>;
   json: boolean;
+  apply: boolean;
 }
 
 const VALUE_FLAGS = new Set([
@@ -76,17 +93,26 @@ const VALUE_FLAGS = new Set([
   '--session',
   '--provider',
   '--entry-point',
+  '--to',
+  '--target-home',
+  '--expect-plan',
 ]);
 
 function parse(argv: readonly string[]): Flags {
   const command = argv[0];
-  if (!['discover', 'preview', 'prepare'].includes(command)) {
+  if (!['discover', 'preview', 'prepare', 'import'].includes(command)) {
     throw new GuidanceCliArgumentError();
   }
   const values = new Map<string, string>();
   let json = false;
+  let apply = false;
   for (let index = 1; index < argv.length; index += 1) {
     const flag = argv[index];
+    if (flag === '--apply') {
+      if (apply || command !== 'import') throw new GuidanceCliArgumentError();
+      apply = true;
+      continue;
+    }
     if (flag === '--json') {
       if (json) throw new GuidanceCliArgumentError();
       json = true;
@@ -106,7 +132,7 @@ function parse(argv: readonly string[]): Flags {
     values.set(flag, flagValue);
     index += 1;
   }
-  return { command: command as Flags['command'], values, json };
+  return { command: command as Flags['command'], values, json, apply };
 }
 
 function required(flags: Flags, name: string): string {
@@ -213,6 +239,33 @@ export async function runGuidanceCli(
         required(flags, '--source'),
         session(flags),
       );
+    } else if (flags.command === 'import') {
+      allowOnly(flags, [
+        '--source',
+        '--target',
+        '--session',
+        '--entry-point',
+        '--to',
+        '--target-home',
+        '--expect-plan',
+      ]);
+      if (flags.apply !== flags.values.has('--expect-plan'))
+        throw new GuidanceCliArgumentError();
+      const to = required(flags, '--to');
+      if (to !== 'codex' && to !== 'claude')
+        throw new GuidanceCliArgumentError();
+      const input: SessionImportInput = {
+        sourcePath: required(flags, '--source'),
+        destinationPath: required(flags, '--target'),
+        session: session(flags),
+        to,
+        entryPoint: entryPoint(flags),
+        ...(flags.values.has('--target-home')
+          ? { targetHome: required(flags, '--target-home') }
+          : {}),
+      };
+      const digest = flags.apply ? required(flags, '--expect-plan') : undefined;
+      data = await (dependencies.import ?? defaultImport)(input, digest);
     } else {
       allowOnly(flags, ['--source', '--target', '--session', '--entry-point']);
       data = await dependencies.prepare(
@@ -233,12 +286,20 @@ export async function runGuidanceCli(
         code,
         ...errorProvenance(error),
         message:
-          'The read-only guidance request could not be completed safely.',
+          error instanceof SessionImportError
+            ? error.message
+            : 'The guidance request could not be completed safely.',
+        ...(error instanceof SessionImportError && error.replayCommand
+          ? { replayCommand: error.replayCommand }
+          : {}),
       },
     };
     if (flags?.json ?? argv.includes('--json'))
       io.stdout(`${JSON.stringify(failure)}\n`);
-    else io.stderr(`error: ${code}\n`);
+    else
+      io.stderr(
+        `error: ${code}${error instanceof SessionImportError ? `: ${error.message}${error.replayCommand ? `\n${error.replayCommand}` : ''}` : ''}\n`,
+      );
     return code === 'unexpected-failure' ? 4 : 2;
   }
 }
@@ -343,7 +404,14 @@ async function defaultPreview(source: string, key: GuidanceQualifiedSessionId) {
   };
 }
 
+async function defaultImport(input: SessionImportInput, digest?: string) {
+  return digest === undefined
+    ? planSessionImport(input)
+    : applySessionImport(input, digest);
+}
+
 const DEFAULT_DEPENDENCIES: GuidanceCliDependencies = {
+  import: defaultImport,
   discover: async (source, selectedProvider) =>
     discoverGuidance(source, {
       providers: selectedProvider === 'all' ? undefined : [selectedProvider],

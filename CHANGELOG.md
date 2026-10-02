@@ -13,6 +13,14 @@
   ranked candidates with resume hints. Remote search over SSH is opt-in and
   injection-safe; ChatGPT data is encrypted locally and is not searched.
 
+- `session-fork-to-destination` 0.3.1 adds reviewed-plan Claude/Codex history import
+  into a target-native seed, followed by a user-run native fork in the canonical
+  destination worktree. Imports preserve supported text and completed tool exchanges,
+  report omissions, and refuse unsupported histories or existing changed seeds.
+  Same-provider fork guidance remains available; provider execution remains manual.
+  Completion checks reject trailing Codex abort/error state and Claude errors hidden
+  by omitted trailing context.
+
 - `phone-a-friend` 0.3.0 standalone distribution, with its bundled provider CLI
   and advisory schema. Its standalone and Consensus plugin names both remain
   `phone-a-friend`; external provider CLIs must be installed and authenticated.
@@ -39,6 +47,12 @@
   (`session-<id>.jsonl` to `rollout-<timestamp>-<uuid>.jsonl`). The observer
   collaboration and fork owners are version-only bumps for the shared source
   roots; runtime behavior is unchanged.
+
+- `session-observer-collab` 1.0.77 gives the generated Codex/Cursor hook packaging
+  tests a bounded five-second wait window so filesystem contention does not turn
+  package verification into a 100 ms deadline test. Runtime deadline behavior is unchanged.
+- `session-fork-to-destination` 0.3.1 preserves concurrent exact seed publication
+  when staging-hardlink cleanup changes inode metadata without changing seed bytes.
 
 - Refresh the `session` plugin manifest assertion for 0.3.5 and the copied
   `agent-messaging` payload assertion for 1.0.25. The `agent-messaging` version

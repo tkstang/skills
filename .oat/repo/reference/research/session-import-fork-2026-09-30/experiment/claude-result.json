@@ -1,0 +1,15 @@
+{
+  "source": "/private/tmp/session-import-fork-7ZO9zB/sources/codex.jsonl",
+  "source_sha256": "b1a374fd428999c39842b5045961cec03caada3638642b605eedea14da291ac1",
+  "seed": "/private/tmp/session-import-fork-7ZO9zB/isolated/claude/projects/-private-tmp-session-import-fork-7ZO9zB-destination/91d65305-8d2b-5881-9008-8572381183f1.jsonl",
+  "seed_sha256": "0f326ca1cf6aeceeaefbf35282291012b8cb25fbd9f3195981642de8b24e1ded",
+  "parent": "91d65305-8d2b-5881-9008-8572381183f1",
+  "child": "8a88ae98-b68d-4135-bcc0-f46a85c3dae2",
+  "child_file": "/private/tmp/session-import-fork-7ZO9zB/isolated/claude/projects/-private-tmp-session-import-fork-7ZO9zB-destination/8a88ae98-b68d-4135-bcc0-f46a85c3dae2.jsonl",
+  "child_sha256": "df420e5f44485f59071505afe39f4edc5d84bbe18550752d5549404344d87fe3",
+  "destination": "/private/tmp/session-import-fork-7ZO9zB/destination",
+  "first_reply": "CLAUDE_FORK_REPLY_93",
+  "second_reply": "CLAUDE_RESUME_REPLY_94",
+  "source_unchanged": true,
+  "seed_unchanged": true
+}

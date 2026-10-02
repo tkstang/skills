@@ -1,0 +1,12 @@
+{
+  "skills/session-fork-to-destination/scripts/session-fork-to-destination.mjs": "2843425d0ef91a6cec4faf3446d973c5e191bf488b95ae32082a39eb13d44c50",
+  "src/skills/session-fork-to-destination/src/guidance-cli.ts": "4641f200edf158d80c24a6e7ca84c100b85a9c65dfbcdd855970318d73c6843e",
+  "src/skills/session-fork-to-destination/src/helpers/import-native-clients-support.ts": "d1492598c55dca1f81dc2720786e7ba01e886cbad66a855a6d03a01be61f710f",
+  "src/skills/session-fork-to-destination/src/import-errors.ts": "85a63d81d0fc1e4db0025c1f475a6dbc734c2b8b4141843c9202e51b43db6de4",
+  "src/skills/session-fork-to-destination/src/import-native-clients.test.ts": "5b3a7c6f4db4e604780e0981c5d53c2dfacf94321fc834b2ddad5749ca3a843c",
+  "src/skills/session-fork-to-destination/src/import-publication.test.ts": "ea8299922274d215658a16f69a07f3cb4b701a3d66541ca903da78ae65d4e1f8",
+  "src/skills/session-fork-to-destination/src/import-store.ts": "40fb85f692faa106eb1a7e71f5dcf5dbbc4ba1707e85b9faf5963e4aefaaaf06",
+  "src/skills/session-fork-to-destination/src/native-history.ts": "b884a7ec687b434786d67bf1a411bb9f29fa886c436d4f95c6ee3e548e805c4e",
+  "src/skills/session-fork-to-destination/src/session-import.test.ts": "0a4f69bd0cf2da67c03fd16027fb97c4172ac8f4c5a286de382a0335c7536539",
+  "src/skills/session-fork-to-destination/src/session-import.ts": "8598b517e7d14c330d18de1c53d49d210c512975f5fc186686cb335e61356448"
+}

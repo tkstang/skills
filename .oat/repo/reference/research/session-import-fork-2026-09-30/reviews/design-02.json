@@ -1,0 +1,295 @@
+{
+  "schema_version": "v1",
+  "run_id": "996c14ac-75ba-402a-8588-dcdaef163229",
+  "status": "complete",
+  "worktree_root": "/Users/tstang/.t3/worktrees/skills/t3code-0a05071c",
+  "request": "Review the revised design for implementation readiness after your prior changes_requested review, preserved in sibling design-review.md and reviews/design-01.md. Read those and evidence.md as supporting context. Scope is this concrete design, not implementation. Check that high/material findings are now resolved and identify any remaining actionable blocker. Deliberate first-release scope: inactive completed CLI sources only; source-current cross-provider import refuses instead of building live-prefix cutting; source/target distinct registered worktrees; no automatic native fork. Home default remains unset and configured routing spelling retained. Conservative tool identifier limits, supported subset, and raw content limitations are intentional. Please avoid requiring new features outside scope or turning explicitly reported proof gaps into claims of guaranteed support. Check actual existing helpers where needed. No product changes, client executions, personal session inspection or external messages. Return consensus review schema. Separate verified evidence from provider-client assumptions. Once design is sound, implementation will be GPT-6.1 Sol, with generated-importer isolated native client tests and a separate Opus high implementation review.",
+  "request_sha256": "aaa1d416a78d56ee60cb325a6ee059f31d1c7799babefb251000c9e17b24bf4e",
+  "scope": {
+    "token": "de9253d719d70aacdd3d749d3f18ce85f91cae12d30984721cffaba0bf10498a",
+    "request": {
+      "kind": "document",
+      "path": ".oat/repo/reference/research/session-import-fork-2026-09-30/design.md"
+    },
+    "canonicalWorktree": "/Users/tstang/.t3/worktrees/skills/t3code-0a05071c",
+    "head": "3e383a073cf86d4e4010bdfa04f3ca10e1233d33",
+    "selectedPaths": [
+      ".oat/repo/reference/research/session-import-fork-2026-09-30/design.md"
+    ],
+    "externalDocuments": [],
+    "versions": [
+      {
+        "source": "live",
+        "path": ".oat/repo/reference/research/session-import-fork-2026-09-30/design.md",
+        "kind": "file",
+        "mode": 420,
+        "bytes": 14904,
+        "sha256": "04138befbbfff8fb09b36cffe591906e91ed0b792e196b6f9436381cafb9695d",
+        "blobId": null,
+        "text": "# Import a seed before a native fork\n\nRevised proposed design, 2026-09-30. First Opus review requested changes; disposition is recorded in [design review notes](design-review.md). Implements [BL-260930-import-sessions-before-native](../../../pjm/backlog/items/BL-260930-import-sessions-before-native.md). Opus high design review through consensus precedes GPT-6.1 Sol implementation. This document authorizes no provider execution.\n\n## Interface and outcome\n\nPreserve `discover`, sanitized `preview`, and same-provider `prepare`. Add one `import` command to the existing generated entrypoint:\n\n```text\nimport --source PATH --target PATH --session PROVIDER:cli:UUID\n       --to codex|claude --entry-point source-other|destination-fresh\n       [--target-home PATH] [--json]\n       [--apply --expect-plan SHA256]\n```\n\nFirst-release cross-provider import requires a completed, inactive CLI source. `source-current` refuses with `source-current-import-unsupported`: finish the source turn, exit that source session, then invoke from the destination or another session. Do not implement live-prefix cutting. Existing same-provider `source-current` guidance is unchanged. Source and destination must remain distinct registered worktrees of the same repository.\n\nDefault is read-only planning. Reject same-provider import, Cursor, arbitrary transcript paths, unknown flags, and `--apply` without its digest. The skill workflow obtains the user's cross-provider intent, presents the plan's conversion/privacy limits, then applies within that authorization. Planning creates no files. Applying creates only the target-native seed transcript; output says **seed imported; native fork not created** and supplies the caller-run command.\n\nPublic API: `planSessionImport(input)` returns a versioned public plan; `applySessionImport(input, expectedDigest)` independently recomputes it. Plans include qualified source, source-byte SHA-256, canonical worktrees/home, Git evidence, converter revision, seed ID/path, counts, omissions, destination occupancy, and digest. They exclude conversation text and raw tool payloads. Digest UTF-8 canonical JSON with recursively sorted object keys and integer-only numeric plan fields, including every behavior-affecting field and expected encoded transcript hash. Occupancy is displayed but excluded from the digest; apply independently checks it. Source, Git, home, routing, or omission changes require a new plan; no automatic retry. Reapplying the original digest to exact existing bytes returns `already-imported`.\n\n## Qualification and conversion\n\nReuse exact selection in `guidance-discovery.ts:332-361`, source-path resolution from `guidance-cli.ts:252-345`, and same-repository registered-worktree checks in `git-target.ts:260-333`. Refuse dirty source; report destination dirt. Canonicalize through `realpath` once and use that destination everywhere. Revalidate immediately before publication. Adapt raw-path resolution to return import-specific errors instead of `preview-incomplete`. Current discovery's conventional source-home and exact-cwd limitations remain (source lookup does not honor alternate provider-home environment variables); do not expand shared discovery in this change.\n\nRead selected raw JSONL with a new strict, bounded snapshot reader: fatal UTF-8 decoding, object-only records, no skipped malformed/partial lines, identity corroboration, stable inode/size/mtime and byte digest before publication. Limits apply to raw bytes before media replacement: 32 MiB source/output, 100,000 records, 4 MiB per line, 30-second operation deadline; fail rather than truncate. Reject source symlinks, missing/ambiguous identity, contradictory owning identities, malformed native fields, unsupported rollback, and unreadable stores. Use a distinct `import-limit-exceeded` refusal for any bound. No process-stopping or lock inference; users stop writers and replan if the snapshot changes.\n\nUse a small private union for ordered user/assistant text, completed function/custom calls, and matching results. Preserve text, call IDs/names, function JSON-object arguments, raw custom input, string/text-array outputs, and supported assistant phases. Claude custom-input projection uses `{input: raw}`; namespace and phase distinctions unavailable in Claude are counted omissions. No round-trip metadata framework. Unsupported argument shapes fail.\n\nClaude owning identity must match the selected filename UUID and active leaf sessionId/cwd. The pinned experiment rewrote all copied rows to the child sessionId; do not assume mixed IDs are always normal. Ancestor IDs may differ only on the validated active parent chain; record this inherited provenance, never use it to select another owner. Claude reader follows the last main conversation leaf's parent chain through non-message nodes, excluding sidechains/abandoned branches. Reject duplicate IDs, cycles and missing parents. Recover only pure parallel-result sibling records explicitly linked to active call nodes; never recover sibling user text. Stop at a compaction boundary with a surviving-context notice.\n\nCodex reader uses the first `session_meta` as owning identity; inherited later headers are provenance, not ownership. Qualified owning cwd must match source; inherited cwd cannot override it. `compacted.replacement_history` replaces accumulated history; missing/invalid replacement history fails with `unsupported-codex-compaction`. Summary-only local compaction is a documented first-release refusal, not reconstructed heuristically. Ignore duplicate display events. Read native `response_item` messages and function/custom calls/results directly.\n\nValidate unique calls, exactly one matching result of the correct kind, and completion. Reject pending, orphan, duplicate and interleaved tool exchanges. For Claude output, group parallel assistant calls together and require their entire result group immediately afterward; never let the loader fabricate interruption results. Require the portable history to end with nonempty assistant text after all tools resolve; otherwise `incomplete-source-turn`. Emit no Codex function-call item `id` that could require omitted reasoning. Validate tool IDs against a conservative importer profile (1–128 ASCII letters/digits/underscore/hyphen) and tool names against `^[A-Za-z0-9_-]{1,128}$`; incompatible values refuse, never silently rename. The name constraint is documented by [Anthropic](https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools); the ID profile is our conservative supported subset, not a claimed API limit. Codex namespaces are separate fields and may be omitted with a count; dotted literal names refuse for Claude.\n\nOmit private reasoning, system/developer instructions, permissions, credentials/configuration fields and source runtime envelopes. Classify provider-injected user-role context before conversion using an explicit allowlist, with counted omissions: Codex leading whole-message AGENTS instructions and runtime XML envelopes (`environment_context`, `permissions`, `user_instructions`, `apps_instructions`, `skill`, `stoa-profile`), and Claude `isMeta` records plus fully recognized command/local-caveat/system-reminder envelopes. Wrapper recognition requires the expected complete shape, not substring matching or arbitrary XML. Omit a standalone known envelope; when a known prefix can be safely delimited from trailing user text, retain the trailing text; ambiguous mixtures refuse `ambiguous-runtime-context`. Strip the fully recognized leading Codex ambient-browser wrapper and count it. Preserve ordinary user text, quoted wrapper examples, and tool payload text; do not scrub tool results using broad XML regexes. Recognition is shape-based and cannot distinguish a deliberately pasted identical whole-message envelope. Unknown active/control types refuse; known off-chain metadata uses a small explicit allowlist. Do not claim universal removal of injected instructions. Recognized image/audio/media blocks become visible placeholders and omission counts, without URLs, file access or embedded bytes. Unknown conversational/control/tool structures fail closed. Report surviving compaction context and synthetic assistant-first preface explicitly.\n\nImport preserves raw supported text/tool payloads, unlike sanitized previews; these may contain secrets. Explain that distinction before apply. Metadata omission is not secret detection or redaction.\n\n## Storage, identity and commands\n\nResolve destination home from explicit `--target-home`, otherwise target `CODEX_HOME`/`CLAUDE_CONFIG_DIR`, otherwise the conventional user directory. Require an existing home and reject invalid/empty routing. Track home source (`default`, `environment`, `explicit`) and both routing spelling and canonical storage realpath. Resolve relative supplied spelling to an absolute path without changing symlink spelling; use realpath only for containment/identity. Create only required store descendants. Never copy configuration or register desktop projects.\n\nFor Claude, use the private project-key function `canonicalCwd.replace(/[^A-Za-z0-9]/g, \"-\")`, matching the pinned Teleporter encoder. Refuse encoded keys longer than 200 characters instead of guessing unproven client long-path hashing. Real-client acceptance must cover spaces and underscores. Do not change shared discovery encoding in this feature.\n\nDerive a deterministic UUID v8 with RFC variant/version bits from SHA-256 of converter revision, source provider/native ID/byte digest, target provider and canonical destination/home. Stable source timestamp supplies deterministic Codex date/path. Same snapshot repeats the same ID; changed source or converter produces a new reviewed seed, preserving older imports.\n\nEmbed minimal versioned provenance under the extra `session_import` key in the owning Codex `session_meta.payload`/first Claude row (never overwrite typed native enum fields): source provider/ID/digest, converter revision and omission counts. It declares a reconstructed import, never source-native `forked_from_id`. Codex emits native response items plus tested generic `imported_history` display events; Claude emits linked native message/block envelopes. Historical tool names do not register or authorize tools. Encode error results visibly where Codex lacks Claude's native error bit.\n\nNo-follow checks inspect the exact target path, matching UUID-suffix Codex files in the deterministic date directory and archived store. Bounded directory enumeration (50,000 entries, deadline above) fails if incomplete. Claude checks its exact project path; no whole-home scan. An exact existing seed is reused without writing. Any appended/evolved/truncated/modified seed refuses `seed-diverged`; advise manually forking that existing seed if its extra history is wanted. An archived match refuses `seed-archived`; advise restoring through the provider's supported archive workflow and replanning. No reimport nonce, resurrection, or overwrite in this version.\n\nPublication uses one file: stage a dot-prefixed name with a non-JSONL suffix using exclusive creation and mode `0600` in the final parent, flush/fsync, then `link` atomically without clobbering; fsync the parent directory and remove only the owned temporary name. Report post-publication durability/cleanup failures honestly; an exact seed remains safe to retry. Unsupported hard links fail, with no overwrite fallback. Store descendants must be directories without symlinks; recheck containment and parent identities immediately before linking. Canonical home aliases are allowed only at root resolution. This assumes the user-owned home is not adversarially renamed concurrently; Node path APIs cannot guarantee containment against that attack. Fail on detected drift. No sidecars, cleanup of imports, or multi-file transaction.\n\nReuse `guidance.ts:77-107` quoting/physical-cwd guard, with a separately shell-quoted validated env argv prefix. For an explicit or environment-selected home preserve its routing spelling:\n\n```text\nenv CODEX_HOME=HOME codex fork SEED\nenv CLAUDE_CONFIG_DIR=HOME claude --resume SEED --fork-session\n```\n\nFor the conventional default, emit no assignment and guard that the relevant variable remains unset (empty was rejected when planning). Thus the command preserves default-provider configuration behavior and refuses a changed routing environment. Catch store EPERM/EACCES as `store-write-denied`; print the exact same import/apply/digest command for the user to run in a terminal, with no automatic privilege escalation or retry.\n\nRequire exit from a fresh provider session when necessary. Never run either command, return a guessed child ID, or claim sidebar placement.\n\n## Ownership and verification\n\nOwn new `src/skills/session-fork-to-destination/src/{session-import,native-history,import-store}.ts` and colocated tests; extend `guidance-cli.ts`. Leave shared observation normalization unchanged. Adapt upstream algorithm/fixtures with its MIT copyright/permission notice in a shipped reference; no Python runtime.\n\nPublic boundaries: plan/apply API for fidelity, omissions, stale-plan refusal and snapshot idempotence; filesystem publication for collision/archives/symlink/bounds/concurrent no-clobber; generated CLI for apply gating and home/cwd command routing. Extend existing same-provider tests once. Fixture infrastructure protects native-loader repair/loss that structural assertions cannot detect.\n\nMigrate the historical probe into an opt-in Node/Vitest integrated test of our generated importer plus actual provider clients, synthetic histories, disposable homes/worktrees, dummy credentials and loopback endpoints. Enforce and verify external-network denial before launching; unavailable isolation skips explicitly. Preinitialize each disposable provider home before importing. Exercise the exact printed command where PTY support permits; explicitly record any terminal-continuation gap instead of treating RPC as equivalent. Assert tool payloads in outgoing requests across restart, persisted replies, distinct child identity and unchanged source/seed. Retain Codex RPC lifecycle versus terminal-creation distinction; do not count RPC as full terminal acceptance. No external calls. Record exact client versions in compatibility/limitations: historical baseline Codex 0.157.1 and Claude Code 2.1.284; no untested general version promise.\n\nBump skill `0.2.53` to `0.3.0`, add Unreleased changelog, update skill/provider reference and canonical user guide/index, regenerate both distributions, and validate scoped tests/type-check, build parity, structure and changed-doc links/build. Evaluate dependent bumps from actual shared changes. Opus high reviews implementation; bounded fixes and one re-review precede root acceptance. No global installs, GUI, worktree creation, file transfer, auth, remote calls or automatic provider launch.\n"
+      }
+    ],
+    "evidenceBytes": 14904,
+    "captureState": {
+      "head": "3e383a073cf86d4e4010bdfa04f3ca10e1233d33",
+      "index": "a3dbe646c93355ede783cb3e0bf7029d8becf7ed4490bc8f98975e789102318a",
+      "status": "b82bc5a8891144991d82cdcd0d8cb5d78617f09904f31dee71634c34e7049640",
+      "selected": [
+        {
+          "path": ".oat/repo/reference/research/session-import-fork-2026-09-30/design.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 14904,
+          "sha256": "04138befbbfff8fb09b36cffe591906e91ed0b792e196b6f9436381cafb9695d"
+        }
+      ]
+    }
+  },
+  "reviewer": {
+    "selected": {
+      "provider": "claude",
+      "model": "opus",
+      "effort": "high"
+    },
+    "requested": {
+      "reviewer": "claude:opus",
+      "model": null,
+      "effort": "high"
+    },
+    "passed": {
+      "provider": "claude",
+      "model": "opus",
+      "effort": "high"
+    },
+    "source": "invocation",
+    "skipped": [],
+    "observed": {
+      "provider": "claude",
+      "model": null,
+      "effort": null,
+      "evidence": "The provider envelope identifies the provider only; model and effort were not independently observed."
+    },
+    "claimed": {
+      "provider": "anthropic",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    }
+  },
+  "authored_by": [
+    {
+      "identity": "unknown",
+      "evidence_source": "unknown",
+      "evidence_reference": "No bounded author evidence was supplied.",
+      "scope_coverage": "unknown",
+      "covered_paths": []
+    }
+  ],
+  "diversity": {
+    "classification": "unknown",
+    "evidence": "Provider selection alone does not establish a different model family."
+  },
+  "invocation_count": 1,
+  "policy": {
+    "max_depth": 1,
+    "max_attempts": 1,
+    "read_only": true,
+    "repair": false,
+    "fallback_after_dispatch": false
+  },
+  "drift": {
+    "checked": true,
+    "stable": true,
+    "differences": [],
+    "limitation": "Content changes outside the selected set may go undetected when Git status is unchanged; ignored, unselected, external, and transient write-then-revert activity are not fully monitored.",
+    "before": {
+      "head": "3e383a073cf86d4e4010bdfa04f3ca10e1233d33",
+      "index": "a3dbe646c93355ede783cb3e0bf7029d8becf7ed4490bc8f98975e789102318a",
+      "status": "b82bc5a8891144991d82cdcd0d8cb5d78617f09904f31dee71634c34e7049640",
+      "selected": [
+        {
+          "path": ".oat/repo/reference/research/session-import-fork-2026-09-30/design.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 14904,
+          "sha256": "04138befbbfff8fb09b36cffe591906e91ed0b792e196b6f9436381cafb9695d"
+        }
+      ]
+    },
+    "after": {
+      "head": "3e383a073cf86d4e4010bdfa04f3ca10e1233d33",
+      "index": "a3dbe646c93355ede783cb3e0bf7029d8becf7ed4490bc8f98975e789102318a",
+      "status": "b82bc5a8891144991d82cdcd0d8cb5d78617f09904f31dee71634c34e7049640",
+      "selected": [
+        {
+          "path": ".oat/repo/reference/research/session-import-fork-2026-09-30/design.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 14904,
+          "sha256": "04138befbbfff8fb09b36cffe591906e91ed0b792e196b6f9436381cafb9695d"
+        }
+      ]
+    }
+  },
+  "validation": {
+    "ok": true
+  },
+  "reply": {
+    "schema_version": "v1",
+    "scope_token": "de9253d719d70aacdd3d749d3f18ce85f91cae12d30984721cffaba0bf10498a",
+    "verdict": "pass",
+    "summary": "The revised design resolves all four high findings and all six medium findings from design-01, and I found no remaining implementation blocker. On the highs: (H1) cross-provider source-current now refuses with a named code and requires an inactive, completed source; a pending in-flight call still fails closed through the strict reader. (H2) There is now an explicit, shape-based classification of injected user-role context, with counted omissions and an ambiguity refusal. (H3) The default home now emits no environment assignment and adds an unset-guard, and the user's routing spelling is kept separate from the realpath. (H4) The Claude project key is specified privately as non-alphanumeric→'-' with a 200-character refusal. I verified this against the pinned upstream encode_cwd.\n\nOn the mediums: occupancy is out of the digest, and exact repeats return already-imported. Diverged and archived seeds refuse with manual recovery guidance. The design adds a conservative identifier profile, no Codex item IDs, and a required final assistant text. Claude ownership separates the leaf owner from active-chain ancestry. Summary-only Codex compaction is an explicit refusal. store-write-denied has an exact terminal fallback. The acceptance test now pre-initializes homes and exercises the printed command, recording the RPC and terminal proofs separately. The lows are also addressed. The cited helpers exist and behave as the design describes: guidance.ts:77-108 quoting and pwd guard, git-target.ts:260-333 distinct-worktree and drift revalidation, guidance-discovery.ts:353-361 exact selection, and guidance-cli.ts:252-345, which currently maps failures to preview-incomplete. The existing UUID regex already accepts v8.\n\nThe remaining findings are low-severity clarifications that an implementer could otherwise guess at. None requires new features or changes scope.",
+    "findings": [
+      {
+        "severity": "low",
+        "title": "Codex event_msg and off-chain record handling is ambiguous under 'unknown control types refuse'",
+        "claim": "The design ignores 'duplicate display events', reads response_item directly, and refuses 'unknown active/control types' via 'a small explicit allowlist' for off-chain metadata. It does not say whether Codex event_msg subtypes (which are numerous and change between releases) are ignored by default, or must each be allowlisted. A strict per-subtype allowlist would make real Codex sessions refuse on client updates for display-only events. Ignoring all of them risks missing history-altering controls.",
+        "evidence": "design.md:32 'Ignore duplicate display events. Read native response_item messages and function/custom calls/results directly.' design.md:36 'Unknown active/control types refuse; known off-chain metadata uses a small explicit allowlist.' Pinned upstream claude_sessions.py:2612-2667 ignores every event_msg except thread_rolled_back (which refuses) and takes owning cwd from turn_context. The revised design instead pins cwd to the first session_meta.",
+        "suggestion": "State the Codex rule in one sentence. Treat event_msg as display-only and ignore it, except for named history-altering events (thread_rolled_back → unsupported rollback refusal). Treat turn_context as metadata that must not override the owning cwd. Unknown top-level record types and unknown response_item types fail closed. Add one fixture with an unrecognized event_msg subtype.",
+        "confidence": 0.55,
+        "location": {
+          "path": ".oat/repo/reference/research/session-import-fork-2026-09-30/design.md",
+          "start_line": 32,
+          "end_line": 36,
+          "source_version": "04138befbbfff8fb09b36cffe591906e91ed0b792e196b6f9436381cafb9695d"
+        }
+      },
+      {
+        "severity": "low",
+        "title": "Opaque items inside Codex replacement_history need the named compaction refusal, not a reasoning omission",
+        "claim": "The design accepts replacement_history when present and omits 'private reasoning'. If a Codex replacement_history carries an opaque or encrypted compaction item that stands in for the pre-compaction context, an implementer could classify it as omitted reasoning. The result would be a seed that silently loses the surviving context except for a count. The pinned upstream turns unknown items into placeholder text, which the design (correctly) does not want.",
+        "evidence": "design.md:32 'missing/invalid replacement history fails with unsupported-codex-compaction'. design.md:36 'Omit private reasoning'. Upstream claude_sessions.py:2660-2662 emits an '[Imported {kind} item unavailable…]' placeholder for unknown Codex items. That encrypted compaction items appear in current Codex replacement_history is a provider-client assumption; I did not verify it against Codex 0.157.1.",
+        "suggestion": "Specify that any non-message, non-tool item inside replacement_history other than a reasoning item refuses with unsupported-codex-compaction. Cover this with one fixture.",
+        "confidence": 0.4,
+        "location": {
+          "path": ".oat/repo/reference/research/session-import-fork-2026-09-30/design.md",
+          "start_line": 32,
+          "end_line": 32,
+          "source_version": "04138befbbfff8fb09b36cffe591906e91ed0b792e196b6f9436381cafb9695d"
+        }
+      },
+      {
+        "severity": "low",
+        "title": "The terminal fallback for store-write-denied can go stale when home routing came from the agent's environment",
+        "claim": "The plan digest covers the home source and routing spelling. For environment-selected homes, the value comes from the invoking agent process's CODEX_HOME/CLAUDE_CONFIG_DIR. Replaying the 'exact same import/apply/digest command' in the user's own terminal recomputes the plan from that terminal's environment. If the variable differs or is unset, apply refuses as stale. That is safe, but it defeats the purpose of the fallback without explaining why.",
+        "evidence": "design.md:42 resolves the home from --target-home, then the environment, then the default, and tracks the home source. design.md:20 says routing changes require a new plan. design.md:61 prints 'the exact same import/apply/digest command' for terminal use.",
+        "suggestion": "When the plan's home source is 'environment', have the fallback text state the required variable assignment. Alternatively, print the replay with that assignment as an env prefix, so the terminal recomputes the same home source and spelling. Add one CLI test for the fallback text.",
+        "confidence": 0.5,
+        "location": {
+          "path": ".oat/repo/reference/research/session-import-fork-2026-09-30/design.md",
+          "start_line": 61,
+          "end_line": 61,
+          "source_version": "04138befbbfff8fb09b36cffe591906e91ed0b792e196b6f9436381cafb9695d"
+        }
+      },
+      {
+        "severity": "low",
+        "title": "A mis-declared entry point from inside the source session surfaces as a generic incomplete-turn refusal",
+        "claim": "The entry point is declared by the caller. guidance-cli.ts accepts it without detecting the current session. If the skill runs import from the live source session but passes source-other or destination-fresh, the strict reader sees the in-flight importer call and refuses with incomplete-source-turn or a pending-tool error. This fails closed, but the user gets no pointer to the documented remedy (finish the turn, exit, and invoke from elsewhere).",
+        "evidence": "design.md:16 defines source-current-import-unsupported and the remedy. design.md:34 defines incomplete-source-turn. guidance-cli.ts:60,146 only validate the declared entry-point string. guidance-discovery.ts:339-351 selectCurrentGuidanceCandidate exists but needs a caller-supplied identity.",
+        "suggestion": "Have the incomplete-source-turn and pending-call refusal text include the source-current remedy. No detection machinery is needed.",
+        "confidence": 0.5,
+        "location": {
+          "path": ".oat/repo/reference/research/session-import-fork-2026-09-30/design.md",
+          "start_line": 16,
+          "end_line": 16,
+          "source_version": "04138befbbfff8fb09b36cffe591906e91ed0b792e196b6f9436381cafb9695d"
+        }
+      },
+      {
+        "severity": "low",
+        "title": "The design should state that skipped isolated-client runs cannot back support claims",
+        "claim": "The opt-in integrated test 'skips explicitly' when isolation is unavailable. The design records client versions but does not say that user-guide support claims per direction depend on a recorded non-skipped pass. The key open proof is whether an imported Codex rollout can be found by `codex fork ID` in a pre-initialized home. Without this rule, a skipped run could still end up documented as supported.",
+        "evidence": "design.md:71 'unavailable isolation skips explicitly … Record exact client versions in compatibility/limitations'. evidence.md:7-9: both fresh-home lifecycles were proven, the terminal Codex fork made no model turn, and populated-home lookup was never tested. Root AGENTS.md forbids documenting provider support before the live provider path is verified.",
+        "suggestion": "Add one sentence: user-facing docs claim each direction only on the client versions where the generated-importer isolated test actually passed, including the pre-initialized home and the printed command. Otherwise the direction is listed as unverified in limitations.",
+        "confidence": 0.6,
+        "location": {
+          "path": ".oat/repo/reference/research/session-import-fork-2026-09-30/design.md",
+          "start_line": 71,
+          "end_line": 73,
+          "source_version": "04138befbbfff8fb09b36cffe591906e91ed0b792e196b6f9436381cafb9695d"
+        }
+      }
+    ],
+    "questions": [
+      "For Codex sessions whose turn_context cwd differs from the owning session_meta cwd (the user changed directory mid-session), is refusal the intended first-release behavior? The design pins the owning cwd, while upstream follows the latest turn_context."
+    ],
+    "limitations": [
+      "Read-only design review. No provider clients, tests, builds, or type-checks were run.",
+      "Provider-client assumptions were not verified against Codex 0.157.1 or Claude Code 2.1.284: the Codex event_msg subtype churn, encrypted or opaque compaction items in replacement_history, pre-initialized-home rollout lookup, and production API acceptance of historical tool calls for unregistered tools.",
+      "Experiment request/response JSON artifacts were not re-hashed. I relied on evidence.md's statement that all 12 manifest hashes were verified.",
+      "Only the specific upstream Teleporter regions cited were inspected: encode_cwd at ~177-186, content conversion at ~2305-2320, and the Codex reader at ~2612-2667."
+    ],
+    "coverage": [
+      "design.md (revised), all sections",
+      "design-review.md disposition table checked against each design-01 finding",
+      "reviews/design-01.md and design-01.json: all 14 prior findings",
+      "evidence.md",
+      "Existing helpers: guidance.ts:60-125, guidance-cli.ts:250-345, guidance-discovery.ts:325-361, git-target.ts:255-335, guidance-capabilities.ts argv entries",
+      "Pinned upstream claude_sessions.py encode_cwd and Codex reader"
+    ],
+    "inspected_context": [
+      {
+        "subject": ".oat/repo/reference/research/session-import-fork-2026-09-30/design.md",
+        "source_version": "04138befbbfff8fb09b36cffe591906e91ed0b792e196b6f9436381cafb9695d"
+      },
+      {
+        "subject": ".oat/repo/reference/research/session-import-fork-2026-09-30/design-review.md, reviews/design-01.md, reviews/design-01.json, evidence.md (working tree, uncommitted)",
+        "source_version": "worktree-2026-09-30"
+      },
+      {
+        "subject": "src/skills/session-fork-to-destination/src/{guidance.ts,guidance-cli.ts,guidance-discovery.ts,git-target.ts,guidance-capabilities.ts}",
+        "source_version": "HEAD-3e383a07"
+      },
+      {
+        "subject": "/tmp/teleporter-review.pjO2qj/aviadr1-claude-session-teleporter-39fd13a/claude_sessions.py (external, pinned commit 39fd13a)",
+        "source_version": "39fd13ae4e4f1c7b484872561226da3764ab5a21"
+      }
+    ],
+    "checks": [
+      {
+        "name": "Captured design hash matches the evidence manifest",
+        "status": "passed",
+        "detail": "shasum -a 256 design.md = 04138bef…6d9106da51fee, matching the manifest."
+      },
+      {
+        "name": "Prior high and medium findings resolved in the revised design",
+        "status": "passed",
+        "detail": "H1-H4 and M1-M6 are each addressed at design.md:16,20,30,32,34,36,42-44,50,61,71. The low findings are addressed at 26, 50, 52, 54."
+      },
+      {
+        "name": "Cited helper line ranges exist and match the described behavior",
+        "status": "passed",
+        "detail": "The quoteShellWord and pwd -P guard are at guidance.ts:77-108. The UUID regex accepts versions 1-8. validateHandoffTarget refuses same-worktree, repository mismatch, and source-dirty. revalidateHandoffTarget compares status fingerprints. rawMatch and defaultPreview throw preview-incomplete."
+      },
+      {
+        "name": "Claude project-key encoder matches pinned upstream",
+        "status": "passed",
+        "detail": "claude_sessions.py encode_cwd: re.sub(r\"[^A-Za-z0-9]\", \"-\", cwd)."
+      },
+      {
+        "name": "Unit tests, type-check, build:check",
+        "status": "not_run",
+        "detail": "Design review only; there is no implementation yet."
+      },
+      {
+        "name": "Live or isolated provider client verification",
+        "status": "not_run",
+        "detail": "Out of scope; client execution not authorized."
+      }
+    ],
+    "reviewer_identity": {
+      "provider": "anthropic",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    }
+  },
+  "paths": {
+    "run_directory": "/Users/tstang/.local/state/consensus/6c60744c2219535d84f7de65d8087e0ac134682406e65e8f6e96d9106da51fee/reviews/996c14ac-75ba-402a-8588-dcdaef163229",
+    "request": "/Users/tstang/.local/state/consensus/6c60744c2219535d84f7de65d8087e0ac134682406e65e8f6e96d9106da51fee/reviews/996c14ac-75ba-402a-8588-dcdaef163229/request.txt",
+    "evidence": "/Users/tstang/.local/state/consensus/6c60744c2219535d84f7de65d8087e0ac134682406e65e8f6e96d9106da51fee/reviews/996c14ac-75ba-402a-8588-dcdaef163229/evidence.json",
+    "result": "/Users/tstang/.local/state/consensus/6c60744c2219535d84f7de65d8087e0ac134682406e65e8f6e96d9106da51fee/reviews/996c14ac-75ba-402a-8588-dcdaef163229/result.json"
+  }
+}

@@ -38,7 +38,7 @@ function harness() {
 }
 
 describe('experimental guidance CLI', () => {
-  it('exposes only discover, preview, and prepare', async () => {
+  it('exposes discovery, preview, preparation, and bounded import', async () => {
     const test = harness();
     expect(await runGuidanceCli(['--help'], test.dependencies, test.io)).toBe(
       0,
@@ -47,6 +47,8 @@ describe('experimental guidance CLI', () => {
     expect(help).toContain('discover --source');
     expect(help).toContain('preview --source');
     expect(help).toContain('prepare --source');
+    expect(help).toContain('import --source');
+    expect(help).toContain('--apply --expect-plan SHA256');
     expect(help).toContain('EXPERIMENTAL / NOT RELEASED');
     expect(help).not.toMatch(
       /\bexecute\b|behavior-verify|reconcile|behavior-plan/,
@@ -299,14 +301,15 @@ describe('experimental guidance CLI', () => {
       'utf8',
     );
 
-    expect(skill).not.toContain(
-      'node skills/session-fork-to-destination/scripts/session-fork-to-destination.mjs',
-    );
-    expect(
-      skill.match(
-        /node <skill-dir>\/scripts\/session-fork-to-destination\.mjs/gu,
-      ),
-    ).toHaveLength(4);
+    const invocations = [
+      ...skill.matchAll(/\bnode\s+([^\n]*?session-fork-to-destination\.mjs)/gu),
+    ];
+    expect(invocations.length).toBeGreaterThan(0);
+    for (const invocation of invocations) {
+      expect(invocation[1]).toBe(
+        '<skill-dir>/scripts/session-fork-to-destination.mjs',
+      );
+    }
   });
 
   it('does not discover or preview a Cursor transcript through colliding lossy worktree slugs', async () => {
@@ -810,4 +813,89 @@ describe('experimental guidance CLI', () => {
     );
     expect(result.stdout).toContain('EXPERIMENTAL / NOT RELEASED');
   });
+});
+
+describe('import CLI review gate', () => {
+  const argumentsForImport = [
+    'import',
+    '--source',
+    '/source',
+    '--target',
+    '/target',
+    '--session',
+    'codex:cli:550e8400-e29b-41d4-a716-446655440099',
+    '--to',
+    'claude',
+    '--entry-point',
+    'source-other',
+    '--json',
+  ];
+  it('routes a default dry run and only applies with an explicit reviewed digest', async () => {
+    const test = harness();
+    test.dependencies.import = vi.fn(async (_input, digest) => ({
+      digest: digest ?? 'planned',
+      seed: { id: 'seed', path: '/private/home/seed.jsonl' },
+    }));
+    expect(
+      await runGuidanceCli(argumentsForImport, test.dependencies, test.io),
+    ).toBe(0);
+    expect(test.dependencies.import).toHaveBeenLastCalledWith(
+      {
+        sourcePath: '/source',
+        destinationPath: '/target',
+        session: 'codex:cli:550e8400-e29b-41d4-a716-446655440099',
+        to: 'claude',
+        entryPoint: 'source-other',
+      },
+      undefined,
+    );
+    const digest = 'a'.repeat(64);
+    expect(
+      await runGuidanceCli(
+        [
+          ...argumentsForImport,
+          '--target-home',
+          '/chosen home',
+          '--apply',
+          '--expect-plan',
+          digest,
+        ],
+        test.dependencies,
+        test.io,
+      ),
+    ).toBe(0);
+    expect(test.dependencies.import).toHaveBeenLastCalledWith(
+      expect.objectContaining({ targetHome: '/chosen home' }),
+      digest,
+    );
+    expect(JSON.parse(test.stdout[0])).toMatchObject({
+      command: 'import',
+      noForkCreated: true,
+      data: { digest: 'planned' },
+    });
+  });
+  it.each([
+    ['--apply'],
+    ['--expect-plan', 'a'.repeat(64)],
+    ['--nonce', 'unsafe'],
+    ['--to', 'codex'],
+  ])(
+    'rejects an unreviewed or unknown flag set %j before invoking import',
+    async (...flags) => {
+      const test = harness();
+      test.dependencies.import = vi.fn();
+      expect(
+        await runGuidanceCli(
+          [...argumentsForImport, ...flags],
+          test.dependencies,
+          test.io,
+        ),
+      ).toBe(2);
+      expect(test.dependencies.import).not.toHaveBeenCalled();
+      expect(JSON.parse(test.stdout[0])).toMatchObject({
+        ok: false,
+        error: { code: 'invalid-arguments' },
+      });
+    },
+  );
 });

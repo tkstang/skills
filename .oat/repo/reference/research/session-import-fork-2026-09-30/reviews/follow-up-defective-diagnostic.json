@@ -1,0 +1,187 @@
+{
+  "schema_version": "v1",
+  "status": "defective",
+  "invocation_count": 1,
+  "reason": "invalid_review_reply",
+  "message": "reply.verdict changes_requested requires a critical or high finding",
+  "drift": {
+    "checked": true,
+    "stable": true,
+    "differences": [],
+    "limitation": "Content changes outside the selected set may go undetected when Git status is unchanged; ignored, unselected, external, and transient write-then-revert activity are not fully monitored.",
+    "before": {
+      "head": "4c391d87cf37130aebb4f48c9632b37b400edc6d",
+      "index": "c34e213b57e527564ce3453dc698a0156b90eec1167dc829f12f9cccf8716531",
+      "status": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected": [
+        {
+          "path": "src/skills/session-fork-to-destination/src/native-history.ts",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 27735,
+          "sha256": "a13bb38549fd015a3638addb9688d9b4b9a0c977d6862bed490466091d4fd2f6"
+        },
+        {
+          "path": "src/skills/session-fork-to-destination/src/session-import.test.ts",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 30594,
+          "sha256": "92d78c0b0c779bc826777fe37ebf63b548b87e89e65941b347e52322292b71f8"
+        },
+        {
+          "path": "src/skills/session-fork-to-destination/src/helpers/import-native-clients-support.ts",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 20855,
+          "sha256": "bf8441c9a88569e94cb174664f197fc5b2d377a3cb5429ad18126aee6015fca1"
+        },
+        {
+          "path": "src/skills/session-fork-to-destination/src/import-native-clients.test.ts",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 14996,
+          "sha256": "5b3a7c6f4db4e604780e0981c5d53c2dfacf94321fc834b2ddad5749ca3a843c"
+        },
+        {
+          "path": "src/skills/session-fork-to-destination/SKILL.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 8474,
+          "sha256": "891ab8042f1b88fac2e61c3143f206e61c7362cab1f59149fd01facb569b514e"
+        },
+        {
+          "path": "src/skills/session-fork-to-destination/references/provider-guidance.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 6960,
+          "sha256": "1f7c466614e8262c84efa137e5eaa486dc9cabaef720751906618b052589ab53"
+        },
+        {
+          "path": "documentation/docs/user-guide/skills/session-fork-to-destination.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 11862,
+          "sha256": "e1e60fc2361268f9e018991977092ccaafa8d7b86544096d78bff560523b2b5d"
+        },
+        {
+          "path": "documentation/docs/user-guide/skills/index.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 9814,
+          "sha256": "2c78ef55ab686dd94adefc882dd4f92475388894f2f070246a8ac7884c11ef4a"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 59768,
+          "sha256": "7d3a8a2172c200289765ae11432015686b15dc4793f30b7f247bc8b833877c29"
+        },
+        {
+          "path": ".oat/repo/reference/research/session-import-fork-2026-09-30/follow-up-2026-10-01.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 2465,
+          "sha256": "53d72d340fb76d005dfa6d9f6ce59b4d0a4bbc30c6f7f2acb2c51de02e0df2fe"
+        }
+      ]
+    },
+    "after": {
+      "head": "4c391d87cf37130aebb4f48c9632b37b400edc6d",
+      "index": "c34e213b57e527564ce3453dc698a0156b90eec1167dc829f12f9cccf8716531",
+      "status": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected": [
+        {
+          "path": "src/skills/session-fork-to-destination/src/native-history.ts",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 27735,
+          "sha256": "a13bb38549fd015a3638addb9688d9b4b9a0c977d6862bed490466091d4fd2f6"
+        },
+        {
+          "path": "src/skills/session-fork-to-destination/src/session-import.test.ts",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 30594,
+          "sha256": "92d78c0b0c779bc826777fe37ebf63b548b87e89e65941b347e52322292b71f8"
+        },
+        {
+          "path": "src/skills/session-fork-to-destination/src/helpers/import-native-clients-support.ts",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 20855,
+          "sha256": "bf8441c9a88569e94cb174664f197fc5b2d377a3cb5429ad18126aee6015fca1"
+        },
+        {
+          "path": "src/skills/session-fork-to-destination/src/import-native-clients.test.ts",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 14996,
+          "sha256": "5b3a7c6f4db4e604780e0981c5d53c2dfacf94321fc834b2ddad5749ca3a843c"
+        },
+        {
+          "path": "src/skills/session-fork-to-destination/SKILL.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 8474,
+          "sha256": "891ab8042f1b88fac2e61c3143f206e61c7362cab1f59149fd01facb569b514e"
+        },
+        {
+          "path": "src/skills/session-fork-to-destination/references/provider-guidance.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 6960,
+          "sha256": "1f7c466614e8262c84efa137e5eaa486dc9cabaef720751906618b052589ab53"
+        },
+        {
+          "path": "documentation/docs/user-guide/skills/session-fork-to-destination.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 11862,
+          "sha256": "e1e60fc2361268f9e018991977092ccaafa8d7b86544096d78bff560523b2b5d"
+        },
+        {
+          "path": "documentation/docs/user-guide/skills/index.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 9814,
+          "sha256": "2c78ef55ab686dd94adefc882dd4f92475388894f2f070246a8ac7884c11ef4a"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 59768,
+          "sha256": "7d3a8a2172c200289765ae11432015686b15dc4793f30b7f247bc8b833877c29"
+        },
+        {
+          "path": ".oat/repo/reference/research/session-import-fork-2026-09-30/follow-up-2026-10-01.md",
+          "location": "worktree",
+          "kind": "file",
+          "mode": 420,
+          "bytes": 2465,
+          "sha256": "53d72d340fb76d005dfa6d9f6ce59b4d0a4bbc30c6f7f2acb2c51de02e0df2fe"
+        }
+      ]
+    }
+  }
+}

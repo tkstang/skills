@@ -246,7 +246,8 @@ describe('Codex Stop continuation hook', () => {
           assistantFrame('The generated Codex hook is ready.'),
           terminalFrame('success'),
         ],
-        { waitMs: 100 },
+        // This checks packaging correctness, not a 100ms startup deadline.
+        { waitMs: 5000 },
         Date.now(),
       );
       const installed = join(home, 'installed-observer');
@@ -274,6 +275,7 @@ describe('Codex Stop continuation hook', () => {
       );
 
       expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout.trim(), result.stderr).not.toBe('');
       expect(JSON.parse(result.stdout)).toMatchObject({
         decision: 'block',
         reason: expect.stringContaining('records="0-2"'),

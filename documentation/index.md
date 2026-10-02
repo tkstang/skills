@@ -64,7 +64,7 @@
     - [Must We?](user-guide/skills/must-we.md) — Decide whether a blocker, requirement, or proposed action is necessary and identify the smallest sufficient path.
     - [Next Steps](user-guide/skills/next-steps.md) — Turn the current situation into a justified recommendation without executing it.
     - [Session Export Transcript](user-guide/skills/session-export-transcript.md) — Export the current coding-agent session to a sanitized, branch-named Markdown transcript.
-    - [Session Fork to Destination](user-guide/skills/session-fork-to-destination.md) — An alpha skill for discovering sessions, previewing their context, and preparing destination-safe fork instructions for another Git worktree.
+    - [Session Fork to Destination](user-guide/skills/session-fork-to-destination.md) — Discover a session, optionally import supported Claude/Codex history, and prepare a native fork in an existing destination worktree.
     - [Session Handoff](user-guide/skills/session-handoff.md) — Prepare concise evidence-grounded continuation context, with optional observer review and sanitized transcript export.
     - [Collaborative Observer](user-guide/skills/session-observer-collab.md) — Coordinate two mutually observing agent sessions with exact pins, bounded wake tiers, explicit authority, and deterministic closeout.
     - [Session Observer](user-guide/skills/session-observer.md) — Review what another coding agent did in this project with tool-free digests, per-session read offsets, and foreground watch mode.
