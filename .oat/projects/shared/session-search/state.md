@@ -129,7 +129,7 @@ oat_pr_status: open # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: "https://github.com/tkstang/skills/pull/115" # null | string — tracked PR URL when a PR exists
 oat_project_created: "2026-10-02T04:59:03.168Z" # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-10-02T18:04:48Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-10-02T18:06:31Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
 oat_generated: false
 oat_project_recap:
   decision: generate
@@ -162,7 +162,7 @@ Implementation — PR open; completion may run before or after merge.
 - ✓ Plan complete
 - ✓ Implementation tasks complete (61/61)
 - ✓ Final review passed
-- ⧗ Implementation exit gate and closeout
+- ✓ Implementation exit gate passed (generation 2) and closeout sequence complete (summary, document, pr; recap built)
 - ✓ PR created
 - ⧗ Awaiting human review
 
