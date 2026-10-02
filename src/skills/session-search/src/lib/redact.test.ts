@@ -1,0 +1,180 @@
+import { describe, expect, it } from 'vitest';
+
+import { buildSnippet } from './matcher.js';
+import { REDACTED, redact } from './redact.js';
+
+// Synthetic credential shapes are assembled at runtime so no literal token
+// pattern lives in the repository.
+const join = (...parts: string[]) => parts.join('');
+const OPENAI_KEY = join('sk', '-', 'proj', 'A1b2C3d4E5f6G7h8I9j0K1');
+const ANTHROPIC_KEY = join('sk', '-ant-', 'api03-', 'Zz9Yy8Xx7Ww6Vv5Uu4Tt3');
+const GITHUB_PAT = join('gh', 'p_', 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8');
+const GITHUB_OAUTH = join('gh', 'o_', 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8');
+const GITHUB_SERVER = join('gh', 's_', 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8');
+const GITHUB_FINE = join(
+  'github',
+  '_pat_',
+  '11ABCDEFG0123456789_abcdefghijKLMNOP',
+);
+const SLACK = join('xo', 'xb-', '123456789012-abcdefABCDEF');
+const AWS_ID = join('AK', 'IA', 'Z2Y3X4W5V6U7T8S9');
+const AWS_SECRET = join('wJalrXUtnFEMI', '/K7MDENG/', 'bPxRfiCY+EXAMPLEKEY01');
+const SHA = 'a'.repeat(8) + '0123456789abcdef0123456789abcdef';
+const SYNTHETIC = 'synthetic-only';
+
+describe('redact: credential shapes', () => {
+  it.each([
+    ['OpenAI-style key', `use ${OPENAI_KEY} here`, OPENAI_KEY],
+    ['Anthropic-style key', `key=${ANTHROPIC_KEY}`, ANTHROPIC_KEY],
+    ['GitHub ghp_ token', `token ${GITHUB_PAT}`, GITHUB_PAT],
+    ['GitHub gho_ token', `got ${GITHUB_OAUTH}`, GITHUB_OAUTH],
+    ['GitHub ghs_ token', `got ${GITHUB_SERVER}`, GITHUB_SERVER],
+    ['GitHub fine-grained PAT', `got ${GITHUB_FINE}`, GITHUB_FINE],
+    ['Slack token', `slack ${SLACK} ok`, SLACK],
+    ['AWS access key id', `id ${AWS_ID} ok`, AWS_ID],
+    [
+      'Bearer token',
+      `Authorization: Bearer ${join('eyJhbGci', 'OiJIUzI1NiJ9.e30.x1')}`,
+      'eyJhbGci',
+    ],
+    [
+      '40-char AWS-style secret with / and +',
+      `secret blob ${AWS_SECRET}`,
+      AWS_SECRET,
+    ],
+  ])('masks %s', (_name, text, secret) => {
+    const out = redact(text);
+    expect(out).toContain(REDACTED);
+    expect(out).not.toContain(secret);
+  });
+
+  it('masks a 40-hex run, so a full git SHA is intentionally redacted', () => {
+    expect(SHA).toHaveLength(40);
+    expect(redact(`commit ${SHA} landed`)).toBe(`commit ${REDACTED} landed`);
+  });
+
+  it('masks long mixed-case base64-like runs that contain a digit', () => {
+    const blob = join('QmFzZTY0', 'RW5jb2RlZERhdGFXaXRoMURpZ2l0', 'c0Zvcg==');
+    expect(redact(`payload ${blob} end`)).toBe(`payload ${REDACTED} end`);
+  });
+});
+
+describe('redact: key-value secrets', () => {
+  it.each([
+    ['uppercase env assignment', `API_KEY=${SYNTHETIC}`, 'API_KEY='],
+    [
+      'prefixed env assignment',
+      `export AWS_SECRET_ACCESS_KEY=${SYNTHETIC}`,
+      'AWS_SECRET_ACCESS_KEY=',
+    ],
+    ['lowercase colon form', `password: ${SYNTHETIC}`, 'password: '],
+    ['short JSON password', `{"password":"${SYNTHETIC}"}`, '{"password":'],
+    ['short JSON API_KEY', `{"API_KEY":"${SYNTHETIC}"}`, '{"API_KEY":'],
+    [
+      'single-quoted value',
+      `client_secret = '${SYNTHETIC}'`,
+      'client_secret = ',
+    ],
+    [
+      'escaped raw-record credential',
+      `{\\"token\\":\\"${SYNTHETIC}\\"}`,
+      '{\\"token\\":',
+    ],
+    [
+      'query string',
+      `https://x.test/cb?access_key=${SYNTHETIC}&next=1`,
+      'access_key=',
+    ],
+  ])('masks the %s value', (_name, text, keptKey) => {
+    const out = redact(text);
+    expect(out).toContain(`${keptKey}${REDACTED}`);
+    expect(out).not.toContain('synthetic');
+  });
+
+  it('masks a quoted value with spaces entirely', () => {
+    expect(redact('{"API_KEY":"x y"}')).toBe(`{"API_KEY":${REDACTED}}`);
+    expect(redact('password="pass word" next')).toBe(
+      `password=${REDACTED} next`,
+    );
+  });
+
+  it('masks quoted values containing escaped quotes entirely', () => {
+    const out = redact('{"secret": "a\\"b c", "keep": "visible"}');
+    expect(out).toBe(`{"secret": ${REDACTED}, "keep": "visible"}`);
+  });
+
+  it('masks escaped-quoted values containing spaces and nested escapes', () => {
+    const raw =
+      '{\\"private_key\\": \\"pass \\\\\\"word\\\\\\" tail\\", \\"k\\":1}';
+    const out = redact(raw);
+    expect(out).toBe(`{\\"private_key\\": ${REDACTED}, \\"k\\":1}`);
+  });
+
+  it('stops a bare value at a delimiter', () => {
+    expect(redact(`token=${SYNTHETIC},other=1`)).toBe(
+      `token=${REDACTED},other=1`,
+    );
+  });
+
+  it('masks an unterminated quoted value to the end of the line', () => {
+    expect(redact(`{"password":"${SYNTHETIC}\nnext line`)).toBe(
+      `{"password":${REDACTED}\nnext line`,
+    );
+  });
+});
+
+describe('redact: full unit before windowing', () => {
+  it('leaves no fragment of an escaped credential near a snippet edge', () => {
+    // Place the credential value so the raw window would end mid-value.
+    const head = 'needle ';
+    const keyPart = '{\\"token\\":\\"';
+    const filler = 'y'.repeat(80 - head.length - keyPart.length);
+    const text = `${head}${filler}${keyPart}${SYNTHETIC}\\"} trailing`;
+    const index = 0;
+    expect(text.slice(0, 86)).toMatch(/synthe$/);
+
+    const snippet = buildSnippet(redact(text), index, 'needle'.length);
+
+    expect(snippet).toContain('needle');
+    expect(snippet).not.toMatch(/synth/);
+  });
+
+  it('masks a long token whose window cut would leave a short fragment', () => {
+    const text = `needle ${'z'.repeat(60)} ${SHA}${SHA} tail`;
+    const index = text.indexOf('needle');
+
+    const snippet = buildSnippet(redact(text), index, 'needle'.length);
+
+    expect(snippet).not.toMatch(/[0-9a-f]{12,}/);
+  });
+});
+
+describe('redact: ordinary text stays intact', () => {
+  it.each([
+    'Session 0b6d8f3e-3f4a-4c1b-9d2e-7a8b9c0d1e2f resumed',
+    'We vetted Perceive Now and decided against it.',
+    'See documentation/docs/engineering/architecture/session-schemas for details',
+    'Users/Shared/Vault/Projects2026/Stoa/Proposals/Search',
+    'The bearer of the message tokenizes nothing.',
+    'A password manager keeps secrets safe.',
+    'Run pnpm run test:vitest src/skills/session-search/src/lib',
+  ])('leaves %j untouched', (text) => {
+    expect(redact(text)).toBe(text);
+  });
+});
+
+describe('redact: oversize input', () => {
+  // Deep-tier raw lines can be hundreds of KiB. A quadratic key scan took
+  // seconds at 64 KiB; the bound below is generous for slow CI yet far below
+  // what a quadratic regex needs at 256 KiB.
+  it('scans long identifier runs in linear time', () => {
+    const inputs = [
+      'a'.repeat(256 * 1024),
+      'token'.repeat(52 * 1024),
+      `password=${'x'.repeat(256 * 1024)}`,
+    ];
+    const started = performance.now();
+    for (const input of inputs) redact(input);
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
+});
