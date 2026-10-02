@@ -111,7 +111,7 @@ by the large-scan guard, the deadline, or flags is omitted.
 | ---- | --------------------------------------------- | ------------------------------------------------------------------------------ |
 | 0    | Results                                       | Present them (Step 6).                                                         |
 | 2    | No sessions matched                           | Walk the ladder (Step 5).                                                      |
-| 3    | `needsConfirmation` set (any result count)    | Present any results, then ask before a large scan (ladder step 2).             |
+| 3    | `needsConfirmation` set (any result count)    | Present any results, then ask before a large scan (ladder step 3).             |
 | 1    | Usage or hard error (bad regex, empty match…) | Fix the arguments using stderr; use `--literal` for a fixed string that fails. |
 
 With `--deadline-ms`, check `incomplete`: when `true`, results are partial and
@@ -124,16 +124,22 @@ Stop at the first rung that finds the session.
 
 1. **Broaden.** Add variants or looser patterns, drop or widen the time window, or
    drop the `--runtime` filter.
-2. **Large scan.** If `needsConfirmation` is set, ask before re-running with
+2. **Hits only discuss it.** Tool output (MCP tool results, command output, file
+   listings) is excluded by default, and the deep rung runs only when nothing
+   else matched. So when the top hits look like later sessions talking about
+   the thing rather than the session where it happened (they say "found it" or
+   "in another session", or their dates postdate the user's hint), re-run with
+   `--include-tools`, and add `--until` set before the discussion began.
+3. **Large scan.** If `needsConfirmation` is set, ask before re-running with
    `--allow-large-scan`, quoting `estimatedBytes` (human-readable) and
    `fileCount`: "A full content scan covers 6.2 GiB across 3,400 files. Run it?"
-3. **Deep rung.** When `tiersRun` includes `deep`, report that tool output was
+4. **Deep rung.** When `tiersRun` includes `deep`, report that tool output was
    searched too. If it is absent on an empty result, say why (guard, `--no-deep`,
    deadline, or tiers).
-4. **ChatGPT.** Ask whether it might have been a ChatGPT conversation. ChatGPT
+5. **ChatGPT.** Ask whether it might have been a ChatGPT conversation. ChatGPT
    desktop data is encrypted locally and cannot be searched here; suggest
    ChatGPT's own search.
-5. **Another machine.** Ask whether it might have happened on another computer.
+6. **Another machine.** Ask whether it might have happened on another computer.
    If the user names an SSH host, run the remote search below.
 
 ## Step 6: Present results
