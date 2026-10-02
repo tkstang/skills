@@ -4,9 +4,9 @@ oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
 oat_generated: true
-oat_summary_last_task: p05-t10
-oat_summary_revision_count: 0
-oat_summary_includes_revisions: []
+oat_summary_last_task: prev1-t04
+oat_summary_revision_count: 1
+oat_summary_includes_revisions: [p-rev1]
 ---
 
 # Summary: session-search
@@ -47,12 +47,12 @@ Past coding-agent sessions were hard to find again. On 2026-09-29 the user could
   - a session-schemas "Discovery indexes" section
   - a CHANGELOG entry
   - the stale Codex `session-<id>.jsonl` path corrected in the export-transcript and observer docs. This bumped four owner skills: session-export-transcript 2.0.39, session-observer 1.0.88, session-observer-collab 1.0.76, and session-fork-to-destination 0.2.56.
-- **Delivery:** 64 of 64 tasks across five phases. Phase 5 consisted entirely of final-review and exit-gate fixes.
+- **Delivery:** 68 of 68 tasks across five phases plus revision p-rev1. Phase 5 consisted entirely of final-review and exit-gate fixes; p-rev1 addressed CodeRabbit feedback on PR #115 (see Revision History).
 
   Verification:
   - `pnpm run premerge`: 2733 tests passed and 1 was skipped.
-  - About 648 skill, repo, release, and tooling tests passed in the last phase.
-  - Read-only checks against the real local stores found the motivating Codex rollout `01a053ba`.
+  - About 650 skill, repo, release, and tooling tests passed after p-rev1, including 274 skill tests.
+  - Read-only checks against the real local stores found the motivating Codex rollout `01a053ba`, with identical results before and after p-rev1.
 
 ## Key Decisions
 
@@ -89,16 +89,14 @@ Past coding-agent sessions were hard to find again. On 2026-09-29 the user could
 
   Each was fixed: p03-t04, p05-t08, and p05-t09.
 - **Quadratic redaction regex.** The first credential regex took 4.2 s on a 64 KiB line. Anchoring it at the start of the identifier run brought that under 2 ms, and a 256 KiB regression test guards it.
-- **Review volume.** Every phase review passed with 0 Critical and 0 High, except p02 cycle 1, which was blocked by one High: Codex non-text JSON tool output. p01 and p02 each took two review cycles.
-- **Tooling friction.**
-  - `scripts/bump-version.ts` wrote double-quoted versions, which needed one recovery commit in p04.
-  - `diagnostics.test.ts` timed out under host load until it was rerun.
-  - super.engineering CLI shims made the gate's availability probe time out.
+- **Review volume.** Every phase review passed with 0 Critical and 0 High, except p02 cycle 1, which was blocked by one High: Codex non-text JSON tool output. p01 and p02 each took two review cycles. The final scope took five cycles (cycles 4 and 5 operator-authorized), and the cross-family implementation exit gate ran three generations: generation 1 raised the prefilter-escape finding, and generations 2 and 3 passed clean.
+- **Tooling friction.** `scripts/bump-version.ts` wrote double-quoted versions, which needed one recovery commit in p04; `diagnostics.test.ts` timed out under host load until it was rerun; and super.engineering CLI shims made the gate's availability probe time out.
 
 ### Recorded process deviations
 
 - **Combined p05 and final review.** One narrowed final re-review over `79416011..3fb6dc1f`, exactly the p05 range, served as both the p05 phase review and final cycle 2. Separate reviews would have covered the same range.
 - **Operator override for final review cycle 4.** The final scope reached the cap of 3 review cycles (REVIEWRECEIVE-02), and the autonomous run stopped rather than authorize another cycle itself. At 2026-10-02T17:22:14Z the operator replied "Proceed", which authorized cycle 4. It passed with 0C/0H/0M/1L.
+- **Operator-authorized cycle 5, combined with the p-rev1 phase review.** At 2026-10-02T19:33:15Z the operator chose "Fix all, then complete", which included a phase review, a narrowed final review, and a new exit gate. One narrowed re-review over `336bfd80..34cc7fb5` served as both, as for p05.
 
 ## Tradeoffs Made
 
@@ -112,6 +110,10 @@ Past coding-agent sessions were hard to find again. On 2026-09-29 the user could
 - Only canonical sources under `src/skills/session-search/` should be edited. `skills/` and `plugins/*/skills/` are generated, and a drift guard enforces this. `src/distributions.ts` allows the source roots `src/shared/transcript` and `src/skills/session-export-transcript`.
 - The Codex meta tier depends on `state_5.sqlite`, an internal, versioned schema. A missing table or column, a locked database, or a missing `sqlite3` marks that tier `degraded`, and the search continues.
 - Test overrides: `SESSION_SEARCH_RG`, `SESSION_SEARCH_SQLITE3`, `SESSION_SEARCH_NO_RG=1`, and `SESSION_SEARCH_NO_SQLITE3=1`.
+
+## Revision History
+
+- **p-rev1 (PR #115 CodeRabbit feedback, 4 tasks).** CodeRabbit left 4 inline and 1 outside-diff comment; the user directed "Fix all, then complete" during `oat-project-complete`, before any completion write. Fixes: the `ghp_`-shaped test literal is built by concatenation (prev1-t01); Claude `tool_result` carriers are detected within an 8 KiB prefix instead of 512 B, hardening older key orders and long `cwd` values (prev1-t02); the export-transcript reference names the correct Codex cwd source record (prev1-t03); and the PJM current-state snapshot reflects the open PR (prev1-t04). Final review cycle 5 passed with 0C/0H/0M/2L; one Low was fixed in state.md and one deferred to BL-261002. Exit-gate generation 3 passed clean.
 
 ## Autonomous Execution Learnings
 
@@ -136,25 +138,21 @@ Past coding-agent sessions were hard to find again. On 2026-09-29 the user could
 
 ## Follow-up Items
 
-**Known follow-ups deferred from review.** None of these are regressions; the affected sessions stay findable through other tiers or content.
+**Known follow-ups deferred from review**, all five tracked in `BL-261002-resolve-deferred-session`. None of these are regressions; the affected sessions stay findable through other tiers or content.
 
 - **Exit-gate L1:** a custom title in the bounded prefix loses to a generated title in the tail. This needs about 600K characters between the two titles and affects only title-tier ranking.
 - **Exit-gate L2:** Codex orphans that exist only as metadata lose their archived, child, and title facts. This happens only when a rollout file was pruned but sqlite still has the thread. The session is found but unlabeled.
 - **Exit-gate L3:** the remote history fallback excerpt can drop the match and the session id. This affects only the opt-in fallback for hosts without the skill installed.
 - **Final cycle-4 L1:** Claude-only `slug` and `sessionId` keys are blanked on Codex lines, including inside MCP results. This predates p05-t06 and is narrow: 12 local lines, mostly Stoa memory slugs.
+- **Final cycle-5 L1:** the deep raw fallback's envelope blanker caps values at 1024 characters, so a `cwd` over 1024 characters on an oversize old-key-order Claude tool line can yield a path-only deep hit. prev1-t02's wider prefix made this partly newly reachable; it affects only the deep tier or `--include-tools`.
 
-**Tooling follow-ups (outside this feature's scope):**
+**Tooling follow-ups (outside this feature's scope):** `bump-version.ts` quote style; the `diagnostics.test.ts` load flake; pre-existing `format:check` failures in 3 untouched test files.
 
-- `bump-version.ts` quote style.
-- The `diagnostics.test.ts` load flake.
-- Pre-existing `format:check` failures in 3 untouched test files.
+**Deferred in discovery:** a Cursor `store.db` adapter; an optional metadata cache or FTS index; a recall or summarization mode; adapters for other agent stores.
 
-**Deferred in discovery:**
+## Explainer Outcome
 
-- a Cursor `store.db` adapter
-- an optional metadata cache or FTS index
-- a recall or summarization mode
-- adapters for other agent stores
+- **project-recap:** generated — `explainers/project-recap/` (recipe `project-recap` v2, run `318a847d`, host verify rung; built before revision p-rev1)
 
 ## Workflow Observations
 
@@ -201,3 +199,11 @@ ss-boundary-reviewcap-1 STOP: REVIEWRECEIVE-02 final review-cycle limit (3); fix
 ### 2026-10-02 · structural · oat gate review · final
 
 target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:0,low:0 exit=0 status=ok artifact=.oat/projects/shared/session-search/reviews/final-review-2026-10-02T173611Z.md run=578d2977-81dc-42a4-bb93-a71adabbb844
+
+### 2026-10-02 · structural · oat-project-autonomous · complete
+
+ss-autonomous-complete-1 autonomous run complete; PR https://github.com/tkstang/skills/pull/115; final review cycle 4 passed; exit gate gen 2 passed
+
+### 2026-10-02 · structural · oat gate review · final
+
+target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:0,low:0 exit=0 status=ok artifact=.oat/projects/shared/session-search/reviews/final-review-2026-10-02T194727Z.md run=63e85fdb-dba6-4845-877c-08216e4dc3a8
