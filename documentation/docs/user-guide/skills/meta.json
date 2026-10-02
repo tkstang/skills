@@ -14,6 +14,7 @@
     "session-handoff",
     "session-export-transcript",
     "session-fork-to-destination",
+    "session-search",
     "---Observe & Collaborate---",
     "[Agent Messaging](/user-guide/skills/agent-messaging)",
     "session-observer",

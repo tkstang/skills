@@ -65,6 +65,7 @@ describe('repo-layout', () => {
       'session-observer',
       'session-observer-collab',
       'session-retro',
+      'session-search',
     ]);
 
     for (const skill of standaloneSkills) {
@@ -89,6 +90,9 @@ describe('repo-layout', () => {
       path.posix.join('skills', 'session-export-transcript'),
       path.posix.join('skills', 'session-fork-to-destination'),
       path.posix.join('skills', 'session-retro'),
+      path.posix.join('skills', 'session-search'),
+      path.posix.join('skills', 'session-search', 'references'),
+      path.posix.join('skills', 'session-search', 'scripts'),
       path.posix.join('skills', 'must-we'),
       path.posix.join('skills', 'next-steps'),
       path.posix.join('plugins', 'consensus'),
@@ -116,6 +120,7 @@ describe('repo-layout', () => {
       path.posix.join('plugins', 'session', 'skills', 'handoff'),
       path.posix.join('plugins', 'session', 'skills', 'messaging'),
       path.posix.join('plugins', 'session', 'skills', 'retro'),
+      path.posix.join('plugins', 'session', 'skills', 'search'),
       path.posix.join('plugins', 'session', '.claude-plugin'),
       path.posix.join('plugins', 'session', '.cursor-plugin'),
       path.posix.join('plugins', 'session', '.codex-plugin'),

@@ -12,7 +12,7 @@ independently versioned plugins:
 - `consensus` — peer workflows plus plugin-local `observer` and
   `observer-collab`.
 - `session` — plugin-local `messaging`, `retro`, `handoff`,
-  `export-transcript`, and `fork-to-destination`.
+  `export-transcript`, `search`, and `fork-to-destination`.
 
 Run the commands below from the repository root. Choose a plugin or a declared
 standalone form; installing both forms of the same skill may expose duplicate
@@ -237,6 +237,7 @@ under `skills/`:
 | `session-handoff`             | session `handoff`             | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-handoff)             |
 | `session-export-transcript`   | session `export-transcript`   | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-export-transcript)   |
 | `session-fork-to-destination` | session `fork-to-destination` | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-fork-to-destination) |
+| `session-search`              | session `search`              | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-search)              |
 | `complexity-review`           | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/complexity-review)           |
 | `phone-a-friend`              | consensus `phone-a-friend`    | [standalone source](https://github.com/tkstang/skills/tree/main/skills/phone-a-friend)              |
 | `consensus-review`            | consensus `review`            | [standalone source](https://github.com/tkstang/skills/tree/main/skills/consensus-review)            |

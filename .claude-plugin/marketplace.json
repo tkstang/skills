@@ -17,8 +17,8 @@
     },
     {
       "name": "session",
-      "version": "0.3.6",
-      "description": "Session messaging, retrospective, handoff, transcript export, and destination-fork guidance for coding-agent conversations.",
+      "version": "0.4.0",
+      "description": "Session messaging, retrospective, handoff, transcript export, session search, and destination-fork guidance for coding-agent conversations.",
       "author": {
         "name": "Thomas Stang"
       },

@@ -1,0 +1,243 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  SNIPPET_MAX_CHARS,
+  buildSnippet,
+  compileMatcher,
+  snippetFor,
+} from './matcher.js';
+import { UsageError } from './options.js';
+import { REDACTED } from './redact.js';
+
+describe('compileMatcher', () => {
+  it('treats patterns as regexes by default and escapes them with literal', () => {
+    const regex = compileMatcher(['perceive ?now'], { literal: false });
+    expect(regex.match('we discussed PerceiveNow yesterday')?.patterns).toEqual(
+      ['perceive ?now'],
+    );
+
+    const literal = compileMatcher(['perceive ?now'], { literal: true });
+    expect(literal.match('we discussed PerceiveNow yesterday')).toBeNull();
+    expect(literal.match('literally Perceive ?Now here')).toEqual({
+      patterns: ['perceive ?now'],
+      firstIndex: 10,
+      firstLength: 13,
+    });
+  });
+
+  it('escapes every regex metacharacter in literal mode', () => {
+    const matcher = compileMatcher(['a.b(c)[d]+$'], { literal: true });
+    expect(matcher.match('xx a.b(c)[d]+$ yy')).not.toBeNull();
+    expect(matcher.match('axb(c)[d]+')).toBeNull();
+  });
+
+  it('matches case-insensitively', () => {
+    const matcher = compileMatcher(['Vetting'], { literal: false });
+    expect(matcher.match('VETTING the vendor')).toEqual({
+      patterns: ['Vetting'],
+      firstIndex: 0,
+      firstLength: 7,
+    });
+  });
+
+  it('lets . cross newlines (dotAll)', () => {
+    const matcher = compileMatcher(['perceive.*now'], { literal: false });
+    expect(matcher.match('we should perceive\nthe vendor now')).toEqual({
+      patterns: ['perceive.*now'],
+      firstIndex: 10,
+      firstLength: 23,
+    });
+    expect(
+      compileMatcher(['a.b'], { literal: false }).match('a\r\nb'),
+    ).toBeNull();
+    expect(
+      compileMatcher(['a.b'], { literal: false }).match('a\nb'),
+    ).not.toBeNull();
+  });
+
+  it('attributes every matching pattern and reports the earliest hit', () => {
+    const matcher = compileMatcher(['gamma', 'alpha', 'missing', 'beta'], {
+      literal: false,
+    });
+    const result = matcher.match('alpha then beta then gamma');
+
+    expect(result).toEqual({
+      patterns: ['gamma', 'alpha', 'beta'],
+      firstIndex: 0,
+      firstLength: 5,
+    });
+    expect(matcher.match('nothing relevant')).toBeNull();
+  });
+
+  it('is stable across repeated calls (no lastIndex leakage)', () => {
+    const matcher = compileMatcher(['needle'], { literal: false });
+    for (let i = 0; i < 3; i++) {
+      expect(matcher.match('a needle here')?.firstIndex).toBe(2);
+    }
+  });
+
+  it('rejects an invalid regex with a usage error naming it and --literal', () => {
+    expect(() => compileMatcher(['foo(bar'], { literal: false })).toThrow(
+      UsageError,
+    );
+    expect(() => compileMatcher(['foo(bar'], { literal: false })).toThrow(
+      /foo\(bar.*--literal/,
+    );
+    expect(() => compileMatcher(['foo(bar'], { literal: true })).not.toThrow();
+  });
+
+  it.each(['(perceive)?', 'x*', '^', '(?:)', 'now|'])(
+    'rejects %j because it matches empty text',
+    (pattern) => {
+      expect(() => compileMatcher([pattern], { literal: false })).toThrow(
+        UsageError,
+      );
+      expect(() => compileMatcher([pattern], { literal: false })).toThrow(
+        /pattern matches empty text/,
+      );
+    },
+  );
+
+  it('rejects an empty literal pattern', () => {
+    expect(() => compileMatcher([''], { literal: true })).toThrow(
+      /pattern matches empty text/,
+    );
+  });
+
+  it('requires at least one pattern', () => {
+    expect(() => compileMatcher([], { literal: false })).toThrow(UsageError);
+  });
+});
+
+describe('buildSnippet', () => {
+  it('returns short text whole with whitespace collapsed', () => {
+    expect(buildSnippet('  the   target\n\tphrase  ', 8, 6)).toBe(
+      'the target phrase',
+    );
+  });
+
+  it('windows 80 characters on each side of the hit with ellipses', () => {
+    const before = 'b'.repeat(200);
+    const after = 'a'.repeat(200);
+    const text = `${before}TARGET${after}`;
+    const snippet = buildSnippet(text, 200, 6);
+
+    expect(snippet).toBe(`…${'b'.repeat(80)}TARGET${'a'.repeat(80)}…`);
+  });
+
+  it('omits the leading ellipsis when the window starts at the text start', () => {
+    const text = `TARGET ${'a'.repeat(200)}`;
+    const snippet = buildSnippet(text, 0, 6);
+    expect(snippet.startsWith('TARGET')).toBe(true);
+    expect(snippet.endsWith('…')).toBe(true);
+  });
+
+  it('caps a long hit at the maximum length, keeping the hit start', () => {
+    const text = `${'x'.repeat(100)}${'H'.repeat(500)}${'y'.repeat(100)}`;
+    const snippet = buildSnippet(text, 100, 500);
+
+    expect(snippet.length).toBe(SNIPPET_MAX_CHARS);
+    expect(SNIPPET_MAX_CHARS).toBe(240);
+    expect(snippet.startsWith(`…${'x'.repeat(80)}H`)).toBe(true);
+    expect(snippet.endsWith('…')).toBe(true);
+  });
+});
+
+describe('buildSnippet: surrogate pairs', () => {
+  const EMOJI = '\u{1F600}';
+
+  it('does not split an emoji at the window start', () => {
+    // Emoji at 10-11; the hit at 91 puts the window start (91 - 80) on 11.
+    const text = `${'x'.repeat(10)}${EMOJI}${'y'.repeat(79)}TARGET${'z'.repeat(10)}`;
+    expect(text.indexOf('TARGET')).toBe(91);
+
+    const snippet = buildSnippet(text, 91, 6);
+
+    expect(snippet.isWellFormed()).toBe(true);
+    expect(snippet.startsWith('…y')).toBe(true);
+  });
+
+  it('does not split an emoji at the window end', () => {
+    // Window end is 0 + 6 + 80 = 86; the emoji occupies 85-86.
+    const text = `TARGET${'y'.repeat(79)}${EMOJI}${'z'.repeat(10)}`;
+
+    const snippet = buildSnippet(text, 0, 6);
+
+    expect(snippet.isWellFormed()).toBe(true);
+    expect(snippet.endsWith('y…')).toBe(true);
+  });
+
+  it('does not split an emoji at the length cap', () => {
+    // Prefix ellipsis (1) + 80 context chars + hit; the cap cut lands at
+    // body index 238, between the emoji halves at 237-238.
+    const hit = `${'H'.repeat(157)}${EMOJI}${'H'.repeat(300)}`;
+    const text = `${'x'.repeat(100)}${hit}${'y'.repeat(100)}`;
+
+    const snippet = buildSnippet(text, 100, hit.length);
+
+    expect(snippet.isWellFormed()).toBe(true);
+    expect(snippet.length).toBeLessThanOrEqual(SNIPPET_MAX_CHARS);
+  });
+});
+
+describe('snippetFor', () => {
+  const secret = ['QmFzZTY0', 'RW5jb2RlZERhdGFXaXRoMURpZ2l0']
+    .join('')
+    .repeat(10);
+
+  it('re-matches after redaction so an earlier secret cannot shift the hit away', () => {
+    const matcher = compileMatcher(['PerceiveNow'], { literal: false });
+    const text = `${secret} we discussed PerceiveNow ${'filler words '.repeat(30)}`;
+    // Pre-redaction indices no longer line up with the redacted text.
+    const preRedaction = matcher.match(text);
+    expect(preRedaction?.firstIndex).toBeGreaterThan(300);
+
+    const snippet = snippetFor(text, matcher);
+
+    expect(snippet).toContain('PerceiveNow');
+    expect(snippet).toContain(REDACTED);
+    expect(snippet).not.toContain('QmFzZTY0');
+  });
+
+  it('falls back to the first redaction marker when the hit itself was redacted', () => {
+    const key = ['sk', '-', 'proj', 'A1b2C3d4E5f6G7h8I9j0K1'].join('');
+    const matcher = compileMatcher(['sk-proj'], { literal: true });
+    const text = `${'lead '.repeat(40)}key ${key} trailing`;
+
+    const snippet = snippetFor(text, matcher);
+
+    expect(snippet).toContain(REDACTED);
+    expect(snippet).not.toContain('sk-proj');
+    expect(snippet.startsWith('…')).toBe(true);
+  });
+
+  it('skips re-match hits inside a redaction marker', () => {
+    const matcher = compileMatcher(['redacted'], { literal: false });
+    const text = `${'x'.repeat(200)} password=hunter2 ${'y'.repeat(200)} the redacted file`;
+
+    const snippet = snippetFor(text, matcher, matcher.match(text));
+
+    expect(snippet).toContain('the redacted file');
+    expect(snippet).not.toContain(REDACTED);
+    expect(snippet).not.toContain('hunter2');
+  });
+
+  it('centers a redacted hit on its own marker, not an earlier unrelated one', () => {
+    const token = ['gh', 'p_', 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'].join('');
+    const matcher = compileMatcher(['hunter2'], { literal: true });
+    const text = `token ${token} ${'z'.repeat(300)} then password=hunter2 here`;
+
+    const snippet = snippetFor(text, matcher, matcher.match(text));
+
+    expect(snippet).toContain(`password=${REDACTED} here`);
+    expect(snippet).not.toContain('hunter2');
+    expect(snippet).not.toContain('token');
+    // Without the original hit the first marker is still the fallback.
+    expect(snippetFor(text, matcher)).toContain(`token ${REDACTED}`);
+  });
+
+  it('falls back to the text start when nothing matches after redaction', () => {
+    const matcher = compileMatcher(['absent'], { literal: true });
+    expect(snippetFor('plain words only', matcher)).toBe('plain words only');
+  });
+});

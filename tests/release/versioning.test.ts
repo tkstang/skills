@@ -47,6 +47,7 @@ const skillFiles = [
   'src/skills/session-observer-collab/SKILL.md',
   'src/skills/session-export-transcript/SKILL.md',
   'src/skills/session-retro/SKILL.md',
+  'src/skills/session-search/SKILL.md',
   'src/skills/consensus-refine/SKILL.md',
   'src/skills/consensus-evaluate/SKILL.md',
   'src/skills/consensus-create/SKILL.md',
@@ -62,11 +63,13 @@ const generatedSkillFiles = [
   'plugins/session/skills/fork-to-destination/SKILL.md',
   'plugins/session/skills/handoff/SKILL.md',
   'plugins/session/skills/retro/SKILL.md',
+  'plugins/session/skills/search/SKILL.md',
   'skills/must-we/SKILL.md',
   'skills/next-steps/SKILL.md',
   'skills/session-retro/SKILL.md',
   'skills/session-fork-to-destination/SKILL.md',
   'skills/session-observer-collab/SKILL.md',
+  'skills/session-search/SKILL.md',
 ];
 const sessionObserverWatchDocs = [
   'skills/session-observer/references/watch-design.md',
@@ -335,6 +338,7 @@ describe('release-versioning', () => {
       'src/skills/session-observer-collab/SKILL.md',
       'src/skills/session-observer/SKILL.md',
       'src/skills/session-retro/SKILL.md',
+      'src/skills/session-search/SKILL.md',
     ]);
   });
 

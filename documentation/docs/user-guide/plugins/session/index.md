@@ -1,12 +1,12 @@
 ---
 title: 'Session'
-description: 'Exchange messages, preserve context, export a transcript, prepare an alpha native fork, or review a session.'
+description: 'Exchange messages, preserve context, export a transcript, find a past session, prepare an alpha native fork, or review a session.'
 ---
 
 # Session
 
 The Session plugin helps local coding-agent sessions exchange messages,
-preserve context, and learn from completed work. Choose the capability you
+preserve context, find past sessions, and learn from completed work. Choose the capability you
 need; these skills are not a required sequence.
 
 ```mermaid
@@ -17,22 +17,25 @@ flowchart LR
   E["export-transcript · session-export-transcript<br/>Sanitized, branch-named Markdown archive<br/>written to ~/Downloads by default"]
   F["fork-to-destination · session-fork-to-destination<br/>Alpha same-provider fork guidance<br/>Prepares instructions only; creates no fork"]
   R["retro · session-retro<br/>Evidence-backed findings and<br/>improvement proposals, not applied"]
+  S["search · session-search<br/>Ranked, redacted candidates<br/>from local session stores"]
 
   Q -->|"someone else continues the work"| H
   Q -->|"coordinate with local sessions"| M
   Q -->|"keep a readable record"| E
   Q -->|"continue native history<br/>in another worktree"| F
   Q -->|"learn from the episode"| R
+  Q -->|"find a past session"| S
   E -.->|optional| H
 ```
 
-_Mermaid updated 2026-09-19_
+_Mermaid updated 2026-10-02_
 
 | What you need                                        | Skill                                                              | What it produces                                                                                                  |
 | ---------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
 | Let another agent or person continue the work        | [Handoff](../../skills/session-handoff.md)                         | A portable packet of goals, state, decisions, evidence, remaining work, and approval boundaries.                  |
 | Keep a readable conversation archive                 | [Export Transcript](../../skills/session-export-transcript.md)     | A sanitized Markdown transcript, not a continuation packet or native session transfer.                            |
 | Continue native history in another existing worktree | [Fork to Destination](../../skills/session-fork-to-destination.md) | Alpha, same-provider, destination-safe guidance; preparation does not create a fork or transfer worktree changes. |
+| Find a past Claude Code, Codex, or Cursor session    | [Search](../../skills/session-search.md)                           | A ranked, redacted candidate list with resume hints; local stores only, never written to.                         |
 | Learn from an invocation or bounded episode          | [Retro](../../skills/session-retro.md)                             | Evidence-backed findings and improvement proposals, without applying them.                                        |
 | Exchange addressed work across local sessions        | [Messaging](../../skills/agent-messaging.md)                       | A durable inbox and shared log, with manual fallback and separately verified finite delivery.                     |
 
@@ -46,6 +49,7 @@ Each member also has a standalone form:
 | `handoff`             | `session-handoff`             |
 | `export-transcript`   | `session-export-transcript`   |
 | `fork-to-destination` | `session-fork-to-destination` |
+| `search`              | `session-search`              |
 | `retro`               | `session-retro`               |
 | `messaging`           | `agent-messaging`             |
 
@@ -69,5 +73,6 @@ are incomplete. Static packaging is not proof of live provider discovery or perm
 - [Handoff](../../skills/session-handoff.md) — Prepare portable continuation context.
 - [Export Transcript](../../skills/session-export-transcript.md) — Save a sanitized conversation archive.
 - [Fork to Destination](../../skills/session-fork-to-destination.md) — Prepare alpha same-provider native fork guidance.
+- [Search](../../skills/session-search.md) — Find a past local session from a fuzzy description.
 - [Retro](../../skills/session-retro.md) — Review a bounded episode and propose improvements.
 - [Messaging](../../skills/agent-messaging.md) — Exchange durable addressed messages with explicit receipt and delivery boundaries.

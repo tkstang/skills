@@ -4,6 +4,15 @@
 
 ### Added
 
+- `session-search` 0.1.0 (standalone) and `session` plugin 0.4.0 member
+  `search` find a past Claude Code, Codex, or Cursor session on the local
+  machine from agent-expanded patterns plus optional time and directory hints.
+  A bundled, dependency-free, read-only CLI searches history, metadata, and
+  conversation content cheapest-first, with directory-first auto-widening, a
+  deep tool-output rung, a large-scan confirmation (exit 3), and redacted,
+  ranked candidates with resume hints. Remote search over SSH is opt-in and
+  injection-safe; ChatGPT data is encrypted locally and is not searched.
+
 - `phone-a-friend` 0.3.0 standalone distribution, with its bundled provider CLI
   and advisory schema. Its standalone and Consensus plugin names both remain
   `phone-a-friend`; external provider CLIs must be installed and authenticated.
@@ -23,6 +32,13 @@
   from the 1.2.1 source while preserving its version history.
 
 ### Fixed
+
+- `session-export-transcript` 2.0.39, `session-observer` 1.0.88,
+  `session-observer-collab` 1.0.76 and `session-fork-to-destination` 0.2.56
+  correct the Codex rollout transcript path in their store-location docs
+  (`session-<id>.jsonl` to `rollout-<timestamp>-<uuid>.jsonl`). The observer
+  collaboration and fork owners are version-only bumps for the shared source
+  roots; runtime behavior is unchanged.
 
 - Refresh the `session` plugin manifest assertion for 0.3.5 and the copied
   `agent-messaging` payload assertion for 1.0.25. The `agent-messaging` version

@@ -7,8 +7,8 @@ description: 'Find independently installable skills by capability, including mem
 
 Session skills have canonical descriptive names and may be installed as
 standalone Agent Skills or through a plugin-local short name. Observation and
-collaboration live in the consensus plugin; retro, handoff, export, and
-destination fork guidance live in the session plugin. `align`, `author-skill`,
+collaboration live in the consensus plugin; retro, handoff, export, session search,
+and destination fork guidance live in the session plugin. `align`, `author-skill`,
 `next-steps`, `must-we`, and `complexity-review` are standalone only.
 
 Choose by what the next session needs:
@@ -25,6 +25,7 @@ Choose by what the next session needs:
 | Let any agent or person continue the work                                     | [Session Handoff](session-handoff.md)                         | A concise, portable packet of goal, state, decisions, evidence, remaining work, and approval boundaries. It does not preserve native provider history or runtime state. |
 | Keep a durable record of the conversation                                     | [Session Export Transcript](session-export-transcript.md)     | A sanitized Markdown transcript for reference. It is an archive, not a continuation packet or a session transfer.                                                       |
 | Continue native history within the same provider in another existing worktree | [Session Fork to Destination](session-fork-to-destination.md) | Alpha, destination-safe instructions for a native fork. Preparation does not create a fork, transfer worktree changes, or move native state across providers.           |
+| Find a past Claude Code, Codex, or Cursor session from a fuzzy description    | [Session Search](session-search.md)                           | A ranked, redacted candidate list with resume hints. It reads local session stores only and never writes to them.                                                       |
 | Exchange addressed questions, blockers, and handoffs among local sessions     | [Agent Messaging](agent-messaging.md)                         | Durable per-recipient messages, explicit acknowledgments, exact takeover, and optional finite delivery without an exactly-once action claim.                            |
 
 These skills are grouped by user-facing behavior. The grouping does not mean
@@ -53,6 +54,10 @@ and standalone choices.
   source session, then prepare destination-safe same-provider fork guidance
   without invoking a provider or creating a fork. Provider coverage and
   end-to-end verification are incomplete.
+- **session-search** (session-local `search`) — find a past Claude Code,
+  Codex, or Cursor session from a fuzzy description and return ranked, redacted
+  candidates with resume hints; requests such as "find the session where…"
+  route to it.
 - **session-observer** — review what another coding agent just did in this
   project, render a tool-free digest, and track per-session read offsets so
   `catch-up` shows only new content.
@@ -94,6 +99,7 @@ and standalone choices.
 - [Session Handoff](session-handoff.md) - Prepare portable continuation context with optional observer and transcript-export integrations.
 - [Session Export Transcript](session-export-transcript.md) - Export the current session to a sanitized, branch-named Markdown transcript.
 - [Session Fork to Destination](session-fork-to-destination.md) - Prepare alpha, read-only destination-tab fork guidance without invoking a provider.
+- [Session Search](session-search.md) - Find a past local Claude Code, Codex, or Cursor session and get ranked, redacted candidates; available standalone or as Session `search`.
 
 ### Observe and collaborate
 

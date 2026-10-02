@@ -10,13 +10,13 @@ installation and available capabilities vary by host.
 
 ## Choose what you need
 
-| I want to…                                                                 | Start with                                                                                                                                                                                |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Create, refine, evaluate, review, or decide with independent AI peers      | [Consensus plugin](https://tkstang.github.io/skills/user-guide/consensus/)                                                                                                                |
-| Exchange addressed work across local coding-agent sessions                 | [Agent Messaging](https://tkstang.github.io/skills/user-guide/skills/agent-messaging/)                                                                                                    |
-| Hand off work, export a transcript, or review a session                    | [Session plugin](https://tkstang.github.io/skills/user-guide/plugins/session/)                                                                                                            |
-| Get a justified next step, question unnecessary work, or review complexity | [Standalone skills](https://tkstang.github.io/skills/user-guide/skills/)                                                                                                                  |
-| Observe another session or collaborate across two sessions                 | [Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer/) or [Collaborative Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer-collab/) |
+| I want to…                                                                   | Start with                                                                                                                                                                                |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create, refine, evaluate, review, or decide with independent AI peers        | [Consensus plugin](https://tkstang.github.io/skills/user-guide/consensus/)                                                                                                                |
+| Exchange addressed work across local coding-agent sessions                   | [Agent Messaging](https://tkstang.github.io/skills/user-guide/skills/agent-messaging/)                                                                                                    |
+| Hand off work, export a transcript, find a past session, or review a session | [Session plugin](https://tkstang.github.io/skills/user-guide/plugins/session/)                                                                                                            |
+| Get a justified next step, question unnecessary work, or review complexity   | [Standalone skills](https://tkstang.github.io/skills/user-guide/skills/)                                                                                                                  |
+| Observe another session or collaborate across two sessions                   | [Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer/) or [Collaborative Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer-collab/) |
 
 Plugins group related capabilities; standalone skills let you install one
 capability. Consensus `phone-a-friend` and `review` are also available as the
@@ -64,7 +64,7 @@ panels without synthesis, and advice from one peer (one-shot, or bounded follow-
 It also includes Observer and Collaborative Observer.
 
 **Session** offers addressed messaging, portable handoffs, sanitized transcript
-exports, and evidence-backed retrospectives. Its **alpha** Fork to Destination
+exports, past-session search, and evidence-backed retrospectives. Its **alpha** Fork to Destination
 skill discovers and previews sessions and prepares same-provider fork
 instructions; it does not run the provider or create the fork. Provider coverage
 and end-to-end verification are incomplete.

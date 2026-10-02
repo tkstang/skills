@@ -100,6 +100,30 @@ bounded previews, omission counts, unread/unavailable coverage, and extraction
 diagnostics. See [Shared transcript-core](../transcript-core.md) for budgets and
 consumer semantics.
 
+## Discovery indexes
+
+Besides transcripts, Claude Code and Codex keep small index files that
+[Session Search](../../../user-guide/skills/session-search.md) reads before
+opening any transcript. Like the transcripts, they are **internal provider files**
+with no published schema and may drift between client releases. The fields below
+are the ones the repository reads; readers should probe for them and degrade
+rather than fail when one is missing.
+
+| File                                         | Runtime     | Fields read                                                                                                                                                     |
+| -------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `~/.claude/history.jsonl`                    | Claude Code | One record per typed prompt: `display`, `project` (cwd), `sessionId`, `timestamp` (epoch milliseconds). Records also carry `pastedContents`, which is not read. |
+| `~/.codex/history.jsonl`                     | Codex       | One record per typed prompt: `session_id`, `ts` (epoch seconds), `text`.                                                                                        |
+| `~/.codex/session_index.jsonl`               | Codex       | `id`, `thread_name`, `updated_at`. Covers only some threads.                                                                                                    |
+| `~/.codex/state_5.sqlite`, table `threads`   | Codex       | `id` and `rollout_path` (required), `title`, `first_user_message`, `cwd`, `created_at`, `updated_at`, `archived`, `git_origin_url`, `source`.                   |
+| `~/.codex/archived_sessions/rollout-*.jsonl` | Codex       | Archived rollout transcripts with the same format as `sessions/`; a thread's `archived` flag marks them.                                                        |
+
+Read the SQLite database read-only (`sqlite3 -readonly`) and check
+`PRAGMA table_info(threads)` before querying. Treat `created_at` and
+`updated_at` as untyped: the repository's reader accepts epoch seconds,
+epoch milliseconds, or ISO strings. A `threads.source` value
+carrying a `subagent` key marks an agent-authored thread. Cursor keeps no
+comparable prompt-history or thread index for its agent transcripts.
+
 ## Keeping these pages current
 
 The evidence behind these pages is a dated snapshot under

@@ -30,12 +30,12 @@ visible in the one snapshot.
 | Runtime     | Store root            | Pattern                                                                                  |
 | ----------- | --------------------- | ---------------------------------------------------------------------------------------- |
 | Claude Code | `~/.claude/projects/` | `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`                                    |
-| Codex       | `~/.codex/sessions/`  | `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl`                                  |
+| Codex       | `~/.codex/sessions/`  | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<timestamp>-<uuid>.jsonl`                    |
 | Cursor      | `~/.cursor/projects/` | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` |
 
 - **Claude Code** encodes the cwd as the parent directory name, replacing `/` and `.`
   with `-` (e.g. `/Users/alice/Code/app` → `-Users-alice-Code-app`).
-- **Codex** has no cwd in the file name; the cwd is read from a `session_started`
+- **Codex** has no cwd in the file name; the cwd is read from the first `session_meta`
   record's `cwd` (top-level or `payload.cwd`).
 - **Cursor** derives the project slug by splitting cwd on `/` and `.` and joining
   non-empty segments with `-` (e.g. `/Users/alice/Code/app` → `Users-alice-Code-app`).

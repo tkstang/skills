@@ -323,6 +323,39 @@ export const distributions: readonly DistributionDeclaration[] = [
       },
     ],
   },
+  {
+    owner: 'session-search',
+    source: 'src/skills/session-search',
+    allowedSourceRoots: [
+      'src/shared/transcript',
+      'src/skills/session-export-transcript',
+    ],
+    optionalSkills: [
+      {
+        name: 'session-observer',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/session-observer',
+      },
+      {
+        name: 'session-export-transcript',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/session-export-transcript',
+      },
+    ],
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'session-search',
+        output: 'skills/session-search',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'search',
+        output: 'plugins/session/skills/search',
+      },
+    ],
+  },
 ];
 
 // Clean-break enforcement, not compatibility: these renamed-away output paths

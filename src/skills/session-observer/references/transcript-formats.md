@@ -27,7 +27,7 @@ as `pending-lifecycle` for retrospective inspection.
 | Runtime     | Store root            | Pattern                                                                                  |
 | ----------- | --------------------- | ---------------------------------------------------------------------------------------- |
 | Claude Code | `~/.claude/projects/` | `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`                                    |
-| Codex       | `~/.codex/sessions/`  | `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl`                                  |
+| Codex       | `~/.codex/sessions/`  | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<timestamp>-<uuid>.jsonl`                    |
 | Cursor      | `~/.cursor/projects/` | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` |
 
 ---
@@ -248,7 +248,7 @@ When `toolUseResult` is absent, the block's prose `content` already names each q
 
 ### File naming and cwd extraction
 
-Codex stores transcripts under `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl`. There is **no cwd in the file name**.
+Codex stores transcripts under `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<timestamp>-<uuid>.jsonl`. There is **no cwd in the file name**.
 
 The cwd is extracted from the first physical **`session_meta` record**:
 
