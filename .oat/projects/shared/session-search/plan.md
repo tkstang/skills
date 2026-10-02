@@ -1175,7 +1175,7 @@ Source: reviews/archived/p03-review-2026-10-02T080403Z.md, Low.
 | p01   | code     | fixes_completed | 2026-10-02 | reviews/archived/p01-review-2026-10-02T062929Z.md | e4ae386d889d279a69e859fa7bd44aaca422b67d | auto | - |
 | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T071003Z.md | 0367021c | auto | - |
 | p02   | code     | fixes_completed | 2026-10-02 | reviews/archived/p02-review-2026-10-02T072802Z.md | e09b9afe | auto | - |
-| p03   | code     | fixes_added | 2026-10-02 | reviews/archived/p03-review-2026-10-02T080403Z.md | 7ff0c270 | auto | - |
+| p03   | code     | fixes_completed | 2026-10-02 | reviews/archived/p03-review-2026-10-02T080403Z.md | 7ff0c270 | auto | - |
 | p04   | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | final | code     | pending         | -          | -                                                           | -             | -          | -                 |
 | plan  | artifact | fixes_completed | 2026-10-02 | structured (in-memory) x3                                   | -             | auto       | -                 |

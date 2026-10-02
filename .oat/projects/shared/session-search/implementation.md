@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p03-t06
+oat_current_task_id: p04-t01
 oat_generated: false
 ---
 
@@ -35,10 +35,10 @@ oat_generated: false
 | ------- | ----------- | ----- | --------- |
 | Phase 1 | complete    | 16    | 16/16     |
 | Phase 2 | complete    | 21    | 21/21     |
-| Phase 3 | in_progress | 10    | 5/10      |
+| Phase 3 | complete    | 10    | 10/10     |
 | Phase 4 | pending     | 3     | 0/3       |
 
-**Total:** 42/50 tasks completed
+**Total:** 47/50 tasks completed
 
 ---
 
@@ -249,7 +249,7 @@ Residual (Low, accepted): final-result per-session reads do not check the deadli
 
 ## Phase 3: Skill packaging, distribution, CLI integration tests
 
-**Status:** in_progress (review passed 0C/0H; fix tasks p03-t06..t10 queued)
+**Status:** complete. Review passed (0C/0H). Review fixes t06 ae97a163, t07 9ec6695f, t08 d1003072, t09 03469774, t10 a1c9b7c5 (via `cont-session-search-p03-fix-1`). 624 tests pass. The remote recipes are proven injection-safe locally (canary terms never expanded). The real-store check still finds the motivating Codex session.
 
 | Task | Status | Commit |
 | ---- | ------ | ------ |
@@ -361,6 +361,9 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 #### Dispatch record: session-search-p03-review-1
 
 - Root phase review, same reviewer target. Outcome: **pass**, 0C/0H/1M/5L. Artifact: `reviews/archived/p03-review-2026-10-02T080403Z.md`.
+- Continuation `cont-session-search-p03-fix-1` (t06–t10): `fc49e499..a1c9b7c5`, DONE_WITH_CONCERNS (expected changelog gate only).
+
+**p03 phase outcome:** pass. Fix iterations: 1 (non-blocking). No phase gate. The final review covers t06–t10.
 
 <!-- orchestration-runs-end -->
 
@@ -385,6 +388,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 | ----- | --------- | ------ | ------ | -------- |
 | 1     | 129       | 129    | 0      | -        |
 | 2     | 230 (cumulative) | 230 | 0 | -        |
+| 3     | 624 (skill + repo/release/tooling) | 624 | 0 | -        |
 
 ## Final Summary (for PR/docs)
 
