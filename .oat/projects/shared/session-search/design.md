@@ -150,7 +150,7 @@ All adapters degrade gracefully. A missing root yields no sessions and adds a `s
 
 **Responsibilities:**
 
-- **Optional prefilter:** run `rg -l -i --no-messages -e <p1> -e <p2> … -- <files…>`, chunked by argument length. It narrows the candidate files only. Patterns are passed through `-e` (never through a shell), with `--fixed-strings` when `--literal` is set.
+- **Optional prefilter:** run `rg -l -i --no-messages -e <p1> -e <p2> … -- <files…>`, chunked by argument length. It narrows the candidate files only and must be a provable superset of the Node scan, so it runs only when every pattern is prefilter-safe: ASCII, with no whitespace classes or escapes, no quotes or backslashes in literals, and no lookaround. Otherwise, or on an rg error, every candidate is scanned in Node. Patterns are passed through `-e` (never through a shell), with `--fixed-strings` when `--literal` is set.
 - **Node verification:**
   - Stream each surviving file with a line reader that splits on LF only.
   - **Skip lines longer than `maxLineBytes`** (default 64 KiB) before `JSON.parse`, and count them in diagnostics.

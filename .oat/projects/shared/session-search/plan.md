@@ -143,16 +143,16 @@ This task has no runtime test: types-only code is verified by `type-check`, beca
 - `xox[abprs]-…`
 - `AKIA[0-9A-Z]{16}`
 - `Bearer <token>`
-- `(password|passwd|secret|token|api[_-]?key)\s*[:=]\s*\S+` values
+- case-insensitive key-value secrets whose key contains a credential word, allowing identifier prefixes and suffixes: `/\b[\w-]*(password|passwd|secret|token|api[_-]?key|access[_-]?key)[\w-]*\s*[:=]\s*\S+/i` (e.g. `API_KEY=`, `AWS_SECRET_ACCESS_KEY=`, `GITHUB_TOKEN_RO=`)
 - hex runs of 40 or more chars
-- base64-like runs of 40 or more chars that contain no `/` path separators and include at least one digit and mixed case
+- base64-like runs `[A-Za-z0-9+/_-]{40,}={0,2}` that include at least one digit and mixed case, **except** path-like runs whose `/`-split segments are all lowercase word-like (so `documentation/docs/engineering/architecture` survives while AWS-style secrets containing `/`/`+` are masked)
 
 Callers redact the **full text unit before snippet windowing**, so a secret cut at a window edge can never survive as an unmatched fragment. This contract is used by `rank.ts`.
 
 **Steps:**
 
 - RED tests:
-  - Positives, one per shape. A 40-hex git SHA is intentionally masked; document this in a test name.
+  - Positives, one per shape, including uppercase `API_KEY=…`, a prefixed `AWS_SECRET_ACCESS_KEY=…`, and a 40-char AWS-style secret containing `/` and `+`. A 40-hex git SHA is intentionally masked; document this in a test name.
   - Negatives: UUIDs, normal words, and a long slash path such as `documentation/docs/engineering/architecture` stay untouched.
 - GREEN.
 - Format/lint.
@@ -257,8 +257,15 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
   - Cache the header per file.
 - **Inherited records:** in child files, tiers 3 and 4 skip records whose `ordinal` is below `subagent_history_start_ordinal`. These are inherited parent history, and scanning them would duplicate parent hits.
 - **classifyRecord:**
-  - Message records (`response_item` message, `event_msg` user/agent messages) go through `normalizeEntries('codex', [record], …)` + `classify.ts`.
-  - With `includeTools`, the adapter **also** emits `tool` units directly from `response_item` `function_call_output`/`custom_tool_call_output` `payload.output`, from `function_call` arguments, and from `event_msg` `exec_command_end` output. The shared normalizer drops tool output, and this deep-rung case is the motivating incident.
+  - Only `response_item` `message` records go through `normalizeEntries('codex', [record], …)` + `classify.ts`. `event_msg` `user_message`/`agent_message` records are **ignored**: the normalizer returns nothing for them and they duplicate the `response_item` text, so including them would double-count hits.
+  - With `includeTools`, the adapter **also** emits `tool` units directly, because the shared normalizer drops tool output and this deep-rung case is the motivating incident. Sources:
+    - `response_item` `function_call_output`/`custom_tool_call_output` `payload.output`, handling all documented shapes (session-schemas/codex.md):
+      - a bare string
+      - an array of `input_text` blocks (join their `.text`; the dominant shape)
+      - a JSON-encoded string (try `JSON.parse`, else use it raw)
+    - `function_call` arguments
+    - `event_msg` `item_completed` with `item.type === 'CommandExecution'` (`item.aggregated_output`, falling back to `item.stdout`)
+    - legacy `exec_command_end` output, tolerated when present
 - **History:** `~/.codex/history.jsonl` `{session_id, ts(seconds), text}`, user-typed.
 - **Meta:**
   - `session_index.jsonl` `{id, thread_name, updated_at}` provides title hits.
@@ -276,7 +283,8 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
   - Child detection via `session_meta`.
   - Headers are read only for in-window files.
   - Inherited child records are skipped.
-  - A `function_call_output` phrase is matched only with includeTools.
+  - A phrase inside an **array-form** `custom_tool_call_output` and inside a `CommandExecution` `aggregated_output` is matched only with includeTools.
+  - An `event_msg` `user_message` record yields no units.
   - History and session_index parsing.
   - The sqlite path using a **stub `sqlite3` script** that prints canned JSON for the PRAGMA and the SELECT (selected through `SESSION_SEARCH_SQLITE3`).
   - A stub missing `rollout_path` yields `degraded`.
@@ -328,10 +336,13 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 
 **Behavior:**
 
-- **Prefilter:** `prefilterWithRg(rgPath, patterns, files, {literal})` runs `rg -l -i --no-messages [-F] -e p… -- <chunk>`, chunking the argument list to ≤ 100 KB per call. Exit 1 means no matches. Any other error returns `null`, so the caller falls back to scanning all files.
+- **Prefilter (must be a provable superset of the Node scan):** `prefilterWithRg(rgPath, patterns, files, {literal})`
+  - Runs only when **every** pattern is prefilter-safe: ASCII-only, with no whitespace classes or escapes (`\s`, `\n`, `\t`), no `"` or `\` in literals, and no lookaround or backreferences.
+  - Otherwise it returns `null` with a diagnostic note, and the caller scans all candidates in Node.
+  - When it runs: `rg -l -i --no-messages [-F] -e p… -- <chunk>`, chunking the argument list to ≤ 100 KB per call. Exit 1 means no matches. Any other error (e.g. exit 2 on a regex dialect mismatch) returns `null`, which also falls back.
 - **Verification:** `scanFile(path, adapter, matcher, {maxLineBytes, includeTools, maxHitsPerSession})`
   - Streams with a LF-only splitter: read in chunks and split on `0x0A`, not with `readline`, because U+2028/2029 can appear inside strings.
-  - Skips oversize lines before `JSON.parse` and counts them.
+  - Skips oversize lines before `JSON.parse` and counts them. On the **deep** tier only, the matcher first runs on the raw oversize line without parsing it, and on a hit emits a redacted, windowed `tool` unit, so large tool dumps stay searchable.
   - Calls `adapter.classifyRecord`, matches each unit, and returns hits with role, tier `content` or `deep`, and snippet inputs.
   - Counts parse errors.
 
@@ -344,6 +355,8 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
   - `maxHitsPerSession` stop.
   - The rg prefilter (when `rg` is available in the test env; otherwise `it.skipIf`) returns the same matching file set as a full Node scan.
   - The Node-only path (`SESSION_SEARCH_NO_RG=1`) gives identical hits.
+  - A `perceive\s*now` pattern spanning an embedded `\n` in a JSON string returns the same hits with and without rg, because the prefilter is skipped.
+  - A deep-tier phrase inside an oversize line is still found.
 - GREEN.
 - Format/lint.
 - Verify `pnpm run test:vitest src/skills/session-search/src/lib/scan.test.ts`.
@@ -373,6 +386,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
   - User-typed beats assistant-only with an equal pattern count.
   - More distinct patterns beats more raw hits.
   - The title boost.
+  - Titles are redacted as well as snippets and firstPrompt.
   - The cwd-hint boost.
   - The recency tie-break.
   - Subagent roll-up and orphan listing.
@@ -483,7 +497,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 
 **Files:**
 
-- Create: `src/skills/session-search/build.json`. It lists `src/session-search.ts` plus the runtime `src/lib/**/*.ts` modules, including the `lib/runtimes.ts` and `lib/sanitize.ts` shims (shape per `session-export-transcript/build.json`). It explicitly excludes `src/helpers/**`, `*.test.ts`, and type-only files.
+- Create: `src/skills/session-search/build.json`. The file is `{ "runtime": [...] }` only; packaging rejects any other key. List the entry plus the runtime lib modules, including both shims. Do not list `src/helpers/**`, tests, or the type-only `lib/types.ts`; the packager exempts helpers and tests itself.
 - Modify: `src/distributions.ts`. Add an owner entry `session-search` with `source: 'src/skills/session-search'` and `allowedSourceRoots: ['src/shared/transcript', 'src/skills/session-export-transcript']`. Targets:
   - standalone `skills/session-search`
   - plugin `session` / `search` → `plugins/session/skills/search`
@@ -552,6 +566,12 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 - Modify: `documentation/docs/user-guide/skills/meta.json` and `documentation/docs/user-guide/skills/index.md`
 - Modify: `documentation/docs/user-guide/plugins/session/index.md` (skill table) and its `meta.json` if pages are listed
 - Modify: `documentation/docs/user-guide/installation.md` (mapping table)
+- Modify the enumerations of session plugin members and transcript-core consumers to include session-search:
+  - `documentation/docs/user-guide/index.md`
+  - `documentation/docs/user-guide/plugins/index.md`
+  - `documentation/docs/engineering/repository-layout.md`
+  - `documentation/docs/engineering/architecture/generated-runtime.md` (owner table, plus the bundled-code diagram edge from session-search to export-transcript's sanitizer)
+  - `documentation/docs/engineering/architecture/transcript-core.md` (Consumers list)
 - Regenerate (never hand-edit or format): `documentation/index.md` via `cd documentation && oat docs generate-index --docs-dir docs --output index.md`
 - Modify: `documentation/docs/engineering/architecture/session-schemas/index.md`. Add a short "Discovery indexes" section: `~/.claude/history.jsonl`, `~/.codex/history.jsonl`, `session_index.jsonl`, `state_5.sqlite` threads, `archived_sessions/`, with field lists and a note that they are internal and may drift.
 
@@ -573,7 +593,13 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 - Modify: `src/skills/session-export-transcript/SKILL.md` (store-locations table: `session-<id>.jsonl` → `rollout-<timestamp>-<uuid>.jsonl`)
 - Modify: `src/skills/session-export-transcript/references/transcript-formats.md`
 - Modify: `src/skills/session-observer/references/transcript-formats.md` (both occurrences)
-- Bump the patch `metadata.version` of `session-export-transcript` and `session-observer` (required by `validate-skill-versions`).
+- Bump the patch version of **every affected owner**. `validate-skill-versions` counts an owner as affected when the change touches its source root or any `allowedSourceRoots`. The owners are:
+  - `session-export-transcript`
+  - `session-observer`
+  - `session-observer-collab` (allows `src/skills/session-observer`)
+  - `session-fork-to-destination` (allows both roots)
+
+  Use `pnpm tsx scripts/bump-version.ts <next-patch> --skill <owner>` and do not hand-edit. `session-search` is new and exempt.
 
 **Steps:**
 
@@ -581,7 +607,7 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 - Check `tests/repo/docs-presence.test.ts` expectations.
 - `pnpm run build` to refresh the generated copies.
 - `pnpm run build:check`.
-- Verify `pnpm run test:vitest tests/repo src/skills/session-export-transcript src/skills/session-observer`.
+- Verify `pnpm run test:vitest tests/repo src/skills/session-export-transcript src/skills/session-observer` and `pnpm run validate:skill-versions -- --base-ref main`. The latter may still demand changelog lines, which p04-t03 adds; confirm the only remaining failures are changelog coverage.
 - Format the edited Markdown.
 - Commit `docs(p04-t02): correct Codex rollout transcript path in session skill docs`.
 
@@ -591,7 +617,9 @@ Callers redact the **full text unit before snippet windowing**, so a secret cut 
 
 **Files:**
 
-- Modify: `CHANGELOG.md`. Under `## [Unreleased]`, add `### Added` (session-search skill) and `### Fixed` (Codex path docs).
+- Modify: `CHANGELOG.md`. Under `## [Unreleased]`, add new lines naming each version-bumped plugin and skill **with its new version**; `validate-skill-versions` `changelogCovers()` requires whole-word mentions:
+  - `### Added`: "`session-search` 0.1.0 (standalone) and `session` plugin 0.4.0 member `search` …".
+  - `### Fixed`: "`session-export-transcript` X.Y.Z, `session-observer` X.Y.Z, `session-observer-collab` X.Y.Z and `session-fork-to-destination` X.Y.Z correct the Codex rollout transcript path …", with the actual bumped versions.
 
 **Steps:**
 
