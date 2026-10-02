@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: Thomas Stang
-  version: '2.0.38'
+  version: '2.0.39'
 ---
 
 # session-export-transcript
@@ -212,7 +212,7 @@ writes Observer checkpoints.
 | Runtime     | Store root                                                                               |
 | ----------- | ---------------------------------------------------------------------------------------- |
 | Claude Code | `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`                                    |
-| Codex       | `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl`                                  |
+| Codex       | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<timestamp>-<uuid>.jsonl`                    |
 | Cursor      | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` |
 
 See `references/transcript-formats.md` for record shapes and cwd-encoding details.

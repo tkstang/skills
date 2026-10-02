@@ -30,7 +30,7 @@ visible in the one snapshot.
 | Runtime     | Store root            | Pattern                                                                                  |
 | ----------- | --------------------- | ---------------------------------------------------------------------------------------- |
 | Claude Code | `~/.claude/projects/` | `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`                                    |
-| Codex       | `~/.codex/sessions/`  | `~/.codex/sessions/<YYYY>/<MM>/<DD>/session-<id>.jsonl`                                  |
+| Codex       | `~/.codex/sessions/`  | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<timestamp>-<uuid>.jsonl`                    |
 | Cursor      | `~/.cursor/projects/` | `~/.cursor/projects/<encoded-project>/agent-transcripts/<session-id>/<session-id>.jsonl` |
 
 - **Claude Code** encodes the cwd as the parent directory name, replacing `/` and `.`
