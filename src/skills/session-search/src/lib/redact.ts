@@ -87,20 +87,56 @@ const HEX_RE = /(?<![A-Za-z0-9])[0-9a-fA-F]{40,}(?![A-Za-z0-9])/g;
 
 const BASE64_RE = /(?<![A-Za-z0-9+/_-])[A-Za-z0-9+/_-]{40,}={0,2}/g;
 
-// A path segment that reads as a word: lowercase letters, digits, `_`, `-`,
-// optionally with one leading capital (e.g. `Users`).
-const WORD_SEGMENT_RE = /^[A-Za-z]?[a-z0-9_-]*$/;
+// A segment that reads as a word: lowercase letters and digits, optionally
+// with one leading capital (e.g. `Users`, `ae6a`, `V2`).
+const WORD_SEGMENT_RE = /^[A-Za-z]?[a-z0-9]*$/;
 
-function isPathLike(run: string): boolean {
+/**
+ * Paths and slugs: runs split by `/`, `-`, or `_` into word segments, e.g.
+ * `Users/Shared/Vault` or the Claude project slug `-Users-name-code-repo`.
+ * Random encodings almost never split into segments without an internal
+ * capital, and `+`/`=` never appear in a word segment.
+ */
+function isSegmentedWords(run: string): boolean {
   return (
-    run.includes('/') &&
-    run.split('/').every((segment) => WORD_SEGMENT_RE.test(segment))
+    /[/_-]/.test(run) &&
+    run.split(/[/_-]/).every((segment) => WORD_SEGMENT_RE.test(segment))
   );
+}
+
+const CAMEL_PIECE_RE = /[A-Z]?[a-z]+|[A-Z]?\d+|[A-Z]+(?![a-z])/g;
+
+/**
+ * Long camelCase identifiers such as `compileMatcherWithLiteralEscaping`:
+ * every lowercase word is at least three letters (two for the first),
+ * acronyms are short, and digit groups are short and never adjacent (no
+ * digit-dense segment). Random base64 fails these almost surely.
+ */
+function isCamelIdentifier(run: string): boolean {
+  if (!/^[A-Za-z][A-Za-z0-9]*$/.test(run)) return false;
+  const pieces = run.match(CAMEL_PIECE_RE) ?? [];
+  if (pieces.join('') !== run) return false;
+  let previousHadDigits = false;
+  return pieces.every((piece, index) => {
+    const digits = piece.replace(/\D/g, '').length;
+    if (digits > 0) {
+      const ok = !previousHadDigits && digits <= 3;
+      previousHadDigits = true;
+      return ok;
+    }
+    previousHadDigits = false;
+    if (/[a-z]/.test(piece)) return piece.length >= (index === 0 ? 2 : 3);
+    return piece.length <= 5;
+  });
 }
 
 function looksLikeEncodedSecret(run: string): boolean {
   return (
-    /\d/.test(run) && /[a-z]/.test(run) && /[A-Z]/.test(run) && !isPathLike(run)
+    /\d/.test(run) &&
+    /[a-z]/.test(run) &&
+    /[A-Z]/.test(run) &&
+    !isSegmentedWords(run) &&
+    !isCamelIdentifier(run)
   );
 }
 

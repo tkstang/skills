@@ -48,6 +48,23 @@ describe('redact: credential shapes', () => {
     expect(out).not.toContain(secret);
   });
 
+  it.each([
+    [
+      'url-safe token with - and _',
+      join('Xk3_pQ9-ZmVyYWwtc2Vj', 'cmV0LWtleS0xMjM0NTY3ODkw'),
+    ],
+    [
+      'camel-looking random run',
+      join('AbCdEf1GhIjKl2MnOpQr', '3StUvWx4YzAbCdEf5GhIj'),
+    ],
+    [
+      'digit-dense camel run',
+      join('session', 'Search12345678', 'PatternsAndMoreWords'),
+    ],
+  ])('still masks a %s', (_name, run) => {
+    expect(redact(`value ${run} end`)).toBe(`value ${REDACTED} end`);
+  });
+
   it('masks a 40-hex run, so a full git SHA is intentionally redacted', () => {
     expect(SHA).toHaveLength(40);
     expect(redact(`commit ${SHA} landed`)).toBe(`commit ${REDACTED} landed`);
@@ -218,6 +235,12 @@ describe('redact: ordinary text stays intact', () => {
     'The bearer of the message tokenizes nothing.',
     'A password manager keeps secrets safe.',
     'Run pnpm run test:vitest src/skills/session-search/src/lib',
+    // Claude project slug (base64 rule must not blank it).
+    'cd ~/.claude/projects/-Users-thomas-stang--superconductor-worktrees-skills-sc-levitated-cryostat-ae6a',
+    'projects/-Users-name-code-repo/0b6d8f3e-3f4a-4c1b-9d2e-7a8b9c0d1e2f.jsonl',
+    // Long camelCase identifiers.
+    'call compileMatcherWithLiteralEscapingForV2Patterns() first',
+    'HTTPServerRequestHandlerFactoryForSessionSearch2 is unused',
   ])('leaves %j untouched', (text) => {
     expect(redact(text)).toBe(text);
   });
