@@ -230,10 +230,11 @@ export function createClaudeFileClassifier(): RecordClassifier {
       const seen = new Set<string>();
       for (const block of answerBlocks) {
         answered.add(asString(block.tool_use_id) ?? '');
-        const text = claudeAnswerText(record, block);
-        if (text.trim() === '' || seen.has(text)) continue;
-        seen.add(text);
-        units.push({ role: askUnit.role, text });
+        for (const text of claudeAnswerTexts(record, block)) {
+          if (text.trim() === '' || seen.has(text)) continue;
+          seen.add(text);
+          units.push({ role: askUnit.role, text });
+        }
       }
     }
     // Answered ask-user results are conversation only, never also tool text.
@@ -249,29 +250,34 @@ function askAnswerValues(value: unknown): string[] {
   return [];
 }
 
-/** Untruncated text of one answered `AskUserQuestion` result. */
-function claudeAnswerText(record: JsonObject, block: JsonObject): string {
+/**
+ * Untruncated texts of one answered `AskUserQuestion` result: each prompt,
+ * each answer value, and each note as its own unit. Every unit is one decoded
+ * JSON string, so it exists contiguously in the raw bytes and the `rg`
+ * prefilter stays a superset of the Node scan (a synthesized
+ * `prompt: answer` join would not).
+ */
+function claudeAnswerTexts(record: JsonObject, block: JsonObject): string[] {
   const result = isObject(record.toolUseResult) ? record.toolUseResult : null;
   if (result && isObject(result.answers)) {
     const annotations = isObject(result.annotations) ? result.annotations : {};
-    const lines = Object.entries(result.answers).flatMap(([prompt, value]) => {
+    const texts = Object.entries(result.answers).flatMap(([prompt, value]) => {
       const answers = askAnswerValues(value);
       if (answers.length === 0) return [];
       const annotation = annotations[prompt];
       const note = isObject(annotation)
         ? asString(annotation.notes)
         : undefined;
-      return [`${prompt}: ${answers.join(', ')}${note ? `\n${note}` : ''}`];
+      return [prompt, ...answers, ...(note ? [note] : [])];
     });
-    if (lines.length > 0) return lines.join('\n');
+    if (texts.length > 0) return texts;
   }
-  if (typeof block.content === 'string') return block.content;
-  if (!Array.isArray(block.content)) return '';
+  if (typeof block.content === 'string') return [block.content];
+  if (!Array.isArray(block.content)) return [];
   return block.content
     .filter(isObject)
     .map((part) => asString(part.text) ?? '')
-    .filter((part) => part !== '')
-    .join('\n');
+    .filter((part) => part !== '');
 }
 
 /**

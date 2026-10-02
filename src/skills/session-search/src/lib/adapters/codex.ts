@@ -424,8 +424,13 @@ function askAnswerValues(value: unknown): string[] {
   return [];
 }
 
-/** Untruncated text of a `request_user_input` answer, labeled by question. */
-function codexAnswerText(call: JsonObject, record: JsonObject): string {
+/**
+ * Untruncated texts of a `request_user_input` answer: each question label and
+ * each answer value as its own unit. Every unit is one decoded string, so it
+ * exists contiguously in the raw bytes and the `rg` prefilter stays a
+ * superset of the Node scan (a synthesized `label: answer` join would not).
+ */
+function codexAnswerTexts(call: JsonObject, record: JsonObject): string[] {
   const callPayload = isObject(call.payload) ? call.payload : {};
   const payload = isObject(record.payload) ? record.payload : {};
   const args =
@@ -451,15 +456,13 @@ function codexAnswerText(call: JsonObject, record: JsonObject): string {
         ? payload.output
         : null;
   if (output && isObject(output.answers)) {
-    const lines = Object.entries(output.answers).flatMap(([id, value]) => {
+    const texts = Object.entries(output.answers).flatMap(([id, value]) => {
       const answers = askAnswerValues(value);
-      return answers.length === 0
-        ? []
-        : [`${labels.get(id) ?? id}: ${answers.join(', ')}`];
+      return answers.length === 0 ? [] : [labels.get(id) ?? id, ...answers];
     });
-    if (lines.length > 0) return lines.join('\n');
+    if (texts.length > 0) return texts;
   }
-  return codexOutputText(payload.output);
+  return [codexOutputText(payload.output)];
 }
 
 /** Distinct tool texts remembered per file for de-duplication. */
@@ -503,9 +506,14 @@ export function createCodexFileClassifier(): RecordClassifier {
             RUNTIME,
           );
           if (answer) {
-            const text = codexAnswerText(call, record);
             // Answered ask-user records are conversation only.
-            return text.trim() === '' ? [] : [{ role: answer.role, text }];
+            const texts = codexAnswerTexts(call, record).filter(
+              (text) => text.trim() !== '',
+            );
+            return [...new Set(texts)].map((text) => ({
+              role: answer.role,
+              text,
+            }));
           }
         }
       }

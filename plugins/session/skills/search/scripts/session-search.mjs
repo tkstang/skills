@@ -1528,10 +1528,11 @@ function createClaudeFileClassifier() {
       const seen = /* @__PURE__ */ new Set();
       for (const block of answerBlocks) {
         answered.add(asString2(block.tool_use_id) ?? "");
-        const text = claudeAnswerText(record, block);
-        if (text.trim() === "" || seen.has(text)) continue;
-        seen.add(text);
-        units.push({ role: askUnit.role, text });
+        for (const text of claudeAnswerTexts(record, block)) {
+          if (text.trim() === "" || seen.has(text)) continue;
+          seen.add(text);
+          units.push({ role: askUnit.role, text });
+        }
       }
     }
     return includeTools ? [...units, ...toolUnits(record, answered)] : units;
@@ -1543,23 +1544,22 @@ function askAnswerValues(value) {
   if (isObject2(value)) return askAnswerValues(value.answers);
   return [];
 }
-function claudeAnswerText(record, block) {
+function claudeAnswerTexts(record, block) {
   const result = isObject2(record.toolUseResult) ? record.toolUseResult : null;
   if (result && isObject2(result.answers)) {
     const annotations = isObject2(result.annotations) ? result.annotations : {};
-    const lines = Object.entries(result.answers).flatMap(([prompt, value]) => {
+    const texts = Object.entries(result.answers).flatMap(([prompt, value]) => {
       const answers = askAnswerValues(value);
       if (answers.length === 0) return [];
       const annotation = annotations[prompt];
       const note = isObject2(annotation) ? asString2(annotation.notes) : void 0;
-      return [`${prompt}: ${answers.join(", ")}${note ? `
-${note}` : ""}`];
+      return [prompt, ...answers, ...note ? [note] : []];
     });
-    if (lines.length > 0) return lines.join("\n");
+    if (texts.length > 0) return texts;
   }
-  if (typeof block.content === "string") return block.content;
-  if (!Array.isArray(block.content)) return "";
-  return block.content.filter(isObject2).map((part) => asString2(part.text) ?? "").filter((part) => part !== "").join("\n");
+  if (typeof block.content === "string") return [block.content];
+  if (!Array.isArray(block.content)) return [];
+  return block.content.filter(isObject2).map((part) => asString2(part.text) ?? "").filter((part) => part !== "");
 }
 function claudeSlugMatchesCwd(slug, hint) {
   return encodeCwdVariants(RUNTIME, hint).some(
@@ -2037,7 +2037,7 @@ function askAnswerValues2(value) {
   if (isObject3(value)) return askAnswerValues2(value.answers);
   return [];
 }
-function codexAnswerText(call, record) {
+function codexAnswerTexts(call, record) {
   const callPayload = isObject3(call.payload) ? call.payload : {};
   const payload = isObject3(record.payload) ? record.payload : {};
   const args = typeof callPayload.arguments === "string" ? parseJsonObject(callPayload.arguments) : isObject3(callPayload.arguments) ? callPayload.arguments : null;
@@ -2050,13 +2050,13 @@ function codexAnswerText(call, record) {
   }
   const output = typeof payload.output === "string" ? parseJsonObject(payload.output) : isObject3(payload.output) ? payload.output : null;
   if (output && isObject3(output.answers)) {
-    const lines = Object.entries(output.answers).flatMap(([id, value]) => {
+    const texts = Object.entries(output.answers).flatMap(([id, value]) => {
       const answers = askAnswerValues2(value);
-      return answers.length === 0 ? [] : [`${labels.get(id) ?? id}: ${answers.join(", ")}`];
+      return answers.length === 0 ? [] : [labels.get(id) ?? id, ...answers];
     });
-    if (lines.length > 0) return lines.join("\n");
+    if (texts.length > 0) return texts;
   }
-  return codexOutputText(payload.output);
+  return [codexOutputText(payload.output)];
 }
 var MAX_TOOL_TEXT_HASHES = 4096;
 function createCodexFileClassifier() {
@@ -2085,8 +2085,13 @@ function createCodexFileClassifier() {
             RUNTIME2
           );
           if (answer) {
-            const text = codexAnswerText(call, record);
-            return text.trim() === "" ? [] : [{ role: answer.role, text }];
+            const texts = codexAnswerTexts(call, record).filter(
+              (text) => text.trim() !== ""
+            );
+            return [...new Set(texts)].map((text) => ({
+              role: answer.role,
+              text
+            }));
           }
         }
       }

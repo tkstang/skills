@@ -1013,6 +1013,68 @@ describe.skipIf(RG === null)('rg prefilter against the Node scan', () => {
     expect(node.hits).toHaveLength(2);
     expect(withRg.hits).toEqual(node.hits);
     expect(withRg.notes).toEqual([]);
+
+    // Ask-user answers: the label and each answer are separate units, so a
+    // pattern spanning them (absent from the raw bytes) never matches in
+    // Node either, and the answer alone still does.
+    writeClaudeSession(temp.home, {
+      cwd: '/work/e',
+      records: (e) => [
+        claudeToolUse(e, 'toolu_ask', 'AskUserQuestion', {
+          questions: [{ question: 'Which database', header: 'Database' }],
+        }),
+        {
+          ...claudeToolResult(
+            e,
+            'toolu_ask',
+            'User has answered your questions.',
+          ),
+          toolUseResult: {
+            questions: [{ question: 'Which database', header: 'Database' }],
+            answers: { 'Which database': 'zorbadb' },
+          },
+        },
+      ],
+    });
+    writeCodexRollout(temp.home, {
+      id: CHILD_ID,
+      startedAtMs: NOW - DAY_MS,
+      records: [
+        codexSessionMeta({ id: CHILD_ID, cwd: '/work/f' }),
+        codexFunctionCall(
+          'call_ask',
+          'request_user_input',
+          { questions: [{ id: 'q1', header: 'Database', question: 'Pick' }] },
+          1,
+        ),
+        codexToolOutput(
+          'function_call_output',
+          'call_ask',
+          JSON.stringify({ answers: { q1: { answers: ['zorbadb'] } } }),
+          2,
+        ),
+      ],
+    });
+    const askFiles = await enumerateAll();
+    for (const [pattern, count] of [
+      ['database: zorbadb', 0],
+      ['zorbadb', 2],
+    ] as const) {
+      const askMatcher = compileMatcher([pattern], { literal: false });
+      const askNode = await scanFiles(askFiles, adapterFor, askMatcher, {
+        ...options(),
+        rg: null,
+      });
+      const askRg = await scanFiles(askFiles, adapterFor, askMatcher, {
+        ...options(),
+        rg: RG,
+      });
+      expect(askRg.hits, pattern).toEqual(askNode.hits);
+      expect(
+        askNode.hits.map((hit) => hit.role),
+        pattern,
+      ).toEqual(Array.from({ length: count }, () => 'user'));
+    }
   });
 
   it('skips the prefilter on the deep tier, where text is decoded twice', async () => {

@@ -1422,7 +1422,7 @@ function askAnswerValues(value) {
   if (isObject2(value)) return askAnswerValues(value.answers);
   return [];
 }
-function codexAnswerText(call, record) {
+function codexAnswerTexts(call, record) {
   const callPayload = isObject2(call.payload) ? call.payload : {};
   const payload = isObject2(record.payload) ? record.payload : {};
   const args = typeof callPayload.arguments === "string" ? parseJsonObject(callPayload.arguments) : isObject2(callPayload.arguments) ? callPayload.arguments : null;
@@ -1435,13 +1435,13 @@ function codexAnswerText(call, record) {
   }
   const output = typeof payload.output === "string" ? parseJsonObject(payload.output) : isObject2(payload.output) ? payload.output : null;
   if (output && isObject2(output.answers)) {
-    const lines = Object.entries(output.answers).flatMap(([id, value]) => {
+    const texts = Object.entries(output.answers).flatMap(([id, value]) => {
       const answers = askAnswerValues(value);
-      return answers.length === 0 ? [] : [`${labels.get(id) ?? id}: ${answers.join(", ")}`];
+      return answers.length === 0 ? [] : [labels.get(id) ?? id, ...answers];
     });
-    if (lines.length > 0) return lines.join("\n");
+    if (texts.length > 0) return texts;
   }
-  return codexOutputText(payload.output);
+  return [codexOutputText(payload.output)];
 }
 var MAX_TOOL_TEXT_HASHES = 4096;
 function createCodexFileClassifier() {
@@ -1470,8 +1470,13 @@ function createCodexFileClassifier() {
             RUNTIME
           );
           if (answer) {
-            const text = codexAnswerText(call, record);
-            return text.trim() === "" ? [] : [{ role: answer.role, text }];
+            const texts = codexAnswerTexts(call, record).filter(
+              (text) => text.trim() !== ""
+            );
+            return [...new Set(texts)].map((text) => ({
+              role: answer.role,
+              text
+            }));
           }
         }
       }
