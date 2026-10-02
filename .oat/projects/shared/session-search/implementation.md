@@ -367,7 +367,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 ## Phase 5: Final review fixes
 
-**Status:** tasks complete (t01–t10). The cycle-3 fixes t09–t10 are done and root-verified (272+ skill tests; build:check in sync; the MCP-id recall probe recovered). **The final review row is `fixes_completed`; a 4th final-review cycle needs an operator override (REVIEWRECEIVE-02).**
+**Status:** complete (t01–t10). Final review cycle 4 (operator-authorized) **passed** 0C/0H/0M/1L (the Low is deferred).
 
 | Task | Status | Commit |
 | ---- | ------ | ------ |
@@ -433,6 +433,24 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 - **p05-t09**: M1, a recall regression from t06's `id` blanking inside MCP arguments and structuredContent.
 - **p05-t10**: L1, stale prefilter guidance in SKILL.md and the user guide.
 - **L2** (stale Phase 5 status, final summary, and missing fix-2 dispatch record): fixed by root in this receive commit.
+
+---
+
+### Review Received: final (re-review, cycle 4; operator-authorized)
+
+**Date:** 2026-10-02
+**Review artifact:** reviews/archived/final-review-2026-10-02T172654Z.md (request `session-search-final-review-4`, narrowed `aaec2be0..336bfd80`, invocation auto, **Reconnaissance:** not-attempted)
+
+**Findings:** Critical 0, High 0, Medium 0, Low 1. **Final review passed.** The cycle-3 Medium (MCP-id recall) was verified fixed: all 488 local ids are searchable again. The structural negative holds, and header scoping is linear.
+
+**Low disposition (final scope):** L1 (Claude-only `slug`/`sessionId` keys blanked on Codex lines, including inside MCP results) is **deferred** as a documented follow-up, with this evidence:
+
+- It is pre-existing: identical values were dropped before p05-t06, so it is not a regression.
+- It is narrow: 12 local lines, mostly Stoa memory slugs inside Codex MCP results.
+- Sessions remain findable through other content.
+- Fixing it now would change the reviewed basis and force another lifecycle and gate cycle.
+
+**Deferred Mediums:** none.
 
 ---
 
@@ -555,6 +573,10 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 - **Operator override (2026-10-02T17:22:14Z):** the user replied "Proceed" to the REVIEWRECEIVE-02 boundary report. This authorizes one additional final-review cycle (cycle 4), after which closeout resumes. The source is an explicit chat instruction from the operator.
 
+#### Dispatch record: session-search-final-review-4
+
+- Operator-authorized final re-review. Outcome: **pass**, 0C/0H/0M/1L. Artifact: `reviews/archived/final-review-2026-10-02T172654Z.md`.
+
 <!-- orchestration-runs-end -->
 
 ---
@@ -641,7 +663,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
   - bounded per-hit memory (peak RSS about 1.5 GB to about 0.4 GB on broad deep queries)
   - ask-user prompts and answers emitted as separate units
   - the rg prefilter restricted to never-escaped characters (real stores escape `/` and HTML-sensitive characters)
-- **Known follow-ups (deferred from the exit gate):** a custom title in the prefix losing to a generated tail title; metadata-only Codex orphans losing archived/child facts; the remote history fallback excerpt dropping the match and session id.
+- **Known follow-ups (deferred from the exit gate):** a custom title in the prefix losing to a generated tail title; metadata-only Codex orphans losing archived/child facts; the remote history fallback excerpt dropping the match and session id; Claude-only `slug`/`sessionId` blanking applied to Codex MCP result content.
 - design.md was aligned at each review. See Deviations.
 
 ## References
