@@ -26,6 +26,7 @@ import {
   classifyCodexRecord,
   codexOutputText,
   createCodexAdapter,
+  createCodexFileClassifier,
   isInheritedRecord,
 } from './codex.js';
 
@@ -309,6 +310,38 @@ describe('Codex record classification', () => {
     for (const item of [collab, extension, fileChange]) {
       expect(classifyCodexRecord(item, false)).toEqual([]);
     }
+  });
+
+  it('drops tool text repeated within one file, whichever record carries it', () => {
+    const classify = createCodexFileClassifier();
+    const records = [
+      codexToolOutput(
+        'function_call_output',
+        'call_mcp',
+        [{ type: 'input_text', text: 'Threads: Perceive Now vetting' }],
+        20,
+      ),
+      codexMcpToolCall({ content: ['Threads: Perceive Now vetting'] }, 21),
+      codexToolOutput(
+        'custom_tool_call_output',
+        'call_sh',
+        'ls: tamarind.md',
+        22,
+      ),
+      codexCommandExecution('ls: tamarind.md', 23),
+    ];
+    const units = records.flatMap((item) => classify(record(item), true));
+
+    expect(matches(units, 'Perceive Now')).toHaveLength(1);
+    expect(matches(units, 'tamarind')).toHaveLength(1);
+    expect(units.every((unit) => unit.role === 'tool')).toBe(true);
+    // A fresh file starts with an empty set.
+    expect(
+      matches(
+        createCodexFileClassifier()(record(records[1]), true),
+        'Perceive Now',
+      ),
+    ).toHaveLength(1);
   });
 
   it('emits nothing for Reasoning, AgentMessage, or UserMessage items', () => {

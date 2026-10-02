@@ -5,6 +5,7 @@ import { spawnSync as spawnSync2 } from "node:child_process";
 
 // src/skills/session-search/src/lib/adapters/codex.ts
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { statSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";

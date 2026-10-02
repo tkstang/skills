@@ -1577,6 +1577,7 @@ function createClaudeCodeAdapter() {
 
 // src/skills/session-search/src/lib/adapters/codex.ts
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { statSync as statSync2 } from "node:fs";
 import { readdir as readdir2, stat as stat2 } from "node:fs/promises";
 import path2 from "node:path";
@@ -1870,8 +1871,17 @@ function codexAnswerText(call, record) {
   }
   return codexOutputText(payload.output);
 }
+var MAX_TOOL_TEXT_HASHES = 4096;
 function createCodexFileClassifier() {
   const askCalls = /* @__PURE__ */ new Map();
+  const toolHashes = /* @__PURE__ */ new Set();
+  const firstToolSighting = (unit) => {
+    if (unit.role !== "tool") return true;
+    const hash = createHash("sha256").update(unit.text).digest("base64");
+    if (toolHashes.has(hash)) return false;
+    if (toolHashes.size < MAX_TOOL_TEXT_HASHES) toolHashes.add(hash);
+    return true;
+  };
   return (record, includeTools) => {
     const payload = isObject3(record.payload) ? record.payload : null;
     const callId = asString3(payload?.call_id);
@@ -1894,7 +1904,7 @@ function createCodexFileClassifier() {
         }
       }
     }
-    return classifyCodexRecord(record, includeTools);
+    return classifyCodexRecord(record, includeTools).filter(firstToolSighting);
   };
 }
 function sqliteJson(sqlite3, db, sql) {

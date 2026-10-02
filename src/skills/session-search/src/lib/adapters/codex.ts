@@ -21,6 +21,7 @@
  * `McpToolCall`, `CollabAgentToolCall`, `Extension`, `FileChange`).
  */
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { statSync, type Dirent } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -456,13 +457,29 @@ function codexAnswerText(call: JsonObject, record: JsonObject): string {
   return codexOutputText(payload.output);
 }
 
+/** Distinct tool texts remembered per file for de-duplication. */
+export const MAX_TOOL_TEXT_HASHES = 4096;
+
 /**
  * Per-file Codex classifier. It remembers `request_user_input` calls by
  * `call_id` so the matching `function_call_output` answers route through the
- * shared normalizer as user decision content instead of tool output.
+ * shared normalizer as user decision content instead of tool output, and it
+ * drops tool text already emitted earlier in the same file.
  */
 export function createCodexFileClassifier(): RecordClassifier {
   const askCalls = new Map<string, JsonObject>();
+  // Codex often records one tool result twice (a `function_call_output` or
+  // `custom_tool_call_output` plus an `item_completed` item). Identical tool
+  // text is kept once per file; past the cap, new texts are no longer
+  // remembered, so later repeats are kept rather than dropped.
+  const toolHashes = new Set<string>();
+  const firstToolSighting = (unit: TextUnit): boolean => {
+    if (unit.role !== 'tool') return true;
+    const hash = createHash('sha256').update(unit.text).digest('base64');
+    if (toolHashes.has(hash)) return false;
+    if (toolHashes.size < MAX_TOOL_TEXT_HASHES) toolHashes.add(hash);
+    return true;
+  };
   return (record, includeTools) => {
     const payload = isObject(record.payload) ? record.payload : null;
     const callId = asString(payload?.call_id);
@@ -488,7 +505,7 @@ export function createCodexFileClassifier(): RecordClassifier {
         }
       }
     }
-    return classifyCodexRecord(record, includeTools);
+    return classifyCodexRecord(record, includeTools).filter(firstToolSighting);
   };
 }
 
