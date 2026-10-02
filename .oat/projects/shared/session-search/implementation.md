@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: prev1-t01
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -38,9 +38,9 @@ oat_generated: false
 | Phase 3 | complete    | 10    | 10/10     |
 | Phase 4 | complete    | 7     | 7/7       |
 | Phase 5 | complete    | 10    | 10/10     |
-| Phase p-rev1 | in_progress | 4 | 0/4 |
+| Phase p-rev1 | in_progress | 4 | 4/4 |
 
-**Total:** 64/68 tasks completed
+**Total:** 68/68 tasks completed
 
 ---
 
@@ -464,6 +464,17 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 ---
 
+### Phase p-rev1 tasks
+
+| Task | Status | Commit |
+| ---- | ------ | ------ |
+| prev1-t01 | completed | f795eb34 |
+| prev1-t02 | completed | 16180754 (8 KiB Claude carrier prefix; real current key order already within 512 B, while older key order and fixtures exceeded it) |
+| prev1-t03 | completed | b124ebff (no extra version bump needed) |
+| prev1-t04 | completed | 3e329e66 |
+
+274 skill tests and 650 skill+repo/release/tooling tests pass (root re-verified). Real-store results are identical before and after.
+
 ### Revision Received: PR #115 review feedback
 
 **Date:** 2026-10-02
@@ -655,6 +666,10 @@ This generation went stale after fix p05-t08 changed the effective delta. Genera
 - 2026-10-02T18:05:50Z: `approval: approved`, `approval_source: oat-autonomous`. This follows the passing final review (`session-search-final-review-4`, `reviews/archived/final-review-2026-10-02T172654Z.md`), the passing implementation exit gate generation 2 (run `578d2977`, `reviews/archived/final-review-2026-10-02T173611Z.md`), and pre-approval steps summary, document, and pr. PR: https://github.com/tkstang/skills/pull/115.
 - Project recap: **built** (`explainers/project-recap/manifest.json`, runId `318a847d-5f30-44d8-a35f-f5592d06cae0`, host verify rung). The terminal-outcome guard returned ok.
 - Post-approval steps: none (configured `postApproval: []`).
+
+#### Dispatch record: session-search-prev1-implementation-1
+
+- Target `oat-phase-implementer-claude-claude-opus-5-5-high`. Outcome: DONE. Range `e3a3b847..3e329e66`.
 
 <!-- orchestration-runs-end -->
 
