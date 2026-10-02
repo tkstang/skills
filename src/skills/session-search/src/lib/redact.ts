@@ -26,9 +26,9 @@ const CREDENTIAL_WORD =
 const IDENT = '[A-Za-z0-9_.-]';
 const KEY = `(?:(?<!\\\\)\\\\*["'])?(?<!${IDENT})(?=${IDENT}*?(?:${CREDENTIAL_WORD}))(?=(?<ident>${IDENT}+))\\k<ident>(?:\\\\*["'])?`;
 const SEPARATOR = String.raw`\s*[:=]\s*`;
-// Value alternatives, most specific first. Every quoted form is masked whole,
-// quotes included.
-const VALUE = [
+// Quoted value alternatives, most specific first. Every quoted form is masked
+// whole, quotes included.
+const QUOTED_VALUE = [
   // One level of escaping: \"...\" where the body may hold escaped-escaped
   // quotes (\\\") and backslashes (\\\\).
   String.raw`\\"(?:\\\\\\"|\\\\\\\\|\\\\[^"\\]|[^"\\])*\\"`,
@@ -42,6 +42,9 @@ const VALUE = [
   String.raw`(?<vq>\\{2,}["'])(?:(?!(?<!\\)\k<vq>)[^\n])*(?<!\\)\k<vq>`,
   // Unterminated quote at any escaping level: mask to the end of the line.
   String.raw`\\*["'][^\n]*`,
+];
+const VALUE = [
+  ...QUOTED_VALUE,
   // Bare value up to whitespace or a delimiter.
   String.raw`[^\s,}&]+`,
 ].join('|');
@@ -50,6 +53,19 @@ const KEY_VALUE_RE = new RegExp(
   `(?<key>${KEY})(?<sep>${SEPARATOR})(?:${VALUE})`,
   'gi',
 );
+
+// Space-separated CLI flags such as `--password X` or `-token X`. The leading
+// dash is required, so prose like "the token is" stays intact. A bare value
+// that itself starts with a dash is the next flag and is left alone.
+const FLAG_RE = new RegExp(
+  `(?<![A-Za-z0-9_.-])(?<flag>--?(?=${IDENT}*?(?:${CREDENTIAL_WORD}))(?=(?<ident>${IDENT}+))\\k<ident>)(?<gap>[ \\t]+)(?:${[...QUOTED_VALUE, String.raw`(?!-)\S+`].join('|')})`,
+  'gi',
+);
+
+// URL userinfo passwords: mask only the password in scheme://user:pass@host.
+// The scheme may start only at the beginning of its run (linear time).
+const USERINFO_RE =
+  /(?<![A-Za-z0-9+.-])([a-z][a-z0-9+.-]*:\/\/[^\s/:@]*:)[^\s/@]+@/gi;
 
 const TOKEN_RULES: RegExp[] = [
   // OpenAI / Anthropic style keys (sk-..., sk-ant-...).
@@ -94,6 +110,14 @@ export function redact(text: string): string {
     const groups = args[args.length - 1] as { key: string; sep: string };
     return `${groups.key}${groups.sep}${REDACTED}`;
   });
+  out = out.replace(FLAG_RE, (...args: unknown[]) => {
+    const groups = args[args.length - 1] as { flag: string; gap: string };
+    return `${groups.flag}${groups.gap}${REDACTED}`;
+  });
+  out = out.replace(
+    USERINFO_RE,
+    (_match, prefix: string) => `${prefix}${REDACTED}@`,
+  );
   out = out.replace(BEARER_RE, (match, prefix: string, token: string) =>
     token.length >= 16 || (token.length >= 8 && /\d/.test(token))
       ? `${prefix}${REDACTED}`

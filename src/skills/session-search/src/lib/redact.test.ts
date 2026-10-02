@@ -141,6 +141,48 @@ describe('redact: key-value secrets', () => {
   });
 });
 
+describe('redact: URL userinfo and CLI flags', () => {
+  it.each([
+    [
+      'postgres connection string',
+      `DATABASE_URL=postgres://app:${SYNTHETIC}@db.internal:5432/main`,
+      `DATABASE_URL=postgres://app:${REDACTED}@db.internal:5432/main`,
+    ],
+    [
+      'https clone URL with a token',
+      `git clone https://x-access-user:${SYNTHETIC}@github.com/org/repo.git`,
+      `git clone https://x-access-user:${REDACTED}@github.com/org/repo.git`,
+    ],
+    [
+      'double-dash password flag',
+      `mysql --user root --password ${SYNTHETIC} -h db`,
+      `mysql --user root --password ${REDACTED} -h db`,
+    ],
+    [
+      'double-dash token flag',
+      `cli login --token ${SYNTHETIC}`,
+      `cli login --token ${REDACTED}`,
+    ],
+    [
+      'quoted flag value with spaces',
+      `tool --client-secret "pass ${SYNTHETIC}" --verbose`,
+      `tool --client-secret ${REDACTED} --verbose`,
+    ],
+  ])('masks the %s', (_name, text, expected) => {
+    expect(redact(text)).toBe(expected);
+  });
+
+  it.each([
+    'Remember that the token is rotated weekly by the platform team.',
+    'The re-token step runs after the password reset email is sent.',
+    'Browse https://example.com:8080/docs for details.',
+    'Run with --verbose before the token refresh step.',
+    'Contact user@example.com about the secret santa list.',
+  ])('leaves prose and plain URLs intact: %j', (text) => {
+    expect(redact(text)).toBe(text);
+  });
+});
+
 describe('redact: full unit before windowing', () => {
   const needle = compileMatcher(['needle'], { literal: true });
 
@@ -193,6 +235,10 @@ describe('redact: oversize input', () => {
       '\\'.repeat(256 * 1024),
       `\\\\"password\\\\": \\\\"${'x'.repeat(256 * 1024)}`,
       '\\"'.repeat(128 * 1024),
+      '-'.repeat(256 * 1024),
+      `--password${'-'.repeat(256 * 1024)}`,
+      `https://${'a'.repeat(256 * 1024)}`,
+      `postgres://user:${'p'.repeat(256 * 1024)}`,
     ];
     const started = performance.now();
     for (const input of inputs) redact(input);
