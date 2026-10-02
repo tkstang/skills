@@ -59,9 +59,12 @@ Avoid generic words (`fix`, `test`, `bug`). Matching rules:
 - Pass `--literal` to match fixed strings (paths, text with `(`, `?`, `[`).
 - A pattern that matches empty text (`a*`, `x?`) is rejected with exit 1.
   Duplicate patterns are de-duplicated.
-- Plain ASCII words, `|`, groups, and `.*`/`.+` keep the fast `rg` prefilter.
-  Character classes, `?`, `{n}`, backslashes, quotes, and non-ASCII still work but
-  scan every candidate file in Node: same results, slower.
+- Only patterns built from ASCII letters, digits, spaces, `-`, and `_`, plus
+  `|`, groups, and `.*`/`.+`, keep the fast `rg` prefilter. Anything else
+  (paths, URLs, `.`, `:`, `/`, `<`, `'`, other punctuation, character classes,
+  `?`, `{n}`, backslashes, quotes, non-ASCII, and every `--literal` pattern
+  using them) scans every candidate file in Node: same results, slower. Prefer
+  a distinctive word over a full path when either would find the session.
 
 ## Step 3: Run the CLI
 

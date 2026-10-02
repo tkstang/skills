@@ -142,5 +142,8 @@ Environment variables help on constrained hosts: `SESSION_SEARCH_RG` and
   [Native session schemas](../../engineering/architecture/session-schemas/index.md).
 - Cursor's SQLite chat store (`~/.cursor/chats/*/store.db`) and ChatGPT are not
   searched.
-- Patterns using character classes, `?`, `{n}`, backslashes, quotes, or
-  non-ASCII text still work but skip the `rg` prefilter, so they are slower.
+- Only patterns made of ASCII letters, digits, spaces, `-`, and `_` (plus `|`,
+  groups, and `.*`/`.+`) use the fast `rg` prefilter. Patterns with paths,
+  URLs, or other punctuation, character classes, `?`, `{n}`, backslashes,
+  quotes, or non-ASCII text give the same results but scan every file in Node,
+  so they are slower.
