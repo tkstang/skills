@@ -19,9 +19,9 @@ turn the description into search patterns; the bundled read-only CLI searches
 this machine's session stores cheapest-first and returns ranked, redacted
 candidates. It never writes to session stores.
 
-Invoke it by name (`/session-search`, `/session:search` in the session plugin,
-`$session-search` in Codex) or by asking naturally: "find the session where we
-vetted Perceive Now", "which conversation last week touched the release script?".
+Invoke this skill by name (`session-search`, using your host's skill
+syntax) or by asking naturally: "find the session where we vetted Perceive Now",
+"which conversation last week touched the release script?".
 
 ## When NOT to use
 

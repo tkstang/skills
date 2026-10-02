@@ -330,6 +330,18 @@ export const distributions: readonly DistributionDeclaration[] = [
       'src/shared/transcript',
       'src/skills/session-export-transcript',
     ],
+    optionalSkills: [
+      {
+        name: 'session-observer',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/session-observer',
+      },
+      {
+        name: 'session-export-transcript',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/session-export-transcript',
+      },
+    ],
     targets: [
       {
         kind: 'standalone',

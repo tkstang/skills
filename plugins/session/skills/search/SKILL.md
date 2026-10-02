@@ -19,14 +19,14 @@ turn the description into search patterns; the bundled read-only CLI searches
 this machine's session stores cheapest-first and returns ranked, redacted
 candidates. It never writes to session stores.
 
-Invoke it by name (`/session-search`, `/session:search` in the session plugin,
-`$session-search` in Codex) or by asking naturally: "find the session where we
-vetted Perceive Now", "which conversation last week touched the release script?".
+Invoke this skill by name (`search`, using your host's skill
+syntax) or by asking naturally: "find the session where we vetted Perceive Now",
+"which conversation last week touched the release script?".
 
 ## When NOT to use
 
 - Reading or following a live peer session: use `session-observer`.
-- Exporting the current conversation: use `session-export-transcript`.
+- Exporting the current conversation: use `export-transcript`.
 - Searching ChatGPT: its local data is encrypted. Point the user to ChatGPT's own
   search (see the empty-result ladder).
 
