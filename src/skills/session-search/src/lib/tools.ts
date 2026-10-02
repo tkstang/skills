@@ -9,8 +9,10 @@
  * 4. Common absolute locations, because non-interactive remote shells often
  *    lack Homebrew on `PATH`.
  *
- * Every candidate is verified by running `<path> --version`. The probe never
- * throws.
+ * Every candidate is verified by running `<path> --version` within the probe
+ * timeout: `SESSION_SEARCH_PROBE_TIMEOUT_MS` (default 3000, clamped to
+ * 500–60000; an invalid value uses the default and adds a note). Slow wrapper
+ * shims need a larger value. The probe never throws.
  */
 import { spawnSync } from 'node:child_process';
 import { statSync } from 'node:fs';
@@ -25,7 +27,10 @@ export const ABSOLUTE_TOOL_DIRS: readonly string[] = [
   '/usr/local/bin',
   '/usr/bin',
 ];
-const VERSION_TIMEOUT_MS = 3000;
+export const DEFAULT_PROBE_TIMEOUT_MS = 3000;
+export const MIN_PROBE_TIMEOUT_MS = 500;
+export const MAX_PROBE_TIMEOUT_MS = 60_000;
+const PROBE_TIMEOUT_VAR = 'SESSION_SEARCH_PROBE_TIMEOUT_MS';
 
 interface ToolSpec {
   name: 'rg' | 'sqlite3';
@@ -54,12 +59,32 @@ function isFile(candidate: string): boolean {
   }
 }
 
+/**
+ * Resolve the `--version` probe timeout from the environment. An invalid value
+ * yields the default and, when `notes` is given, a diagnostic note.
+ */
+export function probeTimeoutMs(env: ProbeEnv, notes?: string[]): number {
+  const raw = env[PROBE_TIMEOUT_VAR]?.trim();
+  if (!raw) return DEFAULT_PROBE_TIMEOUT_MS;
+  const value = /^\d+$/u.test(raw) ? Number(raw) : Number.NaN;
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    notes?.push(
+      `${PROBE_TIMEOUT_VAR}=${raw} is not a positive integer; using ${DEFAULT_PROBE_TIMEOUT_MS} ms.`,
+    );
+    return DEFAULT_PROBE_TIMEOUT_MS;
+  }
+  return Math.min(MAX_PROBE_TIMEOUT_MS, Math.max(MIN_PROBE_TIMEOUT_MS, value));
+}
+
 /** True when `candidate --version` runs and exits 0 within the timeout. */
-export function verifyExecutable(candidate: string): boolean {
+export function verifyExecutable(
+  candidate: string,
+  timeoutMs: number = DEFAULT_PROBE_TIMEOUT_MS,
+): boolean {
   if (!path.isAbsolute(candidate) || !isFile(candidate)) return false;
   try {
     const result = spawnSync(candidate, ['--version'], {
-      timeout: VERSION_TIMEOUT_MS,
+      timeout: timeoutMs,
       stdio: 'ignore',
       windowsHide: true,
     });
@@ -82,11 +107,12 @@ function resolveTool(
   spec: ToolSpec,
   env: ProbeEnv,
   notes: string[],
+  timeoutMs: number,
 ): string | null {
   const override = env[spec.overrideVar]?.trim();
   if (override) {
     const candidate = path.resolve(override);
-    if (verifyExecutable(candidate)) return candidate;
+    if (verifyExecutable(candidate, timeoutMs)) return candidate;
     notes.push(
       `${spec.overrideVar}=${override} is not a usable ${spec.name} executable; continuing without ${spec.name}.`,
     );
@@ -103,7 +129,7 @@ function resolveTool(
       const candidate = path.join(dir, name);
       if (seen.has(candidate)) continue;
       seen.add(candidate);
-      if (verifyExecutable(candidate)) return candidate;
+      if (verifyExecutable(candidate, timeoutMs)) return candidate;
     }
   }
   return null;
@@ -112,6 +138,9 @@ function resolveTool(
 /** Resolve optional `rg` and `sqlite3` paths. Never throws. */
 export function probeTools(env: ProbeEnv = process.env): ToolProbe {
   const notes: string[] = [];
-  const [rg, sqlite3] = TOOLS.map((spec) => resolveTool(spec, env, notes));
+  const timeoutMs = probeTimeoutMs(env, notes);
+  const [rg, sqlite3] = TOOLS.map((spec) =>
+    resolveTool(spec, env, notes, timeoutMs),
+  );
   return { rg, sqlite3, notes };
 }

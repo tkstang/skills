@@ -83,8 +83,25 @@ export function searchEnv(
     ...HARNESS_ENV,
     SESSION_SEARCH_NO_RG: '1',
     SESSION_SEARCH_NO_SQLITE3: '1',
+    ...STUB_PROBE_ENV,
     ...extra,
   };
+}
+
+/**
+ * Generous `--version` probe timeout for tests that spawn stub executables.
+ * Under heavy load a shell stub can take longer than the 3 s default to
+ * answer, and the probe would then report it as absent.
+ */
+export const STUB_PROBE_ENV: Readonly<Record<string, string>> = {
+  SESSION_SEARCH_PROBE_TIMEOUT_MS: '20000',
+};
+
+/** Add the stub probe timeout to an ad-hoc probe environment. */
+export function withStubProbe(
+  env: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+  return { ...STUB_PROBE_ENV, ...env };
 }
 
 export interface TestContext {
