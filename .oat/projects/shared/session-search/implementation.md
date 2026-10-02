@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-02
-oat_current_task_id: p05-t06
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -37,9 +37,9 @@ oat_generated: false
 | Phase 2 | complete    | 21    | 21/21     |
 | Phase 3 | complete    | 10    | 10/10     |
 | Phase 4 | complete    | 7     | 7/7       |
-| Phase 5 | in_progress | 7     | 5/7       |
+| Phase 5 | complete    | 7     | 7/7       |
 
-**Total:** 59/61 tasks completed
+**Total:** 61/61 tasks completed
 
 ---
 
@@ -367,7 +367,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 
 ## Phase 5: Final review fixes
 
-**Status:** in_progress. The combined p05 + final re-review **passed** (0C/0H/0M/3L). Low fix tasks p05-t06..t07 are queued.
+**Status:** complete. The combined p05 + final re-review **passed** (0C/0H/0M/3L). Low fixes t06 61f49382 and t07 da20282a (via `cont-session-search-p05-fix-1`). 648 tests pass. Real-store `unified_exec_startup` noise dropped from 15 sessions to 0, and the motivating search still finds Codex `01a053ba`.
 
 | Task | Status | Commit |
 | ---- | ------ | ------ |
@@ -376,6 +376,8 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 | p05-t03 | completed | f3fb6888 |
 | p05-t04 | completed | a5e48390 |
 | p05-t05 | completed | 3fb6dc1f |
+| p05-t06 | completed | 61f49382 |
+| p05-t07 | completed | da20282a |
 
 - Range `9b5994a8..3fb6dc1f`. 268 skill tests pass (root re-verified). `build:check` is in sync. The real-store motivating search still finds Codex `01a053ba`.
 - Measured peak RSS on broad deep queries (local 4.9 GiB store): 1.31→0.40 GB (`the`) and 1.50→0.41 GB (`function`). Broad-deep wall time rose 9.9→11.9 s and 10.5→17.4 s because snippets are redacted at scan time. Narrow queries are unchanged.
@@ -496,6 +498,9 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 #### Dispatch record: session-search-final-review-2
 
 - Narrowed final re-review, which also serves as the p05 phase review. Outcome: **pass**, 0C/0H/0M/3L. Artifact: `reviews/archived/final-review-2026-10-02T114035Z.md`.
+- Continuation `cont-session-search-p05-fix-1` (t06–t07): `9a4a97dd..da20282a`, DONE.
+
+**p05 phase outcome:** pass. The final review is `passed` (`session-search-final-review-2`).
 
 <!-- orchestration-runs-end -->
 
@@ -524,6 +529,7 @@ Verification (root re-run): `build:check` in sync; 617 tests pass across the ski
 | 2     | 230 (cumulative) | 230 | 0 | -        |
 | 3     | 624 (skill + repo/release/tooling) | 624 | 0 | -        |
 | 4 (premerge) | 2734 | 2733 | 0 (1 skipped) | -        |
+| 5     | 648 (skill + repo/release/tooling) | 648 | 0 | -        |
 
 ## Final Summary (for PR/docs)
 
