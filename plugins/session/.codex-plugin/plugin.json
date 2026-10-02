@@ -1,7 +1,7 @@
 {
   "name": "session",
-  "version": "0.3.6",
-  "description": "Session messaging, retrospective, handoff, transcript export, and destination-fork guidance for coding-agent conversations.",
+  "version": "0.4.0",
+  "description": "Session messaging, retrospective, handoff, transcript export, session search, and destination-fork guidance for coding-agent conversations.",
   "author": {
     "name": "Thomas Stang"
   },
@@ -9,13 +9,13 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Session",
-    "shortDescription": "Review, hand off, export, and prepare destination-side session forks.",
-    "longDescription": "Session skills for reviewing bounded episodes, transferring coding context, exporting sanitized conversations, and preparing read-only destination-tab fork instructions.",
+    "shortDescription": "Review, hand off, export, search past sessions, and prepare destination-side session forks.",
+    "longDescription": "Session skills for reviewing bounded episodes, transferring coding context, exporting sanitized conversations, finding past sessions across local Claude Code, Codex, and Cursor stores, and preparing read-only destination-tab fork instructions.",
     "developerName": "Thomas Stang",
     "category": "Coding",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
-      "Use Session Retro to review a bounded episode, Session Export Transcript to save a sanitized conversation, or Session Fork to Destination to prepare destination-tab instructions."
+      "Use Session Retro to review a bounded episode, Session Export Transcript to save a sanitized conversation, Session Search to find a past session, or Session Fork to Destination to prepare destination-tab instructions."
     ]
   },
   "metadata": {

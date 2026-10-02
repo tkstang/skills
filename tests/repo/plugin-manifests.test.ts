@@ -28,15 +28,16 @@ const plugins = [
   },
   {
     name: 'session',
-    version: '0.3.6',
+    version: '0.4.0',
     description:
-      'Session messaging, retrospective, handoff, transcript export, and destination-fork guidance for coding-agent conversations.',
+      'Session messaging, retrospective, handoff, transcript export, session search, and destination-fork guidance for coding-agent conversations.',
     skills: [
       'export-transcript',
       'fork-to-destination',
       'handoff',
       'messaging',
       'retro',
+      'search',
     ],
     permissionDeclaration: 'unverified',
     permissionEvidence: /isolated export execution.*live provider.*unverified/i,

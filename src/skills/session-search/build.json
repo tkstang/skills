@@ -1,0 +1,20 @@
+{
+  "runtime": [
+    "src/session-search.ts",
+    "src/lib/adapters/claude-code.ts",
+    "src/lib/adapters/codex.ts",
+    "src/lib/adapters/cursor.ts",
+    "src/lib/classify.ts",
+    "src/lib/jsonl.ts",
+    "src/lib/matcher.ts",
+    "src/lib/options.ts",
+    "src/lib/pipeline.ts",
+    "src/lib/rank.ts",
+    "src/lib/redact.ts",
+    "src/lib/runtimes.ts",
+    "src/lib/sanitize.ts",
+    "src/lib/scan.ts",
+    "src/lib/tools.ts",
+    "src/lib/window.ts"
+  ]
+}
