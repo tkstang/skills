@@ -36,6 +36,14 @@ PR comments. It establishes which bots are expected and how each signals
 completion. Every new push needs fresh evidence. Silence, old approval, a
 skipped bot, or an outdated thread does not establish success.
 
+An explicit exhausted free-tier or included OSS review allowance is
+non-blocking by default. The skill reports **green with quota exception**
+when all other gates pass, naming the unavailable review and its last reviewed
+revision. It does not wait for quota reset or schedule quota-only retries.
+Existing findings, CI failures, required approvals, and explicit requirements
+to obtain that review still block; ordinary outages or API throttling do not
+qualify. A quota exception is never reported as a completed bot review.
+
 In T3 Code, it processes existing findings and uses the app's PR watcher to
 resume on relevant changes. Other hosts can poll within an active session.
 It reports whether monitoring is actually active; an ended foreground session

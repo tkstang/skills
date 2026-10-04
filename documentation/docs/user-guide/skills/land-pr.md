@@ -29,6 +29,12 @@ pushes, and waits for fresh checks/reviews. Once green, landing performs a
 fresh inspection and uses an expected-head SHA guard for the merge. A moved
 head or changed review state returns to inspection.
 
+Exhausted free-tier or included OSS review allowance follows Babysit PR's
+non-blocking quota exception. If all other gates pass, landing merges without
+waiting for quota reset or asking for another waiver, and names the review
+that did not run. Existing findings, CI failures, and required checks/approvals
+still block; repository protection is never bypassed.
+
 For a repository with a merge queue, queue admission is reported as queued.
 The skill continues watching until the remote state confirms a merge or a
 blocker. It reports the merge commit only after observing `MERGED`; a successful

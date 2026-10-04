@@ -81,6 +81,15 @@ historical evidence. They do not prove the new cycle completed. If the bot is
 missing, stuck, skipped, or unable to run, report that condition. Do not invent
 a universal delay after which silence means approval.
 
+Inspect the status description and full bot summary even when GitHub reports
+`SUCCESS`. For example, a CodeRabbit success status saying “Review rate limited”
+plus an explicit exhausted free OSS allowance notice is evidence for the main
+workflow's quota exception, not evidence that the latest head was reviewed.
+Preserve the last actually reviewed SHA and inspect all existing findings.
+A generic rate-limit error alone does not establish free/OSS quota exhaustion.
+Do not wait for the allowance reset or trigger another review solely to clear
+this exception; surface it in the final readiness evidence.
+
 ## Reply and resolve
 
 Use ordinary review-thread replies for inline findings. Use a JSON body file

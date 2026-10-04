@@ -6,7 +6,7 @@ compatibility: Requires the installed babysit-pr skill, authenticated GitHub acc
 user-invocable: true
 metadata:
   author: Thomas Stang
-  version: '1.0.1'
+  version: '1.0.2'
 ---
 
 # Land PR
@@ -48,13 +48,18 @@ Missing capabilities require [GitHub CLI setup/update](https://cli.github.com/).
    evidence, and verified head SHA. **Waiting**, **blocked**, or **paused**
    is not permission to merge. If already merged or closed, report that
    state without another mutation.
+   The shared free/OSS quota exception applies to landing too: when all other
+   gates pass, merge without waiting for exhausted free review allowance to
+   reset or requesting another waiver. Retain the exception in the final
+   evidence; existing findings and server-required checks/approvals still block.
 2. Choose the merge method from the user's instruction or documented
    repository policy. If unspecified, use the repository's sole permitted
    method; when multiple methods remain and there is no established default,
    ask that focused question. Preserve a stack's intended base and follow its
    dependency order; never retarget or merge other layers implicitly.
 3. Immediately before merging, repeat the shared green gate against fresh
-   remote evidence, including comments, threads, bot completion, required
+   remote evidence, including comments, threads, bot completion or supported
+   quota exceptions, required
    approvals, checks, head and base. Verify the PR is still open/non-draft
    and mergeable. If the head/base or review state changed, return to the
    shared inspection loop. Never rely on the earlier “green” message alone.
@@ -91,6 +96,8 @@ waiting, blocked, or paused, name the remaining condition and whether a
 durable watcher is active. A check cannot atomically lock review comments and
 CI with the merge; the final sweep, expected-head guard, and server-enforced
 repository rules are the available protections.
+Name any free/OSS review that could not run because its quota was exhausted;
+do not claim all bot reviews passed when merging with that exception.
 
 ## Examples
 
@@ -98,5 +105,7 @@ repository rules are the available protections.
   conversation; repair, verify, and merge under the established method/policy.
 - “Land PR 42 once CI and the bots pass; use squash.” — Repair and repeat,
   verify the current head, squash merge, and confirm the remote merge.
+- “Land it” with passing CI, no remaining findings, and exhausted free OSS
+  review quota — merge with the quota exception and disclose the missing review.
 - “Is PR 42 ready to land?” — Read-only readiness assessment; no merge.
 - “Babysit PR 42.” — Use the babysitting workflow; no merge authority.
