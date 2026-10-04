@@ -4,6 +4,16 @@
 
 ### Added
 
+- `babysit-pr` 1.0.2 and `land-pr` 1.0.2 standalone skills repair CI failures
+  and valid review findings, validate, commit, push, and repeat. Babysitting
+  reports current-head readiness without merging; landing reuses that gate
+  and merges with a head-SHA guard, verifying the final remote state. Both
+  support host-native PR watching and evidence-backed review responses.
+  Conversational requests such as “babysit it” and “land it” resolve the PR
+  currently under discussion without requiring its URL again.
+  Exhausted free/OSS review allowance is a disclosed, non-blocking exception;
+  existing findings, CI failures, and required approvals remain blocking.
+
 - `session-search` 0.1.0 (standalone) and `session` plugin 0.4.0 member
   `search` find a past Claude Code, Codex, or Cursor session on the local
   machine from agent-expanded patterns plus optional time and directory hints.

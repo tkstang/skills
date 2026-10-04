@@ -224,23 +224,25 @@ does not establish fresh-session discovery or live workflow behavior.
 Only skills explicitly declared for standalone output have a generated directory
 under `skills/`:
 
-| Canonical standalone name     | Plugin-local form             | Source link                                                                                         |
-| ----------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- |
-| `align`                       | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/align)                       |
-| `agent-messaging`             | session `messaging`           | [standalone source](https://github.com/tkstang/skills/tree/main/skills/agent-messaging)             |
-| `author-skill`                | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/author-skill)                |
-| `next-steps`                  | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/next-steps)                  |
-| `must-we`                     | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/must-we)                     |
-| `session-retro`               | session `retro`               | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-retro)               |
-| `session-observer`            | consensus `observer`          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-observer)            |
-| `session-observer-collab`     | consensus `observer-collab`   | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-observer-collab)     |
-| `session-handoff`             | session `handoff`             | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-handoff)             |
-| `session-export-transcript`   | session `export-transcript`   | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-export-transcript)   |
-| `session-fork-to-destination` | session `fork-to-destination` | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-fork-to-destination) |
-| `session-search`              | session `search`              | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-search)              |
-| `complexity-review`           | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/complexity-review)           |
-| `phone-a-friend`              | consensus `phone-a-friend`    | [standalone source](https://github.com/tkstang/skills/tree/main/skills/phone-a-friend)              |
-| `consensus-review`            | consensus `review`            | [standalone source](https://github.com/tkstang/skills/tree/main/skills/consensus-review)            |
+| Canonical standalone name         | Plugin-local form             | Source link                                                                                         |
+| --------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- |
+| `babysit-pr`                      | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/babysit-pr)                  |
+| `land-pr` (requires `babysit-pr`) | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/land-pr)                     |
+| `align`                           | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/align)                       |
+| `agent-messaging`                 | session `messaging`           | [standalone source](https://github.com/tkstang/skills/tree/main/skills/agent-messaging)             |
+| `author-skill`                    | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/author-skill)                |
+| `next-steps`                      | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/next-steps)                  |
+| `must-we`                         | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/must-we)                     |
+| `session-retro`                   | session `retro`               | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-retro)               |
+| `session-observer`                | consensus `observer`          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-observer)            |
+| `session-observer-collab`         | consensus `observer-collab`   | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-observer-collab)     |
+| `session-handoff`                 | session `handoff`             | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-handoff)             |
+| `session-export-transcript`       | session `export-transcript`   | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-export-transcript)   |
+| `session-fork-to-destination`     | session `fork-to-destination` | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-fork-to-destination) |
+| `session-search`                  | session `search`              | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-search)              |
+| `complexity-review`               | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/complexity-review)           |
+| `phone-a-friend`                  | consensus `phone-a-friend`    | [standalone source](https://github.com/tkstang/skills/tree/main/skills/phone-a-friend)              |
+| `consensus-review`                | consensus `review`            | [standalone source](https://github.com/tkstang/skills/tree/main/skills/consensus-review)            |
 
 Qualified invocation syntax depends on the host. Claude Code and Codex include
 the plugin namespace; Cursor's local `--plugin-dir` load exposes the local name
