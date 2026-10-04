@@ -1,12 +1,12 @@
 ---
 name: land-pr
-description: 'Use when explicitly asked to land a GitHub pull request: fix CI failures and valid review findings, push and wait until green, then merge the verified head. Requires babysit-pr for the shared repair loop. Monitoring or asking whether a PR is ready does not authorize landing.'
+description: 'Use when the user says "land it", "land this PR", or asks to get a GitHub PR green and merge it, including a PR identified by the conversation. Fix CI and valid review findings, push and wait until green, then merge the verified head. Requires babysit-pr. A readiness question or discussion of the skill does not authorize landing.'
 license: MIT
 compatibility: Requires the installed babysit-pr skill, authenticated GitHub access, git, and repository validation tools. Merge access must support matching the reviewed head SHA.
 user-invocable: true
 metadata:
   author: Thomas Stang
-  version: '1.0.0'
+  version: '1.0.1'
 ---
 
 # Land PR
@@ -19,9 +19,17 @@ Creating or discussing this skill is not an invocation against an example PR.
 
 ## Prerequisites and inputs
 
-Accept the PR URL or number, optional merge method, expected bots/checks, and
-time/iteration budget. Infer a unique current-branch PR when appropriate.
-Ambiguous targets require clarification before any mutation.
+Resolve the target in order: an explicit PR URL/number in the request; the
+unambiguous PR currently being discussed (including one just opened or
+linked); then a unique current-branch PR when there is no conversational target.
+“Land it” is explicit landing and merge authorization when “it” clearly refers
+to that PR; no skill name or repeated URL is required. State the resolved
+target and proceed without another target/merge confirmation. If multiple
+PRs are plausible, ask which one; do not silently use the current branch to
+break the ambiguity. Quoted examples or discussion of trigger language are
+not live invocations.
+
+Accept an optional merge method, expected bots/checks, and time/iteration budget.
 
 Locate and read the installed {{skill:babysit-pr}} workflow. If unavailable,
 stop with the required skill's
@@ -86,6 +94,8 @@ repository rules are the available protections.
 
 ## Examples
 
+- After opening or discussing PR 42: “Land it.” — Use PR 42 from the
+  conversation; repair, verify, and merge under the established method/policy.
 - “Land PR 42 once CI and the bots pass; use squash.” — Repair and repeat,
   verify the current head, squash merge, and confirm the remote merge.
 - “Is PR 42 ready to land?” — Read-only readiness assessment; no merge.

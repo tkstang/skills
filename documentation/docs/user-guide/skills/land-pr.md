@@ -13,8 +13,14 @@ authorization; a status question or babysitting request does not.
 
 > Land PR 42 once CI and the bots pass; use squash.
 
-Invoke `$land-pr` in Codex or `/land-pr` in Claude Code. Supply the PR and any
-bot/check requirements or time budget. The merge method comes from the user
+Invoke `$land-pr` in Codex or `/land-pr` in Claude Code, or simply say **“land it”**
+when a PR is already the subject of conversation. That request authorizes the
+repair loop and merge without another routine confirmation. Resolve an explicit
+URL/number first, then the conversational PR, then a unique current-branch PR;
+ask when multiple targets remain plausible. Discussing these example phrases
+does not authorize a merge.
+
+Optionally supply bot/check requirements or a time budget. The merge method comes from the user
 or repository policy; if several methods are allowed and no default is known,
 the skill asks for that choice.
 

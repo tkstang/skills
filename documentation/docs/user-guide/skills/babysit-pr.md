@@ -16,7 +16,10 @@ The PR remains unmerged. Use [Land PR](land-pr.md) to include merging.
 > Babysit PR 42 until CI and Bugbot are green.
 
 Invoke `$babysit-pr` in Codex or `/babysit-pr` in Claude Code. Supply a PR URL,
-or a number with repository context; a unique current-branch PR can be inferred.
+or simply say **“babysit it”** when a PR is already the subject of conversation.
+The target comes from an explicit URL/number first, then the conversational
+PR, then a unique current-branch PR. The agent asks only when the target is
+ambiguous; discussing these example phrases does not start babysitting.
 Optional constraints include named bots/checks, a time budget, or monitor-only
 mode. Monitor-only mode permits no fixes, pushes, replies, or thread mutations.
 

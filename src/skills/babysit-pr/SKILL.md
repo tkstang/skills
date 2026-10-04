@@ -1,12 +1,12 @@
 ---
 name: babysit-pr
-description: Use when asked to babysit a GitHub pull request until CI and bot reviews are green. Triage findings, fix valid issues, validate, commit, push, and repeat; report readiness without merging. A one-time status check or review-only request does not activate the repair loop.
+description: 'Use when the user says "babysit it", "babysit this PR", or asks to get a GitHub PR green, including a PR identified by the conversation. Triage findings, fix valid issues, validate, commit, push, and repeat; report readiness without merging. A one-time status check or review-only request does not activate the repair loop.'
 license: MIT
 compatibility: Requires authenticated GitHub access through gh or an equivalent connector, git, and the target repository's validation tools. Host-native PR watching is optional.
 user-invocable: true
 metadata:
   author: Thomas Stang
-  version: '1.0.0'
+  version: '1.0.1'
 ---
 
 # Babysit PR
@@ -18,8 +18,16 @@ that caller, which owns the separate merge decision.
 
 ## Inputs and authority
 
-Accept a PR URL or number with repository context. Infer the current branch's
-PR only when it resolves uniquely. Accept optional bot/check requirements,
+Resolve the target in order: an explicit PR URL/number in the request; the
+unambiguous PR currently being discussed (including one just opened or
+linked); then a unique current-branch PR when there is no conversational target.
+“Babysit it” is a direct invocation when “it” clearly refers to that PR; no
+skill name or repeated URL is required. State the resolved target and proceed
+without asking the user to reconfirm it. If multiple PRs are plausible, ask
+which one; do not silently use the current branch to break the ambiguity.
+Quoted examples or discussion of trigger language are not live invocations.
+
+Accept optional bot/check requirements,
 time or iteration budget, and a monitor-only restriction. Preserve these
 inputs across wakeups. A one-time status question is read-only.
 
@@ -182,6 +190,8 @@ when a landing caller will continue, hand the watcher and ledger back to it.
 
 ## Examples
 
+- After opening or discussing PR 42: “Babysit it.” — Use PR 42 from the
+  conversation and start the repair loop without a target-confirmation prompt.
 - “Babysit PR 42 until CI and Bugbot are green.” — Repair, push, reinspect,
   then report green without merging.
 - “Babysit this PR, but only monitor.” — Inspect and wait; report findings
