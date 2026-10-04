@@ -13,6 +13,7 @@ job you want help with:
 
 | I want to…                                                                               | Start here                                                                                         |
 | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Repair a pull request until green, optionally merging it                                 | [Babysit PR](user-guide/skills/babysit-pr.md) or [Land PR](user-guide/skills/land-pr.md)           |
 | Create, improve, or assess an artifact with independent peers                            | [Consensus](user-guide/consensus/index.md)                                                         |
 | Hear another perspective without running a convergence loop                              | [Phone-a-Friend](user-guide/consensus/phone-a-friend.md) or [Panel](user-guide/consensus/panel.md) |
 | Exchange addressed work across local coding-agent sessions                               | [Agent Messaging](user-guide/skills/agent-messaging.md)                                            |

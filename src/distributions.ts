@@ -42,6 +42,27 @@ export const pluginReleaseTargets: readonly PluginReleaseTarget[] = [
 // under src/skills. Generated payloads remain derivative build output.
 export const distributions: readonly DistributionDeclaration[] = [
   {
+    owner: 'babysit-pr',
+    source: 'src/skills/babysit-pr',
+    targets: [
+      { kind: 'standalone', name: 'babysit-pr', output: 'skills/babysit-pr' },
+    ],
+  },
+  {
+    owner: 'land-pr',
+    source: 'src/skills/land-pr',
+    requiredSkills: [
+      {
+        name: 'babysit-pr',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/babysit-pr',
+      },
+    ],
+    targets: [
+      { kind: 'standalone', name: 'land-pr', output: 'skills/land-pr' },
+    ],
+  },
+  {
     owner: 'align',
     source: 'src/skills/align',
     targets: [

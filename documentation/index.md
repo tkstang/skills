@@ -60,7 +60,9 @@
     - [Agent Messaging](user-guide/skills/agent-messaging.md) — Exchange durable addressed messages among local coding-agent sessions without sharing transcripts.
     - [Align](user-guide/skills/align.md) — Check that the agent understands your goal, underlying problem, and success criteria before or during work.
     - [Author Skill](user-guide/skills/author-skill.md) — Create, revise, migrate, or review agent skills using the target repository’s own authoring and distribution conventions.
+    - [Babysit PR](user-guide/skills/babysit-pr.md) — Repair CI and review findings until a pull request is green, then report readiness without merging.
     - [Complexity Review](user-guide/skills/complexity-review.md) — Judge whether each schema, script, test, harness, agent pass, or abstraction in a plan or implementation earns its ongoing cost, and get the minimum sufficient version.
+    - [Land PR](user-guide/skills/land-pr.md) — Repair and verify a pull request, then merge its checked head and confirm the remote result.
     - [Must We?](user-guide/skills/must-we.md) — Decide whether a blocker, requirement, or proposed action is necessary and identify the smallest sufficient path.
     - [Next Steps](user-guide/skills/next-steps.md) — Turn the current situation into a justified recommendation without executing it.
     - [Session Export Transcript](user-guide/skills/session-export-transcript.md) — Export the current coding-agent session to a sanitized, branch-named Markdown transcript.
