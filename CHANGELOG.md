@@ -8,7 +8,7 @@
 
 ### Changed
 
-- Regenerate bounded transcript-reader consumers: `session-observer-collab` 1.0.78, `session-export-transcript` 2.0.40, `session-fork-to-destination` 0.3.2, and `session-search` 0.1.1. Existing delivery protocols and sanitized export defaults are preserved.
+- Regenerate bounded transcript-reader consumers: `session-observer-collab` 1.0.78, `session-export-transcript` 2.0.41, `session-fork-to-destination` 0.3.3, and `session-search` 0.1.2. Existing delivery protocols and sanitized export defaults are preserved.
 
 ### Added
 

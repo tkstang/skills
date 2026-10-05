@@ -62,6 +62,18 @@ Independent installed probes confirmed diagnostic native-ID leakage, metadata re
 - `src/skills/session-observer/src/lib/evidence.ts`: generation token/reference validation; native correlation before rendering sanitation; redaction before clipping; truthful metadata, skill and expansion coverage.
 - `src/skills/session-observer/src/evidence.test.ts`: installed-artifact synthetic acceptance/regression matrix.
 
-The final implementation is reviewed against 8bf18b90. A merge of concurrent #117 requires rebase/regeneration and updated version validation; no merge acceptance is inferred from this branch evidence.
+The original implementation was reviewed against `8bf18b90`. It has now been rebased onto main `b073f88d` after #118 merged the #117 exporter/retro fix. The rebase required no conflict resolution or behavior changes. The exporter/retro canonical source and #118 regression tests are unchanged from main; all generated payloads were regenerated. Independent final review and merge acceptance remain separate gates.
 
 No global installs, live-provider calls, private transcript inspection, push or PR publication performed by this worker. Native child of parent session; standalone sidebar visibility not asserted.
+
+
+## Post-rebase integration verification
+
+- Comparison base: fresh `origin/main` / `b073f88d274bf90dd9b13ce736dcf7fb77a90ed6`.
+- Main #118 exporter cwd identity validation and retro preflight retained unchanged; no source or test edits were necessary during integration.
+- Overlapping shared-runtime consumer versions increased monotonically: exporter 2.0.41, fork-to-destination 0.3.3, search 0.1.2; observer 1.1.0 and collab 1.0.78 retained.
+- `pnpm run build:check` passed before any regeneration and after `pnpm run build`.
+- Full suite: 185 files passed, 2 skipped; 2866 tests passed, 3 skipped. Existing #118 regressions account for the additional eight passing tests.
+- `pnpm run type-check`, `pnpm run validate`, `pnpm run smoke`, and `pnpm run validate:skill-versions -- --base-ref origin/main` passed; the guard verified five changed owners.
+- Authored-only `oxlint`, `oxfmt --check`, and `git diff --check` passed. Docs production build passed with 63 static pages.
+- No live providers, global installs, transcript writes, force-push, publication or merge performed during integration.
