@@ -4,6 +4,8 @@
 
 ### Added
 
+- Standalone installer accepts explicit `--agent amp` for shared project and user `.agents/skills/` roots, with Amp discovery/reload and invocation guidance. Payload verification remains separate from live Amp acceptance.
+
 - `session-observer` 1.1.0 adds exact stateless own-session Codex review, generation-bound cutoffs, attributable source references, and selective original-source tool expansion with redaction and explicit coverage limits. Claude Code and Cursor retain existing behavior and reject the new evidence flags.
 
 ### Changed

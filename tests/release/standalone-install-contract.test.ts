@@ -25,8 +25,8 @@ describe('standalone install contract', () => {
     const commands = [...guide.matchAll(/^bash "\$INSTALLER" (.+)$/gm)].map(
       (match) => match[1],
     );
-    expect(commands).toHaveLength(6);
-    for (const agent of ['codex', 'claude-code', 'cursor']) {
+    expect(commands).toHaveLength(8);
+    for (const agent of ['codex', 'claude-code', 'cursor', 'amp']) {
       for (const scope of ['project', 'user']) {
         const command = commands.find((line) =>
           line.includes(`--agent ${agent} --scope ${scope}`),
@@ -122,7 +122,7 @@ describe('standalone install contract', () => {
       .split('## First-party standalone acceptance')[1]
       ?.split('\n## ')[0];
     expect(section).toBeDefined();
-    for (const host of ['Codex', 'Claude Code', 'Cursor']) {
+    for (const host of ['Codex', 'Claude Code', 'Cursor', 'Amp']) {
       for (const scope of ['project', 'user'])
         expect(section).toMatch(new RegExp(`\\| ${host} +\\| ${scope} +\\|`));
     }

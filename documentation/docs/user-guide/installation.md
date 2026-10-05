@@ -151,6 +151,7 @@ scope, run it from the project that should receive the skill:
 bash "$INSTALLER" --skill next-steps --agent codex --scope project --ref v0.1.2
 bash "$INSTALLER" --skill next-steps --agent claude-code --scope project --ref v0.1.2
 bash "$INSTALLER" --skill next-steps --agent cursor --scope project --ref v0.1.2
+bash "$INSTALLER" --skill next-steps --agent amp --scope project --ref v0.1.2
 ```
 
 User scope is a deliberate operator action that writes to the selected host's
@@ -161,15 +162,31 @@ available across projects:
 bash "$INSTALLER" --skill next-steps --agent codex --scope user --ref v0.1.2
 bash "$INSTALLER" --skill next-steps --agent claude-code --scope user --ref v0.1.2
 bash "$INSTALLER" --skill next-steps --agent cursor --scope user --ref v0.1.2
+bash "$INSTALLER" --skill next-steps --agent amp --scope user --ref v0.1.2
 ```
 
-| Host        | Directory beneath the selected root | Printed invocation                          |
-| ----------- | ----------------------------------- | ------------------------------------------- |
-| Codex       | `.agents/skills/next-steps/`        | `$next-steps`                               |
-| Claude Code | `.claude/skills/next-steps/`        | `/next-steps`                               |
-| Cursor      | `.cursor/skills/next-steps/`        | `next-steps`, with skill inventory guidance |
+| Host        | Directory beneath the selected root | Printed invocation                                                    |
+| ----------- | ----------------------------------- | --------------------------------------------------------------------- |
+| Codex       | `.agents/skills/next-steps/`        | `$next-steps`                                                         |
+| Claude Code | `.claude/skills/next-steps/`        | `/next-steps`                                                         |
+| Cursor      | `.cursor/skills/next-steps/`        | `next-steps`, with skill inventory guidance                           |
+| Amp         | `.agents/skills/next-steps/`        | Ask Amp to use the `next-steps` skill, with discovery/reload guidance |
 
-The installer writes only the selected provider directory. It does not create
+Amp uses `.agents/skills/next-steps/` at project scope and
+`~/.agents/skills/next-steps/` at user scope, sharing the same destinations as
+Codex. An existing shared install is refused rather than replaced.
+[Official Amp skill documentation](https://ampcode.com/docs/customize/skills)
+lists these discovery roots. User discovery can be disabled by
+`amp.skills.disableGlobalAgentsSkills`, and a same-name skill from
+`~/.config/agents/skills/` takes precedence over the shared user root.
+
+For Amp, ask it to use the `next-steps` skill. Inspect `amp skills list` from
+the selected project, then start a fresh thread or ask Amp to reload skills.
+Running the list command in another shell does not reload an existing thread.
+This selector copies a payload; it does not certify Amp discovery, live
+execution, or Amp support in a skill's provider-specific runtime.
+
+The installer writes only the selected discovery directory. It does not create
 cross-provider mirrors or run `oat sync`. It requires a generated `SKILL.md`
 and copies the whole payload, including runtime and resources. It never falls
 back to `src/skills/` and never builds or executes the selected source.

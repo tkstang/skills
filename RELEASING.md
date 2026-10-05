@@ -106,6 +106,8 @@ passing row from another host or scope.
 | Claude Code | user    | Install, fresh-session discovery, bounded invocation and permission behavior |
 | Cursor      | project | Install, fresh-session discovery, bounded invocation and permission behavior |
 | Cursor      | user    | Install, fresh-session discovery, bounded invocation and permission behavior |
+| Amp         | project | Install, fresh-session discovery, bounded invocation and permission behavior |
+| Amp         | user    | Install, fresh-session discovery, bounded invocation and permission behavior |
 
 Live host install, discovery, and invocation require explicit authorization.
 Use an isolated project for project scope. Mutation of the real user home is
