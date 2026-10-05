@@ -319,6 +319,48 @@ describe('generation-bound evidence', () => {
     expect(JSON.stringify(tail)).not.toContain('edge-secret-value');
     expect(tail.evidence.expansion[0].output.nextOffsetBytes).toBeNull();
   });
+  test('input continuation tolerates exhausted shorter metadata but rejects exhausted source offsets', async () => {
+    const recordedArguments = JSON.stringify({ cmd: 'x'.repeat(22000) });
+    await writeFile(
+      path,
+      [
+        { type: 'session_meta', payload: { id, cwd } },
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'long-args',
+            name: 'exec_command',
+            namespace: 'functions',
+            arguments: recordedArguments,
+          },
+        },
+      ]
+        .map((record) => JSON.stringify(record))
+        .join('\n') + '\n',
+    );
+    const base = read();
+    const ref = base.activity.events.find(
+      (event: { nativeCallId?: string }) => event.nativeCallId === 'long-args',
+    ).evidenceRef;
+    const flags = ['--cutoff', base.evidence.cutoff, '--expand', ref];
+    const first = read(flags).evidence.expansion[0];
+    expect(first.input.nextOffsetBytes).toBe(16384);
+    expect(first.metadata.text).toBe('{"namespace":"functions"}');
+    const tail = read([
+      ...flags,
+      '--expand-offset',
+      String(first.input.nextOffsetBytes),
+    ]).evidence.expansion[0];
+    expect(first.input.text + tail.input.text).toBe(recordedArguments);
+    expect(tail.input.nextOffsetBytes).toBeNull();
+    expect(tail.metadata.text).toBe('');
+    expect(tail.metadata.offsetBytes).toBe(25);
+    expect(tail.metadata.nextOffsetBytes).toBeNull();
+    const exhausted = cli([...flags, '--expand-offset', '23000']);
+    expect(exhausted.status).not.toBe(0);
+    expect(exhausted.stderr).toContain('EVIDENCE_EXPAND_OFFSET_OUT_OF_RANGE');
+  });
   test('unknown IDs, missing results, attachments and provider truncation stay explicit', async () => {
     await appendFile(
       path,

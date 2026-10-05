@@ -77,3 +77,8 @@ No global installs, live-provider calls, private transcript inspection, push or 
 - `pnpm run type-check`, `pnpm run validate`, `pnpm run smoke`, and `pnpm run validate:skill-versions -- --base-ref origin/main` passed; the guard verified five changed owners.
 - Authored-only `oxlint`, `oxfmt --check`, and `git diff --check` passed. Docs production build passed with 63 static pages.
 - No live providers, global installs, transcript writes, force-push, publication or merge performed during integration.
+
+
+## Final-review continuation repair
+
+The rebased final review found that a long function-call argument field with shorter namespace metadata could not follow its own returned byte offset: metadata also received that offset and rejected it. A single installed-CLI regression failed on the pre-fix generated bundle with `EVIDENCE_EXPAND_OFFSET_OUT_OF_RANGE` at offset 16384 for a 22 KiB argument carrier and 25-byte metadata. The fix renders exhausted shorter fields as empty terminal windows, while a positive offset with no remaining input/output/metadata text still fails. The regression independently round-trips the recorded arguments and verifies whole-source exhaustion rejection. This adds no field-selector API and preserves pre-window redaction. Focused evidence and shared-reader suites passed all 160 tests after regeneration. Existing version increments against main remain sufficient for this repair within the same unmerged PR.

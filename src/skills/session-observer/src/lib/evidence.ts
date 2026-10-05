@@ -170,10 +170,8 @@ function preview(value: unknown, offset = 0) {
   const safe =
     typeof sanitized === 'string' ? sanitized : JSON.stringify(sanitized);
   const bytes = Buffer.from(safe);
-  if (offset > bytes.length)
-    throw new Error('EVIDENCE_EXPAND_OFFSET_OUT_OF_RANGE');
   // Decode complete UTF-8 at either window boundary. Redaction happened before slicing.
-  let start = offset;
+  let start = Math.min(offset, bytes.length);
   while (start < bytes.length && (bytes[start] & 0xc0) === 0x80) start++;
   let end = Math.min(start + FIELD_LIMIT, bytes.length);
   while (end < bytes.length && end > start && (bytes[end] & 0xc0) === 0x80)
@@ -437,37 +435,53 @@ export async function buildEvidenceReview(
           a.locator.physicalLine - b.locator.physicalLine,
       );
     }
-    expansion = displayed.map((event) => ({
-      evidenceRef: reference(event),
-      kind: event.kind,
-      locator: event.locator,
-      nativeCallId: event.nativeCallId ? redact(event.nativeCallId) : null,
-      nativeName: event.nativeName ? redact(event.nativeName) : null,
-      relatedCallRef: event.relatedCallKey
-        ? reference(
-            activity.events.find(
-              (item) => item.eventKey === event.relatedCallKey,
-            )!,
-          )
-        : null,
-      association:
-        event.kind === 'call'
-          ? activity.events.some(
-              (item) => item.relatedCallKey === event.eventKey,
-            )
-            ? 'recorded-results'
-            : 'results-not-recorded'
-          : event.relatedCallKey
-            ? 'native-id-correlated'
-            : 'unresolved-native-id',
-      input: preview(
+    expansion = displayed.map((event) => {
+      const input = preview(
         event.originalArguments ?? event.arguments,
         args.expandOffset,
-      ),
-      output: preview(event.result ?? event.nativeValue, args.expandOffset),
-      metadata: preview(event.metadata, args.expandOffset),
-      outcome: event.outcome,
-    }));
+      );
+      const output = preview(
+        event.result ?? event.nativeValue,
+        args.expandOffset,
+      );
+      const metadata = preview(event.metadata, args.expandOffset);
+      // A continuation may exhaust shorter fields while another field still has text.
+      if (
+        (args.expandOffset ?? 0) > 0 &&
+        ![input, output, metadata].some(
+          (field) => typeof field.text === 'string' && field.text.length > 0,
+        )
+      )
+        throw new Error('EVIDENCE_EXPAND_OFFSET_OUT_OF_RANGE');
+      return {
+        evidenceRef: reference(event),
+        kind: event.kind,
+        locator: event.locator,
+        nativeCallId: event.nativeCallId ? redact(event.nativeCallId) : null,
+        nativeName: event.nativeName ? redact(event.nativeName) : null,
+        relatedCallRef: event.relatedCallKey
+          ? reference(
+              activity.events.find(
+                (item) => item.eventKey === event.relatedCallKey,
+              )!,
+            )
+          : null,
+        association:
+          event.kind === 'call'
+            ? activity.events.some(
+                (item) => item.relatedCallKey === event.eventKey,
+              )
+              ? 'recorded-results'
+              : 'results-not-recorded'
+            : event.relatedCallKey
+              ? 'native-id-correlated'
+              : 'unresolved-native-id',
+        input,
+        output,
+        metadata,
+        outcome: event.outcome,
+      };
+    });
   }
   const skillLoads = activity.events
     .filter((event) => event.skillEvidence?.length)
