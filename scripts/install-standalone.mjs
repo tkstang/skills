@@ -21,12 +21,13 @@ export const DEFAULT_REPOSITORY = 'https://github.com/tkstang/skills.git';
 const MARKER = '.standalone-install-incomplete';
 const HOSTS = new Map([
   ['codex', '.agents'],
+  ['amp', '.agents'],
   ['claude-code', '.claude'],
   ['cursor', '.cursor'],
 ]);
 // A programmatic seam for deterministic filesystem-failure tests, never CLI flags.
 export const fileOperations = { open };
-const HELP = `Usage: bash install.sh --skill <name> --agent <codex|claude-code|cursor>
+const HELP = `Usage: bash install.sh --skill <name> --agent <codex|claude-code|cursor|amp>
   --scope <project|user> --ref <exact-tag> [--repository <git-url-or-local-path>]
 
 All four primary flags are required. Installs only generated skills/<name>/.
@@ -50,7 +51,7 @@ function validateOptions(options) {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(options.skill))
     throw new Error('--skill must be a lowercase hyphenated name');
   if (!HOSTS.has(options.agent))
-    throw new Error('--agent must be codex, claude-code, or cursor');
+    throw new Error('--agent must be codex, claude-code, cursor, or amp');
   if (!['project', 'user'].includes(options.scope))
     throw new Error('--scope must be project or user');
   if (
@@ -310,7 +311,9 @@ export async function installStandalone(
       ? `$${options.skill}`
       : options.agent === 'claude-code'
         ? `/${options.skill}`
-        : `${options.skill} (check Cursor's skill inventory in a fresh session)`;
+        : options.agent === 'amp'
+          ? `Ask Amp to use the ${options.skill} skill (check amp skills list in the selected project, then start a fresh thread or ask Amp to reload skills)`
+          : `${options.skill} (check Cursor's skill inventory in a fresh session)`;
   return `Verified payload from tag ${options.ref} (${options.scope} scope) at ${destination}\nInvocation: ${invocation}\nFresh-session discovery and live behavior have not been verified.\n`;
 }
 

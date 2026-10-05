@@ -147,6 +147,7 @@ describe('standalone installation', () => {
   it.each(
     [
       ['codex', '.agents', '$demo'],
+      ['amp', '.agents', 'Ask Amp to use the demo skill'],
       ['claude-code', '.claude', '/demo'],
       ['cursor', '.cursor', 'demo'],
     ].flatMap(([agent, directory, invocation]) =>
@@ -168,6 +169,11 @@ describe('standalone installation', () => {
       expect(stdout).toContain(scope);
       expect(stdout).toContain('Verified');
       expect(stdout).toContain(invocation);
+      if (agent === 'amp') {
+        expect(stdout).toContain('amp skills list');
+        expect(stdout).toContain('reload skills');
+        expect(stdout).toContain('live behavior have not been verified');
+      }
       if (agent === 'cursor') expect(stdout).toMatch(/inventory/i);
       for (const [name, bytes] of payload) {
         expect(await readFile(path.join(target, name))).toEqual(bytes);
@@ -317,6 +323,20 @@ describe('standalone installation', () => {
     expect(await readFile(path.join(source, '.git/config'))).toEqual(config);
     expect((await git('status', '--porcelain')).stdout).toBe('');
   });
+
+  it.each(['project', 'user'])(
+    'Amp refuses an existing shared Codex install at %s scope',
+    async (scope) => {
+      await run(args({ scope }));
+      const base = scope === 'project' ? project : home;
+      const target = path.join(base, '.agents/skills/demo');
+      await expect(run(args({ agent: 'amp', scope }))).rejects.toMatchObject({
+        stderr: expect.stringContaining(target),
+      });
+      for (const [name, bytes] of payload)
+        expect(await readFile(path.join(target, name))).toEqual(bytes);
+    },
+  );
 
   it('preserves an existing destination byte-for-byte', async () => {
     const target = path.join(project, '.agents/skills/demo');

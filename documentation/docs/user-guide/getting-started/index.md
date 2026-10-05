@@ -25,7 +25,7 @@ need both plugins or every standalone skill.
 ## Install the form you chose
 
 For Next Steps, follow [Install one standalone skill](../installation.md#install-one-standalone-skill)
-for a copyable command targeting Codex, Claude Code, or Cursor. For a plugin,
+for copyable commands and host-specific discovery guidance. For a plugin,
 use the [installation matrix](../installation.md#install-matrix).
 Plugin-local names and standalone names differ; each skill guide identifies
 the available forms. Avoid installing both forms of the same skill unless you
