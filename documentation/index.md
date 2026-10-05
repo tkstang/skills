@@ -51,6 +51,7 @@
     - [Review](user-guide/consensus/review.md) — Run one bounded, read-only, provider-backed review and produce validated JSON plus OAT-compatible Markdown.
   - Getting Started
     - [Getting Started](user-guide/getting-started/index.md) — Choose an installation form, try a small request, and recognize a useful skill response.
+    - [Amp Hosted Skills](user-guide/getting-started/amp-hosted-skills.md) — Select generated standalone skills, publish a reviewed copy to Amp personal or workspace storage, and preserve upstream provenance when updating.
   - Plugins
     - [Plugins](user-guide/plugins/index.md) — Choose Consensus for peer perspectives or Session for messaging, continuity, past-session search, and retrospective review.
     - Session
