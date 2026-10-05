@@ -33,6 +33,20 @@ node <session-export-transcript-skill-dir>/scripts/session-export-transcript.mjs
   --activity-output <frozen-activity.json>
 ```
 
+For Codex preflight, inspect only the exact target's native metadata header,
+verify `session_meta.payload.id`, and prefer its recorded cwd spelling for
+`--cwd`. For a headerless source, use the exporter's documented native identity
+proof and recorded cwd carrier. Both cwd paths must identify the same existing directory. A matching
+cwd alone never establishes the native target.
+
+A cwd failure that verifiably created neither new destination leaves no frozen
+pair. Before analysis, correct the cwd from the same target's verified metadata
+and retry the same runtime and exact native ID to two new destinations. Record
+the failed preflight and correction as capture provenance. If either file exists,
+pairing is uncertain, or analysis has begun, stop and report failed capture;
+do not silently recapture or mix evidence. After a valid pair is frozen, the
+second-capture prohibition applies.
+
 The Markdown is the full sanitized narrative. The JSON is complete captured
 activity with bounded previews and is marked `sensitive: not-publish-safe`.
 Confirm that the narrative's exported timestamp and native session match the

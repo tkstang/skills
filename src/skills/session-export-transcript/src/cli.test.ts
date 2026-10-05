@@ -11,6 +11,7 @@
  */
 
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
 import {
   mkdtemp,
   rm,
@@ -22,6 +23,7 @@ import {
   link,
   symlink,
   realpath,
+  stat,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -38,9 +40,17 @@ const CLI_PATH = fileURLToPath(
   ),
 );
 
-const CWD = '/export-test/my-project';
-const CLAUDE_SLUG = '-export-test-my-project';
-const CURSOR_SLUG = 'export-test-my-project';
+const fixtureRoot = mkdtempSync(join(tmpdir(), 'export-project-'));
+const CWD = join(fixtureRoot, 'my-project');
+const CLAUDE_SLUG = CWD.replace(/[/.]/gu, '-');
+const CURSOR_SLUG = CWD.split(/[/.]/u).filter(Boolean).join('-');
+
+beforeAll(async () => {
+  await mkdir(CWD);
+});
+afterAll(async () => {
+  await rm(fixtureRoot, { recursive: true, force: true });
+});
 
 function spawnCli(
   args: string[],
@@ -50,7 +60,12 @@ function spawnCli(
   return spawnSync('node', [...nodeArgs, CLI_PATH, ...args], {
     encoding: 'utf8',
     timeout: 20000,
-    env: { ...process.env, ...env },
+    env: {
+      ...process.env,
+      HOME: fixtureRoot,
+      STATE_DIR: join(env.HOME ?? fixtureRoot, 'observer-state'),
+      ...env,
+    },
   });
 }
 
@@ -2145,6 +2160,228 @@ describe('export CLI — ask-user exchanges', () => {
 });
 
 describe('export CLI — complete structured activity capture', () => {
+  // These CLI fixtures protect exact cwd selection and paired native capture.
+  function cwdCaptureTranscript(sessionId: string, cwd: string): string {
+    return (
+      [
+        { type: 'session_meta', payload: { id: sessionId, cwd } },
+        {
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'user',
+            content: 'INTENDED CWD CAPTURE',
+          },
+        },
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call',
+            call_id: 'cwd-call',
+            name: 'exec_command',
+            arguments: '{"cmd":"pwd"}',
+          },
+        },
+        {
+          type: 'response_item',
+          payload: {
+            type: 'function_call_output',
+            call_id: 'cwd-call',
+            output: 'CWD RESULT',
+          },
+        },
+      ]
+        .map((record) => JSON.stringify(record))
+        .join('\n') + '\n'
+    );
+  }
+
+  test.for(['directory alias', 'case variant'])(
+    'cwd identity accepts a verified %s for an exact paired Codex capture',
+    async (variant, context) => {
+      const home = await setupHome();
+      try {
+        const recordedCwd = join(home, 'Vault');
+        const requestedCwd = join(
+          home,
+          variant === 'case variant' ? 'vault' : 'alias',
+        );
+        await mkdir(recordedCwd);
+        if (variant === 'directory alias') {
+          await symlink(recordedCwd, requestedCwd, 'dir');
+        } else {
+          let equivalent = false;
+          try {
+            const [recorded, requested] = await Promise.all([
+              stat(recordedCwd, { bigint: true }),
+              stat(requestedCwd, { bigint: true }),
+            ]);
+            equivalent =
+              recorded.dev === requested.dev && recorded.ino === requested.ino;
+          } catch {
+            /* Case-sensitive volume: the alternate spelling is absent. */
+          }
+          if (!equivalent)
+            context.skip('Requires a case-insensitive fixture volume');
+        }
+        const sessionId = '11111111-aaaa-4111-8111-111111111111';
+        await writeCodex(
+          home,
+          cwdCaptureTranscript(sessionId, recordedCwd),
+          sessionId,
+        );
+        // A competing cwd candidate must not replace the requested native session.
+        await writeCodex(
+          home,
+          nativeCodexTranscript(
+            '22222222-aaaa-4222-8222-222222222222',
+            undefined,
+            {
+              message: 'UNRELATED NEWEST SESSION',
+            },
+          ).replaceAll(CWD, recordedCwd),
+          'decoy',
+        );
+        const narrativePath = join(home, 'paired.md');
+        const activityPath = join(home, 'paired.json');
+        const result = spawnCli(
+          [
+            '--runtime',
+            'codex',
+            '--cwd',
+            requestedCwd,
+            '--session',
+            sessionId,
+            '--out',
+            narrativePath,
+            '--activity-output',
+            activityPath,
+          ],
+          { HOME: home },
+        );
+        assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+        const narrative = await readFile(narrativePath, 'utf8');
+        const capture = JSON.parse(await readFile(activityPath, 'utf8'));
+        assert.match(narrative, /INTENDED CWD CAPTURE/);
+        assert.ok(!narrative.includes('UNRELATED NEWEST SESSION'));
+        assert.equal(capture.nativeSessionId, sessionId);
+        assert.equal(capture.identityEvidence.kind, 'codex-session-meta-id');
+        assert.equal(
+          capture.identityEvidence.locator.jsonPointer,
+          '/payload/id',
+        );
+        assert.equal(capture.activity.source.nativeSessionId, sessionId);
+        assert.match(narrative, new RegExp(`Native session: ${sessionId}`));
+        assert.match(narrative, new RegExp(`Exported: ${capture.capturedAt}`));
+        assert.equal(
+          capture.activity.events.filter(
+            (event: { kind: string }) => event.kind === 'call',
+          ).length,
+          1,
+        );
+        assert.ok(JSON.stringify(capture.activity).includes('CWD RESULT'));
+      } finally {
+        await rm(home, { recursive: true, force: true });
+      }
+    },
+  );
+
+  test.each([
+    [
+      'distinct directories with the same basename',
+      'recorded/Vault',
+      'requested/Vault',
+      'CWD_MISMATCH',
+    ],
+    [
+      'unresolved recorded path',
+      'missing-recorded',
+      'requested',
+      'CWD_IDENTITY_UNRESOLVED',
+    ],
+    [
+      'unresolved requested path',
+      'recorded',
+      'missing-requested',
+      'CWD_IDENTITY_UNRESOLVED',
+    ],
+    [
+      'same unresolved spelling',
+      'missing',
+      'missing',
+      'CWD_IDENTITY_UNRESOLVED',
+    ],
+    ['non-directory path', 'file', 'file', 'CWD_IDENTITY_UNRESOLVED'],
+    [
+      'unresolved duplicate with a valid match',
+      'missing-recorded',
+      'requested',
+      'CWD_IDENTITY_UNRESOLVED',
+    ],
+  ])(
+    'cwd identity rejects %s without writing either capture',
+    async (_label, recorded, requested, diagnostic) => {
+      const home = await setupHome();
+      try {
+        await mkdir(join(home, 'recorded', 'Vault'), { recursive: true });
+        await mkdir(join(home, 'requested', 'Vault'), { recursive: true });
+        await writeFile(join(home, 'file'), 'not a directory');
+        const sessionId = '33333333-aaaa-4333-8333-333333333333';
+        const recordedCwd = join(home, recorded);
+        const requestedCwd = join(home, requested);
+        await writeCodex(
+          home,
+          cwdCaptureTranscript(sessionId, recordedCwd),
+          sessionId,
+        );
+        if (_label === 'unresolved duplicate with a valid match') {
+          await writeCodex(
+            home,
+            cwdCaptureTranscript(sessionId, requestedCwd),
+            'duplicate-native',
+          );
+        }
+        // Even a valid cwd-matched decoy cannot become the exact target on failure.
+        await writeCodex(
+          home,
+          cwdCaptureTranscript(
+            '44444444-aaaa-4444-8444-444444444444',
+            join(home, 'requested'),
+          ),
+          'decoy',
+        );
+        const narrativePath = join(home, 'rejected.md');
+        const activityPath = join(home, 'rejected.json');
+        const result = spawnCli(
+          [
+            '--runtime',
+            'codex',
+            '--cwd',
+            requestedCwd,
+            '--session',
+            sessionId,
+            '--out',
+            narrativePath,
+            '--activity-output',
+            activityPath,
+          ],
+          { HOME: home },
+        );
+        assert.equal(result.status, 2, `${result.stderr}\n${result.stdout}`);
+        assert.ok(result.stderr.includes(diagnostic), result.stderr);
+        assert.ok(result.stderr.includes(recordedCwd), result.stderr);
+        assert.ok(result.stderr.includes(requestedCwd), result.stderr);
+        const files = await readdir(home);
+        assert.ok(
+          !files.includes('rejected.md') && !files.includes('rejected.json'),
+        );
+        assert.ok(!result.stdout.includes('wrote'));
+      } finally {
+        await rm(home, { recursive: true, force: true });
+      }
+    },
+  );
+
   test.each([
     ['missing --session', ['--activity-output', '/tmp/activity.json']],
     [
@@ -2386,6 +2623,7 @@ describe('export CLI — complete structured activity capture', () => {
       {
         type: 'response_item',
         session_id: sessionId,
+        cwd: CWD,
         payload: {
           type: 'message',
           role: 'user',

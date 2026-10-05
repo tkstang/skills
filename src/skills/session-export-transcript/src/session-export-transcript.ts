@@ -405,15 +405,45 @@ async function enumerateClaudeCode(targetCwd: string): Promise<Candidate[]> {
   return candidates;
 }
 
+class CodexCwdSelectionError extends Error {}
+
+/** Compare directory objects, never case-fold path strings. */
+async function compareCodexCwd(
+  recordedCwd: string | null | undefined,
+  targetCwd: string,
+): Promise<'match' | 'mismatch' | 'unresolved'> {
+  if (!recordedCwd) return 'unresolved';
+  try {
+    const [recorded, target] = await Promise.all([
+      stat(recordedCwd, { bigint: true }),
+      stat(targetCwd, { bigint: true }),
+    ]);
+    if (!recorded.isDirectory() || !target.isDirectory()) return 'unresolved';
+    return recorded.dev === target.dev && recorded.ino === target.ino
+      ? 'match'
+      : 'mismatch';
+  } catch {
+    return 'unresolved';
+  }
+}
+
 async function enumerateCodex(
   targetCwd: string,
-  { requireCwd = false }: { requireCwd?: boolean } = {},
+  {
+    requireCwd = false,
+    exactSessionId,
+  }: {
+    requireCwd?: boolean;
+    exactSessionId?: string;
+  } = {},
 ): Promise<Candidate[]> {
   const [root] = discoverPaths('codex');
   const now = Date.now() / 1000;
   const cutoff = now - LOOKBACK_DAYS * 86400;
   const files = await collectJsonlFiles(root);
   const candidates: Candidate[] = [];
+  const exactCwdRejections: string[] = [];
+  let exactCwdUnresolved = false;
   for (const p of files) {
     const st = await statCandidate(p);
     if (!st) continue;
@@ -424,11 +454,25 @@ async function enumerateCodex(
     } catch {
       meta = null;
     }
-    // A resolved recordedCwd that differs from the target is always a non-match.
-    if (meta?.recordedCwd && meta.recordedCwd !== targetCwd) continue;
+    const exactMatch =
+      exactSessionId !== undefined && meta?.sessionId === exactSessionId;
+    // Exact selections require verified cwd identity, including equal spellings.
+    // Other modes retain historical exact-spelling matches for removed projects.
+    if (exactMatch || (meta?.recordedCwd && meta.recordedCwd !== targetCwd)) {
+      const cwdIdentity = await compareCodexCwd(meta?.recordedCwd, targetCwd);
+      if (cwdIdentity !== 'match') {
+        if (exactMatch) {
+          if (cwdIdentity === 'unresolved') exactCwdUnresolved = true;
+          exactCwdRejections.push(
+            `${cwdIdentity === 'mismatch' ? 'CWD_MISMATCH' : 'CWD_IDENTITY_UNRESOLVED'}: session "${exactSessionId}" recorded cwd ${JSON.stringify(meta?.recordedCwd ?? null)}; requested cwd ${JSON.stringify(targetCwd)}. ${cwdIdentity === 'mismatch' ? 'These paths identify different directories.' : 'Both paths must resolve to existing directories.'}`,
+          );
+        }
+        continue;
+      }
+    }
     // When enumerating without an authoritative selector (--all / no-selector),
     // an unresolved (null/empty) recordedCwd cannot be tied to this cwd, so it
-    // is excluded. Marker/id selectors are authoritative and keep these.
+    // is excluded. Marker selectors retain these; exact IDs require verification.
     if (requireCwd && !meta?.recordedCwd) continue;
     const filenameSessionId = codexFilenameSessionId(p);
     candidates.push({
@@ -447,6 +491,13 @@ async function enumerateCodex(
       ...codexIdentityFields(meta),
       ...st,
     });
+  }
+  if (
+    exactCwdRejections.length > 0 &&
+    (exactCwdUnresolved ||
+      !candidates.some((candidate) => candidate.sessionId === exactSessionId))
+  ) {
+    throw new CodexCwdSelectionError(exactCwdRejections.join('\n'));
   }
   return candidates;
 }
@@ -502,10 +553,17 @@ async function enumerateCursor(targetCwd: string): Promise<Candidate[]> {
 async function enumerateCandidates(
   runtime: Runtime,
   targetCwd: string,
-  { requireCwd = false }: { requireCwd?: boolean } = {},
+  {
+    requireCwd = false,
+    exactSessionId,
+  }: {
+    requireCwd?: boolean;
+    exactSessionId?: string;
+  } = {},
 ): Promise<Candidate[]> {
   if (runtime === 'claude-code') return enumerateClaudeCode(targetCwd);
-  if (runtime === 'codex') return enumerateCodex(targetCwd, { requireCwd });
+  if (runtime === 'codex')
+    return enumerateCodex(targetCwd, { requireCwd, exactSessionId });
   if (runtime === 'cursor') return enumerateCursor(targetCwd);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
@@ -1599,16 +1657,19 @@ async function main(): Promise<number> {
   // When no authoritative selector (--match/--session) is active, enumeration
   // must be able to tie each candidate to the cwd. In that mode (--all or the
   // no-selector "newest"/single path) a candidate with an unresolved cwd is
-  // excluded. With --match/--session the marker/id is authoritative, so a
-  // missing cwd meta must not drop the session.
+  // excluded. Marker selection retains missing cwd metadata; exact Codex
+  // session selection separately requires verified directory identity.
   const requireCwd = !opts.match && !opts.session;
 
   let candidates: Candidate[];
   try {
-    candidates = await enumerateCandidates(runtime, opts.cwd, { requireCwd });
+    candidates = await enumerateCandidates(runtime, opts.cwd, {
+      requireCwd,
+      ...(!opts.all && opts.session ? { exactSessionId: opts.session } : {}),
+    });
   } catch (err) {
     console.error(`[session-export-transcript] ${errorMessage(err)}`);
-    return 1;
+    return err instanceof CodexCwdSelectionError ? 2 : 1;
   }
 
   if (candidates.length === 0) {

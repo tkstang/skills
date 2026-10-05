@@ -4032,12 +4032,32 @@ async function enumerateClaudeCode(targetCwd) {
   }
   return candidates;
 }
-async function enumerateCodex(targetCwd, { requireCwd = false } = {}) {
+var CodexCwdSelectionError = class extends Error {
+};
+async function compareCodexCwd(recordedCwd, targetCwd) {
+  if (!recordedCwd) return "unresolved";
+  try {
+    const [recorded, target] = await Promise.all([
+      stat(recordedCwd, { bigint: true }),
+      stat(targetCwd, { bigint: true })
+    ]);
+    if (!recorded.isDirectory() || !target.isDirectory()) return "unresolved";
+    return recorded.dev === target.dev && recorded.ino === target.ino ? "match" : "mismatch";
+  } catch {
+    return "unresolved";
+  }
+}
+async function enumerateCodex(targetCwd, {
+  requireCwd = false,
+  exactSessionId
+} = {}) {
   const [root] = discoverPaths("codex");
   const now = Date.now() / 1e3;
   const cutoff = now - LOOKBACK_DAYS * 86400;
   const files = await collectJsonlFiles(root);
   const candidates = [];
+  const exactCwdRejections = [];
+  let exactCwdUnresolved = false;
   for (const p of files) {
     const st = await statCandidate(p);
     if (!st) continue;
@@ -4048,7 +4068,19 @@ async function enumerateCodex(targetCwd, { requireCwd = false } = {}) {
     } catch {
       meta = null;
     }
-    if (meta?.recordedCwd && meta.recordedCwd !== targetCwd) continue;
+    const exactMatch = exactSessionId !== void 0 && meta?.sessionId === exactSessionId;
+    if (exactMatch || meta?.recordedCwd && meta.recordedCwd !== targetCwd) {
+      const cwdIdentity = await compareCodexCwd(meta?.recordedCwd, targetCwd);
+      if (cwdIdentity !== "match") {
+        if (exactMatch) {
+          if (cwdIdentity === "unresolved") exactCwdUnresolved = true;
+          exactCwdRejections.push(
+            `${cwdIdentity === "mismatch" ? "CWD_MISMATCH" : "CWD_IDENTITY_UNRESOLVED"}: session "${exactSessionId}" recorded cwd ${JSON.stringify(meta?.recordedCwd ?? null)}; requested cwd ${JSON.stringify(targetCwd)}. ${cwdIdentity === "mismatch" ? "These paths identify different directories." : "Both paths must resolve to existing directories."}`
+          );
+        }
+        continue;
+      }
+    }
     if (requireCwd && !meta?.recordedCwd) continue;
     const filenameSessionId = codexFilenameSessionId(p);
     candidates.push({
@@ -4060,6 +4092,9 @@ async function enumerateCodex(targetCwd, { requireCwd = false } = {}) {
       ...codexIdentityFields(meta),
       ...st
     });
+  }
+  if (exactCwdRejections.length > 0 && (exactCwdUnresolved || !candidates.some((candidate) => candidate.sessionId === exactSessionId))) {
+    throw new CodexCwdSelectionError(exactCwdRejections.join("\n"));
   }
   return candidates;
 }
@@ -4110,9 +4145,13 @@ async function enumerateCursor(targetCwd) {
   }
   return candidates;
 }
-async function enumerateCandidates(runtime, targetCwd, { requireCwd = false } = {}) {
+async function enumerateCandidates(runtime, targetCwd, {
+  requireCwd = false,
+  exactSessionId
+} = {}) {
   if (runtime === "claude-code") return enumerateClaudeCode(targetCwd);
-  if (runtime === "codex") return enumerateCodex(targetCwd, { requireCwd });
+  if (runtime === "codex")
+    return enumerateCodex(targetCwd, { requireCwd, exactSessionId });
   if (runtime === "cursor") return enumerateCursor(targetCwd);
   throw new Error(`Unknown runtime: ${runtime}`);
 }
@@ -4977,10 +5016,13 @@ async function main() {
   const requireCwd = !opts.match && !opts.session;
   let candidates;
   try {
-    candidates = await enumerateCandidates(runtime, opts.cwd, { requireCwd });
+    candidates = await enumerateCandidates(runtime, opts.cwd, {
+      requireCwd,
+      ...!opts.all && opts.session ? { exactSessionId: opts.session } : {}
+    });
   } catch (err) {
     console.error(`[session-export-transcript] ${errorMessage(err)}`);
-    return 1;
+    return err instanceof CodexCwdSelectionError ? 2 : 1;
   }
   if (candidates.length === 0) {
     const [root] = discoverPaths(runtime);

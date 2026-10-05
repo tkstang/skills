@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: Thomas Stang
-  version: '2.0.39'
+  version: '2.0.40'
 ---
 
 # session-export-transcript
@@ -121,6 +121,27 @@ including `--session <id> --match <marker>`. With no selection flag, the CLI
 exports the current session (single candidate auto-selected; multiple candidates
 exit `3` as ambiguous).
 
+### Exact Codex cwd verification
+
+For an exact `--session`, both the native recorded cwd and `--cwd` must resolve
+to existing directories with the same filesystem device and inode. This accepts
+case variants on case-insensitive volumes and directory aliases; it never
+case-folds names or substitutes another session. Equal spellings still require
+verification. A removed project directory cannot be exported by an exact Codex
+pin until its directory identity can be verified.
+
+Exit 2 reports `CWD_MISMATCH` for distinct directories or
+`CWD_IDENTITY_UNRESOLVED` for missing, inaccessible, absent-recorded, or
+non-directory paths, naming the recorded and requested cwd. These failures write
+neither output. Other selection modes retain exact-spelling historical cwd
+matches; differing spellings require verified directory equivalence.
+
+Before capture, inspect only the exact target's native metadata header to
+confirm `session_meta.payload.id` and read `session_meta.payload.cwd`. For a
+headerless source, use the supported native identity proof below and recorded
+cwd carrier. Pass the recorded cwd spelling when possible. A cwd check does not replace the native
+identity validation described below.
+
 ### Optional activity appendix
 
 `--include-activity` preserves the normal sanitized conversation and appends a
@@ -221,12 +242,12 @@ See `references/transcript-formats.md` for record shapes and cwd-encoding detail
 
 ## Exit code handling
 
-| Exit code | Meaning       | What to do                                                                                                                             |
-| --------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 0         | Success       | Report the written path.                                                                                                               |
-| 1         | Hard error    | Surface the exact error. Validation failures write nothing; an activity JSON failure may leave the paired narrative at the named path. |
-| 2         | No candidates | No transcript found for this cwd/runtime. Suggest `--cwd <path>` or confirm the runtime ran in this project.                           |
-| 3         | Ambiguous     | Multiple candidates and no `--match`/`--session`. Re-run with a `--match <marker>` or `--session <id>` from the listed candidates.     |
+| Exit code | Meaning               | What to do                                                                                                                                                                                |
+| --------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0         | Success               | Report the written path.                                                                                                                                                                  |
+| 1         | Hard error            | Surface the exact error. Validation failures write nothing; an activity JSON failure may leave the paired narrative at the named path.                                                    |
+| 2         | No matching candidate | No transcript found for this cwd/runtime, or exact Codex cwd mismatch/unresolved identity. Surface the diagnostic and confirm native recorded cwd and directory identity before retrying. |
+| 3         | Ambiguous             | Multiple candidates and no `--match`/`--session`. Re-run with a `--match <marker>` or `--session <id>` from the listed candidates.                                                        |
 
 ---
 

@@ -6,7 +6,7 @@ compatibility: Agent Skills baseline; instruction-only. Complete review requires
 user-invocable: true
 metadata:
   author: Thomas Stang
-  version: '1.0.3'
+  version: '1.0.4'
 ---
 
 # session-retro
@@ -41,6 +41,23 @@ saved or substantial inline report. Resolve it relative to this loaded skill.
    `--session` with `--runtime`, `--cwd`, `--out`, and `--activity-output`. Do
    not use `--all`, marker matching, capped Observer output, catch-up, watch, or
    state-changing modes.
+
+   For Codex preflight, inspect only the exact target's native metadata header:
+   verify `session_meta.payload.id` equals the target and read its recorded
+   `cwd`. For a headerless source, use the exporter's documented native identity
+   proof and recorded cwd carrier. Prefer that spelling for `--cwd`; both paths must identify the same
+   existing directory. Do not search conversation contents or select by cwd
+   alone. Missing or conflicting native identity still blocks capture.
+
+   If the exact attempt fails with a cwd diagnostic and you verify that neither
+   new destination was created, analysis has not begun and no frozen pair exists.
+   Correct the cwd using that same target's verified recorded metadata, then
+   retry the same runtime and exact native ID to two new destinations. Record the
+   failed preflight and correction in capture provenance; do not infer target
+   activity from it. If either output exists, pairing is uncertain, or analysis
+   has begun, stop and report failed capture; do not silently recapture or mix
+   evidence. Once a valid pair is frozen, the second-capture prohibition below
+   applies.
 
 3. Write the full sanitized narrative and complete sensitive activity JSON to
    separate files before analysis. Confirm that the narrative `Exported` value
