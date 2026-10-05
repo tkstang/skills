@@ -165,6 +165,7 @@ async function scanCursorTranscript(transcriptPath, options) {
 }
 
 // src/shared/transcript/runtimes.ts
+import { createHash as createHash2 } from "node:crypto";
 import { open as open2, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join } from "node:path";
@@ -660,8 +661,70 @@ async function readMetadataRecordsBounded(transcriptPath, options) {
     recordsInspected: parsed.recordsInspected
   };
 }
-async function readRecordsDetailedInternal(transcriptPath) {
-  const rawBytes = await readFile(transcriptPath);
+async function readRecordsDetailedInternal(transcriptPath, boundary) {
+  let rawBytes;
+  let fileGeneration;
+  if (boundary) {
+    if (!Number.isSafeInteger(boundary.maxBytes) || boundary.maxBytes < 0 || boundary.endBytes !== void 0 && (!Number.isSafeInteger(boundary.endBytes) || boundary.endBytes < 0)) {
+      throw new Error("Invalid detailed read boundary");
+    }
+    const handle = await open2(transcriptPath, "r");
+    try {
+      const before = await handle.stat();
+      if (!before.isFile())
+        throw new Error("Transcript source is not a regular file");
+      const end = boundary.endBytes ?? before.size;
+      if (end > boundary.maxBytes)
+        throw new Error(
+          "EVIDENCE_SOURCE_LIMIT: selected prefix exceeds the read budget"
+        );
+      if (end > before.size)
+        throw new Error("EVIDENCE_SOURCE_CHANGED: source shrank below cutoff");
+      rawBytes = Buffer.alloc(end);
+      let position = 0;
+      const hash = createHash2("sha256");
+      while (position < end) {
+        const { bytesRead } = await handle.read(
+          rawBytes,
+          position,
+          Math.min(65536, end - position),
+          position
+        );
+        if (!bytesRead)
+          throw new Error("EVIDENCE_SOURCE_CHANGED: source shrank during read");
+        hash.update(rawBytes.subarray(position, position + bytesRead));
+        position += bytesRead;
+      }
+      const after = await handle.stat();
+      if (before.dev !== after.dev || before.ino !== after.ino || after.size < end || before.mtimeMs !== after.mtimeMs && after.size <= before.size) {
+        throw new Error("EVIDENCE_SOURCE_CHANGED: source changed during read");
+      }
+      const verify = createHash2("sha256");
+      const chunk = Buffer.alloc(65536);
+      for (let offset = 0; offset < end; ) {
+        const { bytesRead } = await handle.read(
+          chunk,
+          0,
+          Math.min(chunk.length, end - offset),
+          offset
+        );
+        if (!bytesRead)
+          throw new Error(
+            "EVIDENCE_SOURCE_CHANGED: source changed during verification"
+          );
+        verify.update(chunk.subarray(0, bytesRead));
+        offset += bytesRead;
+      }
+      const prefixSha256 = hash.digest("hex");
+      if (verify.digest("hex") !== prefixSha256)
+        throw new Error("EVIDENCE_SOURCE_CHANGED: prefix changed during read");
+      fileGeneration = { device: before.dev, inode: before.ino, prefixSha256 };
+    } finally {
+      await handle.close();
+    }
+  } else {
+    rawBytes = await readFile(transcriptPath);
+  }
   const capturedAt = (/* @__PURE__ */ new Date()).toISOString();
   const sourceBytes = rawBytes.byteLength;
   const raw = rawBytes.toString("utf8");
@@ -671,7 +734,8 @@ async function readRecordsDetailedInternal(transcriptPath) {
       diagnostics: [],
       legacyWarnings: [],
       capturedAt,
-      sourceBytes
+      sourceBytes,
+      ...fileGeneration ? { fileGeneration } : {}
     };
   }
   const lines = raw.split("\n");
@@ -713,11 +777,24 @@ async function readRecordsDetailedInternal(transcriptPath) {
       );
     }
   }
-  return { records, diagnostics, legacyWarnings, capturedAt, sourceBytes };
+  return {
+    records,
+    diagnostics,
+    legacyWarnings,
+    capturedAt,
+    sourceBytes,
+    ...fileGeneration ? { fileGeneration } : {}
+  };
 }
-async function readRecordsDetailed(transcriptPath) {
-  const { records, diagnostics, capturedAt, sourceBytes } = await readRecordsDetailedInternal(transcriptPath);
-  return { records, diagnostics, capturedAt, sourceBytes };
+async function readRecordsDetailed(transcriptPath, boundary) {
+  const { records, diagnostics, capturedAt, sourceBytes, fileGeneration } = await readRecordsDetailedInternal(transcriptPath, boundary);
+  return {
+    records,
+    diagnostics,
+    capturedAt,
+    sourceBytes,
+    ...fileGeneration ? { fileGeneration } : {}
+  };
 }
 async function readRecords(transcriptPath) {
   const detailed = await readRecordsDetailedInternal(transcriptPath);
@@ -2191,7 +2268,7 @@ async function recoverCursorDelivery(sessionId) {
 }
 
 // src/skills/session-observer/src/lib/digest.ts
-import { createHash as createHash3 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 
 // src/shared/transcript/activity/classify.ts
 var CATEGORY_BY_NATIVE_NAME = /* @__PURE__ */ new Map([
@@ -4690,7 +4767,7 @@ function extractCursorActivity(input) {
 }
 
 // src/shared/transcript/cursor-analysis.ts
-import { createHash as createHash2 } from "node:crypto";
+import { createHash as createHash3 } from "node:crypto";
 function cursorRenderTurnId(turn, sourceFrameIndex) {
   const humanFrameIndex = turn.humanRecordIndexes.findLast(
     (frameIndex) => frameIndex <= sourceFrameIndex
@@ -4704,7 +4781,7 @@ function stringValue3(value) {
   return typeof value === "string" ? value : null;
 }
 function identityScope(identity) {
-  return createHash2("sha256").update(
+  return createHash3("sha256").update(
     JSON.stringify([
       identity.runtime,
       identity.projectCwd,
@@ -5292,7 +5369,7 @@ function cursorEntry(record, renderTurnId, deliveryFrameIndex, availability) {
   };
 }
 function cursorEntryHash(text) {
-  return createHash3("sha256").update(text).digest("hex");
+  return createHash4("sha256").update(text).digest("hex");
 }
 function cursorRecordWasDelivered(record, stateTurn) {
   if (!stateTurn) return false;
@@ -6734,6 +6811,28 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
   let cacheModified = false;
   const candidates = [];
   for (const transcriptPath of allFiles) {
+    if (options?.exactSessionId && codexFilenameSessionId(transcriptPath)?.toLowerCase() !== options.exactSessionId.toLowerCase()) {
+      budget?.consumeBytes(65536);
+      let headerIssue = false;
+      const header = await readMetadataRecordsBounded(transcriptPath, {
+        maxBytes: 65536,
+        maxRecords: 1,
+        maxInspectedRecords: 8,
+        deadlineMs: budget?.remainingMs(),
+        diagnostic: () => {
+          headerIssue = true;
+        }
+      });
+      const headerMeta = extractMetaFromRecords(
+        "codex",
+        header.records,
+        transcriptPath
+      );
+      if (headerIssue || !headerMeta?.nativeSessionId) {
+        throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
+      }
+      if (headerMeta.nativeSessionId !== options.exactSessionId) continue;
+    }
     budget?.checkDeadline();
     let fileStat;
     try {
@@ -6757,7 +6856,22 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
     let identityStatus;
     const filenameSessionId = codexFilenameSessionId(transcriptPath);
     let boundedDerived = null;
-    if (budget) {
+    if (options?.exactSessionId) {
+      const header = await readMetadataRecordsBounded(transcriptPath, {
+        maxBytes: 256 * 1024,
+        maxRecords: 1,
+        maxInspectedRecords: 8,
+        deadlineMs: budget?.remainingMs(),
+        diagnostic: () => {
+        }
+      });
+      boundedDerived = {
+        meta: extractMetaFromRecords("codex", header.records, transcriptPath),
+        classification: compactClassificationForCache(
+          classifyTranscriptRecords("codex", header.records)
+        )
+      };
+    } else if (budget) {
       boundedDerived = await candidateDerivedFieldsBounded(
         "codex",
         transcriptPath,
@@ -7489,7 +7603,7 @@ async function gitWorktrees(cwd) {
 }
 
 // src/skills/session-observer/src/lib/observe.ts
-import { createHash as createHash4, randomUUID as randomUUID2 } from "node:crypto";
+import { createHash as createHash5, randomUUID as randomUUID2 } from "node:crypto";
 import { open as open6, readFile as readFile5 } from "node:fs/promises";
 
 // src/skills/session-observer/src/lib/rank.ts
@@ -8822,8 +8936,8 @@ async function captureCursorCheckpoint(transcriptPath, result, nextFrameIndex) {
   if (!Number.isSafeInteger(nextFrameIndex) || nextFrameIndex < 0 || prefixBytes === null || prefixBytes === void 0 || result.scan.file.device === null || result.scan.file.inode === null || prefixBytes > result.scan.safePrefixBytes) {
     return null;
   }
-  const selectedHash = createHash4("sha256");
-  const safeHash = createHash4("sha256");
+  const selectedHash = createHash5("sha256");
+  const safeHash = createHash5("sha256");
   const handle = await open6(transcriptPath, "r");
   try {
     const before = await handle.stat();
@@ -8899,7 +9013,7 @@ function reconstructUncertainReplay(pending, result) {
     const matched = records.get(entryKey);
     if (!matched) return null;
     const expectedHash = pending.entryHashes?.[entryKey];
-    if (expectedHash !== void 0 && expectedHash !== createHash4("sha256").update(matched.record.text).digest("hex")) {
+    if (expectedHash !== void 0 && expectedHash !== createHash5("sha256").update(matched.record.text).digest("hex")) {
       return null;
     }
     const terminalFrameIndex = matched.turn.terminalFrameIndex;
@@ -8937,7 +9051,7 @@ function cursorOpenTurn(state, scanResult, digest) {
     ...Object.fromEntries(
       digest.entries.map((entry) => [
         entry.entryKey,
-        createHash4("sha256").update(entry.text).digest("hex")
+        createHash5("sha256").update(entry.text).digest("hex")
       ])
     )
   };
@@ -9345,7 +9459,7 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
     const entryHashes = Object.fromEntries(
       digest.entries.map((entry) => [
         entry.entryKey,
-        createHash4("sha256").update(entry.text).digest("hex")
+        createHash5("sha256").update(entry.text).digest("hex")
       ])
     );
     const reservation = await reserveCursorDelivery({

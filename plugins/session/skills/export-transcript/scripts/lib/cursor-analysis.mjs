@@ -1,9 +1,10 @@
 // GENERATED skill payload for session-export-transcript.
 
 // src/shared/transcript/cursor-analysis.ts
-import { createHash } from "node:crypto";
+import { createHash as createHash2 } from "node:crypto";
 
 // src/shared/transcript/runtimes.ts
+import { createHash } from "node:crypto";
 import { open, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join } from "node:path";
@@ -215,7 +216,7 @@ function stringValue(value) {
   return typeof value === "string" ? value : null;
 }
 function identityScope(identity) {
-  return createHash("sha256").update(
+  return createHash2("sha256").update(
     JSON.stringify([
       identity.runtime,
       identity.projectCwd,

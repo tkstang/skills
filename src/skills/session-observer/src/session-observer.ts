@@ -29,6 +29,7 @@ import {
   readRecords,
 } from '../../../shared/transcript/runtimes.js';
 import { buildDigest, renderMarkdown } from './lib/digest.js';
+import { buildEvidenceReview } from './lib/evidence.js';
 import {
   discover,
   ExactSessionIdentityError,
@@ -103,6 +104,12 @@ function parseCliArgs(argv: string[]): CliArgs {
       interactive: { type: 'boolean', default: false },
       pid: { type: 'string', default: undefined },
       help: { type: 'boolean', default: false },
+      self: { type: 'boolean', default: false },
+      evidence: { type: 'boolean', default: false },
+      cutoff: { type: 'string' },
+      expand: { type: 'string' },
+      related: { type: 'boolean', default: false },
+      'expand-offset': { type: 'string' },
     },
   });
   const values = parsed.values as {
@@ -132,6 +139,12 @@ function parseCliArgs(argv: string[]): CliArgs {
     interactive?: boolean;
     pid?: string;
     help?: boolean;
+    self?: boolean;
+    evidence?: boolean;
+    cutoff?: string;
+    expand?: string;
+    related?: boolean;
+    'expand-offset'?: string;
   };
   const positionals = parsed.positionals;
 
@@ -204,6 +217,15 @@ function parseCliArgs(argv: string[]): CliArgs {
     interactive: values.interactive ?? false,
     pid: values.pid ? parseInt(values.pid, 10) : undefined,
     help: values.help ?? false,
+    self: values.self,
+    evidence: values.evidence,
+    cutoff: values.cutoff,
+    expand: values.expand,
+    related: values.related,
+    expandOffset:
+      values['expand-offset'] === undefined
+        ? undefined
+        : Number(values['expand-offset']),
   };
 }
 
@@ -484,6 +506,12 @@ function printUsage(): never {
       '  --max-bytes <N>                     Limit to last N bytes of content',
       '  --session <runtime:id>              Pin to a specific session',
       '  --snippet <text>                    Prefer candidates containing this transcript excerpt',
+      '  --self                              Exact stateless own-session evidence (Codex)',
+      '  --evidence                          Generation-bound exact review (Codex, --json)',
+      '  --cutoff <token>                    Repeat the frozen selected source prefix',
+      '  --expand <ref>                      Expand recorded tool evidence at --cutoff',
+      '  --related                           Expand up to 16 native-ID-correlated events',
+      '  --expand-offset <bytes>             Continue a single redacted expansion field',
       '  --mark-read                         Advance offset after review',
       '  --watch                             Alias for the watch subcommand',
       '',
@@ -2239,6 +2267,124 @@ async function main(argv: string[]): Promise<void> {
     (!args.subcommand || GENERAL_USAGE_SUBCOMMANDS.has(args.subcommand))
   ) {
     return printUsage();
+  }
+
+  const evidenceRequested =
+    args.self ||
+    args.evidence ||
+    args.cutoff !== undefined ||
+    args.expand !== undefined ||
+    args.related ||
+    args.expandOffset !== undefined;
+  if (evidenceRequested) {
+    if (args.cutoff !== undefined && args.cutoff.length === 0)
+      return emitError(
+        'EVIDENCE_CUTOFF_INVALID: supplied cutoff must be nonempty',
+      );
+    if (args.expand !== undefined && args.expand.length === 0)
+      return emitError(
+        'EVIDENCE_REFERENCE_INVALID: supplied expansion reference must be nonempty',
+      );
+    if (
+      args.subcommand !== 'review' ||
+      args.markRead ||
+      args.watch ||
+      args.eventLog ||
+      args.snippet ||
+      args.untilStopped ||
+      args.interactive
+    ) {
+      return emitError(
+        'EVIDENCE_STATELESS_ONLY: evidence/self supports review without delivery, watch, mark-read, event-log, or snippet flags',
+      );
+    }
+    if (args.self && args.runtime !== 'auto' && args.runtime !== 'codex')
+      return emitError(
+        'EVIDENCE_PROVIDER_UNSUPPORTED: new evidence features support Codex only',
+      );
+    if (!args.json)
+      return emitError(
+        'EVIDENCE_REQUIRES_JSON: use --json for cutoff and evidence references',
+      );
+    if (args.related && !args.expand)
+      return emitError('--related requires --expand');
+    if (
+      args.expandOffset !== undefined &&
+      (!args.expand ||
+        args.related ||
+        !Number.isSafeInteger(args.expandOffset) ||
+        args.expandOffset < 0)
+    )
+      return emitError(
+        '--expand-offset requires one expansion and a nonnegative integer',
+      );
+    if (
+      (args.maxBytes !== undefined &&
+        (!Number.isSafeInteger(args.maxBytes) || args.maxBytes <= 0)) ||
+      (args.maxTurns !== undefined &&
+        (!Number.isSafeInteger(args.maxTurns) || args.maxTurns <= 0))
+    )
+      return emitError('Evidence bounds must be positive integers');
+    const options = {
+      persistence: 'forbid' as const,
+      recency: 'exact-all' as const,
+      requireSessionId: true,
+      requiredRuntime: 'codex' as const,
+    };
+    let selected: TranscriptCandidate | null;
+    if (args.self) {
+      const own = await resolveSelfIdentity(args.cwd, process.env, options);
+      if (!('identity' in own))
+        return emitError(
+          'EVIDENCE_SELF_IDENTITY_UNAVAILABLE: authoritative exact caller identity is missing or ambiguous',
+        );
+      if (args.runtime !== 'auto' && args.runtime !== own.identity.runtime)
+        return emitError('EVIDENCE_SELF_RUNTIME_MISMATCH');
+      if (
+        args.session &&
+        args.session !== `${own.identity.runtime}:${own.identity.session}`
+      )
+        return emitError('EVIDENCE_SELF_SESSION_MISMATCH');
+      if (own.identity.runtime !== 'codex')
+        return emitError(
+          'EVIDENCE_PROVIDER_UNSUPPORTED: new evidence features support Codex only',
+        );
+      selected = await findSessionCandidate(
+        'codex',
+        args.cwd,
+        own.identity.session,
+        { ...options, exactSessionId: own.identity.session },
+      );
+    } else {
+      const pin = parsePinnedSession(args.session);
+      if (!pin || 'error' in pin || !pin.sessionId)
+        return emitError(
+          'EVIDENCE_EXACT_SESSION_REQUIRED: use --session codex:<id> or --self',
+        );
+      if (pin.runtime !== 'codex')
+        return emitError(
+          'EVIDENCE_PROVIDER_UNSUPPORTED: new evidence features support Codex only',
+        );
+      if (args.runtime !== 'auto' && args.runtime !== pin.runtime)
+        return emitError('EVIDENCE_RUNTIME_MISMATCH');
+      selected = await findSessionCandidate('codex', args.cwd, pin.sessionId, {
+        ...options,
+        exactSessionId: pin.sessionId,
+      });
+    }
+    if (!selected)
+      return emitError(
+        args.cutoff
+          ? 'EVIDENCE_SOURCE_CHANGED: exact cutoff source is unavailable'
+          : 'EVIDENCE_SESSION_NOT_FOUND: exact session/cwd was not found',
+      );
+    return emitJson(
+      await buildEvidenceReview(
+        selected,
+        args,
+        args.self ? 'self' : 'exact-historical',
+      ),
+    );
   }
 
   switch (args.subcommand) {

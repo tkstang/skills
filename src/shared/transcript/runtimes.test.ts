@@ -5,7 +5,7 @@
  *   discoverPaths, encodeCwd, extractMeta, readRecords, normalizeEntries
  */
 
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -95,6 +95,40 @@ describe('readRecordsDetailed', () => {
 
   afterAll(async () => {
     await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('bounded detailed reads preserve the parser contract while freezing a byte prefix', async () => {
+    const path = join(tmpDir, 'bounded-prefix.jsonl');
+    const prefix = '{"one":1}\n\n{"two":2}\n';
+    await writeFile(path, prefix);
+    const first = await readRecordsDetailed(path, { maxBytes: 1024 });
+    expect(first.fileGeneration?.prefixSha256).toMatch(/^[a-f0-9]{64}$/);
+    const [repeated] = await Promise.all([
+      readRecordsDetailed(path, {
+        maxBytes: 1024,
+        endBytes: Buffer.byteLength(prefix),
+      }),
+      appendFile(path, '{"later":3}\n'),
+    ]);
+    expect(repeated.records).toEqual(first.records);
+    expect(repeated.fileGeneration).toEqual(first.fileGeneration);
+    expect(repeated.records.map((record) => record.recordIndex)).toEqual([
+      0, 1,
+    ]);
+    expect(repeated.records.map((record) => record.physicalLine)).toEqual([
+      1, 3,
+    ]);
+    expect((await readRecordsDetailed(path)).records).toHaveLength(3);
+    expect((await readRecordsDetailed(path)).fileGeneration).toBeUndefined();
+    await expect(readRecordsDetailed(path, { maxBytes: 8 })).rejects.toThrow(
+      'EVIDENCE_SOURCE_LIMIT',
+    );
+    await expect(
+      readRecordsDetailed(path, { maxBytes: 1024, endBytes: 1024 }),
+    ).rejects.toThrow('EVIDENCE_SOURCE_CHANGED');
+    await expect(readRecordsDetailed(path, { maxBytes: -1 })).rejects.toThrow(
+      'Invalid detailed read boundary',
+    );
   });
 
   it('uses LF-only framing and keeps physical lines separate from logical indices', async () => {

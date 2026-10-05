@@ -5,7 +5,7 @@ import { spawnSync as spawnSync2 } from "node:child_process";
 
 // src/skills/session-search/src/lib/adapters/codex.ts
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash as createHash2 } from "node:crypto";
 import { statSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
@@ -129,6 +129,7 @@ function parseJsonObject(text) {
 }
 
 // src/shared/transcript/runtimes.ts
+import { createHash } from "node:crypto";
 import { open as open2, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join } from "node:path";

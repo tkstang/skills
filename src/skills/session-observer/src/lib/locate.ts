@@ -1006,6 +1006,37 @@ async function discoverCodex(
   const candidates: TranscriptCandidate[] = [];
 
   for (const transcriptPath of allFiles) {
+    if (
+      options?.exactSessionId &&
+      codexFilenameSessionId(transcriptPath)?.toLowerCase() !==
+        options.exactSessionId.toLowerCase()
+    ) {
+      // Check only a bounded native header, including nonstandard filenames.
+      // This preserves duplicate-native-ID refusal without classifying neighbors.
+      budget?.consumeBytes(65536);
+      let headerIssue = false;
+      const header = await readMetadataRecordsBounded(transcriptPath, {
+        maxBytes: 65536,
+        maxRecords: 1,
+        maxInspectedRecords: 8,
+        deadlineMs: budget?.remainingMs(),
+        diagnostic: () => {
+          headerIssue = true;
+        },
+      });
+      const headerMeta = extractMetaFromRecords(
+        'codex',
+        header.records,
+        transcriptPath,
+      );
+      // A capped/malformed/unattributable header is unknown, not evidence
+      // that this file cannot duplicate the target. maxRecords=1 may mark a
+      // valid header incomplete intentionally, so require native identity.
+      if (headerIssue || !headerMeta?.nativeSessionId) {
+        throw new SessionDiscoveryError('DISCOVERY_TRANSCRIPT_INCOMPLETE');
+      }
+      if (headerMeta.nativeSessionId !== options.exactSessionId) continue;
+    }
     budget?.checkDeadline();
     let fileStat;
     try {
@@ -1034,7 +1065,21 @@ async function discoverCodex(
     let identityStatus: 'native' | 'legacy' | 'invalid';
     const filenameSessionId = codexFilenameSessionId(transcriptPath);
     let boundedDerived: TranscriptDerivedFields | null = null;
-    if (budget) {
+    if (options?.exactSessionId) {
+      const header = await readMetadataRecordsBounded(transcriptPath, {
+        maxBytes: 256 * 1024,
+        maxRecords: 1,
+        maxInspectedRecords: 8,
+        deadlineMs: budget?.remainingMs(),
+        diagnostic: () => {},
+      });
+      boundedDerived = {
+        meta: extractMetaFromRecords('codex', header.records, transcriptPath),
+        classification: compactClassificationForCache(
+          classifyTranscriptRecords('codex', header.records),
+        ),
+      };
+    } else if (budget) {
       boundedDerived = await candidateDerivedFieldsBounded(
         'codex',
         transcriptPath,

@@ -230,6 +230,7 @@ function parseJsonObject(text) {
 }
 
 // src/shared/transcript/runtimes.ts
+import { createHash } from "node:crypto";
 import { open as open2, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join } from "node:path";
@@ -1577,7 +1578,7 @@ function createClaudeCodeAdapter() {
 
 // src/skills/session-search/src/lib/adapters/codex.ts
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash as createHash2 } from "node:crypto";
 import { statSync as statSync2 } from "node:fs";
 import { readdir as readdir2, stat as stat2 } from "node:fs/promises";
 import path2 from "node:path";
@@ -1879,7 +1880,7 @@ function createCodexFileClassifier() {
   const toolHashes = /* @__PURE__ */ new Set();
   const firstToolSighting = (unit) => {
     if (unit.role !== "tool") return true;
-    const hash = createHash("sha256").update(unit.text).digest("base64");
+    const hash = createHash2("sha256").update(unit.text).digest("base64");
     if (toolHashes.has(hash)) return false;
     if (toolHashes.size < MAX_TOOL_TEXT_HASHES) toolHashes.add(hash);
     return true;

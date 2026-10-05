@@ -7,9 +7,10 @@ import { resolve as resolve3 } from "node:path";
 import { parseArgs } from "node:util";
 
 // src/shared/transcript/cursor-analysis.ts
-import { createHash } from "node:crypto";
+import { createHash as createHash2 } from "node:crypto";
 
 // src/shared/transcript/runtimes.ts
+import { createHash } from "node:crypto";
 import { open, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join } from "node:path";
@@ -505,8 +506,70 @@ async function readMetadataRecordsBounded(transcriptPath, options) {
     recordsInspected: parsed.recordsInspected
   };
 }
-async function readRecordsDetailedInternal(transcriptPath) {
-  const rawBytes = await readFile(transcriptPath);
+async function readRecordsDetailedInternal(transcriptPath, boundary) {
+  let rawBytes;
+  let fileGeneration;
+  if (boundary) {
+    if (!Number.isSafeInteger(boundary.maxBytes) || boundary.maxBytes < 0 || boundary.endBytes !== void 0 && (!Number.isSafeInteger(boundary.endBytes) || boundary.endBytes < 0)) {
+      throw new Error("Invalid detailed read boundary");
+    }
+    const handle = await open(transcriptPath, "r");
+    try {
+      const before = await handle.stat();
+      if (!before.isFile())
+        throw new Error("Transcript source is not a regular file");
+      const end = boundary.endBytes ?? before.size;
+      if (end > boundary.maxBytes)
+        throw new Error(
+          "EVIDENCE_SOURCE_LIMIT: selected prefix exceeds the read budget"
+        );
+      if (end > before.size)
+        throw new Error("EVIDENCE_SOURCE_CHANGED: source shrank below cutoff");
+      rawBytes = Buffer.alloc(end);
+      let position = 0;
+      const hash2 = createHash("sha256");
+      while (position < end) {
+        const { bytesRead } = await handle.read(
+          rawBytes,
+          position,
+          Math.min(65536, end - position),
+          position
+        );
+        if (!bytesRead)
+          throw new Error("EVIDENCE_SOURCE_CHANGED: source shrank during read");
+        hash2.update(rawBytes.subarray(position, position + bytesRead));
+        position += bytesRead;
+      }
+      const after = await handle.stat();
+      if (before.dev !== after.dev || before.ino !== after.ino || after.size < end || before.mtimeMs !== after.mtimeMs && after.size <= before.size) {
+        throw new Error("EVIDENCE_SOURCE_CHANGED: source changed during read");
+      }
+      const verify = createHash("sha256");
+      const chunk = Buffer.alloc(65536);
+      for (let offset = 0; offset < end; ) {
+        const { bytesRead } = await handle.read(
+          chunk,
+          0,
+          Math.min(chunk.length, end - offset),
+          offset
+        );
+        if (!bytesRead)
+          throw new Error(
+            "EVIDENCE_SOURCE_CHANGED: source changed during verification"
+          );
+        verify.update(chunk.subarray(0, bytesRead));
+        offset += bytesRead;
+      }
+      const prefixSha256 = hash2.digest("hex");
+      if (verify.digest("hex") !== prefixSha256)
+        throw new Error("EVIDENCE_SOURCE_CHANGED: prefix changed during read");
+      fileGeneration = { device: before.dev, inode: before.ino, prefixSha256 };
+    } finally {
+      await handle.close();
+    }
+  } else {
+    rawBytes = await readFile(transcriptPath);
+  }
   const capturedAt = (/* @__PURE__ */ new Date()).toISOString();
   const sourceBytes = rawBytes.byteLength;
   const raw = rawBytes.toString("utf8");
@@ -516,7 +579,8 @@ async function readRecordsDetailedInternal(transcriptPath) {
       diagnostics: [],
       legacyWarnings: [],
       capturedAt,
-      sourceBytes
+      sourceBytes,
+      ...fileGeneration ? { fileGeneration } : {}
     };
   }
   const lines = raw.split("\n");
@@ -558,11 +622,24 @@ async function readRecordsDetailedInternal(transcriptPath) {
       );
     }
   }
-  return { records, diagnostics, legacyWarnings, capturedAt, sourceBytes };
+  return {
+    records,
+    diagnostics,
+    legacyWarnings,
+    capturedAt,
+    sourceBytes,
+    ...fileGeneration ? { fileGeneration } : {}
+  };
 }
-async function readRecordsDetailed(transcriptPath) {
-  const { records, diagnostics, capturedAt, sourceBytes } = await readRecordsDetailedInternal(transcriptPath);
-  return { records, diagnostics, capturedAt, sourceBytes };
+async function readRecordsDetailed(transcriptPath, boundary) {
+  const { records, diagnostics, capturedAt, sourceBytes, fileGeneration } = await readRecordsDetailedInternal(transcriptPath, boundary);
+  return {
+    records,
+    diagnostics,
+    capturedAt,
+    sourceBytes,
+    ...fileGeneration ? { fileGeneration } : {}
+  };
 }
 async function readRecords(transcriptPath) {
   const detailed = await readRecordsDetailedInternal(transcriptPath);
@@ -1244,7 +1321,7 @@ function stringValue(value) {
   return typeof value === "string" ? value : null;
 }
 function identityScope(identity) {
-  return createHash("sha256").update(
+  return createHash2("sha256").update(
     JSON.stringify([
       identity.runtime,
       identity.projectCwd,
@@ -1489,7 +1566,7 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
 }
 
 // src/shared/transcript/cursor-frames.ts
-import { createHash as createHash2 } from "node:crypto";
+import { createHash as createHash3 } from "node:crypto";
 import { open as open2 } from "node:fs/promises";
 function isJsonObject2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -1521,10 +1598,10 @@ async function scanCursorTranscript(transcriptPath, options) {
   const handle = await open2(transcriptPath, "r");
   try {
     const file = await handle.stat();
-    const safePrefixHash = createHash2("sha256");
-    const verifiedPrefixHash = options.verifyPrefixBytes === void 0 ? null : createHash2("sha256");
+    const safePrefixHash = createHash3("sha256");
+    const verifiedPrefixHash = options.verifyPrefixBytes === void 0 ? null : createHash3("sha256");
     let verifiedBytes = 0;
-    let verifiedPrefixSha256 = options.verifyPrefixBytes === 0 ? createHash2("sha256").digest("hex") : null;
+    let verifiedPrefixSha256 = options.verifyPrefixBytes === 0 ? createHash3("sha256").digest("hex") : null;
     let carrySegments = [];
     let carryLength = 0;
     let carryByteStart = 0;
@@ -1648,7 +1725,7 @@ async function scanCursorTranscript(transcriptPath, options) {
 }
 
 // src/skills/session-observer/src/lib/digest.ts
-import { createHash as createHash3 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 
 // src/shared/transcript/activity/classify.ts
 var CATEGORY_BY_NATIVE_NAME = /* @__PURE__ */ new Map([
@@ -3284,10 +3361,10 @@ function locatorText(locator) {
   const record = locator.recordIndex === void 0 ? "" : `, record ${locator.recordIndex}`;
   return `line ${locator.physicalLine}${record}, pointer ${locator.jsonPointer || "/"}`;
 }
-function previewLine(label, preview2) {
-  if (!preview2) return [];
-  const clipped = preview2.truncated ? `; clipped ${preview2.displayedBytes}/${preview2.sourceBytes} bytes` : `; ${preview2.displayedBytes} bytes`;
-  return [`  - ${label}${clipped}: ${markdownData(preview2.text)}`];
+function previewLine(label, preview3) {
+  if (!preview3) return [];
+  const clipped = preview3.truncated ? `; clipped ${preview3.displayedBytes}/${preview3.sourceBytes} bytes` : `; ${preview3.displayedBytes} bytes`;
+  return [`  - ${label}${clipped}: ${markdownData(preview3.text)}`];
 }
 function eventLines(event) {
   const identity = event.nativeName ?? event.nativeType;
@@ -4490,7 +4567,7 @@ function cursorEntry(record, renderTurnId, deliveryFrameIndex, availability) {
   };
 }
 function cursorEntryHash(text) {
-  return createHash3("sha256").update(text).digest("hex");
+  return createHash4("sha256").update(text).digest("hex");
 }
 function cursorRecordWasDelivered(record, stateTurn) {
   if (!stateTurn) return false;
@@ -5380,15 +5457,446 @@ function renderMarkdown(digest) {
   return output;
 }
 
+// src/skills/session-observer/src/lib/evidence.ts
+import { createHash as createHash5 } from "node:crypto";
+import { realpath, stat } from "node:fs/promises";
+var SOURCE_LIMIT = 16 * 1024 * 1024;
+var FIELD_LIMIT = 16 * 1024;
+var GROUP_LIMIT = 16;
+var OUTPUT_LIMIT = 256 * 1024;
+function boundaryToken(value) {
+  return Buffer.from(JSON.stringify(value)).toString("base64url");
+}
+function parseBoundary(token) {
+  if (token.length > 8192) throw new Error("EVIDENCE_CUTOFF_INVALID");
+  try {
+    const value = JSON.parse(
+      Buffer.from(token, "base64url").toString("utf8")
+    );
+    if (value.version !== 1 || value.runtime !== "codex" || typeof value.sessionId !== "string" || typeof value.transcriptPath !== "string" || typeof value.cwd !== "string" || !Number.isSafeInteger(value.endBytes) || value.endBytes < 0 || value.endBytes > SOURCE_LIMIT || !Number.isSafeInteger(value.nextIndex) || value.nextIndex < 0 || !Number.isSafeInteger(value.device) || !Number.isSafeInteger(value.inode) || !/^[a-f0-9]{64}$/.test(value.prefixSha256))
+      throw new Error();
+    return value;
+  } catch {
+    throw new Error("EVIDENCE_CUTOFF_INVALID");
+  }
+}
+function redact(text) {
+  if ((text.match(/^[A-Z][A-Z0-9_]{2,}=/gm)?.length ?? 0) >= 3)
+    return "[ENVIRONMENT DUMP WITHHELD]";
+  return text.replace(
+    /-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?(?:-----END [^-]*PRIVATE KEY-----|$)/g,
+    "[REDACTED PRIVATE KEY]"
+  ).replace(/\b(?:https?|wss?):\/\/[^\s"'<>\\]+/gi, "[ENDPOINT REDACTED]").replace(
+    /(?<![A-Za-z0-9_.-])((?:[A-Za-z0-9_.-]*(?:password|passwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key)[A-Za-z0-9_.-]*)["']?\s*[:=]\s*)(?!\[REDACTED\])(?:"(?:[^"\\]|\\.)*"|'[^']*'|[^\s,}\]]+)/gi,
+    "$1[REDACTED]"
+  ).replace(
+    /(?<![\w-])(--[\w-]*(?:password|secret|token|api-key)[\w-]*\s+)(?!\[REDACTED\])(?:"[^"]*"|'[^']*'|[^\s]+)/gi,
+    "$1[REDACTED]"
+  ).replace(
+    /\b(?:Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi,
+    "[REDACTED AUTHORIZATION]"
+  ).replace(
+    /\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|(?:AKIA|ASIA)[A-Z0-9]{16})\b/g,
+    "[REDACTED]"
+  );
+}
+function safeValue(value, depth = 0) {
+  if (depth > 20) return "[NESTED CONTENT WITHHELD]";
+  if (typeof value === "string") {
+    if (/^\s*[[{]/u.test(value)) {
+      try {
+        const parsed = JSON.parse(value);
+        const sanitized = safeValue(parsed, depth + 1);
+        return JSON.stringify(parsed) === JSON.stringify(sanitized) ? value : JSON.stringify(sanitized);
+      } catch {
+      }
+    }
+    return redact(value);
+  }
+  if (Array.isArray(value))
+    return value.map((item) => safeValue(item, depth + 1));
+  if (value && typeof value === "object") {
+    const object = value;
+    if (typeof object.type === "string" && /^(?:image|input_image|output_image|audio|input_audio|file|attachment|reasoning)$/i.test(
+      object.type
+    )) {
+      return {
+        type: object.type,
+        availability: "non-text-content-not-expanded"
+      };
+    }
+    return Object.fromEntries(
+      Object.entries(object).map(([key, item]) => [
+        key,
+        /password|secret|(?:^|[_-])token$|api.?key|private.?key|base64|environment|^env$|^data$/i.test(
+          key
+        ) ? "[REDACTED]" : safeValue(item, depth + 1)
+      ])
+    );
+  }
+  return value;
+}
+function safeConversationRecord(record) {
+  const payload = record.payload && typeof record.payload === "object" && !Array.isArray(record.payload) ? record.payload : record;
+  const rendered = { ...payload };
+  for (const field of [
+    "content",
+    "text",
+    "message",
+    "arguments",
+    "input",
+    "output"
+  ]) {
+    if (Object.hasOwn(payload, field))
+      rendered[field] = safeValue(payload[field]);
+  }
+  return payload === record ? rendered : { ...record, payload: rendered };
+}
+function preview2(value, offset = 0) {
+  if (value === void 0) return { availability: "not-recorded" };
+  const original = typeof value === "string" ? value : JSON.stringify(value);
+  const sanitized = safeValue(value);
+  const safe = typeof sanitized === "string" ? sanitized : JSON.stringify(sanitized);
+  const bytes = Buffer.from(safe);
+  let start = Math.min(offset, bytes.length);
+  while (start < bytes.length && (bytes[start] & 192) === 128) start++;
+  let end = Math.min(start + FIELD_LIMIT, bytes.length);
+  while (end < bytes.length && end > start && (bytes[end] & 192) === 128)
+    end--;
+  return {
+    availability: "recorded",
+    text: bytes.subarray(start, end).toString("utf8"),
+    originalRecordedBytes: Buffer.byteLength(original),
+    redactedBytes: bytes.length,
+    redacted: safe !== original,
+    localTruncation: start > 0 || end < bytes.length,
+    offsetBytes: start,
+    nextOffsetBytes: end < bytes.length ? end : null,
+    providerTruncation: /(?:output|content|result)[^\n]{0,60}truncat|\[truncated\]|tokens truncated/i.test(
+      original
+    ) ? "indicated-unrecoverable" : "unknown",
+    nonTextContent: safe.includes("non-text-content-not-expanded") ? "not-expanded" : "unknown"
+  };
+}
+function hash(value) {
+  return createHash5("sha256").update(value).digest("hex");
+}
+async function buildEvidenceReview(candidate, args, selection) {
+  if (candidate.runtime !== "codex")
+    throw new Error(
+      "EVIDENCE_PROVIDER_UNSUPPORTED: new evidence features support Codex only"
+    );
+  const transcriptPath = await realpath(candidate.transcriptPath);
+  const frozen = args.cutoff !== void 0 ? parseBoundary(args.cutoff) : void 0;
+  if (frozen && (frozen.sessionId !== candidate.sessionId || frozen.transcriptPath !== transcriptPath || frozen.cwd !== args.cwd)) {
+    throw new Error("EVIDENCE_CUTOFF_SOURCE_MISMATCH");
+  }
+  const read = await readRecordsDetailed(transcriptPath, {
+    maxBytes: SOURCE_LIMIT,
+    ...frozen ? { endBytes: frozen.endBytes } : {}
+  });
+  const generation = read.fileGeneration;
+  if (!generation)
+    throw new Error("EVIDENCE_SOURCE_CHANGED: generation unavailable");
+  const currentStat = await stat(transcriptPath);
+  if (currentStat.dev !== generation.device || currentStat.ino !== generation.inode)
+    throw new Error("EVIDENCE_SOURCE_CHANGED: source replaced");
+  const identity = extractMetaFromRecords(
+    "codex",
+    read.records.map(({ record }) => record),
+    transcriptPath
+  );
+  if (!identity || identity.nativeSessionId !== candidate.sessionId || identity.recordedCwd !== args.cwd)
+    throw new Error("EVIDENCE_SOURCE_IDENTITY_MISMATCH");
+  const boundary = {
+    version: 1,
+    runtime: "codex",
+    sessionId: candidate.sessionId,
+    transcriptPath,
+    cwd: args.cwd,
+    ...generation,
+    endBytes: read.sourceBytes,
+    nextIndex: read.records.length
+  };
+  if (frozen && boundaryToken(boundary) !== boundaryToken(frozen))
+    throw new Error(
+      "EVIDENCE_SOURCE_CHANGED: cutoff generation/history changed"
+    );
+  const cutoff = boundaryToken(boundary);
+  const generationId = hash(cutoff);
+  const reference = (event) => `ev1.${generationId}.${event.locator.recordIndex}.${Buffer.from(event.locator.jsonPointer).toString("base64url")}`;
+  const source = {
+    runtime: "codex",
+    sessionId: candidate.sessionId,
+    nativeSessionId: candidate.sessionId,
+    transcriptPath
+  };
+  const activity = correlateActivity(extractActivity({ source, read }));
+  const safeRecords = read.records.map((detailed) => ({
+    ...detailed,
+    record: safeConversationRecord(detailed.record)
+  }));
+  const changedRecords = new Set(
+    read.records.filter(
+      (detailed, index) => JSON.stringify(detailed.record) !== JSON.stringify(safeRecords[index].record)
+    ).map((detailed) => detailed.recordIndex)
+  );
+  const digest = await buildDigest("codex", transcriptPath, {
+    mode: "review",
+    fromIndex: 0,
+    capturedRead: { ...read, records: safeRecords },
+    includeActivity: true,
+    activityRenderFormat: "compact-json",
+    includeCommandMessages: args.includeCommandMessages,
+    maxTurns: args.maxTurns,
+    maxBytes: args.maxBytes,
+    sessionId: candidate.sessionId,
+    recordedCwd: args.cwd
+  });
+  const renderedActivity = {
+    ...activity,
+    events: activity.events.map((event) => {
+      const rendered = { ...event };
+      for (const field of [
+        "arguments",
+        "originalArguments",
+        "result",
+        "nativeValue",
+        "metadata",
+        "skillEvidence"
+      ]) {
+        if (Object.hasOwn(event, field))
+          rendered[field] = safeValue(
+            event[field]
+          );
+      }
+      return rendered;
+    }),
+    diagnostics: safeValue(activity.diagnostics),
+    coverage: safeValue(activity.coverage),
+    sourceMetadata: safeValue(
+      activity.sourceMetadata
+    )
+  };
+  digest.activity = projectActivity(renderedActivity, {
+    mode: "review",
+    renderFormat: "compact-json",
+    deliveryRange: {
+      indexBase: "zero-based-decoded-record-index",
+      start: 0,
+      end: read.records.length
+    }
+  });
+  const entries = digest.entries.map((entry) => {
+    const index = entry.sourceRecordIndex ?? entry.recordIndex;
+    const {
+      originalRecordedBytes: normalizedEntryBytes,
+      text,
+      ...privacy
+    } = preview2(entry.text);
+    return {
+      ...safeValue(entry),
+      text: text ?? "",
+      evidenceRef: `msg1.${generationId}.${index}`,
+      privacy: {
+        ...privacy,
+        normalizedEntryBytes,
+        source: "normalized-digest-entry",
+        redacted: privacy.redacted || changedRecords.has(index),
+        originalSourceCarrierBytes: read.records[index] ? Buffer.byteLength(read.records[index].sourceCarrier) : null,
+        originalNativeLength: "unknown"
+      }
+    };
+  });
+  const projectedEvents = digest.activity?.events.map((event) => {
+    const original = activity.events.find(
+      (item) => item.eventKey === event.eventKey
+    );
+    const sanitized = safeValue(event);
+    const fullInput = preview2(original?.arguments);
+    const fullOriginalInput = preview2(original?.originalArguments);
+    const fullOutput = preview2(original?.result ?? original?.nativeValue);
+    const fullMetadata = preview2(original?.metadata);
+    for (const [key, full] of [
+      ["inputPreview", fullInput],
+      ["originalInputPreview", fullOriginalInput],
+      ["outputPreview", fullOutput],
+      ["metadataPreview", fullMetadata]
+    ]) {
+      if ("text" in full && full.text !== void 0) {
+        const text = Buffer.from(full.text).subarray(0, 2048).toString("utf8").replace(/\uFFFD$/u, "");
+        sanitized[key] = {
+          text,
+          sourceBytes: full.originalRecordedBytes,
+          displayedBytes: Buffer.byteLength(text),
+          truncated: full.localTruncation || Buffer.byteLength(full.text) > 2048
+        };
+      }
+    }
+    return {
+      ...sanitized,
+      evidenceRef: original ? reference(original) : null,
+      inputEvidence: preview2(
+        original?.originalArguments ?? original?.arguments
+      ),
+      outputEvidence: preview2(original?.result ?? original?.nativeValue),
+      metadataEvidence: preview2(original?.metadata)
+    };
+  });
+  for (const event of projectedEvents ?? []) {
+    for (const key of [
+      "inputEvidence",
+      "outputEvidence",
+      "metadataEvidence"
+    ]) {
+      const item = event[key];
+      if ("text" in item) item.text = void 0;
+    }
+  }
+  let expansion;
+  let relatedOmitted = 0;
+  if (args.expand !== void 0) {
+    if (args.cutoff === void 0)
+      throw new Error("EVIDENCE_EXPAND_REQUIRES_CUTOFF");
+    const selected = activity.events.find(
+      (event) => reference(event) === args.expand
+    );
+    if (!selected)
+      throw new Error(
+        "EVIDENCE_REFERENCE_UNRESOLVED: reference is not in this cutoff"
+      );
+    if (!["call", "result", "item"].includes(selected.kind))
+      throw new Error(
+        "EVIDENCE_EXPANSION_UNSUPPORTED: only recorded tool evidence is expandable"
+      );
+    const callKey = selected.kind === "call" ? selected.eventKey : selected.relatedCallKey;
+    const related = args.related && callKey ? activity.events.filter(
+      (event) => event.eventKey === callKey || event.relatedCallKey === callKey
+    ) : [selected];
+    relatedOmitted = Math.max(0, related.length - GROUP_LIMIT);
+    let displayed = related.slice(0, GROUP_LIMIT);
+    if (!displayed.includes(selected)) {
+      displayed = [...displayed.slice(0, GROUP_LIMIT - 1), selected].toSorted(
+        (a, b) => a.locator.recordIndex - b.locator.recordIndex || a.locator.physicalLine - b.locator.physicalLine
+      );
+    }
+    expansion = displayed.map((event) => {
+      const input = preview2(
+        event.originalArguments ?? event.arguments,
+        args.expandOffset
+      );
+      const output = preview2(
+        event.result ?? event.nativeValue,
+        args.expandOffset
+      );
+      const metadata = preview2(event.metadata, args.expandOffset);
+      if ((args.expandOffset ?? 0) > 0 && ![input, output, metadata].some(
+        (field) => typeof field.text === "string" && field.text.length > 0
+      ))
+        throw new Error("EVIDENCE_EXPAND_OFFSET_OUT_OF_RANGE");
+      return {
+        evidenceRef: reference(event),
+        kind: event.kind,
+        locator: event.locator,
+        nativeCallId: event.nativeCallId ? redact(event.nativeCallId) : null,
+        nativeName: event.nativeName ? redact(event.nativeName) : null,
+        relatedCallRef: event.relatedCallKey ? reference(
+          activity.events.find(
+            (item) => item.eventKey === event.relatedCallKey
+          )
+        ) : null,
+        association: event.kind === "call" ? activity.events.some(
+          (item) => item.relatedCallKey === event.eventKey
+        ) ? "recorded-results" : "results-not-recorded" : event.relatedCallKey ? "native-id-correlated" : "unresolved-native-id",
+        input,
+        output,
+        metadata,
+        outcome: event.outcome
+      };
+    });
+  }
+  const skillLoads = activity.events.filter((event) => event.skillEvidence?.length).map((event) => {
+    const results = activity.events.filter(
+      (item) => item.relatedCallKey === event.eventKey && item.kind === "result"
+    );
+    const readEvidence = event.skillEvidence?.some(
+      (item) => item.kind === "inferred-file-read"
+    );
+    const body = readEvidence && results.length === 1 && typeof results[0].result === "string" ? results[0].result : void 0;
+    const version = body?.match(
+      /(?:^|\n)\s{2}version:\s*['"]?(\d+\.\d+\.\d+)['"]?\s*(?:\n|$)/
+    )?.[1];
+    return {
+      evidenceRef: reference(event),
+      attribution: safeValue(event.skillEvidence),
+      bodyRef: body === void 0 ? null : reference(results[0]),
+      revisionEvidence: version && !/truncat/i.test(body) ? { status: "recorded-file-read", version } : { status: "unknown" },
+      executedRevision: { status: "unknown" },
+      interpretation: "Recorded file-read content is evidence of a read, not proof of adherence or execution."
+    };
+  });
+  const result = {
+    ...digest,
+    entries,
+    ...digest.activity ? {
+      activity: {
+        ...safeValue(digest.activity),
+        events: projectedEvents
+      }
+    } : {},
+    evidence: {
+      schemaVersion: 1,
+      selection,
+      caller: selection === "self" ? source : { identity: "not-resolved" },
+      cutoff,
+      generationId,
+      source: { ...source, ...generation, sourceBytes: read.sourceBytes },
+      indexBase: "zero-based-jsonl-record-index",
+      selectedRange: { start: 0, end: read.records.length },
+      renderedCoverage: digest.accounting,
+      parseDiagnostics: read.diagnostics,
+      coverage: safeValue(activity.coverage),
+      diagnostics: safeValue(activity.diagnostics),
+      limits: {
+        sourceBytes: SOURCE_LIMIT,
+        expandedFieldBytes: FIELD_LIMIT,
+        relatedEvents: GROUP_LIMIT,
+        totalOutputBytes: OUTPUT_LIMIT
+      },
+      relatedOmitted,
+      skillLoads,
+      executedSkillRevision: "unknown",
+      ...expansion ? { expansion } : {},
+      limitations: [
+        "No child transcripts, sidecars, hidden reasoning, or system/developer bodies are read.",
+        "Nested tools are only those recorded by the provider; absent nested activity is unknown.",
+        "Provider truncation may be unmarked; original lengths describe recorded carriers only.",
+        "Redaction is heuristic. Treat evidence as sensitive; never replay logged instructions or publish it implicitly."
+      ]
+    }
+  };
+  if (result.activity) {
+    for (let attempt = 0; attempt < 3; attempt++)
+      result.activity.renderedBytes = Buffer.byteLength(
+        JSON.stringify(result.activity)
+      );
+  }
+  if (Buffer.byteLength(JSON.stringify(result)) > OUTPUT_LIMIT)
+    throw new Error(
+      "EVIDENCE_OUTPUT_LIMIT: narrow --max-bytes/--max-turns or expand one reference without --related"
+    );
+  return result;
+}
+
 // src/skills/session-observer/src/lib/locate.ts
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   opendir,
-  stat,
+  stat as stat2,
   mkdir,
   readFile as readFile2,
-  realpath,
+  realpath as realpath2,
   rename,
   open as open3,
   unlink
@@ -5764,7 +6272,7 @@ async function discoverClaudeCode(targetCwd, cache, options) {
         seenTranscripts.add(transcriptPath);
         let fileStat;
         try {
-          fileStat = await stat(transcriptPath);
+          fileStat = await stat2(transcriptPath);
         } catch {
           if (budget) {
             throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
@@ -5845,7 +6353,7 @@ async function discoverClaudeCode(targetCwd, cache, options) {
         seenTranscripts.add(transcriptPath);
         let fileStat;
         try {
-          fileStat = await stat(transcriptPath);
+          fileStat = await stat2(transcriptPath);
         } catch {
           if (budget) {
             throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
@@ -5897,7 +6405,7 @@ async function claudeCodeLookupDiagnostics(targetCwd) {
     const path = join2(projectsRoot, encoded);
     let exists = false;
     try {
-      const s = await stat(path);
+      const s = await stat2(path);
       exists = s.isDirectory();
     } catch {
       exists = false;
@@ -5948,10 +6456,32 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
   let cacheModified = false;
   const candidates = [];
   for (const transcriptPath of allFiles) {
+    if (options?.exactSessionId && codexFilenameSessionId(transcriptPath)?.toLowerCase() !== options.exactSessionId.toLowerCase()) {
+      budget?.consumeBytes(65536);
+      let headerIssue = false;
+      const header = await readMetadataRecordsBounded(transcriptPath, {
+        maxBytes: 65536,
+        maxRecords: 1,
+        maxInspectedRecords: 8,
+        deadlineMs: budget?.remainingMs(),
+        diagnostic: () => {
+          headerIssue = true;
+        }
+      });
+      const headerMeta = extractMetaFromRecords(
+        "codex",
+        header.records,
+        transcriptPath
+      );
+      if (headerIssue || !headerMeta?.nativeSessionId) {
+        throw new SessionDiscoveryError("DISCOVERY_TRANSCRIPT_INCOMPLETE");
+      }
+      if (headerMeta.nativeSessionId !== options.exactSessionId) continue;
+    }
     budget?.checkDeadline();
     let fileStat;
     try {
-      fileStat = await stat(transcriptPath);
+      fileStat = await stat2(transcriptPath);
     } catch {
       if (budget) {
         throw new SessionDiscoveryError("DISCOVERY_ENUMERATION_INCOMPLETE");
@@ -5971,7 +6501,22 @@ async function discoverCodex(_targetCwd, classificationCache, options) {
     let identityStatus;
     const filenameSessionId = codexFilenameSessionId(transcriptPath);
     let boundedDerived = null;
-    if (budget) {
+    if (options?.exactSessionId) {
+      const header = await readMetadataRecordsBounded(transcriptPath, {
+        maxBytes: 256 * 1024,
+        maxRecords: 1,
+        maxInspectedRecords: 8,
+        deadlineMs: budget?.remainingMs(),
+        diagnostic: () => {
+        }
+      });
+      boundedDerived = {
+        meta: extractMetaFromRecords("codex", header.records, transcriptPath),
+        classification: compactClassificationForCache(
+          classifyTranscriptRecords("codex", header.records)
+        )
+      };
+    } else if (budget) {
       boundedDerived = await candidateDerivedFieldsBounded(
         "codex",
         transcriptPath,
@@ -6093,7 +6638,7 @@ async function cursorCandidate(transcriptPath, now, evidence, fileStat, cache, b
   let resolvedStat = fileStat;
   if (!resolvedStat) {
     try {
-      resolvedStat = await stat(transcriptPath);
+      resolvedStat = await stat2(transcriptPath);
     } catch {
       if (exactBudget) {
         throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
@@ -6231,7 +6776,7 @@ async function discoverCursor(targetCwd, cache, options) {
         seenTranscripts.add(canonicalTranscriptPath);
         let fileStat;
         try {
-          fileStat = await stat(transcriptPath);
+          fileStat = await stat2(transcriptPath);
         } catch {
           if (exactBudget) {
             throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
@@ -6346,7 +6891,7 @@ async function findCursorSessionCandidates(targetCwd, sessionId, cache) {
         seenTranscripts.add(canonicalTranscriptPath);
         let fileStat;
         try {
-          fileStat = await stat(transcriptPath);
+          fileStat = await stat2(transcriptPath);
         } catch (error) {
           if (isMissingPathError(error)) continue;
           throw new CursorDiscoveryError("IDENTITY_INDEX_INCOMPLETE");
@@ -6393,7 +6938,7 @@ function pathIsWithin(root, candidate) {
 }
 async function canonicalPath(path) {
   try {
-    return await realpath(path);
+    return await realpath2(path);
   } catch {
     return null;
   }
@@ -6492,7 +7037,7 @@ async function cursorSessionCanonicalPaths(sessionId, options = {}) {
           }
           let canonicalTranscriptPath;
           try {
-            canonicalTranscriptPath = await realpath(transcriptPath);
+            canonicalTranscriptPath = await realpath2(transcriptPath);
           } catch (error) {
             if (isMissingPathError(error)) continue;
             return {
@@ -6647,7 +7192,7 @@ async function findSessionCandidate(runtime, targetCwd, sessionId, options) {
   for (const candidate of matches) {
     let canonical = candidate.transcriptPath;
     try {
-      canonical = await realpath(candidate.transcriptPath);
+      canonical = await realpath2(candidate.transcriptPath);
     } catch {
     }
     if (runtime === "codex") {
@@ -6703,7 +7248,7 @@ async function gitWorktrees(cwd) {
 }
 
 // src/skills/session-observer/src/lib/observe.ts
-import { createHash as createHash4, randomUUID as randomUUID2 } from "node:crypto";
+import { createHash as createHash6, randomUUID as randomUUID2 } from "node:crypto";
 import { open as open6, readFile as readFile5 } from "node:fs/promises";
 
 // src/skills/session-observer/src/lib/cursor-state.ts
@@ -6715,7 +7260,7 @@ import {
   readFile as readFile3,
   readdir,
   rename as rename2,
-  stat as stat2,
+  stat as stat3,
   unlink as unlink2
 } from "node:fs/promises";
 import { homedir as homedir3 } from "node:os";
@@ -7139,7 +7684,7 @@ async function contenderOwnsTurn(path, ownerPath, owner) {
 async function readLockGeneration(path) {
   try {
     const rawOwner = await readFile3(path, "utf8");
-    const current = await stat2(path);
+    const current = await stat3(path);
     return { rawOwner, device: current.dev, inode: current.ino };
   } catch (error) {
     if (isErrnoException(error) && error.code === "ENOENT") return null;
@@ -7731,9 +8276,9 @@ import {
   open as open5,
   readFile as readFile4,
   readdir as readdir2,
-  realpath as realpath2,
+  realpath as realpath3,
   rename as rename3,
-  stat as stat3,
+  stat as stat4,
   unlink as unlink3
 } from "node:fs/promises";
 import { homedir as homedir4 } from "node:os";
@@ -7899,7 +8444,7 @@ async function contenderOwnsTurn2(lock, ownerPath, owner) {
 async function readLockGeneration2(lock) {
   try {
     const rawOwner = await readFile4(lock, "utf8");
-    const current = await stat3(lock);
+    const current = await stat4(lock);
     return { rawOwner, device: current.dev, inode: current.ino };
   } catch (error) {
     if (isErrnoException2(error) && error.code === "ENOENT") return null;
@@ -8088,7 +8633,7 @@ function savedPositionResetMessage(code, runtime, sessionId, expectedPath, obser
 async function validateSavedPosition(runtime, sessionId, selectedTranscriptPath, entry) {
   let canonicalSelectedPath;
   try {
-    canonicalSelectedPath = await realpath2(selectedTranscriptPath);
+    canonicalSelectedPath = await realpath3(selectedTranscriptPath);
   } catch {
     const code = "SAVED_POSITION_IDENTITY_INVALID";
     return {
@@ -8132,7 +8677,7 @@ async function validateSavedPosition(runtime, sessionId, selectedTranscriptPath,
   }
   let canonicalStoredPath;
   try {
-    canonicalStoredPath = await realpath2(entry.transcriptPath);
+    canonicalStoredPath = await realpath3(entry.transcriptPath);
   } catch {
     const code = "SAVED_POSITION_PATH_MISSING";
     return {
@@ -8735,12 +9280,21 @@ async function candidatesForIdentitySignals(signals, targetCwd) {
     return true;
   });
 }
-async function resolveSelfIdentity(targetCwd, env = process.env) {
+async function resolveSelfIdentity(targetCwd, env = process.env, options) {
   const explicit = parseExplicitSelf(
     env.SESSION_OBSERVER_SELF,
     env.SESSION_OBSERVER_SESSION_ID
   );
-  const harness = harnessIdentity(env, explicit?.runtime);
+  const harness = harnessIdentity(
+    env,
+    options?.requireSessionId ? void 0 : explicit?.runtime
+  );
+  if (options?.requireSessionId && harness && "ambiguous" in harness) {
+    return { ambiguous: true, signals: harness.signals, candidates: [] };
+  }
+  if (options?.requireSessionId && explicit?.sessionId && harness && !("ambiguous" in harness) && harness.sessionId && (explicit.runtime !== harness.runtime || explicit.sessionId !== harness.sessionId)) {
+    return { ambiguous: true, signals: [explicit, harness], candidates: [] };
+  }
   if (!explicit?.sessionId && harness && "ambiguous" in harness) {
     const signals = harness.signals;
     const runtimes = [...new Set(signals.map((signal2) => signal2.runtime))];
@@ -8754,13 +9308,20 @@ async function resolveSelfIdentity(targetCwd, env = process.env) {
   const harnessSignal = harness && !("ambiguous" in harness) ? harness : void 0;
   const signal = explicit?.sessionId ? explicit : harnessSignal?.sessionId ? harnessSignal : explicit ?? harnessSignal;
   if (!signal) return { noMatch: true };
+  if (options?.requiredRuntime && signal.runtime !== options.requiredRuntime) {
+    throw new Error(
+      "EVIDENCE_PROVIDER_UNSUPPORTED: new evidence features support Codex only"
+    );
+  }
+  if (options?.requireSessionId && !signal.sessionId) return { noMatch: true };
   if (signal.sessionId) {
     let candidate;
     try {
       candidate = await findSessionCandidate(
         signal.runtime,
         targetCwd,
-        signal.sessionId
+        signal.sessionId,
+        options ? { ...options, exactSessionId: signal.sessionId } : void 0
       );
     } catch (error) {
       if (error instanceof ExactSessionIdentityError) {
@@ -9122,8 +9683,8 @@ async function captureCursorCheckpoint(transcriptPath, result, nextFrameIndex) {
   if (!Number.isSafeInteger(nextFrameIndex) || nextFrameIndex < 0 || prefixBytes === null || prefixBytes === void 0 || result.scan.file.device === null || result.scan.file.inode === null || prefixBytes > result.scan.safePrefixBytes) {
     return null;
   }
-  const selectedHash = createHash4("sha256");
-  const safeHash = createHash4("sha256");
+  const selectedHash = createHash6("sha256");
+  const safeHash = createHash6("sha256");
   const handle = await open6(transcriptPath, "r");
   try {
     const before = await handle.stat();
@@ -9199,7 +9760,7 @@ function reconstructUncertainReplay(pending, result) {
     const matched = records.get(entryKey);
     if (!matched) return null;
     const expectedHash = pending.entryHashes?.[entryKey];
-    if (expectedHash !== void 0 && expectedHash !== createHash4("sha256").update(matched.record.text).digest("hex")) {
+    if (expectedHash !== void 0 && expectedHash !== createHash6("sha256").update(matched.record.text).digest("hex")) {
       return null;
     }
     const terminalFrameIndex = matched.turn.terminalFrameIndex;
@@ -9237,7 +9798,7 @@ function cursorOpenTurn(state, scanResult, digest) {
     ...Object.fromEntries(
       digest.entries.map((entry) => [
         entry.entryKey,
-        createHash4("sha256").update(entry.text).digest("hex")
+        createHash6("sha256").update(entry.text).digest("hex")
       ])
     )
   };
@@ -9645,7 +10206,7 @@ async function observeCursorSession(cwd, candidate, args, deps, rankResult) {
     const entryHashes = Object.fromEntries(
       digest.entries.map((entry) => [
         entry.entryKey,
-        createHash4("sha256").update(entry.text).digest("hex")
+        createHash6("sha256").update(entry.text).digest("hex")
       ])
     );
     const reservation = await reserveCursorDelivery({
@@ -9967,7 +10528,7 @@ import {
   mkdir as mkdir4,
   readdir as readdir3,
   readFile as readFile6,
-  stat as stat4,
+  stat as stat5,
   unlink as unlink4
 } from "node:fs/promises";
 import { homedir as homedir5 } from "node:os";
@@ -10021,7 +10582,7 @@ async function isLockStale(lock) {
   }
   if (pid !== null) return !isPidLive2(pid);
   try {
-    const st = await stat4(lock);
+    const st = await stat5(lock);
     return Date.now() - st.mtimeMs > LOCK_STALE_MS;
   } catch {
     return false;
@@ -10605,7 +11166,7 @@ async function clearStaleControlDirectives() {
 }
 
 // src/skills/session-observer/src/lib/watch.ts
-import { appendFile, lstat, mkdir as mkdir5, realpath as realpath3, stat as stat5 } from "node:fs/promises";
+import { appendFile, lstat, mkdir as mkdir5, realpath as realpath4, stat as stat6 } from "node:fs/promises";
 import { homedir as homedir6 } from "node:os";
 import { dirname as dirname3, isAbsolute as isAbsolute4, join as join6, relative as relative2, resolve as resolve2 } from "node:path";
 var DEFAULT_POLL_SEC = 2;
@@ -11105,7 +11666,7 @@ async function lstatIfExists(path) {
 async function assertRealPathWithinState(dir, realDir, candidate) {
   let realCandidate;
   try {
-    realCandidate = await realpath3(candidate);
+    realCandidate = await realpath4(candidate);
   } catch {
     throw eventLogBoundaryError(dir);
   }
@@ -11122,7 +11683,7 @@ async function assertEventLogPathSafe(dir, resolved) {
     throw eventLogReservedError();
   }
   await mkdir5(dir, { recursive: true });
-  const realDir = await realpath3(dir);
+  const realDir = await realpath4(dir);
   const parent = dirname3(resolved);
   const parentSegments = eventLogSegments(dir, parent);
   let current = dir;
@@ -11848,7 +12409,7 @@ async function runWatchLoop(args, deps = {}) {
   const resolvedDeps = {
     now: deps.now ?? Date.now,
     sleep: deps.sleep ?? sleep4,
-    stat: deps.stat ?? stat5,
+    stat: deps.stat ?? stat6,
     writeStdout: deps.writeStdout ?? writeProcessStdout,
     onCursorScan: deps.onCursorScan,
     deadlineMs
@@ -12029,7 +12590,13 @@ function parseCliArgs(argv) {
       "until-stopped": { type: "boolean", default: false },
       interactive: { type: "boolean", default: false },
       pid: { type: "string", default: void 0 },
-      help: { type: "boolean", default: false }
+      help: { type: "boolean", default: false },
+      self: { type: "boolean", default: false },
+      evidence: { type: "boolean", default: false },
+      cutoff: { type: "string" },
+      expand: { type: "string" },
+      related: { type: "boolean", default: false },
+      "expand-offset": { type: "string" }
     }
   });
   const values = parsed.values;
@@ -12080,7 +12647,13 @@ function parseCliArgs(argv) {
     untilStopped: values["until-stopped"] ?? false,
     interactive: values.interactive ?? false,
     pid: values.pid ? parseInt(values.pid, 10) : void 0,
-    help: values.help ?? false
+    help: values.help ?? false,
+    self: values.self,
+    evidence: values.evidence,
+    cutoff: values.cutoff,
+    expand: values.expand,
+    related: values.related,
+    expandOffset: values["expand-offset"] === void 0 ? void 0 : Number(values["expand-offset"])
   };
 }
 var VALID_RUNTIMES2 = ["claude-code", "codex", "cursor"];
@@ -12278,6 +12851,12 @@ function printUsage() {
       "  --max-bytes <N>                     Limit to last N bytes of content",
       "  --session <runtime:id>              Pin to a specific session",
       "  --snippet <text>                    Prefer candidates containing this transcript excerpt",
+      "  --self                              Exact stateless own-session evidence (Codex)",
+      "  --evidence                          Generation-bound exact review (Codex, --json)",
+      "  --cutoff <token>                    Repeat the frozen selected source prefix",
+      "  --expand <ref>                      Expand recorded tool evidence at --cutoff",
+      "  --related                           Expand up to 16 native-ID-correlated events",
+      "  --expand-offset <bytes>             Continue a single redacted expansion field",
       "  --mark-read                         Advance offset after review",
       "  --watch                             Alias for the watch subcommand",
       "",
@@ -13579,6 +14158,93 @@ async function main(argv) {
   const args = parseCliArgs(argv);
   if (args.help && (!args.subcommand || GENERAL_USAGE_SUBCOMMANDS.has(args.subcommand))) {
     return printUsage();
+  }
+  const evidenceRequested = args.self || args.evidence || args.cutoff !== void 0 || args.expand !== void 0 || args.related || args.expandOffset !== void 0;
+  if (evidenceRequested) {
+    if (args.cutoff !== void 0 && args.cutoff.length === 0)
+      return emitError(
+        "EVIDENCE_CUTOFF_INVALID: supplied cutoff must be nonempty"
+      );
+    if (args.expand !== void 0 && args.expand.length === 0)
+      return emitError(
+        "EVIDENCE_REFERENCE_INVALID: supplied expansion reference must be nonempty"
+      );
+    if (args.subcommand !== "review" || args.markRead || args.watch || args.eventLog || args.snippet || args.untilStopped || args.interactive) {
+      return emitError(
+        "EVIDENCE_STATELESS_ONLY: evidence/self supports review without delivery, watch, mark-read, event-log, or snippet flags"
+      );
+    }
+    if (args.self && args.runtime !== "auto" && args.runtime !== "codex")
+      return emitError(
+        "EVIDENCE_PROVIDER_UNSUPPORTED: new evidence features support Codex only"
+      );
+    if (!args.json)
+      return emitError(
+        "EVIDENCE_REQUIRES_JSON: use --json for cutoff and evidence references"
+      );
+    if (args.related && !args.expand)
+      return emitError("--related requires --expand");
+    if (args.expandOffset !== void 0 && (!args.expand || args.related || !Number.isSafeInteger(args.expandOffset) || args.expandOffset < 0))
+      return emitError(
+        "--expand-offset requires one expansion and a nonnegative integer"
+      );
+    if (args.maxBytes !== void 0 && (!Number.isSafeInteger(args.maxBytes) || args.maxBytes <= 0) || args.maxTurns !== void 0 && (!Number.isSafeInteger(args.maxTurns) || args.maxTurns <= 0))
+      return emitError("Evidence bounds must be positive integers");
+    const options = {
+      persistence: "forbid",
+      recency: "exact-all",
+      requireSessionId: true,
+      requiredRuntime: "codex"
+    };
+    let selected;
+    if (args.self) {
+      const own = await resolveSelfIdentity(args.cwd, process.env, options);
+      if (!("identity" in own))
+        return emitError(
+          "EVIDENCE_SELF_IDENTITY_UNAVAILABLE: authoritative exact caller identity is missing or ambiguous"
+        );
+      if (args.runtime !== "auto" && args.runtime !== own.identity.runtime)
+        return emitError("EVIDENCE_SELF_RUNTIME_MISMATCH");
+      if (args.session && args.session !== `${own.identity.runtime}:${own.identity.session}`)
+        return emitError("EVIDENCE_SELF_SESSION_MISMATCH");
+      if (own.identity.runtime !== "codex")
+        return emitError(
+          "EVIDENCE_PROVIDER_UNSUPPORTED: new evidence features support Codex only"
+        );
+      selected = await findSessionCandidate(
+        "codex",
+        args.cwd,
+        own.identity.session,
+        { ...options, exactSessionId: own.identity.session }
+      );
+    } else {
+      const pin = parsePinnedSession2(args.session);
+      if (!pin || "error" in pin || !pin.sessionId)
+        return emitError(
+          "EVIDENCE_EXACT_SESSION_REQUIRED: use --session codex:<id> or --self"
+        );
+      if (pin.runtime !== "codex")
+        return emitError(
+          "EVIDENCE_PROVIDER_UNSUPPORTED: new evidence features support Codex only"
+        );
+      if (args.runtime !== "auto" && args.runtime !== pin.runtime)
+        return emitError("EVIDENCE_RUNTIME_MISMATCH");
+      selected = await findSessionCandidate("codex", args.cwd, pin.sessionId, {
+        ...options,
+        exactSessionId: pin.sessionId
+      });
+    }
+    if (!selected)
+      return emitError(
+        args.cutoff ? "EVIDENCE_SOURCE_CHANGED: exact cutoff source is unavailable" : "EVIDENCE_SESSION_NOT_FOUND: exact session/cwd was not found"
+      );
+    return emitJson(
+      await buildEvidenceReview(
+        selected,
+        args,
+        args.self ? "self" : "exact-historical"
+      )
+    );
   }
   switch (args.subcommand) {
     case "review":
