@@ -31,6 +31,9 @@ Plugin-local names and standalone names differ; each skill guide identifies
 the available forms. Avoid installing both forms of the same skill unless you
 intend to manage duplicate host entries.
 
+For skills available across Amp environments, see [Amp Hosted Skills](amp-hosted-skills.md)
+for selective personal/workspace onboarding and upstream update provenance.
+
 ## Try a bounded request
 
 Once Next Steps is available in your agent, invoke `$next-steps` in Codex or
@@ -53,4 +56,5 @@ prove that a fresh agent session discovered it.
 
 ## Contents
 
+- [Amp Hosted Skills](amp-hosted-skills.md) — Select generated payloads and prepare hosted personal/workspace copies.
 - [Installation](../installation.md) — Provider setup, prerequisites, standalone forms, updates, and readiness checks.

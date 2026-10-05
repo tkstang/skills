@@ -186,6 +186,9 @@ Running the list command in another shell does not reload an existing thread.
 This selector copies a payload; it does not certify Amp discovery, live
 execution, or Amp support in a skill's provider-specific runtime.
 
+For account-wide personal or workspace publication, use [Amp Hosted Skills](getting-started/amp-hosted-skills.md).
+Those hosted repositories are separate from this installer's project and user roots.
+
 The installer writes only the selected discovery directory. It does not create
 cross-provider mirrors or run `oat sync`. It requires a generated `SKILL.md`
 and copies the whole payload, including runtime and resources. It never falls

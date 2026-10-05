@@ -32,7 +32,8 @@ retrospective review.
 **Standalone skills** let you install individual declared capabilities. Some
 skills are available both ways; both navigation paths lead to one guide.
 
-These docs cover Claude Code, Codex, and Cursor installation paths, with
+These docs cover Claude Code, Codex, Cursor and Amp standalone installation paths,
+including [selective Amp hosted onboarding](user-guide/getting-started/amp-hosted-skills.md), with
 provider-specific verification limits recorded in
 [Installation](user-guide/installation.md). The plugins are independently
 versioned. Alpha capabilities and incomplete verification are identified in their guides.
