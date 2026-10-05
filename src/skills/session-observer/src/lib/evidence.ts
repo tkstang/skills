@@ -212,7 +212,8 @@ export async function buildEvidenceReview(
       'EVIDENCE_PROVIDER_UNSUPPORTED: new evidence features support Codex only',
     );
   const transcriptPath = await realpath(candidate.transcriptPath);
-  const frozen = args.cutoff ? parseBoundary(args.cutoff) : undefined;
+  const frozen =
+    args.cutoff !== undefined ? parseBoundary(args.cutoff) : undefined;
   if (
     frozen &&
     (frozen.sessionId !== candidate.sessionId ||
@@ -404,8 +405,9 @@ export async function buildEvidenceReview(
   }
   let expansion: unknown[] | undefined;
   let relatedOmitted = 0;
-  if (args.expand) {
-    if (!args.cutoff) throw new Error('EVIDENCE_EXPAND_REQUIRES_CUTOFF');
+  if (args.expand !== undefined) {
+    if (args.cutoff === undefined)
+      throw new Error('EVIDENCE_EXPAND_REQUIRES_CUTOFF');
     const selected = activity.events.find(
       (event) => reference(event) === args.expand,
     );

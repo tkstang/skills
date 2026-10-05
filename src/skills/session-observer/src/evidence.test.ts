@@ -645,6 +645,18 @@ describe('generation-bound evidence', () => {
     expect(JSON.stringify(result)).not.toContain('synthetic-message-secret');
     expect(JSON.stringify(result)).not.toContain('[REDACTED]]');
   });
+  test.each(['--cutoff', '--expand'])(
+    'explicit empty %s fails instead of rebinding or ignoring selection',
+    async (flag) => {
+      const result = cli([flag, '']);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toMatch(
+        /CUTOFF_INVALID|REFERENCE_INVALID|REFERENCE_UNRESOLVED|REQUIRES_CUTOFF/,
+      );
+      expect(result.stdout).toBe('');
+      expect(await readdir(home)).not.toContain('state');
+    },
+  );
   test('unsupported providers fail explicitly without touching existing review behavior', () => {
     for (const runtime of ['claude-code', 'cursor']) {
       expect(cli(['--session', `${runtime}:unavailable`]).stderr).toContain(

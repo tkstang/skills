@@ -2277,6 +2277,14 @@ async function main(argv: string[]): Promise<void> {
     args.related ||
     args.expandOffset !== undefined;
   if (evidenceRequested) {
+    if (args.cutoff !== undefined && args.cutoff.length === 0)
+      return emitError(
+        'EVIDENCE_CUTOFF_INVALID: supplied cutoff must be nonempty',
+      );
+    if (args.expand !== undefined && args.expand.length === 0)
+      return emitError(
+        'EVIDENCE_REFERENCE_INVALID: supplied expansion reference must be nonempty',
+      );
     if (
       args.subcommand !== 'review' ||
       args.markRead ||

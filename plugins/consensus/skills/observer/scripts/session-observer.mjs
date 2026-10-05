@@ -5589,7 +5589,7 @@ async function buildEvidenceReview(candidate, args, selection) {
       "EVIDENCE_PROVIDER_UNSUPPORTED: new evidence features support Codex only"
     );
   const transcriptPath = await realpath(candidate.transcriptPath);
-  const frozen = args.cutoff ? parseBoundary(args.cutoff) : void 0;
+  const frozen = args.cutoff !== void 0 ? parseBoundary(args.cutoff) : void 0;
   if (frozen && (frozen.sessionId !== candidate.sessionId || frozen.transcriptPath !== transcriptPath || frozen.cwd !== args.cwd)) {
     throw new Error("EVIDENCE_CUTOFF_SOURCE_MISMATCH");
   }
@@ -5757,8 +5757,9 @@ async function buildEvidenceReview(candidate, args, selection) {
   }
   let expansion;
   let relatedOmitted = 0;
-  if (args.expand) {
-    if (!args.cutoff) throw new Error("EVIDENCE_EXPAND_REQUIRES_CUTOFF");
+  if (args.expand !== void 0) {
+    if (args.cutoff === void 0)
+      throw new Error("EVIDENCE_EXPAND_REQUIRES_CUTOFF");
     const selected = activity.events.find(
       (event) => reference(event) === args.expand
     );
@@ -14150,6 +14151,14 @@ async function main(argv) {
   }
   const evidenceRequested = args.self || args.evidence || args.cutoff !== void 0 || args.expand !== void 0 || args.related || args.expandOffset !== void 0;
   if (evidenceRequested) {
+    if (args.cutoff !== void 0 && args.cutoff.length === 0)
+      return emitError(
+        "EVIDENCE_CUTOFF_INVALID: supplied cutoff must be nonempty"
+      );
+    if (args.expand !== void 0 && args.expand.length === 0)
+      return emitError(
+        "EVIDENCE_REFERENCE_INVALID: supplied expansion reference must be nonempty"
+      );
     if (args.subcommand !== "review" || args.markRead || args.watch || args.eventLog || args.snippet || args.untilStopped || args.interactive) {
       return emitError(
         "EVIDENCE_STATELESS_ONLY: evidence/self supports review without delivery, watch, mark-read, event-log, or snippet flags"

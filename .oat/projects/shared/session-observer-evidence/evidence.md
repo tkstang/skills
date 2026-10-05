@@ -30,7 +30,7 @@
 | Provider truncation unrecoverable | Pass within recorded evidence | explicit truncation indicator plus existing cap diagnostics; unmarked truncation always unknown, never complete |
 | Skill revision historical vs current vs uncertain | Pass | historical read bodyRef/revisionEvidence available; executedRevision unknown; shell read does not establish version |
 | Success/failure/stderr/long/secret/instruction-like/append/provider fixtures | Pass | synthetic installed CLI and shared parser fixtures; no transcript replay or live private data |
-| Existing peer/catch-up/watch/collab/sanitized export regressions | Pass | Full suite: 185 files passed, 2 skipped; 2856 tests passed, 3 skipped |
+| Existing peer/catch-up/watch/collab/sanitized export regressions | Pass | Full suite: 185 files passed, 2 skipped; 2858 tests passed, 3 skipped |
 | Generated copies fresh and run outside checkout | Pass | generated build + copy installed observer tree into isolated temporary HOME, launch from project outside checkout |
 | Exact commands, supported matrix, limits, fallback documented | Pass | canonical observer skill and user guide; unsupported provider commands explicit |
 | No complete retrospective or causal claim | Pass | output is source evidence with coverage; interpretation belongs to caller |
@@ -40,8 +40,8 @@
 - `SKIP_S3_ARCHIVE_SYNC=1 pnpm run worktree:init`: pass. Only bootstrap-managed `.oat/sync/manifest.json` oatVersion noise was excluded narrowly.
 - `pnpm run type-check`: pass on final source.
 - `pnpm run build`: pass; all payloads regenerated through canonical build.
-- Focused installed-CLI/shared-parser suite: 157 tests passed, including 28 installed CLI cases and 129 shared parser cases.
-- `pnpm run test`: 185 files passed, 2 skipped; 2856 tests passed, 3 skipped. No live providers executed.
+- Focused installed-CLI/shared-parser suite: 159 tests passed, including 30 installed CLI cases and 129 shared parser cases.
+- `pnpm run test`: 185 files passed, 2 skipped; 2858 tests passed, 3 skipped. No live providers executed.
 - `pnpm run build:check`: pass on final regenerated source. An earlier full run correctly caught four stale observer payloads after a lint-only source adjustment; the source was rebuilt and the full suite passed.
 - `pnpm run validate`: pass. `pnpm run smoke`: pass.
 - `pnpm run validate:skill-versions -- --base-ref 8bf18b90`: five changed owners verified.
@@ -51,7 +51,7 @@
 
 ## Review regressions and resolutions
 
-Independent installed probes confirmed diagnostic native-ID leakage, metadata redaction after clipping, unsupported-self provider discovery, and an oversized unresolved neighbor header hiding a duplicate. Diagnostic and neighboring-header tests were run against pre-fix bundles and failed for the intended reason. Fixes sanitize complete rendering payloads before projection, keep original native extraction/correlation IDs, preserve string types and absent payload fields, carry truthful source redaction provenance, constrain self provider support before discovery, and refuse incomplete bounded identity inventory. A second review caught structural sanitation altering call identity/JSON text; literal native call-reference and JSON message tests now protect that distinction. The independent reviewer reran all combined synthetic probes successfully with no remaining confirmed findings.
+Independent installed probes confirmed diagnostic native-ID leakage, metadata redaction after clipping, unsupported-self provider discovery, and an oversized unresolved neighbor header hiding a duplicate. Diagnostic and neighboring-header tests were run against pre-fix bundles and failed for the intended reason. Fixes sanitize complete rendering payloads before projection, keep original native extraction/correlation IDs, preserve string types and absent payload fields, carry truthful source redaction provenance, constrain self provider support before discovery, and refuse incomplete bounded identity inventory. A second review caught structural sanitation altering call identity/JSON text; literal native call-reference and JSON message tests now protect that distinction. Final input probes also found provided empty cutoff/ref flags silently ignored; explicit nonempty input validation and definedness checks now reject both before discovery, with pre-fix failures confirmed. The independent reviewer reran all combined synthetic probes successfully with no remaining confirmed findings.
 
 ## Load-bearing source pointers
 
