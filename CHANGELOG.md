@@ -51,6 +51,15 @@
 
 ### Fixed
 
+- `session-export-transcript` 2.0.40 verifies filesystem directory identity for
+  exact Codex cwd selection, accepting equivalent case variants and aliases
+  while preserving native session selection and wrong-directory rejection.
+  Unresolved or non-directory exact cwd paths fail explicitly before writes.
+  `session-retro` 1.0.4 adds native-metadata preflight and permits a same-target
+  corrected-cwd retry only after a verified zero-output failure before analysis.
+  `session-fork-to-destination` 0.3.2 and `session-search` 0.1.1 are version-only
+  bumps for their declared exporter source closure; their behavior is unchanged.
+
 - `session-export-transcript` 2.0.39, `session-observer` 1.0.88,
   `session-observer-collab` 1.0.76 and `session-fork-to-destination` 0.2.56
   correct the Codex rollout transcript path in their store-location docs

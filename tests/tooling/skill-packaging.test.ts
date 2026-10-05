@@ -1509,7 +1509,8 @@ process.stdout.write(JSON.stringify(result));
     );
 
     const exportSessionId = 'installed-export';
-    const exportCwd = '/synthetic/project';
+    const exportCwd = path.join(root, 'project');
+    await mkdir(exportCwd);
     await write(
       home,
       `.codex/sessions/2026/09/13/session-${exportSessionId}.jsonl`,
@@ -1533,7 +1534,14 @@ process.stdout.write(JSON.stringify(result));
         '--out',
         exportOutput,
       ],
-      { cwd: outside, env: { HOME: home, PATH: process.env.PATH ?? '' } },
+      {
+        cwd: outside,
+        env: {
+          HOME: home,
+          STATE_DIR: path.join(home, 'state'),
+          PATH: process.env.PATH ?? '',
+        },
+      },
     );
     expect(exported.stderr).toBe('');
     expect(await readFile(exportOutput, 'utf8')).toContain(

@@ -152,6 +152,16 @@ node skills/session-export-transcript/scripts/session-export-transcript.mjs \
   --activity-output session.activity.json
 ```
 
+For exact Codex selection, the recorded cwd and requested `--cwd` must both
+resolve to existing directories with the same device and inode. Equivalent case
+variants on a case-insensitive volume and directory aliases are accepted;
+distinct directories are rejected without falling back to another session.
+Equal path spellings still require verification. Exit 2 distinguishes
+`CWD_MISMATCH` from `CWD_IDENTITY_UNRESOLVED` and names both paths; neither output
+is written. Preflight the exact native metadata header and prefer its recorded
+cwd spelling. Removed or inaccessible directories cannot satisfy this exact
+selection check.
+
 This mode is explicit and independent from `--include-activity`. It requires one
 exact native session pin and rejects every `--match` combination before ordinary
 selector precedence is applied. It reads the selected source once and derives

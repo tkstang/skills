@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: Thomas Stang
-  version: '0.1.0'
+  version: '0.1.1'
 ---
 
 # search
