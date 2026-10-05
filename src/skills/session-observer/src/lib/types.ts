@@ -73,6 +73,8 @@ export interface DiscoveryUnattributable {
 }
 
 export interface DiscoveryOptions {
+  /** Exact Codex filename identity: skip unrelated carriers before reading. */
+  exactSessionId?: string;
   persistence?: DiscoveryPersistence;
   recency?: DiscoveryRecency;
   unattributablePolicy?: DiscoveryUnattributablePolicy;
@@ -801,6 +803,12 @@ export interface CliArgs extends WatchLoopArgs {
   interactive: boolean;
   pid?: number;
   help: boolean;
+  self?: boolean;
+  evidence?: boolean;
+  cutoff?: string;
+  expand?: string;
+  related?: boolean;
+  expandOffset?: number;
 }
 
 export interface PinnedSession {

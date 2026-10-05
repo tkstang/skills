@@ -17,6 +17,7 @@
  *   normalizeEntries(runtime, records, opts)       → DigestEntry[]
  */
 
+import { createHash } from 'node:crypto';
 import { open, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join } from 'node:path';
@@ -110,6 +111,18 @@ export interface DetailedTranscriptRecord {
 export interface DetailedTranscriptRead extends TranscriptSourceSnapshot {
   records: DetailedTranscriptRecord[];
   diagnostics: TranscriptParseDiagnostic[];
+  fileGeneration?: TranscriptFileGeneration;
+}
+
+export interface DetailedReadBoundary {
+  maxBytes: number;
+  endBytes?: number;
+}
+
+export interface TranscriptFileGeneration {
+  device: number;
+  inode: number;
+  prefixSha256: string;
 }
 
 interface DetailedTranscriptReadInternal extends DetailedTranscriptRead {
@@ -1073,8 +1086,83 @@ export async function readTailRecordsBounded(
  */
 async function readRecordsDetailedInternal(
   transcriptPath: string,
+  boundary?: DetailedReadBoundary,
 ): Promise<DetailedTranscriptReadInternal> {
-  const rawBytes = await readFile(transcriptPath);
+  let rawBytes: Buffer;
+  let fileGeneration: TranscriptFileGeneration | undefined;
+  if (boundary) {
+    if (
+      !Number.isSafeInteger(boundary.maxBytes) ||
+      boundary.maxBytes < 0 ||
+      (boundary.endBytes !== undefined &&
+        (!Number.isSafeInteger(boundary.endBytes) || boundary.endBytes < 0))
+    ) {
+      throw new Error('Invalid detailed read boundary');
+    }
+    const handle = await open(transcriptPath, 'r');
+    try {
+      const before = await handle.stat();
+      if (!before.isFile())
+        throw new Error('Transcript source is not a regular file');
+      const end = boundary.endBytes ?? before.size;
+      if (end > boundary.maxBytes)
+        throw new Error(
+          'EVIDENCE_SOURCE_LIMIT: selected prefix exceeds the read budget',
+        );
+      if (end > before.size)
+        throw new Error('EVIDENCE_SOURCE_CHANGED: source shrank below cutoff');
+      rawBytes = Buffer.alloc(end);
+      let position = 0;
+      const hash = createHash('sha256');
+      while (position < end) {
+        const { bytesRead } = await handle.read(
+          rawBytes,
+          position,
+          Math.min(65536, end - position),
+          position,
+        );
+        if (!bytesRead)
+          throw new Error('EVIDENCE_SOURCE_CHANGED: source shrank during read');
+        hash.update(rawBytes.subarray(position, position + bytesRead));
+        position += bytesRead;
+      }
+      const after = await handle.stat();
+      if (
+        before.dev !== after.dev ||
+        before.ino !== after.ino ||
+        after.size < end ||
+        (before.mtimeMs !== after.mtimeMs && after.size <= before.size)
+      ) {
+        throw new Error('EVIDENCE_SOURCE_CHANGED: source changed during read');
+      }
+      // A second bounded streaming pass detects in-place changes, including
+      // writes concurrent with an append. No unlimited second buffer is retained.
+      const verify = createHash('sha256');
+      const chunk = Buffer.alloc(65536);
+      for (let offset = 0; offset < end; ) {
+        const { bytesRead } = await handle.read(
+          chunk,
+          0,
+          Math.min(chunk.length, end - offset),
+          offset,
+        );
+        if (!bytesRead)
+          throw new Error(
+            'EVIDENCE_SOURCE_CHANGED: source changed during verification',
+          );
+        verify.update(chunk.subarray(0, bytesRead));
+        offset += bytesRead;
+      }
+      const prefixSha256 = hash.digest('hex');
+      if (verify.digest('hex') !== prefixSha256)
+        throw new Error('EVIDENCE_SOURCE_CHANGED: prefix changed during read');
+      fileGeneration = { device: before.dev, inode: before.ino, prefixSha256 };
+    } finally {
+      await handle.close();
+    }
+  } else {
+    rawBytes = await readFile(transcriptPath);
+  }
   const capturedAt = new Date().toISOString();
   const sourceBytes = rawBytes.byteLength;
   const raw = rawBytes.toString('utf8');
@@ -1085,6 +1173,7 @@ async function readRecordsDetailedInternal(
       legacyWarnings: [],
       capturedAt,
       sourceBytes,
+      ...(fileGeneration ? { fileGeneration } : {}),
     };
   }
 
@@ -1140,15 +1229,29 @@ async function readRecordsDetailedInternal(
     }
   }
 
-  return { records, diagnostics, legacyWarnings, capturedAt, sourceBytes };
+  return {
+    records,
+    diagnostics,
+    legacyWarnings,
+    capturedAt,
+    sourceBytes,
+    ...(fileGeneration ? { fileGeneration } : {}),
+  };
 }
 
 export async function readRecordsDetailed(
   transcriptPath: string,
+  boundary?: DetailedReadBoundary,
 ): Promise<DetailedTranscriptRead> {
-  const { records, diagnostics, capturedAt, sourceBytes } =
-    await readRecordsDetailedInternal(transcriptPath);
-  return { records, diagnostics, capturedAt, sourceBytes };
+  const { records, diagnostics, capturedAt, sourceBytes, fileGeneration } =
+    await readRecordsDetailedInternal(transcriptPath, boundary);
+  return {
+    records,
+    diagnostics,
+    capturedAt,
+    sourceBytes,
+    ...(fileGeneration ? { fileGeneration } : {}),
+  };
 }
 
 /**

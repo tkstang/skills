@@ -6,6 +6,7 @@
     "src/lib/cursor-frames.ts",
     "src/lib/cursor-state.ts",
     "src/lib/digest.ts",
+    "src/lib/evidence.ts",
     "src/lib/locate.ts",
     "src/lib/observe.ts",
     "src/lib/rank.ts",

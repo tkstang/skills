@@ -89,6 +89,7 @@ function demoteRole(role, text, runtime) {
 }
 
 // src/shared/transcript/runtimes.ts
+import { createHash } from "node:crypto";
 import { open, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join } from "node:path";

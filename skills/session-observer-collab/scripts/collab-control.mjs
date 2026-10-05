@@ -2434,19 +2434,20 @@ async function uninstallCodexStopHook({
 }
 
 // src/skills/session-observer-collab/src/lib/selected-prefix.mjs
-import { createHash as createHash7 } from "node:crypto";
+import { createHash as createHash8 } from "node:crypto";
 import { open as open7 } from "node:fs/promises";
 
 // src/shared/transcript/cursor-analysis.ts
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 
 // src/shared/transcript/runtimes.ts
+import { createHash as createHash4 } from "node:crypto";
 import { open as open5, readFile as readFile6 } from "node:fs/promises";
 import { homedir as homedir3 } from "node:os";
 import { basename as basename3, dirname as dirname4, isAbsolute as isAbsolute2, join as join4 } from "node:path";
 
 // src/shared/transcript/cursor-frames.ts
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash6 } from "node:crypto";
 import { open as open6 } from "node:fs/promises";
 function isJsonObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -2478,10 +2479,10 @@ async function scanCursorTranscript(transcriptPath, options) {
   const handle = await open6(transcriptPath, "r");
   try {
     const file = await handle.stat();
-    const safePrefixHash = createHash5("sha256");
-    const verifiedPrefixHash = options.verifyPrefixBytes === void 0 ? null : createHash5("sha256");
+    const safePrefixHash = createHash6("sha256");
+    const verifiedPrefixHash = options.verifyPrefixBytes === void 0 ? null : createHash6("sha256");
     let verifiedBytes = 0;
-    let verifiedPrefixSha256 = options.verifyPrefixBytes === 0 ? createHash5("sha256").digest("hex") : null;
+    let verifiedPrefixSha256 = options.verifyPrefixBytes === 0 ? createHash6("sha256").digest("hex") : null;
     let carrySegments = [];
     let carryLength = 0;
     let carryByteStart = 0;
@@ -2605,7 +2606,7 @@ async function scanCursorTranscript(transcriptPath, options) {
 }
 
 // src/skills/session-observer/src/lib/digest.ts
-import { createHash as createHash6 } from "node:crypto";
+import { createHash as createHash7 } from "node:crypto";
 
 // src/shared/transcript/terminal-events.ts
 var MONTH_INDEX = new Map(
@@ -2675,8 +2676,8 @@ async function readBoundedHashes(transcript, selectedPrefixBytes, verificationPr
   if (!nonNegativeInteger(selectedPrefixBytes) || !nonNegativeInteger(verificationPrefixBytes) || selectedPrefixBytes > verificationPrefixBytes) {
     throw selectedPrefixError();
   }
-  const selectedHash = createHash7("sha256");
-  const verificationHash = createHash7("sha256");
+  const selectedHash = createHash8("sha256");
+  const verificationHash = createHash8("sha256");
   const handle = await open7(transcript, "r");
   try {
     const before = await handle.stat();

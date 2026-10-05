@@ -4,6 +4,14 @@
 
 ### Added
 
+- `session-observer` 1.1.0 adds exact stateless own-session Codex review, generation-bound cutoffs, attributable source references, and selective original-source tool expansion with redaction and explicit coverage limits. Claude Code and Cursor retain existing behavior and reject the new evidence flags.
+
+### Changed
+
+- Regenerate bounded transcript-reader consumers: `session-observer-collab` 1.0.78, `session-export-transcript` 2.0.40, `session-fork-to-destination` 0.3.2, and `session-search` 0.1.1. Existing delivery protocols and sanitized export defaults are preserved.
+
+### Added
+
 - `babysit-pr` 1.0.2 and `land-pr` 1.0.2 standalone skills repair CI failures
   and valid review findings, validate, commit, push, and repeat. Babysitting
   reports current-head readiness without merging; landing reuses that gate

@@ -1,13 +1,14 @@
 // GENERATED skill payload for session-observer-collab.
 
 // src/skills/session-observer-collab/src/lib/selected-prefix.mjs
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 import { open as open3 } from "node:fs/promises";
 
 // src/shared/transcript/cursor-analysis.ts
-import { createHash } from "node:crypto";
+import { createHash as createHash2 } from "node:crypto";
 
 // src/shared/transcript/runtimes.ts
+import { createHash } from "node:crypto";
 import { open, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join } from "node:path";
@@ -299,8 +300,70 @@ function safeParseLine(line) {
     };
   }
 }
-async function readRecordsDetailedInternal(transcriptPath) {
-  const rawBytes = await readFile(transcriptPath);
+async function readRecordsDetailedInternal(transcriptPath, boundary) {
+  let rawBytes;
+  let fileGeneration;
+  if (boundary) {
+    if (!Number.isSafeInteger(boundary.maxBytes) || boundary.maxBytes < 0 || boundary.endBytes !== void 0 && (!Number.isSafeInteger(boundary.endBytes) || boundary.endBytes < 0)) {
+      throw new Error("Invalid detailed read boundary");
+    }
+    const handle = await open(transcriptPath, "r");
+    try {
+      const before = await handle.stat();
+      if (!before.isFile())
+        throw new Error("Transcript source is not a regular file");
+      const end = boundary.endBytes ?? before.size;
+      if (end > boundary.maxBytes)
+        throw new Error(
+          "EVIDENCE_SOURCE_LIMIT: selected prefix exceeds the read budget"
+        );
+      if (end > before.size)
+        throw new Error("EVIDENCE_SOURCE_CHANGED: source shrank below cutoff");
+      rawBytes = Buffer.alloc(end);
+      let position = 0;
+      const hash = createHash("sha256");
+      while (position < end) {
+        const { bytesRead } = await handle.read(
+          rawBytes,
+          position,
+          Math.min(65536, end - position),
+          position
+        );
+        if (!bytesRead)
+          throw new Error("EVIDENCE_SOURCE_CHANGED: source shrank during read");
+        hash.update(rawBytes.subarray(position, position + bytesRead));
+        position += bytesRead;
+      }
+      const after = await handle.stat();
+      if (before.dev !== after.dev || before.ino !== after.ino || after.size < end || before.mtimeMs !== after.mtimeMs && after.size <= before.size) {
+        throw new Error("EVIDENCE_SOURCE_CHANGED: source changed during read");
+      }
+      const verify = createHash("sha256");
+      const chunk = Buffer.alloc(65536);
+      for (let offset = 0; offset < end; ) {
+        const { bytesRead } = await handle.read(
+          chunk,
+          0,
+          Math.min(chunk.length, end - offset),
+          offset
+        );
+        if (!bytesRead)
+          throw new Error(
+            "EVIDENCE_SOURCE_CHANGED: source changed during verification"
+          );
+        verify.update(chunk.subarray(0, bytesRead));
+        offset += bytesRead;
+      }
+      const prefixSha256 = hash.digest("hex");
+      if (verify.digest("hex") !== prefixSha256)
+        throw new Error("EVIDENCE_SOURCE_CHANGED: prefix changed during read");
+      fileGeneration = { device: before.dev, inode: before.ino, prefixSha256 };
+    } finally {
+      await handle.close();
+    }
+  } else {
+    rawBytes = await readFile(transcriptPath);
+  }
   const capturedAt = (/* @__PURE__ */ new Date()).toISOString();
   const sourceBytes = rawBytes.byteLength;
   const raw = rawBytes.toString("utf8");
@@ -310,7 +373,8 @@ async function readRecordsDetailedInternal(transcriptPath) {
       diagnostics: [],
       legacyWarnings: [],
       capturedAt,
-      sourceBytes
+      sourceBytes,
+      ...fileGeneration ? { fileGeneration } : {}
     };
   }
   const lines = raw.split("\n");
@@ -352,11 +416,24 @@ async function readRecordsDetailedInternal(transcriptPath) {
       );
     }
   }
-  return { records, diagnostics, legacyWarnings, capturedAt, sourceBytes };
+  return {
+    records,
+    diagnostics,
+    legacyWarnings,
+    capturedAt,
+    sourceBytes,
+    ...fileGeneration ? { fileGeneration } : {}
+  };
 }
-async function readRecordsDetailed(transcriptPath) {
-  const { records, diagnostics, capturedAt, sourceBytes } = await readRecordsDetailedInternal(transcriptPath);
-  return { records, diagnostics, capturedAt, sourceBytes };
+async function readRecordsDetailed(transcriptPath, boundary) {
+  const { records, diagnostics, capturedAt, sourceBytes, fileGeneration } = await readRecordsDetailedInternal(transcriptPath, boundary);
+  return {
+    records,
+    diagnostics,
+    capturedAt,
+    sourceBytes,
+    ...fileGeneration ? { fileGeneration } : {}
+  };
 }
 async function readRecords(transcriptPath) {
   const detailed = await readRecordsDetailedInternal(transcriptPath);
@@ -1016,7 +1093,7 @@ function stringValue(value) {
   return typeof value === "string" ? value : null;
 }
 function identityScope(identity) {
-  return createHash("sha256").update(
+  return createHash2("sha256").update(
     JSON.stringify([
       identity.runtime,
       identity.projectCwd,
@@ -1261,7 +1338,7 @@ function createCursorTurnAccumulator(identity, fromFrameIndex) {
 }
 
 // src/shared/transcript/cursor-frames.ts
-import { createHash as createHash2 } from "node:crypto";
+import { createHash as createHash3 } from "node:crypto";
 import { open as open2 } from "node:fs/promises";
 function isJsonObject2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -1293,10 +1370,10 @@ async function scanCursorTranscript(transcriptPath, options) {
   const handle = await open2(transcriptPath, "r");
   try {
     const file = await handle.stat();
-    const safePrefixHash = createHash2("sha256");
-    const verifiedPrefixHash = options.verifyPrefixBytes === void 0 ? null : createHash2("sha256");
+    const safePrefixHash = createHash3("sha256");
+    const verifiedPrefixHash = options.verifyPrefixBytes === void 0 ? null : createHash3("sha256");
     let verifiedBytes = 0;
-    let verifiedPrefixSha256 = options.verifyPrefixBytes === 0 ? createHash2("sha256").digest("hex") : null;
+    let verifiedPrefixSha256 = options.verifyPrefixBytes === 0 ? createHash3("sha256").digest("hex") : null;
     let carrySegments = [];
     let carryLength = 0;
     let carryByteStart = 0;
@@ -1420,7 +1497,7 @@ async function scanCursorTranscript(transcriptPath, options) {
 }
 
 // src/skills/session-observer/src/lib/digest.ts
-import { createHash as createHash3 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 
 // src/shared/transcript/activity/classify.ts
 var CATEGORY_BY_NATIVE_NAME = /* @__PURE__ */ new Map([
@@ -4142,7 +4219,7 @@ function cursorEntry(record, renderTurnId, deliveryFrameIndex, availability) {
   };
 }
 function cursorEntryHash(text) {
-  return createHash3("sha256").update(text).digest("hex");
+  return createHash4("sha256").update(text).digest("hex");
 }
 function cursorRecordWasDelivered(record, stateTurn) {
   if (!stateTurn) return false;
@@ -4948,8 +5025,8 @@ async function readBoundedHashes(transcript, selectedPrefixBytes, verificationPr
   if (!nonNegativeInteger(selectedPrefixBytes) || !nonNegativeInteger(verificationPrefixBytes) || selectedPrefixBytes > verificationPrefixBytes) {
     throw selectedPrefixError();
   }
-  const selectedHash = createHash4("sha256");
-  const verificationHash = createHash4("sha256");
+  const selectedHash = createHash5("sha256");
+  const verificationHash = createHash5("sha256");
   const handle = await open3(transcript, "r");
   try {
     const before = await handle.stat();

@@ -41,6 +41,7 @@ import type {
   CursorSessionStateEntry,
   CursorTurnReconciliation,
   Digest,
+  DiscoveryOptions,
   ObserveArgs,
   ObserveDeps,
   ObserveFailure,
@@ -184,12 +185,33 @@ async function candidatesForIdentitySignals(
 export async function resolveSelfIdentity(
   targetCwd: string,
   env: NodeJS.ProcessEnv = process.env,
+  options?: DiscoveryOptions & {
+    requireSessionId?: boolean;
+    requiredRuntime?: Runtime;
+  },
 ): Promise<SelfIdentityResolution> {
   const explicit = parseExplicitSelf(
     env.SESSION_OBSERVER_SELF,
     env.SESSION_OBSERVER_SESSION_ID,
   );
-  const harness = harnessIdentity(env, explicit?.runtime);
+  const harness = harnessIdentity(
+    env,
+    options?.requireSessionId ? undefined : explicit?.runtime,
+  );
+  if (options?.requireSessionId && harness && 'ambiguous' in harness) {
+    return { ambiguous: true, signals: harness.signals, candidates: [] };
+  }
+  if (
+    options?.requireSessionId &&
+    explicit?.sessionId &&
+    harness &&
+    !('ambiguous' in harness) &&
+    harness.sessionId &&
+    (explicit.runtime !== harness.runtime ||
+      explicit.sessionId !== harness.sessionId)
+  ) {
+    return { ambiguous: true, signals: [explicit, harness], candidates: [] };
+  }
   if (!explicit?.sessionId && harness && 'ambiguous' in harness) {
     const signals = harness.signals;
     const runtimes = [...new Set(signals.map((signal) => signal.runtime))];
@@ -209,6 +231,14 @@ export async function resolveSelfIdentity(
       : (explicit ?? harnessSignal);
 
   if (!signal) return { noMatch: true };
+  // New stateless evidence may constrain provider support before discovery.
+  // The existing whoami/peer contract is unchanged when no constraint is supplied.
+  if (options?.requiredRuntime && signal.runtime !== options.requiredRuntime) {
+    throw new Error(
+      'EVIDENCE_PROVIDER_UNSUPPORTED: new evidence features support Codex only',
+    );
+  }
+  if (options?.requireSessionId && !signal.sessionId) return { noMatch: true };
 
   if (signal.sessionId) {
     let candidate;
@@ -217,6 +247,7 @@ export async function resolveSelfIdentity(
         signal.runtime,
         targetCwd,
         signal.sessionId,
+        options ? { ...options, exactSessionId: signal.sessionId } : undefined,
       );
     } catch (error) {
       if (error instanceof ExactSessionIdentityError) {

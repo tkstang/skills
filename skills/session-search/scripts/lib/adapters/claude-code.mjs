@@ -227,6 +227,7 @@ function parseJsonObject(text) {
 }
 
 // src/shared/transcript/runtimes.ts
+import { createHash } from "node:crypto";
 import { open as open2, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join } from "node:path";
