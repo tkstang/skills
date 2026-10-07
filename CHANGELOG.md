@@ -12,6 +12,12 @@
 
 ### Changed
 
+- `land-pr` 1.1.0 adds opt-in cross-provider Consensus Review for "review and
+  land it" and "land it with review": high-capability/high-effort routing via
+  subagent-orchestration, explicit finding dispositions, uncontested repairs
+  while disagreements are raised, and one review loop by default (up to two
+  for very large PRs). Plain landing and existing merge protections remain.
+
 - Regenerate bounded transcript-reader consumers: `session-observer-collab` 1.0.78, `session-export-transcript` 2.0.41, `session-fork-to-destination` 0.3.3, and `session-search` 0.1.2. Existing delivery protocols and sanitized export defaults are preserved.
 
 ### Added

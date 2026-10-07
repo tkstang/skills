@@ -36,7 +36,7 @@ entire plugin: see [Installation](../installation.md) for the supported plugin
 and standalone choices.
 
 - **babysit-pr** — fix CI and valid review findings, validate, push, and repeat until green; report without merging.
-- **land-pr** — run the shared babysitting loop, then merge the verified head and confirm the result; requires **babysit-pr**.
+- **land-pr** — run the shared babysitting loop, optionally add cross-provider Consensus Review for "review and land it", then merge the verified head and confirm the result; requires **babysit-pr**.
 - **align** — check shared understanding at the start of work or when its
   direction feels off, through a focused exchange you can correct or end.
 - **next-steps** — explain the current situation and recommend justified

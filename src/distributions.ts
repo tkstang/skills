@@ -58,6 +58,13 @@ export const distributions: readonly DistributionDeclaration[] = [
           'https://github.com/tkstang/skills/tree/main/skills/babysit-pr',
       },
     ],
+    optionalSkills: [
+      {
+        name: 'consensus-review',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/consensus-review',
+      },
+    ],
     targets: [
       { kind: 'standalone', name: 'land-pr', output: 'skills/land-pr' },
     ],
