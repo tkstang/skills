@@ -10,6 +10,8 @@
 
 ## Completed Items
 
+- 2026-10-10 — BL-260927-remove-dead-handoff-discovery — Remove dead handoff discovery from session-fork-to-destination — Removed retired discovery and its exclusive suite/contract helper; proved retained cwd and ordering keepers with restored negative controls, bumped fork to 0.3.4 and regenerated payloads; deterministic gates passed. Independent review, publication, merge and installation remain separate.
+
 - 2026-09-30 — BL-260930-import-sessions-before-native — Import sessions before native fork — Implemented session-fork-to-destination 0.3.0 plan/apply seed import with caller-run native fork, passed Opus design and implementation review plus isolated native-client loops; exact interactive terminal acceptance, merge, release and installation remain separate.
 
 - 2026-09-21 — BL-260919-session-retro-consume-activity — Session-retro: consume activity evidence — PR #99 implements a distinct-session review of exact paired frozen narrative/activity captures, preserving native identity, authorship and all seven coverage states while separating observation, interpretation and proposed changes; merge, release, installation and live-provider acceptance remain separate.

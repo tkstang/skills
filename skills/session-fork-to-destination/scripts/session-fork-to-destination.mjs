@@ -2,7 +2,7 @@
 // GENERATED skill payload for session-fork-to-destination.
 
 // src/skills/session-fork-to-destination/src/guidance-cli.ts
-import { realpath as realpath7 } from "node:fs/promises";
+import { realpath as realpath6 } from "node:fs/promises";
 
 // src/shared/transcript/runtimes.ts
 import { createHash } from "node:crypto";
@@ -3221,9 +3221,6 @@ function sanitizeEntries(entries, { runtime } = {}) {
   });
 }
 
-// src/skills/session-fork-to-destination/src/discovery.ts
-import { realpath as realpath3 } from "node:fs/promises";
-
 // src/skills/session-fork-to-destination/src/types.ts
 var EXACT_PROVIDER_NATIVE_ID_PATTERNS = Object.freeze({
   codex: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
@@ -3245,18 +3242,6 @@ var MAX_SESSION_PREVIEW_LIMITS = Object.freeze({
   maxCharacters: 32 * 1024
 });
 
-// src/skills/session-fork-to-destination/src/discovery.ts
-var HANDOFF_DISCOVERY_OPTIONS = Object.freeze({
-  persistence: "forbid",
-  recency: "exact-all",
-  budget: Object.freeze({
-    maxEntries: 5e4,
-    maxAggregateBytes: 512 * 1024 * 1024,
-    maxMetadataBytesPerEntry: 256 * 1024,
-    deadlineMs: 3e4
-  })
-});
-
 // src/skills/session-fork-to-destination/src/preview.ts
 var PER_TRANSCRIPT_MAX_BYTES = 2 * 1024 * 1024;
 var DEFAULT_DEPENDENCIES4 = {
@@ -3272,7 +3257,7 @@ function sanitizePreviewConversationEntries(runtime, entries) {
 }
 
 // src/skills/session-fork-to-destination/src/session-import.ts
-import { realpath as realpath6 } from "node:fs/promises";
+import { realpath as realpath5 } from "node:fs/promises";
 import { homedir as homedir3 } from "node:os";
 import { isAbsolute as isAbsolute3, join as join4, relative as relative3, sep as sep2 } from "node:path";
 
@@ -3313,7 +3298,7 @@ import {
   mkdir as mkdir2,
   open as open3,
   opendir as opendir2,
-  realpath as realpath4,
+  realpath as realpath3,
   unlink as unlink2
 } from "node:fs/promises";
 import { dirname as dirname2, join as join3, relative as relative2, sep } from "node:path";
@@ -3412,7 +3397,7 @@ async function inspectParents(home, path, create, deadline) {
   const parents = [];
   let current = home;
   const root = await lstat(home, { bigint: true });
-  if (!root.isDirectory() || root.isSymbolicLink() || await realpath4(home) !== home)
+  if (!root.isDirectory() || root.isSymbolicLink() || await realpath3(home) !== home)
     refuse("store-path-drift");
   parents.push({ path: home, dev: root.dev, ino: root.ino });
   for (const part of parts) {
@@ -3658,7 +3643,7 @@ async function publishImportSeed(home, path, id, provider2, bytes, deadline, rev
 
 // src/skills/session-fork-to-destination/src/native-history.ts
 import { createHash as createHash4 } from "node:crypto";
-import { realpath as realpath5 } from "node:fs/promises";
+import { realpath as realpath4 } from "node:fs/promises";
 import { basename as basename3 } from "node:path";
 var REMEDY = "Finish the source turn, exit the source session, then invoke from the destination or another session.";
 var ID = /^[A-Za-z0-9_-]{1,128}$/u;
@@ -3956,7 +3941,7 @@ async function decodeNativeHistory(provider2, records, selectedId, selectedCwd, 
     const first = records[0];
     if (first?.type !== "session_meta") refuse("source-identity-missing");
     const meta = object(first.payload);
-    if (meta.id !== selectedId || await realpath5(string(meta.cwd)).catch(() => null) !== selectedCwd)
+    if (meta.id !== selectedId || await realpath4(string(meta.cwd)).catch(() => null) !== selectedCwd)
       refuse("source-identity-conflict");
     h.timestamp = stamp(meta.timestamp ?? first.timestamp);
     let lastRetainedOrdinal = -1;
@@ -4025,7 +4010,7 @@ async function decodeNativeHistory(provider2, records, selectedId, selectedCwd, 
     const leaf = records.findLast(
       (r) => (r.type === "user" || r.type === "assistant") && r.isSidechain !== true
     );
-    if (!leaf || leaf.sessionId !== selectedId || await realpath5(string(leaf.cwd)).catch(() => null) !== selectedCwd)
+    if (!leaf || leaf.sessionId !== selectedId || await realpath4(string(leaf.cwd)).catch(() => null) !== selectedCwd)
       refuse("source-identity-conflict");
     if (leaf.type === "assistant") validateClaudeAssistantCompletion(leaf);
     const chain = [];
@@ -4070,7 +4055,7 @@ async function decodeNativeHistory(provider2, records, selectedId, selectedCwd, 
           calls.get(b.tool_use_id)
         );
       })) {
-        if (r.sessionId !== selectedId || await realpath5(string(r.cwd)).catch(() => null) !== selectedCwd)
+        if (r.sessionId !== selectedId || await realpath4(string(r.cwd)).catch(() => null) !== selectedCwd)
           refuse("source-identity-conflict");
         chain.push(r);
         for (const b of content) results.add(string(object(b).tool_use_id));
@@ -4324,7 +4309,7 @@ async function targetHome(input) {
   if (!supplied || supplied.includes("\0") || supplied.includes("\r") || supplied.includes("\n"))
     refuse("invalid-target-home");
   const routingPath = isAbsolute3(supplied) ? supplied : `${process.cwd()}${sep2}${supplied}`;
-  const canonicalPath2 = await realpath6(routingPath).catch(
+  const canonicalPath2 = await realpath5(routingPath).catch(
     () => refuse("target-home-unavailable")
   );
   return { source, routingPath, canonicalPath: canonicalPath2, variable };
@@ -4421,7 +4406,7 @@ async function makePlan(input) {
   const matches = [];
   for (const r of raw) {
     checkDeadline(deadline);
-    if (r.recordedCwd === null || await realpath6(r.recordedCwd).catch(() => null) !== git2.source.canonicalPath)
+    if (r.recordedCwd === null || await realpath5(r.recordedCwd).catch(() => null) !== git2.source.canonicalPath)
       continue;
     const id2 = provider2 === "codex" ? await readGuidanceCodexNativeId(r) : r.sessionId;
     if (id2 === candidate.nativeId) matches.push(r);
@@ -4840,7 +4825,7 @@ async function rawMatch(source, selected) {
   const matches = [];
   for (const candidate of raw) {
     if (candidate.recordedCwd === null) continue;
-    const recorded = await realpath7(candidate.recordedCwd).catch(() => null);
+    const recorded = await realpath6(candidate.recordedCwd).catch(() => null);
     if (recorded !== selected.recordedCwd) continue;
     const nativeId = selected.provider === "codex" ? await readGuidanceCodexNativeId(candidate) : candidate.sessionId;
     if (nativeId === selected.nativeId) matches.push(candidate);

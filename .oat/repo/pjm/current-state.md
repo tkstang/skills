@@ -1,6 +1,6 @@
 # Skills Repo Current State
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-10
 **Verified baseline:** `origin/main` at `4150cfe2` on 2026-09-20. PR #100 corrected and live-checked installation documentation, and PR #101 merged Consensus `0.2.1` with Draft-07 Review/Panel schemas plus Review's 900-second default and explicit CLI override. PR #99 is open for review whose six-ticket session-evidence implementation has completed acceptance on its branch; it is not yet merged. Merged source does not establish release, global installation, marketplace discovery, or general live-provider acceptance.
 
 **2026-09-30 scoped update:** `session-fork-to-destination` 0.3.0 on `t3code/investigate-session-teleporter` adds reviewed cross-provider seed import followed by caller-run native fork. Opus design and implementation reviews and isolated native-client loops passed; exact interactive terminal acceptance, merge and installation remain pending. See [verification](../reference/research/session-import-fork-2026-09-30/verification.md). The September 20 baseline below is historical and was not broadly refreshed.
@@ -80,3 +80,12 @@ Installer acceptance, live messaging acceptance and live-submit diagnosis remain
 - [Full review](backlog/reviews/backlog-and-roadmap-review.md)
 - [Priority alignment](backlog/reviews/priority-alignment.md)
 - [Completed history](backlog/completed.md) and [decision records](../reference/decisions/index.md)
+
+## October 10 bounded cleanup follow-up
+
+[Remove dead handoff discovery](backlog/archived/BL-260927-remove-dead-handoff-discovery.md)
+is implemented and closed on `refactor/remove-dead-handoff-discovery`, with both
+retained keeper mutations proved and deterministic repository gates passed. The fork
+skill is 0.3.4; independent review, publication, merge and installation remain pending.
+This closure reduces the dated 27-active-item snapshot above to 26 active item files.
+Other dated state and release claims above are not refreshed by this cleanup.

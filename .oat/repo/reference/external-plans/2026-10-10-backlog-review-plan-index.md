@@ -5,7 +5,7 @@ oat_external_plan_source: backlog-review
 oat_external_plan_sources:
   - .oat/repo/pjm/backlog/reviews/backlog-and-roadmap-review.md
   - .oat/repo/pjm/backlog/reviews/priority-alignment.md
-  - .oat/repo/pjm/backlog/items/BL-260927-remove-dead-handoff-discovery.md
+  - .oat/repo/pjm/backlog/archived/BL-260927-remove-dead-handoff-discovery.md
 oat_external_plan_commit: 9c95f0194e2770f1cedf26f95f3cc93af3b45563
 oat_external_plan_main_commit: 9c95f0194e2770f1cedf26f95f3cc93af3b45563
 oat_external_plan_date: '2026-10-10'
@@ -43,7 +43,7 @@ Its only mutation is the external-plan backlink and updated timestamp.
 
 | Order | Plan | Source | Depends on | Rationale |
 | --- | --- | --- | --- | --- |
-| 1 | [Remove retired handoff discovery](./2026-10-10-remove-dead-handoff-discovery.md) | [BL-260927-remove-dead-handoff-discovery](../../pjm/backlog/items/BL-260927-remove-dead-handoff-discovery.md) | No unsatisfied hard dependency | One bounded cleanup with existing coverage keepers |
+| 1 | [Remove retired handoff discovery](./2026-10-10-remove-dead-handoff-discovery.md) | [BL-260927-remove-dead-handoff-discovery](../../pjm/backlog/archived/BL-260927-remove-dead-handoff-discovery.md) | No unsatisfied hard dependency | One bounded cleanup with existing coverage keepers |
 
 No cross-repository dependency or additional lane is needed. The plan requires no
 product choice or operator feedback before an authorized executor can start.
@@ -75,3 +75,10 @@ exclusions or included agent-directory exceptions were selected.
 New backlog items and GitHub issues were declined by wave policy; the existing source
 item supplies tracking. No item closure, archive, canonical OAT project, issue, push or
 PR is created by this stage. Direct execution or optional OAT import is a later step.
+
+## Execution follow-up (2026-10-10)
+
+The selected plan was implemented directly, without OAT project import. Its linked
+backlog item is closed and archived after deterministic acceptance checks; the
+planning-stage statements above remain historical. Independent review, publication,
+merge and installation remain pending.
