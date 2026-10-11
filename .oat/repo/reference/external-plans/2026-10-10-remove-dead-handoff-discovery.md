@@ -43,6 +43,7 @@ preview, prepare, and import commands retain their behavior.
 - `discovery.ts:217` exports the retired discovery function. Searches in `src/`, `scripts/`, `tests/`, and generated `skills/`/`plugins/` find only its declaration, internal references, and `discovery.test.ts` callers. Other exported discovery-specific symbols have no outside consumer.
 - `discovery.test.ts:20` is the only importer of `helpers/behavior-contracts.ts`; that helper's opening comment explicitly identifies it as support retained for this suite after executor retirement. Its exported symbols have no other caller in the searched surfaces.
 - [PR #87](https://github.com/tkstang/skills/pull/87) merged on September 17, 2026 (`d3ad2848051f348aba6fb8390cf88f657303b716`), deleting the old executor. `CHANGELOG.md:510` records the retirement. The [test-pruning report](../reviews/2026-09-26-session-observer-test-pruning-campaign.md) names this cleanup as deferred work.
+- Live guidance still reads shared Codex identity through `guidance-discovery.ts:142`; the shared metadata rules are not retired with the old wrapper. Existing shared-reader and observer keepers are named in the protection ledger below.
 - `preview.test.ts:166` preserves qualified-key ordering; `preview.test.ts:191` preserves the literal mixed-case/punctuation/non-ASCII ordering. `session-observer/src/locate.test.ts:671` preserves exact transcript cwd for colliding Claude slugs; `session-observer/src/lib/locate.ts:794` supplies it.
 - Correction to the source description: the discovery **function** is absent from shipped bundles, but the unused `HANDOFF_DISCOVERY_OPTIONS` initializer remains at line 3249 in both `skills/session-fork-to-destination/scripts/session-fork-to-destination.mjs` and `plugins/session/skills/fork-to-destination/scripts/session-fork-to-destination.mjs`. Regeneration should remove it.
 - No matching external plan outcome was found. The incidental handoff reference in `2026-09-11-preserve-project-isolation-in-export-selection.md` concerns export selection, not this cleanup. `gh pr list --state open` returned `[]`. Available project files, worktree/branch inventory, and the existing execution program showed no ownership of this outcome; machine-local files outside this worktree were not inspected.
@@ -53,7 +54,7 @@ preview, prepare, and import commands retain their behavior.
 | Type | Dependency | Required state | Current state |
 | --- | --- | --- | --- |
 | Satisfied predecessor | Retirement in PR #87 | Old executor removed | Merged; changelog and current caller search agree |
-| Satisfied coverage | Preview ordering and observer colliding-slug keepers | Existing tests available for execution-time baseline and mutation checks | Present in the inspected tree; runtime checks deferred |
+| Satisfied coverage | Shared metadata, observer discovery and preview ordering keepers | Existing tests available for execution-time baseline and specified mutation checks | Named in the protection ledger and present in the inspected tree; runtime checks deferred |
 
 No unsatisfied hard dependency remains. Ordinary local test tools are available from
 repository development dependencies; their availability is not live-provider acceptance.
@@ -71,7 +72,7 @@ repository development dependencies; their availability is not live-provider acc
 Before edits, fetch the intended base, inspect the exact execution HEAD, and run:
 
 ```sh
-git diff --stat 9c95f0194e2770f1cedf26f95f3cc93af3b45563..HEAD -- src/skills/session-fork-to-destination src/skills/session-observer/src/lib/locate.ts src/skills/session-observer/src/locate.test.ts src/distributions.ts CHANGELOG.md skills/session-fork-to-destination plugins/session/skills/fork-to-destination
+git diff --stat 9c95f0194e2770f1cedf26f95f3cc93af3b45563..HEAD -- src/skills/session-fork-to-destination src/skills/session-observer/src/lib/locate.ts src/skills/session-observer/src/locate.test.ts src/shared/transcript/runtimes.test.ts src/distributions.ts CHANGELOG.md .oat/repo/reference/decisions/DR-260912-separate-forks-and-handoffs.md skills/session-fork-to-destination plugins/session/skills/fork-to-destination
 rg -n 'discoverHandoffCandidates|HANDOFF_DISCOVERY_OPTIONS|HandoffDiscoveryError|HandoffDiscoveryDependencies|readExactCodexNativeId|buildNativeInvocation|behavior-contracts' src scripts tests skills plugins
 ```
 
@@ -106,6 +107,7 @@ In scope:
 - `src/skills/session-fork-to-destination/src/discovery.test.ts`: remove only after every protection below is accounted for.
 - `src/skills/session-fork-to-destination/src/helpers/behavior-contracts.ts`: delete after repeating its exclusive-consumer check; no remaining suite should import it.
 - The fork skill's `SKILL.md` version, `CHANGELOG.md`, and build-generated standalone/plugin copies of that skill.
+- A dated follow-up annotation to `.oat/repo/reference/decisions/DR-260912-separate-forks-and-handoffs.md` when the helper is actually deleted; preserve the original record. Regenerate its managed index through the owning command if required by decision-record guidance.
 - Temporary, restored keeper mutations in `preview.ts`/`discovery.ts` and observer `locate.ts`, solely to prove retained coverage during execution.
 
 Out of scope: shared transcript implementation, observer product changes, guidance
@@ -118,10 +120,10 @@ observer edit is expected; if one becomes necessary, stop rather than broadening
 
 ### 1. Establish baseline and prove the named keepers
 
-Run the three suites before deletion:
+Run the four suites before deletion, including the shared metadata keepers:
 
 ```sh
-pnpm run test:vitest src/skills/session-fork-to-destination/src/discovery.test.ts src/skills/session-fork-to-destination/src/preview.test.ts src/skills/session-observer/src/locate.test.ts
+pnpm run test:vitest src/skills/session-fork-to-destination/src/discovery.test.ts src/skills/session-fork-to-destination/src/preview.test.ts src/skills/session-observer/src/locate.test.ts src/shared/transcript/runtimes.test.ts
 pnpm run build:check
 ```
 
@@ -136,9 +138,18 @@ pnpm run test:vitest src/skills/session-observer/src/locate.test.ts -t 'claude-c
 Expected: failure because `cc-colliding` reports the wrong cwd. Restore the exact
 pre-mutation bytes and rerun; expect pass. These tests import canonical source, so no
 bundle rebuild is needed for this mutation. Do not mutate while a runner is active.
-For comparator proof, temporarily reverse its ordering result; the two named preview
-ordering keepers must fail with wrong key order. Restore and rerun both successfully.
-A setup error is not a valid mutation failure.
+For comparator proof, temporarily replace `compareQualifiedSessionIds`'s body with
+`return left.localeCompare(right);`, then run:
+
+```sh
+pnpm run test:vitest src/skills/session-fork-to-destination/src/preview.test.ts -t 'orders mixed-case, punctuation, and non-ASCII qualified IDs by code unit'
+```
+
+Expected: the literal `['codex:Z', 'codex:_', 'codex:a', 'codex:é']` assertion fails
+because locale-sensitive order differs from the required UTF-16 code-unit order.
+The separate provider-order keeper at `preview.test.ts:166` need not fail under this
+mutation; keep it and run it normally. Restore exact source bytes and rerun the
+preview suite successfully. A setup error is not a valid mutation failure.
 
 ### 2. Remove only retired implementation and support
 
@@ -153,9 +164,21 @@ Delete `helpers/behavior-contracts.ts` as exclusively obsolete test support; its
 invocation assertion belongs to the retired executor, not the current guidance command.
 Do not keep compatibility wrappers or create replacement helper-level tests.
 
+Only when the helper is actually deleted, append a follow-up dated with the execution
+date to [DR-260912](../decisions/DR-260912-separate-forks-and-handoffs.md). Explain that
+its September 16 follow-up described support retained for the now-removed discovery
+suite, and that this later cleanup retires that support because its only consumer is
+gone. Preserve the September 16 text, original decision, and two-skill boundary; do
+not imply provider authorization or passed live gates. Read the decisions `AGENTS.md`
+and index, verify declared PJM adoption before writing, and run
+`oat decision regenerate-index` after the annotation; never hand-edit its managed
+index. This plan correction does not update the decision or claim deletion happened.
+
 **Verify:** repeat the symbol/import scan from the drift check; expect no retired
 symbols in canonical source or tests. Generated options may remain until the build.
-Run `pnpm run type-check` and the preview/locate focused command below; expect pass.
+Run `pnpm run type-check` and the retained-keeper focused command below; expect pass.
+Inspect the dated decision annotation against the helper deletion and confirm the
+original historical paragraphs remain unchanged.
 
 ### 3. Version, regenerate, and validate
 
@@ -172,42 +195,67 @@ production versus test/support line deltas separately. Do not repair unrelated d
 
 ## Test protection ledger
 
-The public boundaries are `previewHandoffCandidates` ordering and observer `discover`
-exact-all cwd evidence. No new tests are planned. Each row covers the named cases in
+The public boundaries are shared `extractMeta`/`extractMetaFromRecords` identity,
+observer `discover` exact-all evidence and enumeration, and `previewHandoffCandidates`
+ordering. No new tests are planned. Each row covers the named cases in
 `src/skills/session-fork-to-destination/src/discovery.test.ts`; line anchors refer to
 the inspected baseline.
 
 | Cases / location | Protection and disposition | Proof / keeper |
 | --- | --- | --- |
-| `projects exact Codex payload.id instead of legacy or root IDs` (84); `keeps the first physical Codex payload.id authoritative over later inherited metadata` (139) | Obsolete retired discovery projection and native invocation contract | PR #87 and changelog retirement; shared metadata readers remain untouched |
-| `refuses a Codex transcript with late conflicting cwd evidence` (191) | Obsolete retired wrapper's refusal/redacted diagnostics | PR #87; do not infer that shared observer refusal is obsolete or delete its tests |
-| `returns exact Claude sessions from direct and unexpected slugs only` (245); `separates colliding Claude slugs using exact transcript cwd evidence` (331) | Obsolete wrapper filtering; underlying transcript-cwd protection is Covered | Observer `locate.test.ts:671` named colliding-slug keeper; required mutation proof above |
+| `projects exact Codex payload.id instead of legacy or root IDs` (84); `keeps the first physical Codex payload.id authoritative over later inherited metadata` (139) | Retired wrapper projection/native invocation is Obsolete; shared native-ID precedence and first-header authority are Covered | PR #87 for wrapper retirement; shared metadata keepers M1–M4 below preserve the live rules |
+| `refuses a Codex transcript with late conflicting cwd evidence` (191) | Retired wrapper error translation is Obsolete; shared late-cwd conflict refusal and path-free diagnostics are Covered | PR #87 for translation retirement; observer keeper D1 below asserts both refusal and absence of target/transcript paths |
+| `returns exact Claude sessions from direct and unexpected slugs only` (245); `separates colliding Claude slugs using exact transcript cwd evidence` (331) | Wrapper filtering is Obsolete; live unexpected-slug enumeration and transcript-cwd evidence are Covered | Observer keepers D2 and D3 below; colliding-slug mutation proof above |
 | `returns only exact canonical cwd candidates from both providers` (404) | Obsolete projection/canonicalization and private-path omission | PR #87; current guidance discovery is a separate implementation and stays |
-| `keeps provider-native ID collisions distinct and sorts by provider then native ID` (433); `orders mixed-case, punctuation, and non-ASCII qualified IDs by code unit` (455) | Retired projection is Obsolete; live ordering is Covered | `preview.test.ts:166` and `:191`; required reverse-order mutation proof |
-| `includes old Codex sessions and never marks current from candidate active/recency fields` (475); `marks current only from exact direct identity and ignores unrelated signals` (495) | Obsolete retired candidate projection/current-identity API | PR #87; current identity behavior in guidance code stays |
+| `keeps provider-native ID collisions distinct and sorts by provider then native ID` (433); `orders mixed-case, punctuation, and non-ASCII qualified IDs by code unit` (455) | Retired projection is Obsolete; live ordering is Covered | `preview.test.ts:166` and `:191`; localeCompare mutation specifically proves `:191` guards code-unit ordering |
+| `includes old Codex sessions and never marks current from candidate active/recency fields` (475); `marks current only from exact direct identity and ignores unrelated signals` (495) | Retired candidate/current-identity projection is Obsolete; live old-session enumeration in exact-all is Covered | PR #87 for wrapper projection retirement; observer keeper D4 below; current guidance identity behavior stays |
 | `deduplicates identical provider records without selecting the most recent copy` (520); `projects shared epoch-second mtimes to the millisecond schema contract` (532) | Obsolete retired discovery deduplication and time projection | PR #87; preserve live schema definitions/tests |
 | `refuses conflicting duplicates and incomplete provider discovery` (548); `refuses the complete set when discovered cwd canonicalization returns %s` (both null/throw rows, 575); `refuses the complete set when a discovered candidate has no recorded cwd` (601); `refuses invalid projected candidate fields instead of returning a partial set` (619) | Obsolete retired wrapper fail-closed paths and diagnostics | PR #87; no production callers; current guidance and observer refusal contracts stay |
+
+Named live keepers (paths and lines refer to the inspected baseline):
+
+| ID | Existing test | Assertion that preserves the live protection |
+| --- | --- | --- |
+| M1 | `src/shared/transcript/runtimes.test.ts:842` — `uses the first Codex header identity instead of a legacy caller id` | Native `payload.id` wins over a distinct top-level legacy `sessionId` and root `payload.session_id`; literal native/root/fork-parent identities remain distinct |
+| M2 | `src/shared/transcript/runtimes.test.ts:774` — `uses the first physical session header for a root rollout` | Literal session/native/root IDs and recorded cwd come from the physical root header |
+| M3 | `src/shared/transcript/runtimes.test.ts:791` — `keeps child, root, and direct parent identity distinct from inherited headers` | Literal child, root and direct-parent IDs remain distinct despite inherited headers |
+| M4 | `src/shared/transcript/runtimes.test.ts:990` — `accepts inherited parent headers after the physical Codex identity header` | Two headers with IDs `one` then `two` yield session/native ID `one` |
+| D1 | `src/skills/session-observer/src/locate.test.ts:578` — `codex exact-all rejects %s path-free`, especially `late top-level conflict` and `late payload conflict` rows | Real discovery throws `DISCOVERY_TRANSCRIPT_INCOMPLETE`; diagnostic text contains neither target cwd nor transcript path |
+| D2 | `src/skills/session-observer/src/locate.test.ts:761` — `claude-code exact-all enumerates unexpected project slugs after a direct hit` | A direct hit and an unexpected slug both yield the literal session IDs and transcript-record cwd evidence |
+| D3 | `src/skills/session-observer/src/locate.test.ts:671` — `claude-code exact-all uses exact transcript cwd evidence, not the colliding direct slug` | Colliding slug candidates keep their distinct literal transcript cwd values; prove with the mutation above |
+| D4 | `src/skills/session-observer/src/locate.test.ts:1150` — `codex exact-all includes old sessions while default discovery remains recent-only` | The same stale transcript is absent in default discovery and present under exact-all |
+
+The [September 26 pruning campaign](../reviews/2026-09-26-session-observer-test-pruning-campaign.md)
+explicitly withdrew deletion of the late-conflicting-cwd case because its proof was
+not airtight. That withdrawal is not deletion permission. This plan separates the
+retired wrapper translation from the still-live shared refusal and points to D1's
+same late-evidence inputs and path-free assertions; execution must retain and baseline
+those keeper rows before deletion. If the mapping no longer holds, retain the case
+and stop. M1 already covers native-ID precedence over legacy/root IDs; no missing
+coverage or speculative replacement test is claimed.
 
 The first case's `buildNativeInvocation` assertion does not justify keeping the test-only
 behavior-contract helper after the executor retirement. The helper's entire export set
 has been searched, not just that one function. Do not use a passing remaining suite as
-the deletion proof; use the retirement evidence and the two explicit keeper proofs.
+the deletion proof; use retirement evidence only for wrapper-specific behavior, the
+explicit shared-behavior keeper mappings, and the specified mutation proofs.
 
 After deletion, run:
 
 ```sh
-pnpm run test:vitest src/skills/session-fork-to-destination/src/preview.test.ts src/skills/session-observer/src/locate.test.ts
+pnpm run test:vitest src/skills/session-fork-to-destination/src/preview.test.ts src/skills/session-observer/src/locate.test.ts src/shared/transcript/runtimes.test.ts
 ```
 
-Expected: both suites pass unchanged. The full repository suite additionally covers
+Expected: all three retained suites pass unchanged. The full repository suite additionally covers
 current guidance discovery, CLI and import paths. Never add live-provider calls for this cleanup.
 
 ## Done criteria
 
 - Retired discovery symbols and the test-support module have no remaining source, test, or generated-runtime reference; historical records may retain their names.
 - `compareQualifiedSessionIds` and its live preview import remain, with the same code-unit ordering.
-- Both named preview keepers and the observer colliding-slug keeper fail for the intended injected defect and pass after exact restoration.
+- The mixed-case preview keeper fails under `localeCompare`, and the observer colliding-slug keeper fails under the wrong-cwd mutation; both pass after exact restoration. The separate provider-order keeper and all named shared/observer keepers pass normally.
 - Every deleted test protection matches the ledger; no unclassified live protection is lost.
+- The dated DR-260912 follow-up records the actual helper retirement while preserving its historical text and two-skill boundary; its managed index is regenerated through the owner.
 - The skill version is greater than the actual base and its changelog entry is present; generated outputs are fresh and dead options are absent.
 - Focused tests and all repository gates above pass; any platform limits are explicit.
 - `git diff --check` passes and no unexplained or out-of-scope file remains changed.
