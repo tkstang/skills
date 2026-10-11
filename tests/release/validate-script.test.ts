@@ -128,7 +128,6 @@ async function createValidTempRepository() {
   await writeFile(path.join(tempRoot, 'CONTRIBUTING.md'), '# Contributing\n');
   await writeFile(path.join(tempRoot, 'RELEASING.md'), '# Releasing\n');
   await writeFile(path.join(tempRoot, 'AGENTS.md'), '# Agents\n');
-  await writeFile(path.join(tempRoot, 'CLAUDE.md'), '@AGENTS.md\n');
   await writeFile(
     path.join(tempRoot, 'src/skills/session-fork-to-destination/SKILL.md'),
     `---

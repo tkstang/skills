@@ -1,4 +1,4 @@
-import { lstat, readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -636,35 +636,6 @@ async function validateDocs(root: string): Promise<string[]> {
   for (const doc of docs) {
     if (!(await pathExists(path.join(root, doc)))) {
       issues.push(`missing ${doc}`);
-    }
-  }
-
-  // Every directory carrying an AGENTS.md must pair it with a CLAUDE.md
-  // pointer stub (regular file containing exactly "@AGENTS.md" — symlinks
-  // degrade under copy-based tooling). Directories absent from a checkout
-  // (e.g. test fixture repos) are skipped via the AGENTS.md existence gate.
-  const agentsDirs = [
-    '.',
-    'documentation',
-    'plugins/consensus',
-    'tests',
-    '.oat/repo',
-    '.oat/repo/pjm',
-    '.oat/repo/reference',
-  ];
-  for (const dir of agentsDirs) {
-    if (!(await pathExists(path.join(root, dir, 'AGENTS.md')))) continue;
-    const claudePath = path.join(root, dir, 'CLAUDE.md');
-    const label = path.normalize(path.join(dir, 'CLAUDE.md'));
-    const claude = await lstat(claudePath).catch(() => null);
-    if (!claude) {
-      issues.push(`missing ${label} (@AGENTS.md pointer stub)`);
-    } else if (claude.isSymbolicLink()) {
-      issues.push(
-        `${label} should be an @AGENTS.md pointer stub, not a symlink`,
-      );
-    } else if ((await readFile(claudePath, 'utf8')).trim() !== '@AGENTS.md') {
-      issues.push(`${label} should contain exactly "@AGENTS.md"`);
     }
   }
 

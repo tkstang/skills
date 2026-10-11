@@ -129,7 +129,6 @@ async function tempReleaseRoot() {
     await mkdir(path.dirname(path.join(tempRoot, file)), { recursive: true });
     await cp(path.join(repoRoot, file), path.join(tempRoot, file));
   }
-  await writeFile(path.join(tempRoot, 'CLAUDE.md'), '@AGENTS.md\n');
   return tempRoot;
 }
 
