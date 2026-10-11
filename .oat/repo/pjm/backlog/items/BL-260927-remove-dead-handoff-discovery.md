@@ -11,9 +11,10 @@ labels:
   - dead-code
 assignee: null
 created: 2026-09-27T12:30:49.577Z
-updated: 2026-09-27T12:30:49.577Z
+updated: 2026-10-11T00:16:47Z
 associated_issues: []
-external_plans: []
+external_plans:
+  - .oat/repo/reference/external-plans/2026-10-10-remove-dead-handoff-discovery.md
 ---
 
 ## Description
