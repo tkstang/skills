@@ -164,8 +164,7 @@ entries. See DR-260627 for the rationale.
 
 Never lint/format generated, OAT-synced, or agent-instruction files: generated
 installation outputs from `scripts/build-generated.ts`, `.agents/**`,
-`.claude/rules/**`, `.cursor/rules/**`, and `AGENTS.md` / `CLAUDE.md` at every
-level.
+`.claude/rules/**`, `.cursor/rules/**`, and `AGENTS.md` at every level.
 
 Format exclusions must stay in sync across `.oxfmtrc.json`, `.lintstagedrc.mjs`,
 and the CI `oxfmt --check` step in `.github/workflows/validate.yml`; generated

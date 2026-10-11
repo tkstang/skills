@@ -150,9 +150,13 @@ describe('docs-presence', () => {
       /## \[0\.1\.0\] - \d{4}-\d{2}-\d{2}/,
     );
 
-    const claude = await lstat(new URL('CLAUDE.md', repoRoot));
-    expect(claude.isSymbolicLink()).toBe(false);
-    expect((await read('CLAUDE.md')).trim()).toBe('@AGENTS.md');
+    // AGENTS.md is the only repository instruction file; a CLAUDE.md would
+    // hide AGENTS.md from Claude Code, which reads AGENTS.md natively.
+    const agents = await lstat(new URL('AGENTS.md', repoRoot));
+    expect(agents.isFile()).toBe(true);
+    await expect(lstat(new URL('CLAUDE.md', repoRoot))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
   });
 
   it('refine SKILL.md documents iteration-mode and escalation sections', async () => {
