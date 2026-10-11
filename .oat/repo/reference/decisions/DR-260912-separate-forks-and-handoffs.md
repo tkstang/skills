@@ -67,6 +67,17 @@ retiring it does not change the two-skill boundary or authorize any provider
 operation. Reviving automated execution would be a new decision, not a
 restoration.
 
+### Follow-up: obsolete discovery support was retired (2026-10-10)
+
+The September 16 follow-up described behavior contracts retained as test support
+for the now-removed handoff discovery suite. This cleanup deletes that suite, its
+retired discovery machinery, and
+`src/skills/session-fork-to-destination/src/helpers/behavior-contracts.ts`, whose
+only consumer was the removed suite. Live preview ordering and observer exact-all
+transcript-cwd coverage remain. The original decision and September 16 history
+above are preserved; the two-skill boundary is unchanged. This retirement does not
+authorize provider operations or claim passed live gates.
+
 ## Related decisions and evidence
 
 - [Exact identity for stateful work](DR-260724-stateful-work-requires-exact.md).

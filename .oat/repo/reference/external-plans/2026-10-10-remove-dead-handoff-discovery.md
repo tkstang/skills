@@ -5,7 +5,7 @@ oat_external_plan_source: backlog-review
 oat_external_plan_sources:
   - .oat/repo/pjm/backlog/reviews/backlog-and-roadmap-review.md
   - .oat/repo/pjm/backlog/reviews/priority-alignment.md
-  - .oat/repo/pjm/backlog/items/BL-260927-remove-dead-handoff-discovery.md
+  - .oat/repo/pjm/backlog/archived/BL-260927-remove-dead-handoff-discovery.md
 oat_external_plan_commit: 9c95f0194e2770f1cedf26f95f3cc93af3b45563
 oat_external_plan_main_commit: 9c95f0194e2770f1cedf26f95f3cc93af3b45563
 oat_external_plan_date: '2026-10-10'
@@ -35,7 +35,7 @@ preview, prepare, and import commands retain their behavior.
 
 ## Source and live evidence
 
-- Source: [BL-260927-remove-dead-handoff-discovery](../../pjm/backlog/items/BL-260927-remove-dead-handoff-discovery.md), open with settled acceptance criteria.
+- Source: [BL-260927-remove-dead-handoff-discovery](../../pjm/backlog/archived/BL-260927-remove-dead-handoff-discovery.md), open with settled acceptance criteria.
 - Inspected HEAD and fetched `origin/main`: `9c95f0194e2770f1cedf26f95f3cc93af3b45563`; merge-base is the same. Planning date: October 10, 2026 (operator timezone).
 - `git status --porcelain` was empty before plan writes.
 - The September 20 living review and priority alignment did **not** consider this September 27 item. Selection comes from the approved single-item outline plus independent verification, not from a stale review ranking.
@@ -283,3 +283,14 @@ Review the separation between the retired wrapper and current guidance discovery
 the complete deletion-protection ledger, exact restoration of temporary mutations,
 comparator preservation, and generated initializer removal. Confirm no live provider,
 installation, publication, or runtime-store acceptance is implied by synthetic tests.
+
+## Execution follow-up (2026-10-10)
+
+The plan above preserves its original planning provenance and READY assessment.
+Direct implementation from `82230902b807befdee3ba42447216d8eae164fed` satisfied
+its deterministic acceptance criteria and closed/archived the linked backlog item.
+Both specified keeper mutations failed on the intended assertion and were restored
+exactly before deletion. The retained suites passed 242 tests; the full suite passed
+2,854 tests with three skipped. Build/freshness, validate, smoke, type-check,
+actual-base skill versions, internal flags, changed-file lint/format and whitespace
+checks passed. Independent review, publication, merge and installation remain pending.

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Removed
+
+- `session-fork-to-destination` 0.3.4 removes retired handoff discovery and its
+  obsolete tests and executor behavior-contract support. Live preview ordering and
+  current guidance discovery are preserved.
+
 ### Added
 
 - Document selective Amp hosted personal/workspace onboarding from generated standalone payloads, with static compatibility limits, reviewed publication, and upstream revision/version provenance for updates.
