@@ -80,3 +80,12 @@ Installer acceptance, live messaging acceptance and live-submit diagnosis remain
 - [Full review](backlog/reviews/backlog-and-roadmap-review.md)
 - [Priority alignment](backlog/reviews/priority-alignment.md)
 - [Completed history](backlog/completed.md) and [decision records](../reference/decisions/index.md)
+
+## October 10 bounded cleanup follow-up
+
+[Remove dead handoff discovery](backlog/archived/BL-260927-remove-dead-handoff-discovery.md)
+is implemented and closed on `refactor/remove-dead-handoff-discovery`, with both
+retained keeper mutations proved and deterministic repository gates passed. The fork
+skill is 0.3.4; independent review, publication, merge and installation remain pending.
+This closure reduces the dated 27-active-item snapshot above to 26 active item files.
+Other dated state and release claims above are not refreshed by this cleanup.
