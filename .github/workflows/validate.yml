@@ -167,7 +167,7 @@ jobs:
           pnpm exec oxlint "${files[@]}"
       - name: oxfmt --check (changed files)
         run: |
-          exclude='^(node_modules|\.oat|\.agents)/|\.(claude|cursor)/rules/|(^|/)(AGENTS|CLAUDE)\.md$'
+          exclude='^(node_modules|\.oat|\.agents)/|\.(claude|cursor)/rules/|(^|/)AGENTS\.md$'
           files=()
           while IFS= read -r file; do
             generated=false

@@ -63,5 +63,10 @@
       "apply": "ask",
       "upstreamRepo": "voxmedia/open-agent-toolkit"
     }
+  },
+  "instructions": {
+    "claude": {
+      "shims": "none"
+    }
   }
 }

@@ -39,7 +39,7 @@ Both run the configured `predev`/`prebuild` generation. To refresh only the inve
 oat docs generate-index --docs-dir docs --output index.md
 ```
 
-For approved changes, verify local links, local maps/sidebar coherence, and the production build. Inspect affected Mermaid diagrams and sidebar rendering; a successful build alone does not establish visual quality. Format only changed authored docs using the repository formatter; never format AGENTS/CLAUDE files or generated inventories.
+For approved changes, verify local links, local maps/sidebar coherence, and the production build. Inspect affected Mermaid diagrams and sidebar rendering; a successful build alone does not establish visual quality. Format only changed authored docs using the repository formatter; never format AGENTS.md files or generated inventories.
 
 ## Analysis and application
 

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { lstat, readFile, readdir } from 'node:fs/promises';
 
 import { describe, expect, it } from 'vitest';
@@ -150,9 +151,16 @@ describe('docs-presence', () => {
       /## \[0\.1\.0\] - \d{4}-\d{2}-\d{2}/,
     );
 
-    const claude = await lstat(new URL('CLAUDE.md', repoRoot));
-    expect(claude.isSymbolicLink()).toBe(false);
-    expect((await read('CLAUDE.md')).trim()).toBe('@AGENTS.md');
+    // AGENTS.md is the only tracked repository instruction file; a tracked
+    // CLAUDE.md would hide AGENTS.md from Claude Code, which reads AGENTS.md
+    // natively. Untracked local files are the checkout owner's business.
+    const agents = await lstat(new URL('AGENTS.md', repoRoot));
+    expect(agents.isFile()).toBe(true);
+    const tracked = execFileSync('git', ['ls-files', 'CLAUDE.md'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+    expect(tracked).toBe('');
   });
 
   it('refine SKILL.md documents iteration-mode and escalation sections', async () => {

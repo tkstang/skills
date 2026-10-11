@@ -154,7 +154,7 @@ tolerates. A clean `pnpm build` is the bar for a docs change; inspect changed
 diagrams and sidebar layout separately. Run `pnpm run docs:format:check` for
 the docs-wide formatting check. For a bounded change, use the repository's
 formatter on only the changed authored pages; do not reformat unrelated docs,
-generated inventories, or AGENTS/CLAUDE files.
+generated inventories, or AGENTS.md files.
 
 ## Agent-instruction surfaces
 
