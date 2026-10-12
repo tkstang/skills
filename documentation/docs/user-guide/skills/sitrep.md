@@ -20,7 +20,8 @@ The report covers the goal the session is working toward and the workstreams
 already established for it, such as subagents, background jobs, branches, and
 pull requests. "Everything" means that scope, not every repository or process.
 Name a topic to narrow it. When no goal is established, the skill asks what to
-cover instead of surveying the repository.
+cover instead of surveying the repository. Named ad-hoc work is reported against
+its existing commitments, without an invented overarching goal.
 
 A useful report includes, where each applies:
 
@@ -30,7 +31,8 @@ A useful report includes, where each applies:
 - what remains, limited to commitments already agreed;
 - what is at risk, including work that exists only in the session or the
   working tree;
-- questions still waiting on you from anywhere in the visible session; and
+- questions relevant to that scope that are still waiting on you, from anywhere
+  in the visible session; and
 - what could not be checked.
 
 It does not invent a plan, a task breakdown, or a percentage, and it does not
@@ -70,7 +72,7 @@ topic. Natural language works too:
 > Where are we on this? What's done and what's left?
 
 For a session executing a four-phase plan, a useful answer says that two phases
-are complete with tests shown passing, the third is running in a subagent last
+are reported complete with tests shown passing, the third is running in a subagent last
 observed ten minutes ago, the fourth remains and depends on the third, one
 benchmark the plan marks as done has no visible run, and one question from
 earlier is still waiting on you.
@@ -90,7 +92,8 @@ and useful invocation remain separate live evidence.
 
 ## Limitations
 
-- The skill reports; it does not modify files, run checks, or update trackers.
+- The skill reports; it does not modify files, run tests or builds, or update
+  trackers.
 - It reads only sources the session already uses, so it is not a repository
   audit or a reconciliation of project records.
 - It cannot guarantee that work continues after the report; that depends on the

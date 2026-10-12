@@ -24,9 +24,11 @@ workstreams already established for it, such as subagents, background jobs,
 branches, and pull requests. "Everything" means that scope, not every repository,
 process, or possible task.
 
-If no goal is established, ask what the report should cover instead of surveying
-the repository for one. Describe progress in the terms the work already uses. Do
-not invent a plan, a task breakdown, or a percentage when none exists.
+If neither an explicit scope nor an established goal is available, ask what the
+report should cover instead of surveying the repository for one. For named ad-hoc
+work, report against its existing commitments without inventing an overarching
+goal. Describe progress in the terms the work already uses. Do not invent a plan,
+a task breakdown, or a percentage when none exists.
 
 ## Gather the evidence
 
@@ -71,10 +73,12 @@ omitting any that have nothing to report:
   source. Include work that exists only in the session or the working tree, such
   as uncommitted changes, unpushed commits, or a decision recorded nowhere, when
   the evidence shows it.
-- **Waiting on the user:** questions and approval requests addressed to the user
-  anywhere in the visible session, judged by their latest visible disposition. One
-  is closed when the user answered it or the agent withdrew or replaced it. If the
-  agent went ahead without an answer, report that as a risk. If missing history
+- **Waiting on the user:** questions and approval requests relevant to the
+  selected scope, searched across the whole visible session and judged by their
+  latest visible disposition. One is closed when the user answered it or the agent
+  withdrew or replaced it. If the agent went ahead without an answer, distinguish
+  an optional choice made under existing authorisation from a required decision or
+  approval that was bypassed, and report the latter as a risk. If missing history
   leaves the status unclear, say it is unknown. Keep an actual question separate
   from a risk you inferred, and do not manufacture an approval request.
 - **Not checked:** sources that could not be read or that fall outside the
@@ -107,10 +111,12 @@ is still running.
 For a hypothetical session executing a four-phase plan:
 
 > We are migrating the importer to the new parser, following the plan in
-> `docs/importer-plan.md`. Two of four phases are done and the third is running.
+> `docs/importer-plan.md`. Phases 1 and 2 of four are reported complete and the
+> third is running.
 >
-> - **Complete:** phases 1 and 2. Their commits are on the feature branch and the
->   importer tests are shown passing after phase 2.
+> - **Complete:** phases 1 and 2, as reported. Their commits are on the feature
+>   branch and the importer tests are shown passing after phase 2. The phase 2
+>   benchmark is unverified.
 > - **In progress:** phase 3, the CSV adapter, in a background subagent. Last
 >   observed ten minutes ago, with two of five files converted.
 > - **Remaining:** phase 4, removing the old parser, which the plan makes
