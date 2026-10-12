@@ -38,7 +38,7 @@ that resolves it.
 
 ## Related skills
 
-Next Steps looks forward. Two standalone skills answer the neighbouring
+Next Steps looks forward. Two standalone skills answer the neighboring
 questions and neither is required:
 
 - [Debrief](debrief.md) reports what happened in the session while you were

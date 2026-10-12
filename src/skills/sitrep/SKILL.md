@@ -75,7 +75,7 @@ omitting any that have nothing to report:
 - **In progress:** what is running now, what is running it, and when it was last
   observed.
 - **Remaining:** commitments or acceptance criteria already agreed and not yet
-  met. Report dependencies the plan records. Do not prioritise, add tasks, or
+  met. Report dependencies the plan records. Do not prioritize, add tasks, or
   resolve open choices.
 - **At risk:** anything failing, stale, unverified, or contradicted by another
   source. Include work that exists only in the session or the working tree, such
@@ -85,7 +85,7 @@ omitting any that have nothing to report:
   selected scope, searched across the whole visible session and judged by their
   latest visible disposition. One is closed when the user answered it or the agent
   withdrew or replaced it. If the agent went ahead without an answer, distinguish
-  an optional choice made under existing authorisation from a required decision or
+  an optional choice made under existing authorization from a required decision or
   approval that was bypassed, and report the latter as a risk. If missing history
   leaves the status unclear, say it is unknown. Keep an actual question separate
   from a risk you inferred, and do not manufacture an approval request.
@@ -103,7 +103,7 @@ invoke it.
 ## After reporting
 
 A status request does not pause, stop, or redirect the work unless the user also
-says so. After reporting, continue previously authorised work that was active when
+says so. After reporting, continue previously authorized work that was active when
 the host permits it, and put the report before any further work. Do not start,
 restart, or resume paused or completed work only because this skill was invoked.
 If the turn ends or the work cannot continue, say so instead of implying that it

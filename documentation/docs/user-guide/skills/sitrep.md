@@ -36,7 +36,7 @@ A useful report includes, where each applies:
 - what could not be checked.
 
 It does not invent a plan, a task breakdown, or a percentage, and it does not
-prioritise or add to the remaining work.
+prioritize or add to the remaining work.
 
 ## What it reads
 
@@ -66,7 +66,7 @@ sources disagree, both are shown.
 ## Running work
 
 A status request does not pause or redirect the work. After reporting, the agent
-continues previously authorised active work when the host permits it. Whether a
+continues previously authorized active work when the host permits it. Whether a
 request interrupts or queues behind a running turn is decided by the host, so
 the report is a snapshot taken while answering, not a live view. The skill never
 restarts paused or completed work.
