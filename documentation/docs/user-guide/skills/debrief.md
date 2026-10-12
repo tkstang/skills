@@ -39,6 +39,9 @@ The account ends with one line on what is waiting on you. When work remains
 open it also points to [Next Steps](next-steps.md) for a recommendation. That
 skill is optional and is never invoked for you.
 
+Debrief covers an interval. For a snapshot of where the whole effort stands
+against its goal, including what remains, use [Sitrep](sitrep.md).
+
 ## Shown versus reported
 
 The skill uses only the session history already visible. It does not run

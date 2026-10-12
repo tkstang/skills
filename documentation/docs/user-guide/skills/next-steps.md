@@ -36,6 +36,18 @@ It does not invent more work when the evidence says the task is complete. When
 the work is blocked, it names the actual dependency and the smallest action
 that resolves it.
 
+## Related skills
+
+Next Steps looks forward. Two standalone skills answer the neighbouring
+questions and neither is required:
+
+- [Debrief](debrief.md) reports what happened in the session while you were
+  away.
+- [Sitrep](sitrep.md) reports where the current work stands against its goal.
+
+Both end by pointing here when work remains open; neither recommends an action
+itself.
+
 ## Examples
 
 Invoke `$next-steps` in Codex or `/next-steps` in Claude Code, optionally

@@ -32,6 +32,10 @@ Choose by what the next session needs:
 | Find a past Claude Code, Codex, or Cursor session from a fuzzy description | [Session Search](session-search.md)                           | A ranked, redacted candidate list with resume hints. It reads local session stores only and never writes to them.                                                       |
 | Exchange addressed questions, blockers, and handoffs among local sessions  | [Agent Messaging](agent-messaging.md)                         | Durable per-recipient messages, explicit acknowledgments, exact takeover, and optional finite delivery without an exactly-once action claim.                            |
 
+Debrief, Sitrep, and Next Steps answer three adjacent questions about work in
+progress: what happened, where it stands, and what to do. Each can be installed
+and used alone.
+
 These skills are grouped by user-facing behavior. The grouping does not mean
 that they share one implementation, and it does not require installing an
 entire plugin: see [Installation](../installation.md) for the supported plugin
