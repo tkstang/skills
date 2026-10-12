@@ -48,8 +48,8 @@ skills, a Git push can succeed while only the first 200 alphabetical directories
 are loaded. Keep large or non-text resources in a project skill rather than
 removing required resources to fit the hosted limit.
 
-At upstream revision `1f9f4e2` on 2026-10-04, the 17 standalone payloads contain
-102 regular text files totaling 5,611,693 bytes. The largest skill has 19 files
+As of pull request #131 on 2026-10-12, the 19 standalone payloads contain
+104 regular text files totaling 5,632,083 bytes. The largest skill has 19 files
 and 2,180,634 bytes; the largest file is 516,172 bytes. No symlinks or
 name/directory mismatches were found. These are static packaging measurements,
 not live Amp acceptance. Do not bulk-import the collection: choose by its
@@ -57,7 +57,8 @@ runtime requirements and existing skill names.
 
 | Selection                                                                                                                                    | Static portability boundary                                                                                                                 |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `next-steps`, `align`, `must-we`                                                                                                             | Instruction-only starting points; no bundled runtime                                                                                        |
+| `next-steps`, `align`, `must-we`, `debrief`                                                                                                  | Instruction-only starting points; no bundled runtime                                                                                        |
+| `sitrep`                                                                                                                                     | Instruction-only; reads the tracking artifacts the session already uses and runs read-only Git when the work is in a repository             |
 | `author-skill`, `complexity-review`                                                                                                          | Instruction-only; filesystem/repository access is needed for file work, and Complexity Review uses Git for repository history               |
 | `session-handoff`                                                                                                                            | Core handoff can use conversation and repository evidence; observer/export integrations are optional and do not gain Amp transcript support |
 | `babysit-pr`, `land-pr`                                                                                                                      | Need authenticated GitHub access, Git and repository checks; Land PR also requires Babysit PR and merge authority                           |
