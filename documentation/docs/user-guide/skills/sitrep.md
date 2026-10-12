@@ -40,13 +40,20 @@ prioritise or add to the remaining work.
 
 ## What it reads
 
-The skill starts from the session history. Where a material gap remains, it
-reads only the tracking artifacts and running work the session already uses or
-that you name:
+The skill starts from the session history. It then inspects, read-only, the
+sources the session already uses or that you name, reading no more than the
+report needs:
 
-- the plan, task list, or project record the work is following;
-- `git status` and a short log for the working branch; and
+- git state for the repositories, branches, and worktrees the work is on,
+  through read-only git commands such as status, log, diff, and ahead or behind
+  counts;
+- the plan, task list, or project record the work is following; and
 - the state of a known background job, subagent, or pull request check.
+
+Git access is strictly read-only. The skill does not fetch or pull, so a
+comparison with a remote reflects the last fetch, and it passes
+`--no-optional-locks` so that a check cannot block a commit another agent is
+making at the same moment.
 
 It does not survey the repository, run tests or builds, query unrelated
 services, or update a tracker. A source it cannot find within that boundary is

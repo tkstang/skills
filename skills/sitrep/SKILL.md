@@ -32,13 +32,21 @@ a task breakdown, or a percentage when none exists.
 
 ## Gather the evidence
 
-Start with the session history already visible. Then, only where a material gap
-remains, inspect read-only the tracking artifacts and running work that this
-session already uses or that the user names:
+Start with the session history already visible. Then inspect, read-only, the
+sources this session already uses or that the user names, reading what the report
+needs and no more:
 
+- git state for the repositories, branches, and worktrees the work is on, using
+  any read-only git command, such as status, log, diff, branch and worktree
+  listings, stash list, and ahead or behind counts;
 - the plan, task list, or project record the work is following;
-- `git status` and a short log for the branch the session is working on;
 - the state of a known background job, subagent, or pull request check.
+
+Keep git strictly read-only. Do not fetch, pull, or run a command that writes to
+the working tree, the index, or refs, and say that a comparison with a remote
+reflects the last fetch. Pass `--no-optional-locks` to git, as in
+`git --no-optional-locks status`, so that a check cannot block a commit another
+agent is making at the same moment.
 
 Do not discover a project framework, survey the repository, run tests or builds,
 start a review, query unrelated services, or update or repair a tracker. If a
