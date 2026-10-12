@@ -69,6 +69,7 @@ describe('repo-layout', () => {
       'session-observer-collab',
       'session-retro',
       'session-search',
+      'sitrep',
     ]);
 
     for (const skill of standaloneSkills) {

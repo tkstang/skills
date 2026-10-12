@@ -9,7 +9,7 @@ Session skills have canonical descriptive names and may be installed as
 standalone Agent Skills or through a plugin-local short name. Observation and
 collaboration live in the consensus plugin; retro, handoff, export, session search,
 and destination fork guidance live in the session plugin. `align`, `author-skill`,
-`debrief`, `next-steps`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` are standalone only.
+`debrief`, `sitrep`, `next-steps`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` are standalone only.
 
 Choose by what the next session needs:
 
@@ -19,6 +19,7 @@ Choose by what the next session needs:
 | Repair and merge a PR when it is green                                     | [Land PR](land-pr.md)                                         | The shared babysitting loop followed by a head-guarded merge and verified remote outcome.                                                                               |
 | Check shared understanding of the goal, problem, and success criteria      | [Align](align.md)                                             | A revised restatement, material unknowns, and any correction to the current direction; no project changes.                                                              |
 | Catch up on what happened while you were away                              | [Debrief](debrief.md)                                         | A short account of changes, decisions, shown versus reported results, and open questions, from session history only.                                                    |
+| See where the current work stands against its goal                         | [Sitrep](sitrep.md)                                           | A snapshot of what is complete, in progress, remaining, at risk, and waiting on you, from the session and the artifacts it already uses.                                |
 | Understand what to do next and why                                         | [Next Steps](next-steps.md)                                   | A contextual recommendation that identifies the next justified action and who can take it, without executing it.                                                        |
 | Decide whether a requirement or proposal is necessary                      | [Must We?](must-we.md)                                        | An evidence-based verdict, consequence of skipping, and the smallest sufficient path.                                                                                   |
 | Create, revise, migrate, or review an agent skill                          | [Author Skill](author-skill.md)                               | A skill shaped by the target repository’s conventions, with focused verification and explicit live-evidence limits.                                                     |
@@ -42,6 +43,8 @@ and standalone choices.
   direction feels off, through a focused exchange you can correct or end.
 - **debrief** — report what happened in a session while you were away,
   from its visible history, without recommending what comes next.
+- **sitrep** — report where the current work stands against its goal,
+  without recapping an interval or recommending what comes next.
 - **next-steps** — explain the current situation and recommend justified
   actions without executing them.
 - **must-we** — evaluate whether a blocker, requirement, or proposed action is
@@ -91,6 +94,7 @@ and standalone choices.
 
 - [Align](align.md) - Check shared understanding of the goal, problem, and success criteria before or during work.
 - [Debrief](debrief.md) - Report what happened in a session while you were away, from its visible history only.
+- [Sitrep](sitrep.md) - Report where the current work stands against its goal: complete, in progress, remaining, and at risk.
 - [Next Steps](next-steps.md) - Explain the current state and recommend justified actions without executing them.
 - [Must We?](must-we.md) - Decide whether a blocker or proposal is necessary and find the smallest sufficient path.
 

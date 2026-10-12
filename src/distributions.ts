@@ -205,6 +205,24 @@ export const distributions: readonly DistributionDeclaration[] = [
     ],
   },
   {
+    owner: 'sitrep',
+    source: 'src/skills/sitrep',
+    optionalSkills: [
+      {
+        name: 'next-steps',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/next-steps',
+      },
+    ],
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'sitrep',
+        output: 'skills/sitrep',
+      },
+    ],
+  },
+  {
     owner: 'session-handoff',
     source: 'src/skills/session-handoff',
     optionalSkills: [

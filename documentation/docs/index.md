@@ -20,6 +20,7 @@ job you want help with:
 | Hand work to another session, keep an archive, find a past session, or review an episode | [Session](user-guide/plugins/session/index.md)                                                     |
 | Check that we agree on the goal and problem before or during work                        | [Align](user-guide/skills/align.md)                                                                |
 | Catch up on what a session did while you were away                                       | [Debrief](user-guide/skills/debrief.md)                                                            |
+| See where a running session stands against its goal                                      | [Sitrep](user-guide/skills/sitrep.md)                                                              |
 | Decide what comes next or whether a proposed step is necessary                           | [Next Steps](user-guide/skills/next-steps.md) or [Must We?](user-guide/skills/must-we.md)          |
 | Check whether a plan or implementation is needlessly complex                             | [Complexity Review](user-guide/skills/complexity-review.md)                                        |
 | Create or improve an agent skill                                                         | [Author Skill](user-guide/skills/author-skill.md)                                                  |

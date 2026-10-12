@@ -341,6 +341,7 @@ describe('release-versioning', () => {
       'src/skills/session-observer/SKILL.md',
       'src/skills/session-retro/SKILL.md',
       'src/skills/session-search/SKILL.md',
+      'src/skills/sitrep/SKILL.md',
     ]);
   });
 

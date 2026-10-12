@@ -252,6 +252,7 @@ under `skills/`:
 | `agent-messaging`                 | session `messaging`           | [standalone source](https://github.com/tkstang/skills/tree/main/skills/agent-messaging)             |
 | `author-skill`                    | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/author-skill)                |
 | `debrief`                         | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/debrief)                     |
+| `sitrep`                          | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/sitrep)                      |
 | `next-steps`                      | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/next-steps)                  |
 | `must-we`                         | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/must-we)                     |
 | `session-retro`                   | session `retro`               | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-retro)               |

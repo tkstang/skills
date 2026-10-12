@@ -74,4 +74,5 @@
     - [Session Observer](user-guide/skills/session-observer.md) — Review peer sessions or exact own-session Codex evidence, with truthful coverage and bounded tool expansion.
     - [Session Retro](user-guide/skills/session-retro.md) — Review one exact frozen session episode and propose evidence-backed improvements without applying them.
     - [Session Search](user-guide/skills/session-search.md) — Find a past Claude Code, Codex, or Cursor session on this machine from a fuzzy description, with ranked, redacted candidates and resume hints.
+    - [Sitrep](user-guide/skills/sitrep.md) — Get a snapshot of where the current work stands against its goal: complete, in progress, remaining, at risk, and waiting on you.
   - [Installation](user-guide/installation.md) — Install the consensus or session plugin, choose optional standalone skill forms, and check prerequisites and release evidence.
