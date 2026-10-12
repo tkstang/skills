@@ -176,6 +176,24 @@ export const distributions: readonly DistributionDeclaration[] = [
     ],
   },
   {
+    owner: 'debrief',
+    source: 'src/skills/debrief',
+    optionalSkills: [
+      {
+        name: 'next-steps',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/next-steps',
+      },
+    ],
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'debrief',
+        output: 'skills/debrief',
+      },
+    ],
+  },
+  {
     owner: 'next-steps',
     source: 'src/skills/next-steps',
     targets: [

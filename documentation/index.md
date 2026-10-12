@@ -63,6 +63,7 @@
     - [Author Skill](user-guide/skills/author-skill.md) — Create, revise, migrate, or review agent skills using the target repository’s own authoring and distribution conventions.
     - [Babysit PR](user-guide/skills/babysit-pr.md) — Repair CI and review findings until a pull request is green, then report readiness without merging.
     - [Complexity Review](user-guide/skills/complexity-review.md) — Judge whether each schema, script, test, harness, agent pass, or abstraction in a plan or implementation earns its ongoing cost, and get the minimum sufficient version.
+    - [Debrief](user-guide/skills/debrief.md) — Get a concise account of what happened in a session while you were away, without gathering fresh state.
     - [Land PR](user-guide/skills/land-pr.md) — Repair and verify a pull request, then merge its checked head and confirm the remote result.
     - [Must We?](user-guide/skills/must-we.md) — Decide whether a blocker, requirement, or proposed action is necessary and identify the smallest sufficient path.
     - [Next Steps](user-guide/skills/next-steps.md) — Turn the current situation into a justified recommendation without executing it.

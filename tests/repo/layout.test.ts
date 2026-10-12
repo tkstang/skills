@@ -57,6 +57,7 @@ describe('repo-layout', () => {
       'babysit-pr',
       'complexity-review',
       'consensus-review',
+      'debrief',
       'land-pr',
       'must-we',
       'next-steps',
