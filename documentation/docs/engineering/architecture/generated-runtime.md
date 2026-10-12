@@ -80,6 +80,8 @@ plugin by itself.
 | `src/skills/babysit-pr`                                                                                                          | `skills/babysit-pr/` only                                                               |
 | `src/skills/land-pr`                                                                                                             | `skills/land-pr/` only; requires the babysit-pr workflow                                |
 | `src/skills/align`                                                                                                               | `skills/align/` only                                                                    |
+| `src/skills/debrief`                                                                                                             | `skills/debrief/` only                                                                  |
+| `src/skills/sitrep`                                                                                                              | `skills/sitrep/` only                                                                   |
 | `src/skills/next-steps`                                                                                                          | `skills/next-steps/` only                                                               |
 | `src/skills/must-we`                                                                                                             | `skills/must-we/` only                                                                  |
 

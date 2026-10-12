@@ -176,6 +176,24 @@ export const distributions: readonly DistributionDeclaration[] = [
     ],
   },
   {
+    owner: 'debrief',
+    source: 'src/skills/debrief',
+    optionalSkills: [
+      {
+        name: 'next-steps',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/next-steps',
+      },
+    ],
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'debrief',
+        output: 'skills/debrief',
+      },
+    ],
+  },
+  {
     owner: 'next-steps',
     source: 'src/skills/next-steps',
     targets: [
@@ -183,6 +201,24 @@ export const distributions: readonly DistributionDeclaration[] = [
         kind: 'standalone',
         name: 'next-steps',
         output: 'skills/next-steps',
+      },
+    ],
+  },
+  {
+    owner: 'sitrep',
+    source: 'src/skills/sitrep',
+    optionalSkills: [
+      {
+        name: 'next-steps',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/next-steps',
+      },
+    ],
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'sitrep',
+        output: 'skills/sitrep',
       },
     ],
   },

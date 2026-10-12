@@ -101,6 +101,7 @@ symlinked product entry automatically.
 ## Commits
 
 - Commit messages and PR titles follow [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): subject` (e.g. `feat(consensus): add parallel_revision mode`, `fix(p07-t05): persist routing metadata`, `docs: update README`). Common types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci`, `build`, `perf`.
+- Commit your work, and keep commits atomic: one logical change per commit, each leaving the tree buildable with its generated payloads, tests, and docs alongside the source they belong to. Split unrelated changes (a new skill, a tooling fix, an instruction edit) into separate commits instead of one end-of-task commit.
 - This is enforced locally by the `commit-msg` git hook (`commitlint`) and in CI on pull requests. Hooks install automatically on `pnpm install`; manage them with `pnpm hooks:status` / `pnpm hooks:disable-all`, or bypass a single commit with `git commit --no-verify`. Set `GIT_HOOKS=0` to skip hook setup entirely (CI/Docker).
 
 ## Worktrees

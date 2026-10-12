@@ -12,6 +12,10 @@ need both plugins or every standalone skill.
 
 - **Unsure what to do next?** Try [Next Steps](../skills/next-steps.md), a
   standalone, instruction-only skill that recommends an action without doing it.
+- **Returning to a long-running session?** Try [Debrief](../skills/debrief.md)
+  for what happened while you were away, or [Sitrep](../skills/sitrep.md) for
+  where the work stands against its goal. Both are standalone and
+  instruction-only.
 - **Continuing work in another session?** Start with
   [Session Handoff](../skills/session-handoff.md), available in the
   [Session plugin](../plugins/session/index.md) or on its own.

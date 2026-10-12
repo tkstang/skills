@@ -57,6 +57,7 @@ describe('repo-layout', () => {
       'babysit-pr',
       'complexity-review',
       'consensus-review',
+      'debrief',
       'land-pr',
       'must-we',
       'next-steps',
@@ -68,6 +69,7 @@ describe('repo-layout', () => {
       'session-observer-collab',
       'session-retro',
       'session-search',
+      'sitrep',
     ]);
 
     for (const skill of standaloneSkills) {

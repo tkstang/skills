@@ -10,6 +10,17 @@
 
 ### Added
 
+- `debrief` 1.0.0 standalone skill: a concise account of what happened in a
+  session since the user's last message, from visible history only. It separates
+  shown results from reported ones, lists unanswered questions from the whole
+  session, and points to `next-steps` (optional) instead of recommending actions.
+
+- `sitrep` 1.0.0 standalone skill: a snapshot of where the current work stands
+  against its goal (complete, in progress, remaining, at risk, waiting on the
+  user), from session history plus read-only checks of the tracking artifacts the
+  session already uses. It does not recap an interval or recommend actions, and
+  points to `next-steps` (optional).
+
 - Document selective Amp hosted personal/workspace onboarding from generated standalone payloads, with static compatibility limits, reviewed publication, and upstream revision/version provenance for updates.
 
 - Standalone installer accepts explicit `--agent amp` for shared project and user `.agents/skills/` roots, with Amp discovery/reload and invocation guidance. Payload verification remains separate from live Amp acceptance.

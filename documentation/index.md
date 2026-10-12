@@ -63,6 +63,7 @@
     - [Author Skill](user-guide/skills/author-skill.md) — Create, revise, migrate, or review agent skills using the target repository’s own authoring and distribution conventions.
     - [Babysit PR](user-guide/skills/babysit-pr.md) — Repair CI and review findings until a pull request is green, then report readiness without merging.
     - [Complexity Review](user-guide/skills/complexity-review.md) — Judge whether each schema, script, test, harness, agent pass, or abstraction in a plan or implementation earns its ongoing cost, and get the minimum sufficient version.
+    - [Debrief](user-guide/skills/debrief.md) — Get a concise account of what happened in a session while you were away, without gathering fresh state.
     - [Land PR](user-guide/skills/land-pr.md) — Repair and verify a pull request, then merge its checked head and confirm the remote result.
     - [Must We?](user-guide/skills/must-we.md) — Decide whether a blocker, requirement, or proposed action is necessary and identify the smallest sufficient path.
     - [Next Steps](user-guide/skills/next-steps.md) — Turn the current situation into a justified recommendation without executing it.
@@ -73,4 +74,5 @@
     - [Session Observer](user-guide/skills/session-observer.md) — Review peer sessions or exact own-session Codex evidence, with truthful coverage and bounded tool expansion.
     - [Session Retro](user-guide/skills/session-retro.md) — Review one exact frozen session episode and propose evidence-backed improvements without applying them.
     - [Session Search](user-guide/skills/session-search.md) — Find a past Claude Code, Codex, or Cursor session on this machine from a fuzzy description, with ranked, redacted candidates and resume hints.
+    - [Sitrep](user-guide/skills/sitrep.md) — Get a snapshot of where the current work stands against its goal: complete, in progress, remaining, at risk, and waiting on you.
   - [Installation](user-guide/installation.md) — Install the consensus or session plugin, choose optional standalone skill forms, and check prerequisites and release evidence.

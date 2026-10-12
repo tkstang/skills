@@ -23,7 +23,7 @@ What ships today:
   destination-side fork guidance.
 - **Optional standalone skills** — the session capabilities retain descriptive
   `session-*` names except for `agent-messaging`; `align`, `author-skill`,
-  `next-steps`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` remain standalone only.
+  `debrief`, `sitrep`, `next-steps`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` remain standalone only.
   The PR skills repair CI/review findings until green; only `land-pr` merges.
   Consensus `phone-a-friend` and `review` are also available as the standalone
   skills `phone-a-friend` and `consensus-review`; its six other peer workflows
