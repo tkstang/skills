@@ -27,8 +27,12 @@ other agents are not user messages, even when the host places them in the user
 role. A user message that quotes or mentions such content is still a user message.
 
 Use an explicit scope when one is supplied, such as the whole session, a named
-topic, or everything since a stated event. If this request is the first user
-message, say that there is no session history to report.
+topic, or everything since a stated event.
+
+If no earlier activity is visible, say that there is no session history to report.
+A resumed or forked session can carry inherited history before its first user
+message. When history is visible but no earlier user message marks a boundary, say
+so and cover the visible history.
 
 If earlier history was compacted or summarized so that the boundary cannot be
 found, say so and cover only what is still visible. Treat a compaction summary as a
@@ -59,16 +63,20 @@ have nothing to report:
 - What went wrong or was unexpected. Include a dead end only when it explains the
   current state.
 - What is still running or unfinished.
-- A brief assessment, marked as such: what looks sound, what is unverified or
-  risky, and what deserves a second look.
+- A brief assessment, marked as such: what looks sound and what remains unverified
+  or risky. Describe confidence in the result; do not turn it into advice.
 
 Then look across the whole visible session, not only the interval, for questions
 and approval requests addressed to the user that remain unanswered. A later
 unrelated message sets the interval boundary but does not close an earlier
-question. Treat one as closed only when a later user reply chooses an option,
-declines, grants or denies the approval, or otherwise addresses it directly. List
-each open one once with enough context to answer it: what is being asked, why it
-matters, and the options. Do not walk the user through them or recommend an answer.
+question. Judge each by its latest visible disposition. It is closed when a later
+user reply chooses an option, declines, grants or denies the approval, or otherwise
+addresses it directly, and also when the agent withdrew it or replaced it with a
+newer question. If the agent went ahead without an answer, report that as a
+decision made without the user. If missing history leaves the status unclear, say
+it is unknown instead of saying it is waiting. List each open one once with enough
+context to answer it: what is being asked, why it matters, and the options. Do not
+walk the user through them or recommend an answer.
 
 Finish with one line saying what is waiting on the user, or that nothing is. When
 work remains open, add that the user can ask what to do next, or use
@@ -100,8 +108,8 @@ For a hypothetical session where the user asked for a bug fix and left:
 > - **Shown versus reported:** the importer's own tests pass, with the run visible
 >   above. The review subagent reported no other callers are affected; its search
 >   output is not in the session.
-> - **Assessment:** the fix itself is small and covered. The claim about other
->   callers is the part I would check before merging.
+> - **Assessment:** the fix is small and its tests are shown passing. Its effect
+>   on other callers remains unverified.
 >
 > One question from earlier is still open: whether this should go out as its own
 > pull request or ride with the importer refactor. A separate one ships the fix

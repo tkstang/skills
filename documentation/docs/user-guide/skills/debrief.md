@@ -27,11 +27,13 @@ A useful account includes, where each applies:
 - what was decided and by whom, calling out decisions the agent made alone;
 - what went wrong or was unexpected;
 - what is still running or unfinished; and
-- a brief assessment of what looks sound and what deserves a second look.
+- a brief assessment of what looks sound and what remains unverified or risky.
 
 It then lists every question or approval request addressed to you that is still
 unanswered anywhere in the visible session, not only in the default interval. A
-later unrelated message does not close an earlier question.
+later unrelated message does not close an earlier question. One the agent
+withdrew or replaced is closed, and one the agent proceeded past without an
+answer is reported as a decision made without you.
 
 The account ends with one line on what is waiting on you. When work remains
 open it also points to [Next Steps](next-steps.md) for a recommendation. That
@@ -79,6 +81,8 @@ evidence.
 - The skill reports; it does not modify files, run checks, or resume work.
 - It cannot see changes made outside the session, such as a pull request merged
   by someone else.
-- When earlier history was compacted, it says the boundary is unavailable and
-  covers only what is still visible.
+- When compaction prevents finding the interval boundary, it says so and
+  covers only the history still visible, treating summary claims as reported.
+- In a resumed or forked session with no earlier message of yours, it says no
+  boundary exists and covers the inherited history that is visible.
 - It lists open questions but does not recommend answers.
