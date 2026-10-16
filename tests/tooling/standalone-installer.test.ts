@@ -8,6 +8,7 @@ import {
   readdir,
   realpath,
   rm,
+  stat,
   symlink,
   writeFile,
 } from 'node:fs/promises';
@@ -380,8 +381,12 @@ describe('standalone installation', () => {
 
   it('leaves an already-current copy untouched on update', async () => {
     await run();
+    const skillFile = path.join(project, '.agents/skills/demo/SKILL.md');
+    const before = await stat(skillFile);
     const { stdout } = await run([...args(), '--update']);
     expect(stdout).toContain('Already current');
+    const after = await stat(skillFile);
+    expect([after.ino, after.mtimeMs]).toEqual([before.ino, before.mtimeMs]);
     expect(await readdir(path.join(project, '.agents'))).toEqual(['skills']);
   });
 
@@ -400,12 +405,14 @@ describe('standalone installation', () => {
   it('refuses to update a directory whose SKILL.md repeats its name', async () => {
     const target = path.join(project, '.agents/skills/demo');
     await mkdir(target, { recursive: true });
-    const bytes = Buffer.from('---\nname: demo\nname: other\n---\n');
-    await writeFile(path.join(target, 'SKILL.md'), bytes);
-    await expect(run([...args(), '--update'])).rejects.toMatchObject({
-      stderr: expect.stringContaining('names no single skill'),
-    });
-    expect(await readFile(path.join(target, 'SKILL.md'))).toEqual(bytes);
+    for (const duplicate of ['name: other', 'name: ""', '"name": other']) {
+      const bytes = Buffer.from(`---\nname: demo\n${duplicate}\n---\n`);
+      await writeFile(path.join(target, 'SKILL.md'), bytes);
+      await expect(run([...args(), '--update'])).rejects.toMatchObject({
+        stderr: expect.stringContaining('names no single skill'),
+      });
+      expect(await readFile(path.join(target, 'SKILL.md'))).toEqual(bytes);
+    }
   });
 
   it('refuses to update a symlinked destination', async () => {

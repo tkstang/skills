@@ -315,11 +315,10 @@ async function installedSkillName(directory) {
     () => '',
   );
   const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? '';
-  const names = [
-    ...frontmatter.matchAll(/^name:[ \t]*['"]?([^'"\r\n]+?)['"]?[ \t]*$/gm),
-  ];
-  // A repeated name is ambiguous, so it never matches the requested skill.
-  return names.length === 1 ? names[0][1] : undefined;
+  // A repeated name key, in any quoting, is ambiguous and never matches.
+  if ((frontmatter.match(/^["']?name["']?[ \t]*:/gm) ?? []).length !== 1)
+    return undefined;
+  return /^name:[ \t]*['"]?([^'"\r\n]+?)['"]?[ \t]*$/m.exec(frontmatter)?.[1];
 }
 
 // Returns the backup path, or undefined when the copy already matches the tag.
