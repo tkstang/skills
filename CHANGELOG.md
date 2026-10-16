@@ -10,6 +10,11 @@
 
 ### Added
 
+- First-party standalone installer: `install.sh ... --update` replaces an
+  existing copy of the same skill with the selected tag, keeps the previous copy
+  under `<host>/.standalone-backups/`, and leaves an already-current copy
+  untouched. Plain installs still refuse an existing destination.
+
 - `debrief` 1.0.0 standalone skill: a concise account of what happened in a
   session since the user's last message, from visible history only. It separates
   shown results from reported ones, lists unanswered questions from the whole

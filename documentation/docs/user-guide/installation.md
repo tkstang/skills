@@ -195,12 +195,31 @@ and copies the whole payload, including runtime and resources. It never falls
 back to `src/skills/` and never builds or executes the selected source.
 
 An existing destination is refused, including a symlink or a previous partial
-install. Symlinked provider ancestors are also refused. There is no update,
-force, merge, or automatic replacement mode. A failure after reserving a new
+install, unless you add `--update`. Symlinked provider ancestors are always
+refused. A failure after reserving a new
 destination retains the partial directory with `.standalone-install-incomplete`
 and reports its path. Inspect that exact directory and preserve anything you
 need before deliberately moving or removing it to retry. The installer never
 automatically deletes a partial destination.
+
+### Updating a standalone skill
+
+Add `--update` to the same command with the newer tag to replace an existing
+copy of the skill:
+
+```bash
+bash "$INSTALLER" --skill next-steps --agent codex --scope user --ref v0.1.3 --update
+```
+
+`--update` replaces only a real directory whose `SKILL.md` names the same
+skill; it refuses a symlink or a directory holding a different skill. It
+writes and verifies the new copy beside `skills/`, moves the old copy to
+`<host>/.standalone-backups/<skill>-<timestamp>/`, and moves the new copy into
+place. Backups are never deleted automatically. When the installed copy
+already matches the tag, nothing changes. Any tag is accepted, so an older
+tag replaces a newer copy. Local edits in the old copy are not merged; they
+remain only in the backup. Without an existing copy, `--update` installs
+normally.
 
 Success reports the selected tag, scope, verified path, and invocation. The
 installer resolves the exact tag and verifies copy fidelity by comparing every
