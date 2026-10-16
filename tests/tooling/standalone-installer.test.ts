@@ -397,6 +397,17 @@ describe('standalone installation', () => {
     expect(await readFile(path.join(target, 'SKILL.md'))).toEqual(bytes);
   });
 
+  it('refuses to update a directory whose SKILL.md repeats its name', async () => {
+    const target = path.join(project, '.agents/skills/demo');
+    await mkdir(target, { recursive: true });
+    const bytes = Buffer.from('---\nname: demo\nname: other\n---\n');
+    await writeFile(path.join(target, 'SKILL.md'), bytes);
+    await expect(run([...args(), '--update'])).rejects.toMatchObject({
+      stderr: expect.stringContaining('names no single skill'),
+    });
+    expect(await readFile(path.join(target, 'SKILL.md'))).toEqual(bytes);
+  });
+
   it('refuses to update a symlinked destination', async () => {
     const elsewhere = path.join(root, 'elsewhere');
     await mkdir(elsewhere);

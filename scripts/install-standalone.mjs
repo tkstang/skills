@@ -315,7 +315,11 @@ async function installedSkillName(directory) {
     () => '',
   );
   const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? '';
-  return /^name:[ \t]*['"]?([^'"\r\n]+?)['"]?[ \t]*$/m.exec(frontmatter)?.[1];
+  const names = [
+    ...frontmatter.matchAll(/^name:[ \t]*['"]?([^'"\r\n]+?)['"]?[ \t]*$/gm),
+  ];
+  // A repeated name is ambiguous, so it never matches the requested skill.
+  return names.length === 1 ? names[0][1] : undefined;
 }
 
 // Returns the backup path, or undefined when the copy already matches the tag.
@@ -327,7 +331,7 @@ async function replaceExisting(skill, destination, existing, files) {
   const name = await installedSkillName(destination);
   if (name !== skill)
     throw new Error(
-      `Refusing to update ${destination}: its SKILL.md names ${name ? `"${name}"` : 'no skill'}, not "${skill}"`,
+      `Refusing to update ${destination}: its SKILL.md names ${name ? `"${name}"` : 'no single skill'}, not "${skill}"`,
     );
   const partial = await lstat(path.join(destination, MARKER)).then(
     () => true,

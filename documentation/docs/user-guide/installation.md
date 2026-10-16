@@ -174,7 +174,8 @@ bash "$INSTALLER" --skill next-steps --agent amp --scope user --ref v0.1.2
 
 Amp uses `.agents/skills/next-steps/` at project scope and
 `~/.agents/skills/next-steps/` at user scope, sharing the same destinations as
-Codex. An existing shared install is refused rather than replaced.
+Codex. An existing shared install is refused rather than replaced unless you
+add `--update` (see [Updating a standalone skill](#updating-a-standalone-skill)).
 [Official Amp skill documentation](https://ampcode.com/docs/customize/skills)
 lists these discovery roots. User discovery can be disabled by
 `amp.skills.disableGlobalAgentsSkills`, and a same-name skill from
@@ -189,7 +190,10 @@ execution, or Amp support in a skill's provider-specific runtime.
 For account-wide personal or workspace publication, use [Amp Hosted Skills](getting-started/amp-hosted-skills.md).
 Those hosted repositories are separate from this installer's project and user roots.
 
-The installer writes only the selected discovery directory. It does not create
+The installer writes only the selected discovery directory, plus, with
+`--update`, a temporary `.standalone-staging-<skill>-*` directory and a
+`.standalone-backups/` directory beside `skills/` in the same host directory.
+It does not create
 cross-provider mirrors or run `oat sync`. It requires a generated `SKILL.md`
 and copies the whole payload, including runtime and resources. It never falls
 back to `src/skills/` and never builds or executes the selected source.
