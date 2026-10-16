@@ -22,10 +22,14 @@ describe('standalone install contract', () => {
     const guide = await repoFile(
       'documentation/docs/user-guide/installation.md',
     );
-    const commands = [...guide.matchAll(/^bash "\$INSTALLER" (.+)$/gm)].map(
+    const all = [...guide.matchAll(/^bash "\$INSTALLER" (.+)$/gm)].map(
       (match) => match[1],
     );
+    const commands = all.filter((line) => !line.endsWith(' --update'));
     expect(commands).toHaveLength(8);
+    expect(all.filter((line) => line.endsWith(' --update'))).toEqual([
+      '--skill next-steps --agent codex --scope user --ref v0.1.3 --update',
+    ]);
     for (const agent of ['codex', 'claude-code', 'cursor', 'amp']) {
       for (const scope of ['project', 'user']) {
         const command = commands.find((line) =>

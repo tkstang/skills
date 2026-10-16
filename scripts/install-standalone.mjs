@@ -8,6 +8,7 @@ import {
   readFile,
   readdir,
   realpath,
+  rename,
   rm,
   unlink,
 } from 'node:fs/promises';
@@ -29,9 +30,12 @@ const HOSTS = new Map([
 export const fileOperations = { open };
 const HELP = `Usage: bash install.sh --skill <name> --agent <codex|claude-code|cursor|amp>
   --scope <project|user> --ref <exact-tag> [--repository <git-url-or-local-path>]
+  [--update]
 
 All four primary flags are required. Installs only generated skills/<name>/.
-Existing destinations are refused. Requires Node.js 22 and Git.
+Existing destinations are refused unless --update is given. --update replaces
+an existing copy of the same skill and keeps the old copy under
+<host>/.standalone-backups/. Requires Node.js 22 and Git.
 Default repository: ${DEFAULT_REPOSITORY}
 With no arguments, install.sh runs the Consensus recovery installer.
 `;
@@ -78,6 +82,12 @@ function parseArguments(argv) {
   const options = {};
   for (let index = 0; index < argv.length; index += 2) {
     const flag = argv[index];
+    if (flag === '--update') {
+      if (options.update) throw new Error('Provide --update at most once');
+      options.update = true;
+      index--;
+      continue;
+    }
     if (
       !['--skill', '--agent', '--scope', '--ref', '--repository'].includes(flag)
     )
@@ -248,27 +258,18 @@ async function inventory(directory) {
   );
 }
 
-export async function installStandalone(
-  input,
-  { cwd = process.cwd(), env = process.env } = {},
-) {
-  const options = validateOptions(input);
-  if (options.scope === 'user' && (!env.HOME || !path.isAbsolute(env.HOME)))
-    throw new Error('User scope requires an absolute HOME');
-  const root = await realpath(options.scope === 'project' ? cwd : env.HOME);
-  const files = await readPayload(options, env);
-  let parent = root;
-  for (const segment of [HOSTS.get(options.agent), 'skills']) {
-    parent = path.join(parent, segment);
-    await ensureDirectory(parent);
-  }
-  const destination = path.join(parent, options.skill);
+function expectedInventory(files) {
+  return files.map(({ contents: _contents, ...entry }) => entry);
+}
+
+// Reserves `destination` exclusively and leaves the marker behind on failure.
+async function writePayload(destination, files) {
   try {
     await mkdir(destination);
   } catch (error) {
     if (error.code === 'EEXIST')
       throw new Error(
-        `Destination already exists; refusing to replace ${destination}`,
+        `Destination already exists; refusing to replace ${destination} (use --update to replace an older copy of the same skill)`,
         { cause: error },
       );
     throw error;
@@ -294,8 +295,9 @@ export async function installStandalone(
         file.executable,
       );
     }
-    const expected = files.map(({ contents: _contents, ...entry }) => entry);
-    if (!isDeepStrictEqual(expected, await inventory(destination)))
+    if (
+      !isDeepStrictEqual(expectedInventory(files), await inventory(destination))
+    )
       throw new Error(
         'Installed payload inventory does not match the selected tag',
       );
@@ -306,6 +308,98 @@ export async function installStandalone(
       { cause: error },
     );
   }
+}
+
+async function installedSkillName(directory) {
+  const text = await readFile(path.join(directory, 'SKILL.md'), 'utf8').catch(
+    () => '',
+  );
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? '';
+  // A repeated name key, in any quoting, is ambiguous and never matches.
+  if ((frontmatter.match(/^["']?name["']?[ \t]*:/gm) ?? []).length !== 1)
+    return undefined;
+  return /^name:[ \t]*['"]?([^'"\r\n]+?)['"]?[ \t]*$/m.exec(frontmatter)?.[1];
+}
+
+// Returns the backup path, or undefined when the copy already matches the tag.
+async function replaceExisting(skill, destination, existing, files) {
+  if (existing.isSymbolicLink() || !existing.isDirectory())
+    throw new Error(
+      `Refusing to update a symlink or non-directory destination: ${destination}`,
+    );
+  const name = await installedSkillName(destination);
+  if (name !== skill)
+    throw new Error(
+      `Refusing to update ${destination}: its SKILL.md names ${name ? `"${name}"` : 'no single skill'}, not "${skill}"`,
+    );
+  const partial = await lstat(path.join(destination, MARKER)).then(
+    () => true,
+    () => false,
+  );
+  const current = await inventory(destination).catch(() => undefined);
+  if (!partial && isDeepStrictEqual(current, expectedInventory(files)))
+    return undefined;
+
+  // Stage and back up beside skills/ so neither copy is discovered as a skill.
+  const host = path.dirname(path.dirname(destination));
+  const staging = await mkdtemp(
+    path.join(host, `.standalone-staging-${skill}-`),
+  );
+  const staged = path.join(staging, skill);
+  await writePayload(staged, files);
+  const backups = path.join(host, '.standalone-backups');
+  await ensureDirectory(backups);
+  const backup = path.join(
+    backups,
+    `${skill}-${new Date().toISOString().replace(/[:.]/g, '-')}`,
+  );
+  await rename(destination, backup);
+  try {
+    await rename(staged, destination);
+  } catch (error) {
+    await rename(backup, destination).catch(() => {});
+    throw new Error(
+      `Update failed; the verified new copy is at ${staged} and the previous copy is at ${destination} or ${backup}. ${error.message}`,
+      { cause: error },
+    );
+  }
+  await rm(staging, { recursive: true, force: true });
+  return backup;
+}
+
+export async function installStandalone(
+  input,
+  { cwd = process.cwd(), env = process.env } = {},
+) {
+  const options = validateOptions(input);
+  if (options.scope === 'user' && (!env.HOME || !path.isAbsolute(env.HOME)))
+    throw new Error('User scope requires an absolute HOME');
+  const root = await realpath(options.scope === 'project' ? cwd : env.HOME);
+  const files = await readPayload(options, env);
+  let parent = root;
+  for (const segment of [HOSTS.get(options.agent), 'skills']) {
+    parent = path.join(parent, segment);
+    await ensureDirectory(parent);
+  }
+  const destination = path.join(parent, options.skill);
+  const existing = await lstat(destination).catch((error) => {
+    if (error.code === 'ENOENT') return undefined;
+    throw error;
+  });
+  let outcome = `Verified payload from tag ${options.ref} (${options.scope} scope) at ${destination}`;
+  if (!existing || !options.update) {
+    await writePayload(destination, files);
+  } else {
+    const backup = await replaceExisting(
+      options.skill,
+      destination,
+      existing,
+      files,
+    );
+    outcome = backup
+      ? `${outcome}\nPrevious copy kept at ${backup}`
+      : `Already current: ${destination} matches tag ${options.ref} (${options.scope} scope); nothing changed`;
+  }
   const invocation =
     options.agent === 'codex'
       ? `$${options.skill}`
@@ -314,7 +408,7 @@ export async function installStandalone(
         : options.agent === 'amp'
           ? `Ask Amp to use the ${options.skill} skill (check amp skills list in the selected project, then start a fresh thread or ask Amp to reload skills)`
           : `${options.skill} (check Cursor's skill inventory in a fresh session)`;
-  return `Verified payload from tag ${options.ref} (${options.scope} scope) at ${destination}\nInvocation: ${invocation}\nFresh-session discovery and live behavior have not been verified.\n`;
+  return `${outcome}\nInvocation: ${invocation}\nFresh-session discovery and live behavior have not been verified.\n`;
 }
 
 if (
