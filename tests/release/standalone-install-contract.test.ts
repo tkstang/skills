@@ -18,7 +18,7 @@ async function git(cwd: string, ...args: string[]) {
 }
 
 describe('standalone install contract', () => {
-  it('documents explicit scoped standalone commands with a planned exact release tag', async () => {
+  it('documents explicit scoped standalone commands with an exact release tag', async () => {
     const guide = await repoFile(
       'documentation/docs/user-guide/installation.md',
     );
@@ -43,7 +43,7 @@ describe('standalone install contract', () => {
     expect(guide).toMatch(/--scope.*required/);
     expect(guide).toContain('skills/<name>/');
     expect(guide).toContain('.standalone-install-incomplete');
-    expect(guide).toMatch(/once a release contains the helper/);
+    expect(guide).toMatch(/passes\s+validation gets the next patch tag/);
     expect(guide).toMatch(/copy fidelity/);
     expect(guide).toMatch(/signed.tag/);
     expect(guide).toContain('temporary `HOME`');

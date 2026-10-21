@@ -60,7 +60,19 @@ capability evidence and authorized verification cover each claimed surface.
 
 ## Tags and the release workflow
 
-The workflow triggers on plugin-qualified tags, such as `session-v0.3.0` or
+Repository release tags (`vX.Y.Z`) select the payload for the standalone
+installer's `--ref`. The [Tag Main](https://github.com/tkstang/skills/blob/main/.github/workflows/tag-main.yml)
+workflow creates them: whenever Validate passes for a push to `main`, it tags
+that commit with the next patch version after the newest `vX.Y.Z` tag. Do not
+create these tags by hand once the workflow is active; bump the minor or major
+version by pushing that tag yourself, and later patches continue from it. To
+find the newest release:
+
+```bash
+git ls-remote --tags --refs --sort=-v:refname https://github.com/tkstang/skills.git 'v*' | head -n 1
+```
+
+Plugin releases use their own tags. The release workflow triggers on plugin-qualified tags, such as `session-v0.3.0` or
 `consensus-v0.2.0`. It extracts the plugin and passes the `v<version>` portion
 to the version checker. To check the Session example before any tag push:
 

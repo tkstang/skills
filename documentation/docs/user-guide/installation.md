@@ -129,9 +129,9 @@ The default repository is `https://github.com/tkstang/skills.git`; an optional
 scope. Project scope writes beneath your physical current directory; user
 scope writes beneath `HOME`.
 
-`v0.1.2` is the planned pinned example below. These commands become usable
-once a release contains the helper and current generated payloads. They do not
-claim that this tag has been published or tested live. Use that release's
+`v0.1.2` is the pinned example below. Every commit on `main` that passes
+validation gets the next patch tag, so use the newest `vX.Y.Z` tag for current
+skills. Tags are not tested live with each provider. Use that release's
 checkout, including both `install.sh` and `scripts/install-standalone.mjs`:
 
 ```bash
@@ -528,8 +528,8 @@ provision the shared helper with the pinned installer:
 curl -fsSL https://raw.githubusercontent.com/tkstang/skills/v0.1.2/install.sh | bash
 ```
 
-The remote one-liner becomes usable once `v0.1.2` is released. Before that tag
-exists, run the installer from a clone instead:
+Use a newer release tag in the URL to get later changes. To run the installer
+from a clone instead:
 
 ```bash
 bash install.sh
