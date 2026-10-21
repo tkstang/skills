@@ -1,0 +1,62 @@
+name: Tag Main
+
+# A main commit that passes Validate gets the next patch release tag
+# (v0.1.2 -> v0.1.3), so the standalone installer's --ref has a tag at the
+# current main. A commit already covered by a newer tag is skipped. Plugin
+# releases keep their own consensus-v*/session-v* tags.
+on:
+  workflow_run:
+    workflows: [Validate]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+# One run at a time. queue: max keeps every pending run (the default keeps only
+# one and cancels the rest), so the newest validated commit is never dropped.
+concurrency:
+  group: tag-main
+  queue: max
+
+jobs:
+  tag:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: main
+      - name: Tag the validated commit
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin
+          release_tags() { grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' || true; }
+
+          if [ -n "$(git tag --points-at "$SHA" | release_tags)" ]; then
+            echo "$SHA already has a release tag"; exit 0
+          fi
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "$SHA is not on main"; exit 0
+          fi
+          latest="$(git tag --list 'v*' --sort=-v:refname | release_tags | head -n 1)"
+          if [ -z "$latest" ]; then
+            echo "No existing vX.Y.Z tag to bump" >&2; exit 1
+          fi
+          # A run that finishes after a newer commit was tagged must not tag backwards.
+          if git merge-base --is-ancestor "$SHA" "$latest"; then
+            echo "$SHA is already covered by $latest"; exit 0
+          fi
+
+          IFS=. read -r major minor patch <<< "${latest#v}"
+          next="v${major}.${minor}.$((patch + 1))"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$next" -m "release $next" "$SHA"
+          git push origin "refs/tags/$next"
+          echo "Tagged $SHA as $next (previous: $latest)"

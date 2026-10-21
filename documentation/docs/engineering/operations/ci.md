@@ -17,6 +17,7 @@ deployment and opt-in live-provider verification.
 | [Deploy Docs](https://github.com/tkstang/skills/blob/main/.github/workflows/deploy-docs.yml)    | Manual dispatch or relevant `main` pushes | Builds a static export and publishes `documentation/out/` to GitHub Pages.                                                                                                                                     |
 | [Live Provider E2E](https://github.com/tkstang/skills/blob/main/.github/workflows/live-e2e.yml) | Manual dispatch only                      | Exercises the provider submit boundary against a real authenticated provider, spending real quota.                                                                                                             |
 | [Release](https://github.com/tkstang/skills/blob/main/.github/workflows/release.yml)            | `consensus-v*` or `session-v*` tags       | Rebuilds, checks committed generated output, runs deterministic gates, and checks the selected plugin's version. It does not itself publish a GitHub Release.                                                  |
+| [Tag Main](https://github.com/tkstang/skills/blob/main/.github/workflows/tag-main.yml)          | Validate succeeding on a `main` push      | Tags the validated commit with the next patch release (`v0.1.2` → `v0.1.3`) so standalone installs can pin current `main`. Skips commits already tagged, not on `main`, or older than the newest release tag.  |
 
 ## Reproduce deterministic checks
 
