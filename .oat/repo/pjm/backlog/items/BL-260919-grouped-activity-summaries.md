@@ -12,8 +12,9 @@ labels:
   - presentation
 assignee: null
 created: 2026-09-19T19:23:59.953Z
-updated: 2026-10-21T12:50:14.912Z
-associated_issues: []
+updated: 2026-10-21T15:51:38.484Z
+associated_issues:
+  - https://github.com/tkstang/skills/issues/136
 external_plans: []
 ---
 

@@ -10,8 +10,9 @@ labels:
   - skills
 assignee: null
 created: 2026-09-19T19:24:00.837Z
-updated: 2026-10-21T12:50:14.912Z
-associated_issues: []
+updated: 2026-10-21T15:51:38.485Z
+associated_issues:
+  - https://github.com/tkstang/skills/issues/137
 external_plans: []
 ---
 

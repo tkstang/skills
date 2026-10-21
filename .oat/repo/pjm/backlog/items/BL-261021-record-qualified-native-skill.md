@@ -11,8 +11,9 @@ labels:
   - transcript-core
 assignee: null
 created: 2026-10-21T12:50:14.221Z
-updated: 2026-10-21T12:50:14.221Z
-associated_issues: []
+updated: 2026-10-21T15:51:38.477Z
+associated_issues:
+  - https://github.com/tkstang/skills/issues/135
 external_plans: []
 ---
 
