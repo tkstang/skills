@@ -63,9 +63,10 @@ capability evidence and authorized verification cover each claimed surface.
 Repository release tags (`vX.Y.Z`) select the payload for the standalone
 installer's `--ref`. The [Tag Main](https://github.com/tkstang/skills/blob/main/.github/workflows/tag-main.yml)
 workflow creates them: whenever Validate passes for a push to `main`, it tags
-that commit with the next patch version after the newest `vX.Y.Z` tag. Do not
-create these tags by hand once the workflow is active; bump the minor or major
-version by pushing that tag yourself, and later patches continue from it. To
+that commit with the next patch version after the newest `vX.Y.Z` tag. A run
+for a commit that a newer tag already covers does nothing. Do not push patch
+tags by hand; to bump the minor or major version, push that tag yourself, and
+later patches continue from it. To
 find the newest release:
 
 ```bash

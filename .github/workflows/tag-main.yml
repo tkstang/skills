@@ -1,8 +1,9 @@
 name: Tag Main
 
-# Every commit on main that passes Validate gets the next patch release tag
-# (v0.1.2 -> v0.1.3), so the standalone installer's --ref always has a tag at
-# the current main. Plugin releases keep their own consensus-v*/session-v* tags.
+# A main commit that passes Validate gets the next patch release tag
+# (v0.1.2 -> v0.1.3), so the standalone installer's --ref has a tag at the
+# current main. A commit already covered by a newer tag is skipped. Plugin
+# releases keep their own consensus-v*/session-v* tags.
 on:
   workflow_run:
     workflows: [Validate]
@@ -12,10 +13,11 @@ on:
 permissions:
   contents: write
 
-# Tag in push order; never cancel a run that may already have pushed.
+# One run at a time. queue: max keeps every pending run (the default keeps only
+# one and cancels the rest), so the newest validated commit is never dropped.
 concurrency:
   group: tag-main
-  cancel-in-progress: false
+  queue: max
 
 jobs:
   tag:

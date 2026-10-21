@@ -129,8 +129,8 @@ The default repository is `https://github.com/tkstang/skills.git`; an optional
 scope. Project scope writes beneath your physical current directory; user
 scope writes beneath `HOME`.
 
-`v0.1.2` is the pinned example below. Every commit on `main` that passes
-validation gets the next patch tag, so use the newest `vX.Y.Z` tag for current
+`v0.1.2` is the pinned example below. A commit on `main` that passes
+validation gets the next patch tag unless a newer tag already covers it, so use the newest `vX.Y.Z` tag for current
 skills. Tags are not tested live with each provider. Use that release's
 checkout, including both `install.sh` and `scripts/install-standalone.mjs`:
 

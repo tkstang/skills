@@ -10,8 +10,8 @@
 
 ### Added
 
-- Tag Main workflow: each commit on `main` that passes Validate is tagged with
-  the next patch release (`v0.1.2` was cut by hand on 2026-10-21), so
+- Tag Main workflow: a commit on `main` that passes Validate is tagged with the
+  next patch release unless a newer tag already covers it (`v0.1.2` was cut by hand on 2026-10-21), so
   `install.sh --ref` can always pin current `main`.
 
 - First-party standalone installer: `install.sh ... --update` replaces an
