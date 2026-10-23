@@ -11,7 +11,7 @@ labels:
   - skills
 assignee: null
 created: 2026-10-21T12:50:14.435Z
-updated: 2026-10-21T15:51:38.480Z
+updated: 2026-10-23T00:45:13.449Z
 associated_issues:
   - https://github.com/tkstang/skills/issues/137
 external_plans: []
@@ -23,7 +23,7 @@ Provisional implementation estimate approved for planning: **M**. The reviewed b
 
 After Retro ends, a user can accept a particular report-local finding and separately authorize `author-skill` to prepare a proposal for its canonical owner. Add stable finding IDs to the existing report template, emit an external SHA-256 receipt for the final report bytes, and add a short prose intake to `author-skill`. Ship those together as the smallest useful slice. Acceptance alone never grants implementation, installation, publication, memory-write or ledger-append authority.
 
-Keep the existing observation/interpretation/proposal fields and canonical ownership rules. The handoff requires only the report, finding ID, external receipt and explicit follow-up scope/destination; it adds no structured transfer object, handle service or store. BL-260919-retro-findings-ledger — Retro findings ledger with recurrence detection remains the any-findings recurrence owner; this unit follows accepted findings into proposals. Publish its exact authority amendment with this unit while keeping ledger implementation optional.
+Keep the existing observation/interpretation/proposal fields and canonical ownership rules. The handoff requires the report, finding ID, external receipt, explicit user acceptance tied to that receipt and finding ID, and explicit follow-up scope/destination; it adds no structured transfer object, handle service or store. BL-260919-retro-findings-ledger — Retro findings ledger with recurrence detection remains the any-findings recurrence owner; this unit follows accepted findings into proposals. Publish its exact authority amendment with this unit while keeping ledger implementation optional.
 
 Worked intake examples (synthetic, no session data):
 
@@ -35,7 +35,7 @@ Worked intake examples (synthetic, no session data):
 
 - Add stable report-local finding IDs such as `F-001` to the existing Improvement candidates template without replacing Observed evidence, Interpretation, Likely cause, Owner, Proposed change or Validation. Never silently renumber or reuse an ID within the finalized report revision.
 - After final rendering, compute SHA-256 over the exact final UTF-8 report bytes and emit an external receipt in the response or at an explicitly authorized companion destination. When saving is authorized, hash the final saved file rather than a pre-save rendering. The report never contains its own digest. Verifiable later intake expects a report saved at an authorized destination. A response-only receipt is valid only for byte-exact same-session intake; otherwise follow the Stale case. Any byte change requires a new receipt and renewed acceptance of the changed report; a receipt identifies bytes, not authenticity or approval.
-- Add explicit prose intake to `author-skill`: accept report + finding ID + external receipt + user-authorized follow-up scope/destination; verify the digest and exact finding, preserve evidence limits, confirm canonical owner, and check the current owner baseline and existing proposals before producing a minimal sanitized proposal, requesting revalidation, or concluding `no change`.
+- Add explicit prose intake to `author-skill`: accept report + finding ID + external receipt + explicit user acceptance tied to that receipt and finding ID + user-authorized follow-up scope/destination; reject intake when receipt-and-finding-specific acceptance is absent (a receipt alone is not approval); verify the digest and exact finding, preserve evidence limits, confirm canonical owner, and check the current owner baseline and existing proposals before producing a minimal sanitized proposal, requesting revalidation, or concluding `no change`.
 - Retro stays read-only apart from its explicitly authorized report output; an external companion receipt also requires an authorized destination. Intake begins only after Retro ends and is separately explicitly authorized. Acceptance, a receipt, a configured path, recurrence or configuration alone never permits a skill edit, install, publication, memory write or ledger append. Missing destination authority permits a read-only response only.
 - Private proposal context may retain the report digest/finding ID and existing authorized evidence references. Public rationale uses redacted evidence and canonical repo-relative owner paths, with no private native identities, host paths, raw payloads, invented opaque-handle service or copied session instructions. Unknown historical revision remains unknown.
 - Reconcile BL-260919-retro-findings-ledger — Retro findings ledger with recurrence detection using its exact companion amendment: only a separately explicitly authorized post-retro intake may append; Retro never appends and configuration alone never grants permission. The ledger records any finding and evidence limits for recurrence; this unit processes only accepted findings and needs no ledger implementation.
