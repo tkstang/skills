@@ -4,6 +4,8 @@
 
 ## Curated Overview
 
+- **October 21 Beacon research proposals:** [BL-261021-record-qualified-native-skill — Record qualified native skill-response content evidence](items/BL-261021-record-qualified-native-skill.md); [BL-260919-grouped-activity-summaries — Grouped activity summaries and derived enrichments adapted from cli-continues](items/BL-260919-grouped-activity-summaries.md); [BL-261021-prepare-canonical-proposals — Prepare canonical proposals from accepted retrospective findings](items/BL-261021-prepare-canonical-proposals.md); [BL-260919-retro-findings-ledger — Retro findings ledger with recurrence detection](items/BL-260919-retro-findings-ledger.md). See the [bounded proposal](../../reference/research/beacon-patterns-2026-10-20/skills-evidence-proposal.md) for evidence, independent slices and qualification gates. Provisional implementation estimates are L/M/M for A/B/C; no implementation wave, enablement or live acceptance is selected.
+
 - **September 30 scoped delivery:** [Import sessions before native fork](archived/BL-260930-import-sessions-before-native.md) is accepted on its feature branch after Opus design/implementation review and isolated native-client verification. Merge, installation and exact interactive terminal acceptance remain pending. Other dated snapshots below are unchanged.
 
 - **September 20 state:** 23 active items remain after the six-ticket session-evidence batch was accepted and closed in PR #99. PR #99 still awaits merge; closed records document satisfied acceptance criteria on that PR, not main-branch availability. See the [roadmap](../roadmap.md), [current-state snapshot](../current-state.md), historical [full review](reviews/backlog-and-roadmap-review.md), and updated [priority alignment](reviews/priority-alignment.md). No next product wave is selected.
@@ -28,7 +30,9 @@
 | BL-260919-improve-default-observer | Improve default observer digest coverage and full-history recovery | open | medium | task | S |
 | BL-260723-investigate-live-submit | Investigate live submit verdict-source contract mismatch | open | medium | task | S |
 | BL-260919-locate-and-pin-claude-code | Locate and pin Claude Code subagent transcripts | open | medium | feature | M |
+| BL-261021-prepare-canonical-proposals | Prepare canonical proposals from accepted retrospective findings | open | medium | feature | M |
 | BL-260919-read-linked-session-sidecars | Read linked session sidecars in the activity view | open | medium | feature | L |
+| BL-261021-record-qualified-native-skill | Record qualified native skill-response content evidence | open | medium | feature | L |
 | BL-260919-resolve-codex-self-identity | Resolve Codex self identity with duplicate rollout candidates | open | medium | task | S |
 | BL-260919-retro-findings-ledger | Retro findings ledger with recurrence detection | open | medium | feature | M |
 | BL-260619-shared-session-log-substrate | Stateless multi-session activity merge | open | medium | initiative | L |
