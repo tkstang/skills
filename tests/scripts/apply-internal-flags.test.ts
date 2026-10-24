@@ -34,7 +34,7 @@ name: oat-other
 description: A tooling skill that already has a metadata block.
 license: MIT
 metadata:
-  author: thomas.stang
+  author: jane.doe
   version: '0.1.2'
 ---
 
@@ -48,7 +48,7 @@ name: oat-flagged
 description: Already carries the internal flag.
 metadata:
   internal: true
-  author: thomas.stang
+  author: jane.doe
 ---
 
 # oat-flagged
@@ -96,7 +96,7 @@ describe('addInternalFlag (frontmatter patch)', () => {
     const { content, changed } = addInternalFlag(WITH_META_SKILL);
     expect(changed).toBe(true);
     expect(hasInternalFlag(content)).toBe(true);
-    expect(content).toContain('author: thomas.stang');
+    expect(content).toContain('author: jane.doe');
     expect(content).toContain("version: '0.1.2'");
     // only one metadata: key
     expect(content.match(/^metadata:$/gmu)?.length).toBe(1);

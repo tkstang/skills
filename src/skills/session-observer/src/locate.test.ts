@@ -1063,7 +1063,7 @@ test('claude-code: direct lookup uses dot-sanitized project dir slug', async () 
   await withTempHome(async (home) => {
     const targetCwd = join(
       home,
-      'thomas.stang',
+      'jane.doe',
       '.superconductor',
       'worktrees',
       'stoa',
@@ -1095,7 +1095,7 @@ test('claude-code: fallback candidates preserve parent cwdSlug as weak evidence'
   await withTempHome(async (home) => {
     const targetCwd = join(home, 'Code', 'missing-project');
     const otherSlug =
-      '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5';
+      '-Users-jane-doe--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5';
     const projectDir = join(home, '.claude', 'projects', otherSlug);
     await mkdir(projectDir, { recursive: true });
     const transcriptPath = join(projectDir, 'typical.jsonl');

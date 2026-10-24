@@ -1246,9 +1246,9 @@ describe('locate --json', () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'cli-test-'));
     try {
       const cwd =
-        '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5';
+        '/Users/jane.doe/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5';
       const encodedCwd =
-        '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5';
+        '-Users-jane-doe--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5';
       const projectDir = join(tmpDir, '.claude', 'projects', encodedCwd);
       await mkdir(projectDir, { recursive: true });
       await copyFile(typicalClaude, join(projectDir, 'session-001.jsonl'));

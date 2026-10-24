@@ -600,15 +600,11 @@ describe('encodeCwd', () => {
   it.each([
     [
       'claude-code',
-      '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5',
-      '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
+      '/Users/jane.doe/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5',
+      '-Users-jane-doe--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
     ],
     ['codex', '/Users/x/Code/y', null],
-    [
-      'cursor',
-      '/Users/thomas.stang/Code/vox/duet',
-      'Users-thomas-stang-Code-vox-duet',
-    ],
+    ['cursor', '/Users/jane.doe/Code/acme/app', 'Users-jane-doe-Code-acme-app'],
   ] as const)(
     '%s: returns the documented preferred directory form',
     (runtime, cwd, expected) => {
@@ -619,20 +615,20 @@ describe('encodeCwd', () => {
   it('claude-code: exposes dot-sanitized and slash-only variants', () => {
     const variants = encodeCwdVariants(
       'claude-code',
-      '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5',
+      '/Users/jane.doe/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5',
     );
     expectDeepEqual(variants, [
-      '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
-      '-Users-thomas.stang-.superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
+      '-Users-jane-doe--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
+      '-Users-jane.doe-.superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
     ]);
   });
 
   it('cursor: exposes the observed project slug variant', () => {
     const variants = encodeCwdVariants(
       'cursor',
-      '/Users/thomas.stang/Code/vox/duet',
+      '/Users/jane.doe/Code/acme/app',
     );
-    expectDeepEqual(variants, ['Users-thomas-stang-Code-vox-duet']);
+    expectDeepEqual(variants, ['Users-jane-doe-Code-acme-app']);
   });
 });
 
