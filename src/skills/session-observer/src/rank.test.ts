@@ -199,23 +199,23 @@ test('No match → { winner: null, noMatch: true, sisters, globalRecent }', () =
 
 test('Claude parent-dir slug match beats newer unrelated global candidate', () => {
   const targetCwd =
-    '/Users/thomas.stang/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5';
+    '/Users/jane.doe/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5';
   const sameWorktree = mkCandidate({
     recordedCwd:
-      '/Users/thomas/stang/superconductor/worktrees/stoa/sc/levitated/phonon/e8a5',
+      '/Users/jane/doe/superconductor/worktrees/stoa/sc/levitated/phonon/e8a5',
     cwdSlug:
-      '-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
+      '-Users-jane-doe--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
     transcriptPath:
-      '/Users/thomas.stang/.claude/projects/-Users-thomas-stang--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5/session.jsonl',
+      '/Users/jane.doe/.claude/projects/-Users-jane-doe--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5/session.jsonl',
     mtime: NOW - 300,
     ageSec: 300,
     sessionId: 'sess-same-worktree',
   });
   const unrelatedRecent = mkCandidate({
-    recordedCwd: '/Users/thomas.stang/Code/vault/night-tab',
-    cwdSlug: '-Users-thomas-stang-Code-vault-night-tab',
+    recordedCwd: '/Users/jane.doe/Code/vault/night-tab',
+    cwdSlug: '-Users-jane-doe-Code-vault-night-tab',
     transcriptPath:
-      '/Users/thomas.stang/.claude/projects/-Users-thomas-stang-Code-vault-night-tab/session.jsonl',
+      '/Users/jane.doe/.claude/projects/-Users-jane-doe-Code-vault-night-tab/session.jsonl',
     mtime: NOW - 5,
     ageSec: 5,
     sessionId: 'sess-unrelated-recent',
@@ -230,15 +230,15 @@ test('Claude parent-dir slug match beats newer unrelated global candidate', () =
 
 test('Cursor project-dir slug match beats newer unrelated global candidate', () => {
   const targetCwd =
-    '/Users/thomas.stang/.superconductor/worktrees/skills/sc-pinned-meissner-9974';
+    '/Users/jane.doe/.superconductor/worktrees/skills/sc-pinned-meissner-9974';
   const sameWorktree = mkCandidate({
     runtime: 'cursor',
     recordedCwd: null,
     cwdSlug:
-      'Users-thomas-stang-superconductor-worktrees-skills-sc-pinned-meissner-9974',
+      'Users-jane-doe-superconductor-worktrees-skills-sc-pinned-meissner-9974',
     cwdEvidence: 'project-dir-slug',
     transcriptPath:
-      '/Users/thomas.stang/.cursor/projects/Users-thomas-stang-superconductor-worktrees-skills-sc-pinned-meissner-9974/agent-transcripts/session-a/transcript.jsonl',
+      '/Users/jane.doe/.cursor/projects/Users-jane-doe-superconductor-worktrees-skills-sc-pinned-meissner-9974/agent-transcripts/session-a/transcript.jsonl',
     mtime: NOW - 300,
     ageSec: 300,
     sessionId: 'cursor-same-worktree',
@@ -246,10 +246,10 @@ test('Cursor project-dir slug match beats newer unrelated global candidate', () 
   const unrelatedRecent = mkCandidate({
     runtime: 'cursor',
     recordedCwd: null,
-    cwdSlug: 'Users-thomas-stang-Code-vault-night-tab',
+    cwdSlug: 'Users-jane-doe-Code-vault-night-tab',
     cwdEvidence: 'project-dir-slug',
     transcriptPath:
-      '/Users/thomas.stang/.cursor/projects/Users-thomas-stang-Code-vault-night-tab/agent-transcripts/session-b/transcript.jsonl',
+      '/Users/jane.doe/.cursor/projects/Users-jane-doe-Code-vault-night-tab/agent-transcripts/session-b/transcript.jsonl',
     mtime: NOW - 5,
     ageSec: 5,
     sessionId: 'cursor-unrelated-recent',

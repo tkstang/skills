@@ -745,8 +745,8 @@ export function discoverPaths(runtime: Runtime): string[] {
 /**
  * Encode a cwd path for Claude Code's directory-name scheme.
  * Current Claude Code project dirs replace both '/' and '.' with '-'. For
- * example, '/Users/thomas.stang/.superconductor' becomes
- * '-Users-thomas-stang--superconductor'. Codex has no path encoding.
+ * example, '/Users/jane.doe/.superconductor' becomes
+ * '-Users-jane-doe--superconductor'. Codex has no path encoding.
  * Cursor uses slash/dot-separated non-empty path segments joined by '-'.
  *
  * @param {'claude-code' | 'codex' | 'cursor'} runtime

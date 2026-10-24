@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `session-export-transcript` 2.0.42, `session-fork-to-destination` 0.3.5,
+  `session-observer` 1.1.1, `session-observer-collab` 1.0.79, and
+  `session-search` 0.1.3 replace a real local username and an internal repo path
+  in test fixtures and one doc comment with neutral placeholders. Behavior is
+  unchanged.
+
 ### Removed
 
 - `session-fork-to-destination` 0.3.4 removes retired handoff discovery and its

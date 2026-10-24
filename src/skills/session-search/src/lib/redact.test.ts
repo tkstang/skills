@@ -295,7 +295,7 @@ describe('redact: ordinary text stays intact', () => {
     'A password manager keeps secrets safe.',
     'Run pnpm run test:vitest src/skills/session-search/src/lib',
     // Claude project slug (base64 rule must not blank it).
-    'cd ~/.claude/projects/-Users-thomas-stang--superconductor-worktrees-skills-sc-levitated-cryostat-ae6a',
+    'cd ~/.claude/projects/-Users-jane-doe--superconductor-worktrees-skills-sc-levitated-cryostat-ae6a',
     'projects/-Users-name-code-repo/0b6d8f3e-3f4a-4c1b-9d2e-7a8b9c0d1e2f.jsonl',
     // Long camelCase identifiers.
     'call compileMatcherWithLiteralEscapingForV2Patterns() first',
@@ -356,7 +356,7 @@ describe('redact: identifier exemptions keep random tokens masked', () => {
     'compileMatcherWithLiteralEscapingForV2Patterns',
     'HTTPServerRequestHandlerFactoryForSessionSearch2',
     'useSessionSearchResultsQueryForCursorV3Store',
-    '-Users-thomas-stang--superconductor-worktrees-skills-sc-levitated-cryostat-ae6a',
+    '-Users-jane-doe--superconductor-worktrees-skills-sc-levitated-cryostat-ae6a',
   ])('keeps the identifier or slug %j', (text) => {
     expect(redact(text)).toBe(text);
   });
