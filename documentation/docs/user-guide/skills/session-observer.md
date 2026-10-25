@@ -258,6 +258,8 @@ advance it too.
 
 ```mermaid
 flowchart TD
+  accTitle: Read and offset flow
+  accDescr: After resolving the transcript, review reads from the start, catch-up reads unread records, and watch handles any startup backlog then polls. Records are normalized and rendered as a digest, and the offset advances for catch-up, watch or review with --mark-read.
   S[Read request] --> R["Resolve runtime and transcript<br/>or honor an exact --session pin"]
   R --> M{Mode}
   M -- review --> F[Read from transcript start]

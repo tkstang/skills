@@ -112,7 +112,7 @@ describe('docs-presence', () => {
       expect(
         manifest,
         `${page} should be present in documentation/index.md`,
-      ).toContain(`(${page})`);
+      ).toContain(`(docs/${page})`);
     }
   });
 
@@ -604,7 +604,7 @@ describe('docs-presence', () => {
     );
     expect(testAgents).toContain('../src/AGENTS.md');
     expect(hooksAndSafety).toMatch(
-      /pnpm tsx scripts\/apply-internal-flags\.ts/,
+      /pnpm exec tsx scripts\/apply-internal-flags\.ts/,
     );
     for (const maintained of [
       rootAgents,

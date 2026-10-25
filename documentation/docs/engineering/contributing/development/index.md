@@ -21,6 +21,8 @@ Edit the canonical owner and its distribution declaration, bump `metadata.versio
 
 ```mermaid
 flowchart TD
+  accTitle: Change, generate, verify, release
+  accDescr: Canonical source changes and a version bump feed pnpm run build. Static checks then run without provider calls. Release writes the plugin version, manifests and tag, which the release workflow verifies. The live-provider E2E is a separate manual gate.
   subgraph change["1 · Change canonical source"]
     OWN["src/skills/&lt;name&gt;/<br/>SKILL.md, runtime, build.json"]
     SH["src/shared/ · src/plugins/"]

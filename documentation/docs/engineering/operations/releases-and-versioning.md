@@ -26,8 +26,8 @@ keeps the selected boundary together. For example, after
 choosing the appropriate new version:
 
 ```bash
-pnpm tsx scripts/bump-version.ts 1.2.3 --skill session-handoff
-pnpm tsx scripts/bump-version.ts 0.3.0 --plugin session
+pnpm exec tsx scripts/bump-version.ts 1.2.3 --skill session-handoff
+pnpm exec tsx scripts/bump-version.ts 0.3.0 --plugin session
 ```
 
 These are example target versions, not a statement of the current release.
@@ -78,7 +78,7 @@ Plugin releases use their own tags. The release workflow triggers on plugin-qual
 to the version checker. To check the Session example before any tag push:
 
 ```bash
-pnpm tsx scripts/bump-version.ts --check-tag v0.3.0 --plugin session
+pnpm exec tsx scripts/bump-version.ts --check-tag v0.3.0 --plugin session
 ```
 
 The [release workflow](https://github.com/tkstang/skills/blob/main/.github/workflows/release.yml)

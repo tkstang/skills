@@ -1,6 +1,6 @@
 ---
 title: 'Hooks and safety'
-description: 'Git hooks in this repo: install on pnpm install, pre-commit lint-staged (oxlint/oxfmt over staged files), skill version-bump enforcement, and the lint/format exclusions for generated, synced, and agent-instruction files.'
+description: 'Git hooks in this repo: setup on pnpm install, pre-commit lint-staged, skill version-bump checks, and lint/format exclusions for generated and synced files.'
 ---
 
 # Hooks and safety
@@ -23,6 +23,8 @@ The checks are six independent triggers, not a pipeline: no CI job declares `nee
 
 ```mermaid
 flowchart TB
+  accTitle: Where each verification gate runs
+  accDescr: Six independent triggers run separate checks. git commit runs lint-staged, oat status and commitlint. git push runs validation without tests. Pull requests run parallel jobs. Pushes to main run validate and docs deploy. Manual dispatch runs live E2E, and release tags rerun the full suite.
   subgraph commit["git commit"]
     direction TB
     C1["pre-commit: lint-staged"]
@@ -142,7 +144,7 @@ to drop a skill from normal discovery (it reappears only under
 `oat tools update` / `oat sync`, the flag is re-applied by an idempotent script and
 guarded by a gate rather than hand-edited:
 
-- After refreshing tooling, re-stamp the flag: `pnpm tsx scripts/apply-internal-flags.ts`,
+- After refreshing tooling, re-stamp the flag: `pnpm exec tsx scripts/apply-internal-flags.ts`,
   then `oat sync`. The script is idempotent and skips the symlinked
   `session-observer` mirror (a canonical standalone skill that must stay publicly
   discoverable).

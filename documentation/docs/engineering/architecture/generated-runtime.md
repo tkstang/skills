@@ -28,6 +28,8 @@ still run committed Node ESM with no dependency installation step.
 
 ```mermaid
 flowchart LR
+  accTitle: Build and shipping topology
+  accDescr: Skill owners, shared runtime, plugin source and distribution declarations feed pnpm run build, which writes standalone units and plugin payloads that providers load with no install step. build:check compares the generated output with the expected payload.
   subgraph authoring["Canonical authoring"]
     SKILLS["Skill owners<br/>src/skills/name/"]
     SHARED["Shared runtime<br/>src/shared/"]
@@ -108,6 +110,8 @@ core skill.
 
 ```mermaid
 flowchart LR
+  accTitle: Session skill runtime dependencies
+  accDescr: Shared transcript code is bundled into session-observer, session-export-transcript and session-search. session-observer-collab and session-retro require installed workflows, and session-handoff integrates optionally with observer and export.
   TRANSCRIPT["Shared transcript code"] -->|bundled code| OBSERVER["session-observer"]
   TRANSCRIPT -->|bundled code| EXPORT["session-export-transcript"]
   TRANSCRIPT -->|bundled code| SEARCH["session-search"]
@@ -196,6 +200,8 @@ The failure table above describes one transaction. The builder stages and valida
 
 ```mermaid
 stateDiagram-v2
+  accTitle: Staged build transaction
+  accDescr: Units are staged and validated before any mutation. Validation failure aborts untouched. Otherwise prior outputs are backed up and staged units renamed into place, a failed rename rolls back fully or incompletely, and success ends with backups removed or a backup cleanup failure.
   [*] --> staged: build each declared unit into a staging root
   staged: paths asserted repo-relative and collision-free
   staged --> checked: staged replacements validated

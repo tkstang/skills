@@ -1,6 +1,6 @@
 ---
 title: 'Phone-a-friend'
-description: 'Use the phone-a-friend skill for advisory peer consultation with a structured take and explicit host disposition, one-shot by default with optional bounded follow-up rounds.'
+description: 'Use phone-a-friend for advisory peer consultation with a structured take and explicit host disposition, one-shot by default with optional follow-up rounds.'
 ---
 
 # Phone-a-friend

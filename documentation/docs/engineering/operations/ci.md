@@ -47,21 +47,28 @@ tree to resolve a scoped PR failure.
 
 ## Documentation build and deployment
 
-The docs app has its own dependencies and lockfile. To reproduce its build:
+The docs app has its own dependencies and lockfile, including its pinned OAT
+CLI. To reproduce Docs CI:
 
 ```bash
 pnpm --dir documentation install --frozen-lockfile
+PATH="$PWD/documentation/node_modules/.bin:$PATH" oat docs check --target-dir documentation
 NEXT_PUBLIC_BASE_PATH=/skills pnpm --dir documentation build
+git diff --exit-code -- documentation/index.md
 pnpm --dir documentation run docs:format:check
 ```
 
-The build includes generated MDX and inventory steps. Inspect their changes;
-never fix a generated inventory by hand. Also check the actual sidebar, links,
+The build includes generated MDX and inventory steps. Docs CI regenerates the
+committed `documentation/index.md` after the build and fails if it changed, so
+commit the regenerated inventory with the pages that changed it. Inspect their
+changes; never fix a generated inventory by hand. Also check the actual sidebar, links,
 images, and light/dark rendering: a successful export is not a visual review.
 
-GitHub Pages must be configured to use GitHub Actions. Docs CI only checks;
-the separate deployment workflow publishes. Its push filter includes changes
-under `documentation/**` and changes to the deployment workflow itself.
+GitHub Pages must be configured to use GitHub Actions. Docs CI runs on pull
+requests that change `documentation/**`, the shared OAT config, or the Docs CI
+workflow, and only checks; the separate deployment workflow publishes. Its push
+filter includes changes under `documentation/**` and changes to the deployment
+workflow itself.
 
 ## Live checks are opt-in
 

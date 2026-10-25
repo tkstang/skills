@@ -11,6 +11,8 @@ need; these skills are not a required sequence.
 
 ```mermaid
 flowchart LR
+  accTitle: Choosing a Session capability
+  accDescr: Pick by need. Handoff lets someone else continue, messaging coordinates local sessions, export-transcript keeps a readable record, fork-to-destination continues native history elsewhere, retro learns from the episode, and search finds a past session.
   Q{"What do you need<br/>from this session?"}
   M["messaging · agent-messaging<br/>Durable addressed inbox and shared log<br/>with manual fallback and finite delivery"]
   H["handoff · session-handoff<br/>Portable continuation brief:<br/>goal, state, decisions, evidence,<br/>remaining work, approval boundaries"]

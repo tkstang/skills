@@ -68,6 +68,8 @@ The same N=2 exchange, including its bounded closeout, is:
 
 ```mermaid
 sequenceDiagram
+  accTitle: Two-peer collaboration exchange
+  accDescr: Peers A and B announce identities, pin each other and catch up then watch. When B completes a substantive turn, A classifies it and claims one bounded continuation through its local lease, symmetrically for B. At closeout each runs a final freshness check and disarms.
   participant U as User
   participant A as Peer A
   participant B as Peer B
@@ -227,6 +229,8 @@ Expiry, cap exhaustion, and wait timeout all silently demote to `idle`; a non-te
 
 ```mermaid
 stateDiagram-v2
+  accTitle: Collaboration lease lifecycle
+  accDescr: arm creates an armed lease, and a waiter moves it to waiting. Timeouts, release, expiry and caps demote it to idle. A terminal consume moves it to triggered, a non-terminal consume returns to armed, and disarm moves any state to disarmed, from which arm starts again.
   [*] --> armed: arm
   armed: ready for a wake — counters and caps set
   waiting: a generation-bound waiter holds the lease
@@ -320,6 +324,8 @@ spend loop budget. Timeout means `idle`, not successful delivery.
 
 ```mermaid
 flowchart TD
+  accTitle: Delta classification and bounded continuation
+  accDescr: An observed peer range with an invalid pin pauses for the user. A non-substantive range advances state without a wake, and human steering defers the automatic path. With a valid lease and successful compare-and-swap one bounded continuation runs, otherwise no trigger fires.
   D[Observed peer range] --> V{Exact pin, transcript, and baseline valid?}
   V -- No --> P[Pause and yield the diagnostic to the user]
   V -- Yes --> C{New, contiguous, completed, and substantive?}

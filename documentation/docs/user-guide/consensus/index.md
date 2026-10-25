@@ -88,6 +88,8 @@ The wrapper emits JSONL status events while the generated CLI returns one JSON e
 
     ```mermaid
     flowchart TD
+      accTitle: Consensus run flow
+      accDescr: A host session calls a skill wrapper, which runs the consensus CLI against independent Claude, Codex and Cursor peers. Verdict rounds repeat until impasse, convergence or escalation, and refine writes the final output, resolution and log while decide writes its own artifact with dissent.
       HOST["Host session<br/>Claude Code, Codex, or Cursor"]
       WRAP["Skill wrapper (refine, decide, …)<br/>emits JSONL status events"]
       CLI["Generated consensus CLI<br/>one JSON envelope per run"]
@@ -141,6 +143,8 @@ The three shapes are not interchangeable. `refine` deliberates to convergence or
 
 ```mermaid
 flowchart TB
+  accTitle: Who decides in refine, panel and phone-a-friend
+  accDescr: refine runs verdict rounds between two peers until they agree or report an impasse that needs user direction. panel returns attributed answers without synthesis for you to decide. phone-a-friend returns one peer's advisory take for the host agent to disposition.
   subgraph refine["refine · converging"]
     direction TB
     R0["One draft, two peers"]
@@ -247,6 +251,8 @@ validation does not make their advice trustworthy or authorize following it.
 
     ```mermaid
     flowchart TB
+      accTitle: Consensus data boundary
+      accDescr: Local transcripts, state and run artifacts feed the host wrapper, which builds the prompt, schema, submit environment and working directory sent to provider CLIs. Peer output returns as untrusted data, is schema-validated and treated as advice, and passes local guards before it is stored.
       subgraph local["Stored locally — selected contents can enter the prompt"]
         TR["Peer transcripts<br/>~/.claude/projects, ~/.codex/sessions,<br/>~/.cursor/projects — read only"]
         ST["Read offsets, watcher, control state<br/>~/.local/state/session-observer/<br/>collab leases: .../collab/leases/"]
@@ -322,14 +328,28 @@ validation does not make their advice trustworthy or authorize following it.
 
 ## Contents
 
-- [Create](create.md) - `create` usage: brief inputs, `independent_draft` defaults, output contract, and input handling.
-- [Plan](plan.md) - `plan` usage: goal and inline constraints, moderate-agency defaults, required headings, and output contract.
-- [Decide](decide.md) - `decide` usage: options input, minimal-agency defaults, required headings, dissent surfacing, and output contract.
-- [Refine](refine.md) - `refine` usage: sequential default, iteration modes, resume, escalation, and host-mediated parallel sections.
-- [Evaluate](evaluate.md) - `evaluate` usage: artifact-vs-rubric command, defaults, output contract, and guided rubric creation.
-- [Review](review.md) - `review` usage: three bounded selectors, one read-only reviewer invocation, OAT-compatible artifacts, and detection limits.
-- [Phone-a-friend](phone-a-friend.md) - `phone-a-friend` usage: advisory peer call, optional bounded follow-up, provider selection, and host disposition.
-- [Panel](panel.md) - `panel` usage: single-round multi-peer questions, panelist selection, JSONL status, output contract, and neutral moderation.
-- [Observer](../skills/session-observer.md) - Read and watch a pinned peer session; also available standalone as `session-observer`.
-- [Collaborative Observer](../skills/session-observer-collab.md) - Coordinate two sessions with explicit authority boundaries; also available standalone as `session-observer-collab`.
-- [Configuration](configuration.md) - Shared configuration: peer and panelist selection, provider floor, config paths, diagnostics, synthesizer, agency, and permissions.
+### Create, Plan & Decide
+
+- [Create](create.md) — `create` usage: brief inputs, `independent_draft` defaults, output contract, and input handling.
+- [Plan](plan.md) — `plan` usage: goal and inline constraints, moderate-agency defaults, required headings, and output contract.
+- [Decide](decide.md) — `decide` usage: options input, minimal-agency defaults, required headings, dissent surfacing, and output contract.
+
+### Improve & Assess
+
+- [Refine](refine.md) — `refine` usage: sequential default, iteration modes, resume, escalation, and host-mediated parallel sections.
+- [Evaluate](evaluate.md) — `evaluate` usage: artifact-vs-rubric command, defaults, output contract, and guided rubric creation.
+- [Review](review.md) — `review` usage: three bounded selectors, one read-only reviewer invocation, OAT-compatible artifacts, and detection limits.
+
+### Consult Peers
+
+- [Phone-a-friend](phone-a-friend.md) — `phone-a-friend` usage: advisory peer call, optional bounded follow-up, provider selection, and host disposition.
+- [Panel](panel.md) — `panel` usage: single-round multi-peer questions, panelist selection, JSONL status, output contract, and neutral moderation.
+
+### Observe & Collaborate
+
+- [Observer](../skills/session-observer.md) — Read and watch a pinned peer session; also available standalone as `session-observer`.
+- [Collaborative Observer](../skills/session-observer-collab.md) — Coordinate two sessions with explicit authority boundaries; also available standalone as `session-observer-collab`.
+
+### Reference
+
+- [Configuration](configuration.md) — Shared configuration: peer and panelist selection, provider floor, config paths, diagnostics, synthesizer, agency, and permissions.

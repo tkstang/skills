@@ -324,6 +324,8 @@ Readiness is a state machine, not a boolean. `consensus run` is a separate comma
 
 ```mermaid
 stateDiagram-v2
+  accTitle: Provider readiness states
+  accDescr: A provider ls or preflight probe ends in one of four states. Missing means the CLI is not on PATH, auth required needs an operator fix, unavailable covers exit, version and capability failures, and ready means the provider can be selected.
   direction TB
   [*] --> probing: provider ls / preflight
   probing --> missing: not on PATH
@@ -352,6 +354,8 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
+  accTitle: consensus run outcomes
+  accDescr: consensus run never probes readiness. It ends with an ok envelope and exit 0, a failed envelope that still exits 0, or a usage error that is the one exit 2 case.
   direction TB
   [*] --> run: consensus run
   run: a separate command

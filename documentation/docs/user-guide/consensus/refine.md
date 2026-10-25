@@ -1,6 +1,6 @@
 ---
 title: 'Refine'
-description: 'Run the refine skill to deliberate two AI peers toward a converged markdown artifact, including iteration modes, resume, escalation, and host-mediated parallel sections.'
+description: 'Deliberate two AI peers toward a converged markdown artifact with refine, including iteration modes, resume, escalation, and host-mediated parallel sections.'
 ---
 
 # Refine
@@ -36,6 +36,8 @@ Select how the two peers deliberate with `--iteration`. The default is
 
 ```mermaid
 flowchart TB
+  accTitle: Refine round-flow modes
+  accDescr: Each round starts from the current section state. alternating makes one peer call, parallel_revision keeps two revisions, and parallel_synthesized merges two revisions with a synthesis call. Rounds repeat until agreement, a stop, or escalation that resumes with user or host direction.
   Input[Current section state]
 
   subgraph Alternating[alternating - 1 peer call per round]
@@ -127,6 +129,8 @@ The order is load-bearing: an explicit `IMPASSE` short-circuits, convergence is 
 
 ```mermaid
 flowchart TD
+  accTitle: Verdict precedence
+  accDescr: After each round an explicit IMPASSE stops first, then convergence is tested. Only when both decline are the escalation triggers checked in order. A firing trigger routes to auto, host or user decision, and no trigger runs another round.
   ROUND["Round complete<br/>two peer records appended"]
   IMP{"Either verdict is IMPASSE?"}
   STOP["status: impasse<br/>reason: explicit_impasse"]

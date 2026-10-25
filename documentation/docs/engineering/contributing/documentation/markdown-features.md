@@ -127,6 +127,8 @@ Fenced code blocks tagged `mermaid` render as diagrams:
 ````text
 ```mermaid
 flowchart LR
+  accTitle: Request validation
+  accDescr: A request is checked for validity, then handled if valid or rejected if not.
   A[Request] --> B{Valid?}
   B -->|yes| C[Handle]
   B -->|no| D[Reject]
@@ -137,6 +139,8 @@ Rendered:
 
 ```mermaid
 flowchart LR
+  accTitle: Request validation
+  accDescr: A request is checked for validity, then handled if valid or rejected if not.
   A[Request] --> B{Valid?}
   B -->|yes| C[Handle]
   B -->|no| D[Reject]
@@ -150,6 +154,9 @@ Because the palette is applied centrally:
 
 - Do not add `%%{init: ...}%%` directives, `style` lines, or `classDef` colour
   overrides. They fight the site theme and break one of the two modes.
+- Give every diagram `accTitle:` and `accDescr:` lines directly after the
+  diagram type. They describe the diagram for screen readers, and
+  `oat docs check` warns when either is missing.
 - Keep node labels short. Use `<br/>` for a line break inside a flowchart label;
   the Mermaid transform expects it.
 - Prefer `flowchart LR` / `flowchart TD`, `sequenceDiagram`, and `stateDiagram-v2`.
@@ -267,6 +274,8 @@ Rendered:
 
     ```mermaid
     flowchart LR
+      accTitle: One skill source, generated forms
+      accDescr: src/skills/session-retro and src/distributions.ts feed pnpm run build, which writes a standalone skill and a Session plugin member. Both reach declared Claude Code, Codex and Cursor install targets alongside release-owned manifests, and build:check verifies them.
       subgraph author["Authored once · src/"]
         SRC["src/skills/session-retro/<br/>SKILL.md + assets"]
         DECL["src/distributions.ts<br/>declares the forms"]
@@ -393,8 +402,8 @@ styling individual pages.
 ## Verify before committing
 
 Run both builds from the `documentation/` directory. The default build is what
-`pnpm dev` and local checks use; the base-path build is what CI and the Pages
-deployment run:
+`pnpm --dir documentation dev` and local checks use; the base-path build is what
+CI and the Pages deployment run:
 
 ```bash
 pnpm build

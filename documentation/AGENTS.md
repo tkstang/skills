@@ -9,7 +9,21 @@ This file scopes work in `documentation/` and inherits the root instructions. Th
 - Use `.md` with `title` and `description` frontmatter. Use `.mdx` only when embedded JSX is needed.
 - Repository facts come from current source/configuration. Correct stale instructions and human docs together; do not make code conform to an obsolete prose claim.
 
+## Information architecture
+
+The docs follow the consumer-maintainer model recorded in [DR-261025-documentation-information](../.oat/repo/reference/decisions/DR-261025-documentation-information.md) and mirrored in `documentation.ia`:
+
+| Track | Location | Organizing principle |
+| --- | --- | --- |
+| User Guide | `docs/user-guide/` | Product capability: getting started, installation, the Consensus and Session plugins, and standalone skills grouped by what the reader wants to do |
+| Engineering | `docs/engineering/` | Maintenance responsibility: architecture, contributing, operations, decisions and repository layout |
+
+- Put pages for people installing or using a plugin or skill in the User Guide, under the capability they serve. Put implementation, contribution and operations material in Engineering.
+- There is no QA or verification track (overlay: none). Adding one, or a third audience trunk, needs a new decision.
+
 ## Navigation: three different surfaces
+
+The sidebar is hand-authored (`documentation.navOwner: hand-authored` in `.oat/config.json`). Edit `meta.json` by hand alongside the local maps; never run a writing `oat docs nav sync` here.
 
 1. **Authored local maps:** each content directory has `index.md` with useful `## Contents` links to its immediate pages/child directories.
 2. **Rendered sidebar:** adjacent `meta.json` files control page order and grouping. Keep them aligned with the local maps when adding, moving, removing, or reordering pages.
@@ -20,7 +34,8 @@ Fumadocs relative references or link entries. Preserve canonical URLs rather
 than copying guides to match navigation. Local `## Contents` maps must still
 cover their immediate physical pages/child directories; they may also link
 cross-directory reader destinations. Capability subheadings inside Contents are
-allowed, but only `meta.json` separators define rendered sidebar groups.
+allowed; `meta.json` separators define rendered sidebar groups, and
+`oat docs check` compares each `meta.json` with its local map.
 
 Use relative `.md` links, including `subdir/index.md`; the rendering transform normalizes them. Update both source and destination maps/sidebar metadata in the same change when moving a page. Do not introduce `overview.md` entrypoints or another navigation framework.
 
@@ -31,15 +46,16 @@ Run from this directory:
 ```bash
 pnpm dev
 pnpm build
+pnpm exec oat docs check --target-dir .
 ```
 
-Both run the configured `predev`/`prebuild` generation. To refresh only the inventory:
+The first two run the configured `predev`/`prebuild` generation. The checker uses this app's pinned OAT CLI and validates frontmatter, Contents maps against `meta.json`, links, inline commands and Mermaid accessibility. To refresh only the inventory:
 
 ```bash
-oat docs generate-index --docs-dir docs --output index.md
+pnpm exec oat docs generate-index --docs-dir docs --output index.md
 ```
 
-For approved changes, verify local links, local maps/sidebar coherence, and the production build. Inspect affected Mermaid diagrams and sidebar rendering; a successful build alone does not establish visual quality. Format only changed authored docs using the repository formatter; never format AGENTS.md files or generated inventories.
+For approved changes, run `oat docs check` and verify local links, local maps/sidebar coherence, and the production build. Inspect affected Mermaid diagrams and sidebar rendering; a successful build alone does not establish visual quality. Format only changed authored docs using the repository formatter; never format AGENTS.md files or generated inventories.
 
 ## Analysis and application
 
