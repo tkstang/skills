@@ -146,9 +146,11 @@ flowchart LR
   B -->|no| D[Reject]
 ```
 
-Mermaid diagrams re-render when the theme is toggled. The app initialises
-Mermaid with its own palette in `components/mermaid.tsx`, so diagrams pick up the
-same surfaces, text colour, and accent as the rest of the page in both modes.
+Mermaid diagrams render with the `Mermaid` component from
+`@open-agent-toolkit/docs-theme`, which takes its colours from the site's
+`--color-fd-*` tokens in `app/globals.css`. Diagrams pick up the same surfaces,
+text colour, and accent as the rest of the page and follow theme toggles
+without re-rendering. Click a diagram to open it full screen.
 
 Because the palette is applied centrally:
 
@@ -394,7 +396,7 @@ on descriptive headings, another reason to keep both current.
 ## Dark/light mode
 
 The layout includes a theme toggle. Content, code blocks, and Mermaid diagrams
-all re-render on a mode switch, so author with both themes in mind and avoid
+all recolour on a mode switch, so author with both themes in mind and avoid
 baking in colours or contrast assumptions that only hold for one. The palette
 itself is defined once in `app/globals.css`; change tokens there rather than
 styling individual pages.
