@@ -96,32 +96,32 @@ and standalone choices.
 
 ### Decide what to do
 
-- [Align](align.md) - Check shared understanding of the goal, problem, and success criteria before or during work.
-- [Debrief](debrief.md) - Report what happened in a session while you were away, from its visible history only.
-- [Sitrep](sitrep.md) - Report where the current work stands against its goal: complete, in progress, remaining, and at risk.
-- [Next Steps](next-steps.md) - Explain the current state and recommend justified actions without executing them.
-- [Must We?](must-we.md) - Decide whether a blocker or proposal is necessary and find the smallest sufficient path.
+- [Align](align.md) — Check shared understanding of the goal, problem, and success criteria before or during work.
+- [Debrief](debrief.md) — Report what happened in a session while you were away, from its visible history only.
+- [Sitrep](sitrep.md) — Report where the current work stands against its goal: complete, in progress, remaining, and at risk.
+- [Next Steps](next-steps.md) — Explain the current state and recommend justified actions without executing them.
+- [Must We?](must-we.md) — Decide whether a blocker or proposal is necessary and find the smallest sufficient path.
 
 ### Review and improve
 
-- [Babysit PR](babysit-pr.md) - Repair CI and review findings until green without merging.
-- [Land PR](land-pr.md) - Repair, verify, and merge an explicitly selected PR.
+- [Babysit PR](babysit-pr.md) — Repair CI and review findings until green without merging.
+- [Land PR](land-pr.md) — Repair, verify, and merge an explicitly selected PR.
 
-- [Author Skill](author-skill.md) - Create, revise, migrate, or review a skill using the target repository’s conventions.
-- [Consensus Review](../consensus/review.md) - Review a branch diff, selected files, or one document through one independent provider invocation.
-- [Phone-a-friend](../consensus/phone-a-friend.md) - Get one structured advisory take from another provider and decide what to do with it.
-- [Complexity Review](complexity-review.md) - Decide whether each piece of machinery in a plan or implementation is justified by the contract, and get the minimum sufficient version.
-- [Session Retro](session-retro.md) - Review one invocation or bounded episode without applying findings; requires Session Export Transcript and is available standalone or as Session `retro`.
+- [Author Skill](author-skill.md) — Create, revise, migrate, or review a skill using the target repository’s conventions.
+- [Consensus Review](../consensus/review.md) — Review a branch diff, selected files, or one document through one independent provider invocation.
+- [Phone-a-friend](../consensus/phone-a-friend.md) — Get one structured advisory take from another provider and decide what to do with it.
+- [Complexity Review](complexity-review.md) — Decide whether each piece of machinery in a plan or implementation is justified by the contract, and get the minimum sufficient version.
+- [Session Retro](session-retro.md) — Review one invocation or bounded episode without applying findings; requires Session Export Transcript and is available standalone or as Session `retro`.
 
 ### Preserve and continue
 
-- [Session Handoff](session-handoff.md) - Prepare portable continuation context with optional observer and transcript-export integrations.
-- [Session Export Transcript](session-export-transcript.md) - Export the current session to a sanitized, branch-named Markdown transcript.
-- [Session Fork to Destination](session-fork-to-destination.md) - Prepare alpha, read-only destination-tab fork guidance without invoking a provider.
-- [Session Search](session-search.md) - Find a past local Claude Code, Codex, or Cursor session and get ranked, redacted candidates; available standalone or as Session `search`.
+- [Session Handoff](session-handoff.md) — Prepare portable continuation context with optional observer and transcript-export integrations.
+- [Session Export Transcript](session-export-transcript.md) — Export the current session to a sanitized, branch-named Markdown transcript.
+- [Session Fork to Destination](session-fork-to-destination.md) — Prepare alpha, read-only destination-tab fork guidance without invoking a provider.
+- [Session Search](session-search.md) — Find a past local Claude Code, Codex, or Cursor session and get ranked, redacted candidates; available standalone or as Session `search`.
 
 ### Observe and collaborate
 
-- [Agent Messaging](agent-messaging.md) - Exchange addressed messages among local sessions without sharing transcripts, with manual fallback and optional finite delivery.
-- [Session Observer](session-observer.md) - Review a peer coding agent's session with tool-free digests, per-session read offsets, and foreground watch mode.
-- [Collaborative Observer](session-observer-collab.md) - Run the bounded N=2 collaboration protocol, choose an honest wake tier, and close out safely.
+- [Agent Messaging](agent-messaging.md) — Exchange addressed messages among local sessions without sharing transcripts, with manual fallback and optional finite delivery.
+- [Session Observer](session-observer.md) — Review a peer coding agent's session with tool-free digests, per-session read offsets, and foreground watch mode.
+- [Collaborative Observer](session-observer-collab.md) — Run the bounded N=2 collaboration protocol, choose an honest wake tier, and close out safely.
