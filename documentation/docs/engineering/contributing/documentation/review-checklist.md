@@ -62,6 +62,11 @@ never linked, a generated file is hand-edited, or the build is left red.
   docs change, not proof that browser-only diagrams, images, or search work.
   Inspect the exported site at the production base path as well as the preview.
 
+- **Does `cd documentation && pnpm exec oat docs check --target-dir .` report
+  no errors?** It checks frontmatter, `## Contents` maps against sidebar
+  metadata, links, inline commands, Mermaid accessibility and page size. Review
+  its warnings as well.
+
 - **Does `pnpm --dir documentation run docs:format:check` pass?**
   Format only the changed authored files with the repository formatter; do not
   turn a docs edit into a repository-wide formatting change.

@@ -20,13 +20,17 @@ Three surfaces serve different readers and must stay aligned:
 - **Leaf pages do not need a `## Contents`.** Only directory `index.md` files
   carry one.
 - **`meta.json` controls the rendered sidebar's ordering and grouping.** It is
-  authored alongside the local map, not generated from `## Contents`.
+  hand-authored alongside the local map, not generated from `## Contents`
+  (`documentation.navOwner` is `hand-authored`); do not run a writing
+  `oat docs nav sync`.
 - **Sidebar groups may borrow canonical pages from elsewhere.** Use native
   relative folder references or link entries rather than copying a guide or
   moving it only to match the sidebar. Local maps still cover their immediate
   physical children and may include additional cross-directory destinations.
 - **Capability headings inside `## Contents` are allowed.** They organize the
-  authored map; `meta.json` separators independently define sidebar groups.
+  authored map; `meta.json` separators define the rendered sidebar groups.
+  `oat docs check` compares each `meta.json` with its local map, so keep their
+  membership, order and groups coherent.
 - **`documentation/index.md` is a generated file-tree inventory.** It is not
   the source of sidebar order and must not be edited by hand.
 
@@ -59,7 +63,7 @@ The root manifest at `documentation/index.md` is a generated file-tree of the
 whole docs surface. It is produced by:
 
 ```bash
-cd documentation && oat docs generate-index --docs-dir docs --output index.md
+cd documentation && pnpm exec oat docs generate-index --docs-dir docs --output index.md
 ```
 
 This runs automatically on the `predev` and `prebuild` npm scripts, so a normal
@@ -139,8 +143,8 @@ pnpm dev          # live preview; runs generate-index via predev
 ```
 
 `pnpm --dir documentation dev` starts the Next.js dev server with hot reload.
-The `predev` script refreshes the generated inventory first. The sidebar still follows the authored
-metadata, so inspect it as well as the file-tree inventory.
+The `predev` script refreshes the generated inventory first. The sidebar still
+follows the authored metadata, so inspect it as well as the file-tree inventory.
 
 Before you push, build the site the way CI does:
 
@@ -153,9 +157,19 @@ and then the production Next.js build, which surfaces MDX and rendering errors
 that the dev server tolerates. A clean `pnpm --dir documentation build` is the
 bar for a docs change; inspect changed diagrams and sidebar layout separately.
 Run `pnpm --dir documentation run docs:format:check` for the docs-wide
-formatting check. For a bounded change, use the repository's
-formatter on only the changed authored pages; do not reformat unrelated docs,
-generated inventories, or AGENTS.md files.
+formatting check. For a bounded change, use the repository's formatter on only
+the changed authored pages; do not reformat unrelated docs, generated
+inventories, or AGENTS.md files.
+
+Run the documentation checker with the docs app's own OAT CLI:
+
+```bash
+cd documentation && pnpm exec oat docs check --target-dir .
+```
+
+It checks frontmatter, `## Contents` maps against sidebar metadata, links,
+inline commands, Mermaid accessibility and page size. Fix errors before you
+push and review its warnings.
 
 ## Agent-instruction surfaces
 

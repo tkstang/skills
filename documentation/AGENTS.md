@@ -34,7 +34,8 @@ Fumadocs relative references or link entries. Preserve canonical URLs rather
 than copying guides to match navigation. Local `## Contents` maps must still
 cover their immediate physical pages/child directories; they may also link
 cross-directory reader destinations. Capability subheadings inside Contents are
-allowed, but only `meta.json` separators define rendered sidebar groups.
+allowed; `meta.json` separators define rendered sidebar groups, and
+`oat docs check` compares each `meta.json` with its local map.
 
 Use relative `.md` links, including `subdir/index.md`; the rendering transform normalizes them. Update both source and destination maps/sidebar metadata in the same change when moving a page. Do not introduce `overview.md` entrypoints or another navigation framework.
 
@@ -45,15 +46,16 @@ Run from this directory:
 ```bash
 pnpm dev
 pnpm build
+pnpm exec oat docs check --target-dir .
 ```
 
-Both run the configured `predev`/`prebuild` generation. To refresh only the inventory:
+The first two run the configured `predev`/`prebuild` generation. The checker uses this app's pinned OAT CLI and validates frontmatter, Contents maps against `meta.json`, links, inline commands and Mermaid accessibility. To refresh only the inventory:
 
 ```bash
-oat docs generate-index --docs-dir docs --output index.md
+pnpm exec oat docs generate-index --docs-dir docs --output index.md
 ```
 
-For approved changes, verify local links, local maps/sidebar coherence, and the production build. Inspect affected Mermaid diagrams and sidebar rendering; a successful build alone does not establish visual quality. Format only changed authored docs using the repository formatter; never format AGENTS.md files or generated inventories.
+For approved changes, run `oat docs check` and verify local links, local maps/sidebar coherence, and the production build. Inspect affected Mermaid diagrams and sidebar rendering; a successful build alone does not establish visual quality. Format only changed authored docs using the repository formatter; never format AGENTS.md files or generated inventories.
 
 ## Analysis and application
 
