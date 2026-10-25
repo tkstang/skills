@@ -9,6 +9,18 @@ This file scopes work in `documentation/` and inherits the root instructions. Th
 - Use `.md` with `title` and `description` frontmatter. Use `.mdx` only when embedded JSX is needed.
 - Repository facts come from current source/configuration. Correct stale instructions and human docs together; do not make code conform to an obsolete prose claim.
 
+## Information architecture
+
+The docs follow the consumer-maintainer model recorded in [DR-261025-documentation-information](../.oat/repo/reference/decisions/DR-261025-documentation-information.md) and mirrored in `documentation.ia`:
+
+| Track | Location | Organizing principle |
+| --- | --- | --- |
+| User Guide | `docs/user-guide/` | Product capability: getting started, installation, the Consensus and Session plugins, and standalone skills grouped by what the reader wants to do |
+| Engineering | `docs/engineering/` | Maintenance responsibility: architecture, contributing, operations, decisions and repository layout |
+
+- Put pages for people installing or using a plugin or skill in the User Guide, under the capability they serve. Put implementation, contribution and operations material in Engineering.
+- There is no QA or verification track (overlay: none). Adding one, or a third audience trunk, needs a new decision.
+
 ## Navigation: three different surfaces
 
 The sidebar is hand-authored (`documentation.navOwner: hand-authored` in `.oat/config.json`). Edit `meta.json` by hand alongside the local maps; never run a writing `oat docs nav sync` here.

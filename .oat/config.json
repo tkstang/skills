@@ -23,7 +23,22 @@
     "root": "documentation",
     "tooling": "fumadocs",
     "index": "documentation/index.md",
-    "navOwner": "hand-authored"
+    "navOwner": "hand-authored",
+    "ia": {
+      "preset": "consumer-maintainer",
+      "decision": ".oat/repo/reference/decisions/DR-261025-documentation-information.md",
+      "tracks": [
+        {
+          "path": "documentation/docs/user-guide",
+          "principle": "Product capability and reader task"
+        },
+        {
+          "path": "documentation/docs/engineering",
+          "principle": "Maintenance responsibility"
+        }
+      ],
+      "verification": "none"
+    }
   },
   "localPaths": [
     ".oat/**/analysis",
