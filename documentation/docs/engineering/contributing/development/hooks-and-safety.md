@@ -1,6 +1,6 @@
 ---
 title: 'Hooks and safety'
-description: 'Git hooks in this repo: install on pnpm install, pre-commit lint-staged (oxlint/oxfmt over staged files), skill version-bump enforcement, and the lint/format exclusions for generated, synced, and agent-instruction files.'
+description: 'Git hooks in this repo: setup on pnpm install, pre-commit lint-staged, skill version-bump checks, and lint/format exclusions for generated and synced files.'
 ---
 
 # Hooks and safety

@@ -1,6 +1,6 @@
 ---
 title: 'Codex session schema'
-description: 'The Codex rollout transcript format as observed on 2026-09-18 — record taxonomy, tool-call carriers, subagent lineage, outcome evidence, and the limits of each join.'
+description: 'The Codex rollout transcript format observed on 2026-09-18: record taxonomy, tool-call carriers, subagent lineage, outcome evidence, and the limits of joins.'
 ---
 
 # Codex session schema

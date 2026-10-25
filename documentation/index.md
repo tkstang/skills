@@ -21,7 +21,7 @@
     - [Babysit PR](docs/user-guide/skills/babysit-pr.md) — Repair CI and review findings until a pull request is green, then report readiness without merging.
     - [Land PR](docs/user-guide/skills/land-pr.md) — Repair and verify a pull request, then merge its checked head and confirm the remote result.
     - [Author Skill](docs/user-guide/skills/author-skill.md) — Create, revise, migrate, or review agent skills using the target repository’s own authoring and distribution conventions.
-    - [Complexity Review](docs/user-guide/skills/complexity-review.md) — Judge whether each schema, script, test, harness, agent pass, or abstraction in a plan or implementation earns its ongoing cost, and get the minimum sufficient version.
+    - [Complexity Review](docs/user-guide/skills/complexity-review.md) — Judge whether each schema, script, test, harness, agent pass, or abstraction in a plan or implementation earns its cost, and get the minimum sufficient version.
     - [Session Retro](docs/user-guide/skills/session-retro.md) — Review one exact frozen session episode and propose evidence-backed improvements without applying them.
     - [Session Handoff](docs/user-guide/skills/session-handoff.md) — Prepare concise evidence-grounded continuation context, with optional observer review and sanitized transcript export.
     - [Session Export Transcript](docs/user-guide/skills/session-export-transcript.md) — Export the current coding-agent session to a sanitized, branch-named Markdown transcript.
@@ -36,10 +36,10 @@
     - [Create](docs/user-guide/consensus/create.md) — Run the create skill to produce a new artifact from a brief with independent peer drafts, synthesis, a deliberation log, and resolution metadata.
     - [Plan](docs/user-guide/consensus/plan.md) — Run the plan skill to turn a goal and inline constraints into structured markdown steps, dependencies, risks, a deliberation log, and resolution metadata.
     - [Decide](docs/user-guide/consensus/decide.md) — Run the decide skill to choose between options with independent peer decision drafts, synthesis, minimal agency, explicit dissent, and resolution metadata.
-    - [Refine](docs/user-guide/consensus/refine.md) — Run the refine skill to deliberate two AI peers toward a converged markdown artifact, including iteration modes, resume, escalation, and host-mediated parallel sections.
+    - [Refine](docs/user-guide/consensus/refine.md) — Deliberate two AI peers toward a converged markdown artifact with refine, including iteration modes, resume, escalation, and host-mediated parallel sections.
     - [Evaluate](docs/user-guide/consensus/evaluate.md) — Run the evaluate skill to judge an artifact against a rubric with two AI peers, unified findings, embedded verdict records, and preserved dissent.
     - [Review](docs/user-guide/consensus/review.md) — Run one bounded, read-only, provider-backed review and produce validated JSON plus OAT-compatible Markdown.
-    - [Phone-a-friend](docs/user-guide/consensus/phone-a-friend.md) — Use the phone-a-friend skill for advisory peer consultation with a structured take and explicit host disposition, one-shot by default with optional bounded follow-up rounds.
+    - [Phone-a-friend](docs/user-guide/consensus/phone-a-friend.md) — Use phone-a-friend for advisory peer consultation with a structured take and explicit host disposition, one-shot by default with optional follow-up rounds.
     - [Panel](docs/user-guide/consensus/panel.md) — Run consensus-panel to ask multiple provider-backed panelists the same question while the host stays a neutral moderator.
     - [Configuration](docs/user-guide/consensus/configuration.md) — Consensus config JSON examples, field types, model and effort support, workflow defaults, precedence, and provider diagnostics.
 - Engineering
@@ -53,12 +53,12 @@
       - [Testing](docs/engineering/contributing/development/testing.md) — Choose tests for behavior, shared code, generated installation units, and mocked provider flows without confusing them with live acceptance.
       - [Conventions](docs/engineering/contributing/development/conventions.md) — Repository conventions: canonical skill owners, generated distributions, dependency-free runtime, metadata.version bumps, and worktree checks.
       - [Commit conventions](docs/engineering/contributing/development/commit-conventions.md) — Conventional Commits format for commit messages and PR titles, the common types, and how the commit-msg hook (commitlint) plus CI enforce it.
-      - [Hooks and safety](docs/engineering/contributing/development/hooks-and-safety.md) — Git hooks in this repo: install on pnpm install, pre-commit lint-staged (oxlint/oxfmt over staged files), skill version-bump enforcement, and the lint/format exclusions for generated, synced, and agent-instruction files.
+      - [Hooks and safety](docs/engineering/contributing/development/hooks-and-safety.md) — Git hooks in this repo: setup on pnpm install, pre-commit lint-staged, skill version-bump checks, and lint/format exclusions for generated and synced files.
     - Documentation
       - [Documentation](docs/engineering/contributing/documentation/index.md) — The docs authoring contract for this Fumadocs site: navigation rules, supported Markdown, and the review checklist agents and humans follow.
-      - [Authoring](docs/engineering/contributing/documentation/authoring.md) — How to author and restructure pages in this Fumadocs site: the index.md + ## Contents navigation contract, the .md-link convention, the generated-index discipline, and the local workflow.
+      - [Authoring](docs/engineering/contributing/documentation/authoring.md) — How to author and restructure pages in this Fumadocs site: the ## Contents navigation contract, .md links, the generated index, and the local workflow.
       - [Markdown & Visuals](docs/engineering/contributing/documentation/markdown-features.md) — The Markdown, callout, tab, Mermaid, SVG, and image patterns this docs app renders, each with copyable syntax and a rendered example.
-      - [Review Checklist](docs/engineering/contributing/documentation/review-checklist.md) — What to verify before committing a docs change to this Fumadocs site: frontmatter, ## Contents updates, .md-link resolution, the untouched generated manifest, a green build, and sane sidebar order.
+      - [Review Checklist](docs/engineering/contributing/documentation/review-checklist.md) — What to verify before committing a docs change: frontmatter, ## Contents updates, .md links, the untouched generated manifest, a green build, and sidebar order.
   - Architecture
     - [Architecture](docs/engineering/architecture/index.md) — The single-owner and generated-installation-unit architecture behind dependency-free shipped skills.
     - [Build & Distribution](docs/engineering/architecture/generated-runtime.md) — The build contract from canonical src/skills owners and distribution declarations to complete standalone and plugin payloads.
@@ -67,7 +67,7 @@
     - [Shared transcript-core](docs/engineering/architecture/transcript-core.md) — How per-provider transcript knowledge has one shared source under src/shared/transcript, with a complete generated copy shipped per installation unit.
     - Native session schemas
       - [Native session schemas](docs/engineering/architecture/session-schemas/index.md) — What Codex, Claude Code, and Cursor actually write to their session transcripts, as observed from recorded sessions, for anyone building a parser on them.
-      - [Codex session schema](docs/engineering/architecture/session-schemas/codex.md) — The Codex rollout transcript format as observed on 2026-09-18 — record taxonomy, tool-call carriers, subagent lineage, outcome evidence, and the limits of each join.
+      - [Codex session schema](docs/engineering/architecture/session-schemas/codex.md) — The Codex rollout transcript format observed on 2026-09-18: record taxonomy, tool-call carriers, subagent lineage, outcome evidence, and the limits of joins.
       - [Claude Code session schema](docs/engineering/architecture/session-schemas/claude-code.md) — The on-disk shape of Claude Code JSONL session transcripts as observed in a 2026-09-18 evidence snapshot, for engineers writing parsers against them.
       - [Cursor session schema](docs/engineering/architecture/session-schemas/cursor.md) — The Cursor agent-transcript JSONL format as observed, for engineers building parsers on these files.
     - [Cursor Collaboration Reliability](docs/engineering/architecture/cursor-collaboration-reliability.md) — How exact identity, physical-frame observation, isolated continuity state, and lease-scoped completion make Cursor a reliable observed collaboration peer.

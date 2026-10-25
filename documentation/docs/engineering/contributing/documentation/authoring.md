@@ -1,6 +1,6 @@
 ---
 title: 'Authoring'
-description: 'How to author and restructure pages in this Fumadocs site: the index.md + ## Contents navigation contract, the .md-link convention, the generated-index discipline, and the local workflow.'
+description: 'How to author and restructure pages in this Fumadocs site: the ## Contents navigation contract, .md links, the generated index, and the local workflow.'
 ---
 
 # Authoring

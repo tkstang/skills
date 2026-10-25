@@ -1,6 +1,6 @@
 ---
 title: 'Complexity Review'
-description: 'Judge whether each schema, script, test, harness, agent pass, or abstraction in a plan or implementation earns its ongoing cost, and get the minimum sufficient version.'
+description: 'Judge whether each schema, script, test, harness, agent pass, or abstraction in a plan or implementation earns its cost, and get the minimum sufficient version.'
 ---
 
 # Complexity Review

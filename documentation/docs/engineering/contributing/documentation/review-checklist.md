@@ -1,6 +1,6 @@
 ---
 title: 'Review Checklist'
-description: 'What to verify before committing a docs change to this Fumadocs site: frontmatter, ## Contents updates, .md-link resolution, the untouched generated manifest, a green build, and sane sidebar order.'
+description: 'What to verify before committing a docs change: frontmatter, ## Contents updates, .md links, the untouched generated manifest, a green build, and sidebar order.'
 ---
 
 # Review Checklist

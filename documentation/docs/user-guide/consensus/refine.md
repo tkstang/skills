@@ -1,6 +1,6 @@
 ---
 title: 'Refine'
-description: 'Run the refine skill to deliberate two AI peers toward a converged markdown artifact, including iteration modes, resume, escalation, and host-mediated parallel sections.'
+description: 'Deliberate two AI peers toward a converged markdown artifact with refine, including iteration modes, resume, escalation, and host-mediated parallel sections.'
 ---
 
 # Refine
