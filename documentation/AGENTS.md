@@ -11,6 +11,8 @@ This file scopes work in `documentation/` and inherits the root instructions. Th
 
 ## Navigation: three different surfaces
 
+The sidebar is hand-authored (`documentation.navOwner: hand-authored` in `.oat/config.json`). Edit `meta.json` by hand alongside the local maps; never run a writing `oat docs nav sync` here.
+
 1. **Authored local maps:** each content directory has `index.md` with useful `## Contents` links to its immediate pages/child directories.
 2. **Rendered sidebar:** adjacent `meta.json` files control page order and grouping. Keep them aligned with the local maps when adding, moving, removing, or reordering pages.
 3. **Generated inventory:** app-root `documentation/index.md` lists the file tree. Regenerate it; never hand-edit it or treat its order as sidebar order.

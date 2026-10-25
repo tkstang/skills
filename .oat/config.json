@@ -22,7 +22,8 @@
   "documentation": {
     "root": "documentation",
     "tooling": "fumadocs",
-    "index": "documentation/index.md"
+    "index": "documentation/index.md",
+    "navOwner": "hand-authored"
   },
   "localPaths": [
     ".oat/**/analysis",
