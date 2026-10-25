@@ -88,6 +88,8 @@ The wrapper emits JSONL status events while the generated CLI returns one JSON e
 
     ```mermaid
     flowchart TD
+      accTitle: Consensus run flow
+      accDescr: A host session calls a skill wrapper, which runs the consensus CLI against independent Claude, Codex and Cursor peers. Verdict rounds repeat until impasse, convergence or escalation, and refine writes the final output, resolution and log while decide writes its own artifact with dissent.
       HOST["Host session<br/>Claude Code, Codex, or Cursor"]
       WRAP["Skill wrapper (refine, decide, …)<br/>emits JSONL status events"]
       CLI["Generated consensus CLI<br/>one JSON envelope per run"]
@@ -141,6 +143,8 @@ The three shapes are not interchangeable. `refine` deliberates to convergence or
 
 ```mermaid
 flowchart TB
+  accTitle: Who decides in refine, panel and phone-a-friend
+  accDescr: refine runs verdict rounds between two peers until they agree or report an impasse that needs user direction. panel returns attributed answers without synthesis for you to decide. phone-a-friend returns one peer's advisory take for the host agent to disposition.
   subgraph refine["refine · converging"]
     direction TB
     R0["One draft, two peers"]
@@ -247,6 +251,8 @@ validation does not make their advice trustworthy or authorize following it.
 
     ```mermaid
     flowchart TB
+      accTitle: Consensus data boundary
+      accDescr: Local transcripts, state and run artifacts feed the host wrapper, which builds the prompt, schema, submit environment and working directory sent to provider CLIs. Peer output returns as untrusted data, is schema-validated and treated as advice, and passes local guards before it is stored.
       subgraph local["Stored locally — selected contents can enter the prompt"]
         TR["Peer transcripts<br/>~/.claude/projects, ~/.codex/sessions,<br/>~/.cursor/projects — read only"]
         ST["Read offsets, watcher, control state<br/>~/.local/state/session-observer/<br/>collab leases: .../collab/leases/"]

@@ -23,6 +23,8 @@ The checks are six independent triggers, not a pipeline: no CI job declares `nee
 
 ```mermaid
 flowchart TB
+  accTitle: Where each verification gate runs
+  accDescr: Six independent triggers run separate checks. git commit runs lint-staged, oat status and commitlint. git push runs validation without tests. Pull requests run parallel jobs. Pushes to main run validate and docs deploy. Manual dispatch runs live E2E, and release tags rerun the full suite.
   subgraph commit["git commit"]
     direction TB
     C1["pre-commit: lint-staged"]

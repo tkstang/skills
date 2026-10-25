@@ -27,6 +27,8 @@ workflows.
 
 ```mermaid
 flowchart TD
+  accTitle: Cursor collaboration pipeline
+  accDescr: Only an exact canonical identity proceeds from discovery to verified frames and structural turns. The observation projection waits for stable content, and the completion projection emits one bounded wake only for a terminal substantive range whose lease compare-and-swap succeeds.
   D["Bounded candidate discovery"] --> I{"Exact canonical identity?"}
   I -- No --> X["Diagnostic candidate only<br/>No stateful operation"]
   I -- Yes --> F["Stream physical JSONL frames<br/>and verify safe prefix"]

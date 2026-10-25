@@ -56,6 +56,8 @@ current session identity, and display labels are not native provider IDs.
 
 ```mermaid
 flowchart TD
+  accTitle: Same-provider fork qualification gates
+  accDescr: prepare always runs discovery. A candidate stops at missing Cursor cwd evidence, a recorded directory mismatch, an ambiguous surface or undocumented fork semantics. Passing candidates get Claude or Codex fork guidance behind a destination guard, and only guidance is prepared.
   START["Destination worktree and tab exist"]
   EP["Entry point recorded"]
   DISC["prepare always runs discovery"]

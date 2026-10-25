@@ -213,6 +213,8 @@ checkpoint or marker is read or written.
 
 ```mermaid
 flowchart TB
+  accTitle: Transcript selection and sanitization
+  accDescr: The highest-precedence flag selects all sessions, one session or a marker match, with a newest-transcript fallback. Without a flag a single candidate is selected and several stop as ambiguous. Selected transcripts are normalized, sanitized, stripped of markers and rendered as Markdown.
   Start[Transcript candidates for the cwd]
   Start --> Mode{Highest-precedence selection flag?}
   Mode -->|--all| All[Select every session]

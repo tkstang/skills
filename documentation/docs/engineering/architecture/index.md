@@ -40,6 +40,8 @@ A skill is authored once under `src/skills/`; the build emits every declared ins
 
     ```mermaid
     flowchart LR
+      accTitle: One skill source, generated forms
+      accDescr: src/skills/session-retro and src/distributions.ts feed pnpm run build, which writes a standalone skill and a Session plugin member. Both reach declared Claude Code, Codex and Cursor install targets alongside release-owned manifests, and build:check verifies them.
       subgraph author["Authored once · src/"]
         SRC["src/skills/session-retro/<br/>SKILL.md + assets"]
         DECL["src/distributions.ts<br/>declares the forms"]
