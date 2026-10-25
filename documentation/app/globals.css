@@ -512,19 +512,21 @@ body {
      #b8d68c, num #f0b878, fn #f7c873, kw #ff9aa2) would have to be supplied
      as a Shiki theme in source.config.ts's mdxOptions, not as CSS. Only the
      code-block *background* is themed above.
-   - Mermaid diagram colours. @open-agent-toolkit/docs-theme/dist/mermaid.js
-     calls `mermaid.initialize({ theme: resolvedTheme === 'dark' ? 'dark' :
-     'default' })` with no `themeVariables`, so diagrams keep Mermaid's stock
-     purple/grey and will NOT pick up the teal accent.
+   - Mermaid edge and border colours. The docs-theme `Mermaid` component
+     renders with Pele and sets `--pele-*` inline from the `--color-fd-*`
+     tokens in 1b, so diagram surfaces and text follow this palette. Its fixed
+     mapping draws node borders in `--color-fd-primary` (teal) and edges in
+     `--color-fd-muted-foreground` (grey); there is no token that gives edges
+     the teal accent and borders the plain border colour.
    -------------------------------------------------------------------------- */
 
 /* --------------------------------------------------------------------------
-   Diagrams on narrow screens. A polished SVG and a rendered Mermaid graph are
-   sized for the ~830px desktop column; on a phone they would shrink to
-   unreadable label sizes. Give them a readable minimum width inside a
-   horizontally scrollable region instead, and keep the page itself within the
-   viewport. `.diagram-scroll` is emitted by components/image.tsx for
-   /diagrams/ assets; `.mermaid` is emitted by components/mermaid.tsx.
+   Diagrams on narrow screens. A polished SVG is sized for the ~830px desktop
+   column; on a phone it would shrink to unreadable label sizes. Give it a
+   readable minimum width inside a horizontally scrollable region instead,
+   and keep the page itself within the viewport. `.diagram-scroll` is emitted
+   by components/image.tsx for /diagrams/ assets. Mermaid diagrams fit the
+   column and open full-screen (at least 900px wide) when clicked.
    -------------------------------------------------------------------------- */
 .diagram-scroll {
   display: block;
@@ -547,18 +549,7 @@ body {
   text-transform: uppercase;
   color: var(--color-fd-muted-foreground);
 }
-.mermaid {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-.mermaid > svg {
-  /* components/mermaid.tsx renders at intrinsic size (useMaxWidth: false);
-     never let the column shrink a wide graph below its authored size. */
-  max-width: none !important;
-  display: block;
-}
-.diagram-scroll:focus-visible,
-.mermaid:focus-visible {
+.diagram-scroll:focus-visible {
   outline: 2px solid var(--color-fd-primary);
   outline-offset: 2px;
   border-radius: 0.5rem;
