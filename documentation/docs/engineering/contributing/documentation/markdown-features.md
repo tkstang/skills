@@ -393,8 +393,8 @@ styling individual pages.
 ## Verify before committing
 
 Run both builds from the `documentation/` directory. The default build is what
-`pnpm dev` and local checks use; the base-path build is what CI and the Pages
-deployment run:
+`pnpm --dir documentation dev` and local checks use; the base-path build is what
+CI and the Pages deployment run:
 
 ```bash
 pnpm build
