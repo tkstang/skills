@@ -38,6 +38,15 @@
         }
       ],
       "verification": "none"
+    },
+    "check": {
+      "exceptions": [
+        {
+          "path": "user-guide/plugins/session/index.md",
+          "rule": "leaf-size",
+          "reason": "Session plugin hub: its skills install standalone or via the plugin, so their pages live once in the Standalone Skills catalog and this folder borrows them into the sidebar instead of duplicating them."
+        }
+      ]
     }
   },
   "localPaths": [
