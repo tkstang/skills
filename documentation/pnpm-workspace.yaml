@@ -4,3 +4,5 @@ allowBuilds:
 onlyBuiltDependencies:
   - esbuild
   - sharp
+overrides:
+  mdast-util-to-markdown: 2.1.2

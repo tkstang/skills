@@ -112,7 +112,7 @@ describe('docs-presence', () => {
       expect(
         manifest,
         `${page} should be present in documentation/index.md`,
-      ).toContain(`(${page})`);
+      ).toContain(`(docs/${page})`);
     }
   });
 
