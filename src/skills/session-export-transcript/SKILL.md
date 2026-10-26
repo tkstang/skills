@@ -74,7 +74,10 @@ it land in the transcript store on the next flush.
 
 ### Step 2: Choose a useful filename and invoke the CLI
 
-Honor an explicit user-supplied filename. Otherwise, choose
+For `--all`, pass the requested output directory or use the CLI default directory;
+do not pass a single `.md` filename. Bulk exports keep their per-session names.
+
+For a single-session export, honor an explicit user-supplied filename. Otherwise, choose
 `<provider>-<model-if-known>-<session-slug>.md` and pass the full file path with
 `--out`; a directory alone still uses the CLI's branch-name fallback.
 
@@ -86,7 +89,8 @@ Honor an explicit user-supplied filename. Otherwise, choose
   `claude-opus-oauth-route-review.md`, or `codex-permanent-stoa-tunnel.md` when the
   model is unknown. Do not use a generic branch name such as `main.md`.
 - Keep credentials, secret URLs, and private identifiers out of the filename.
-- Default to `~/Downloads`. If that file already exists, choose an unused dated
+- Use the requested output directory, or default to `~/Downloads`. If that file
+  already exists, choose an unused dated
   or numbered suffix unless the user explicitly requested replacing it.
 
 For example:
