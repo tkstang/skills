@@ -4,6 +4,12 @@
 
 ### Changed
 
+- `session-export-transcript` 2.0.43 instructs agents to select descriptive
+  provider/model/session filenames through `--out`, omit unknown models, honor
+  explicit filenames, and avoid accidental overwrites. CLI fallback naming is unchanged. Dependent skills
+  `session-fork-to-destination` 0.3.6 and `session-search` 0.1.4 are bumped under
+  the runtime-closure version policy.
+
 - `session-export-transcript` 2.0.42, `session-fork-to-destination` 0.3.5,
   `session-observer` 1.1.1, `session-observer-collab` 1.0.79, and
   `session-search` 0.1.3 replace a real local username and an internal repo path

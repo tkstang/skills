@@ -14,8 +14,8 @@ owner and one `metadata.version`.
 
 - Exports the **current** conversation (yours — Claude Code, Codex, or Cursor)
   to a sanitized Markdown transcript.
-- Names the output after the current git branch (`/` replaced with `-`) and
-  writes it by default to `~/Downloads`.
+- Chooses a provider/model/session filename through `--out` and writes it by
+  default to `~/Downloads`.
 - Supports Claude Code, Codex, and Cursor transcript stores.
 - Optionally appends bounded, source-attributed activity with
   `--include-activity`.
@@ -47,6 +47,18 @@ greps cwd candidates for it to select the current session unambiguously. If the
 marker has not yet been flushed, it falls back to the newest transcript for the
 cwd with a warning — re-run with `--session <id>` if the fallback picked the
 wrong session.
+
+## Export filenames
+
+For a single-session export, the agent chooses
+`<provider>-<model-if-known>-<session-slug>.md` in `~/Downloads` and passes that
+file path with `--out`. Examples include `codex-sol-permanent-stoa-tunnel.md` and
+`claude-opus-oauth-route-review.md`. An unknown model is omitted, as in
+`codex-permanent-stoa-tunnel.md`. Explicit user filenames take priority; existing
+files get an unused dated or numbered suffix unless replacement was requested.
+
+The CLI does not infer the model or session topic. Direct CLI calls without a
+file override retain their branch-based fallback naming.
 
 ## Modes and flags
 

@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Read, Bash(node <skill-dir>/scripts/session-fork-to-destination.mjs:*)
 metadata:
   author: Thomas Stang
-  version: '0.3.5'
+  version: '0.3.6'
 ---
 
 # session-fork-to-destination
