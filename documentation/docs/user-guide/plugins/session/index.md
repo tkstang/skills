@@ -16,7 +16,7 @@ flowchart LR
   Q{"What do you need<br/>from this session?"}
   M["messaging · agent-messaging<br/>Durable addressed inbox and shared log<br/>with manual fallback and finite delivery"]
   H["handoff · session-handoff<br/>Portable continuation brief:<br/>goal, state, decisions, evidence,<br/>remaining work, approval boundaries"]
-  E["export-transcript · session-export-transcript<br/>Sanitized, branch-named Markdown archive<br/>written to ~/Downloads by default"]
+  E["export-transcript · session-export-transcript<br/>Sanitized, descriptively named Markdown archive<br/>written to ~/Downloads by default"]
   F["fork-to-destination · session-fork-to-destination<br/>Alpha same-provider fork guidance<br/>Prepares instructions only; creates no fork"]
   R["retro · session-retro<br/>Evidence-backed findings and<br/>improvement proposals, not applied"]
   S["search · session-search<br/>Ranked, redacted candidates<br/>from local session stores"]

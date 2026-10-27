@@ -1,6 +1,6 @@
 ---
 name: session-export-transcript
-description: Use when the user asks to export, save, or download the current coding-agent conversation as a Markdown file (e.g. "export this session transcript", "save the conversation as markdown"). Locates the live transcript via an announced session marker, drops tool calls and hidden injected payloads, and writes a sanitized branch-named Markdown file (default ~/Downloads).
+description: Use when the user asks to export, save, or download the current coding-agent conversation as a Markdown file (e.g. "export this session transcript", "save the conversation as markdown"). Locates the live transcript via an announced session marker, drops tool calls and hidden injected payloads, and writes a sanitized, descriptively named Markdown file (default ~/Downloads).
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+. No third-party runtime dependencies.
 argument-hint: '[output-path] [--runtime <claude-code|codex|cursor|auto>] [--match <marker>] [--session <id>] [--all] [--include-activity] [--activity-output <path>] [--out <path>]'
@@ -9,14 +9,14 @@ user-invocable: true
 allowed-tools: Bash, Read
 metadata:
   author: Thomas Stang
-  version: '2.0.42'
+  version: '2.0.43'
 ---
 
 # {{distribution.name}}
 
 Exports the **current** conversation (yours — Claude Code, Codex, or Cursor) to a
-sanitized Markdown transcript, named after the current git branch, written by
-default to `~/Downloads`. Tool calls, tool results, system/developer instructions,
+sanitized Markdown transcript with a filename that identifies the session, written
+by default to `~/Downloads`. Tool calls, tool results, system/developer instructions,
 environment/AGENTS.md/skill payloads, subagent notifications, automatic-control
 wake envelopes (which carry lease ids and pinned peer-session identity), and the
 session marker line are all excluded — only visible user/assistant messages
@@ -72,11 +72,33 @@ EXPORT_SESSION_MARKER=a3f9c1e0d2b4
 Use a fresh random value each time (e.g. 12 hex chars). Announcing it is what makes
 it land in the transcript store on the next flush.
 
-### Step 2: Invoke the CLI with your runtime and the marker
+### Step 2: Choose a useful filename and invoke the CLI
+
+For `--all`, pass the requested output directory or use the CLI default directory;
+do not pass a single `.md` filename. Bulk exports keep their per-session names.
+
+For a single-session export, honor an explicit user-supplied filename. Otherwise, choose
+`<provider>-<model-if-known>-<session-slug>.md` and pass the full file path with
+`--out`; a directory alone still uses the CLI's branch-name fallback.
+
+- Use the runtime/provider label, such as `codex`, `claude`, or `cursor`.
+- Include a short model label only when known from this session, such as `sol` or
+  `opus`. Omit it when unknown; never infer it from the provider.
+- Summarize the session's actual task or outcome in a short lowercase kebab-case
+  slug. Examples: `codex-sol-permanent-stoa-tunnel.md`,
+  `claude-opus-oauth-route-review.md`, or `codex-permanent-stoa-tunnel.md` when the
+  model is unknown. Do not use a generic branch name such as `main.md`.
+- Keep credentials, secret URLs, and private identifiers out of the filename.
+- Use the requested output directory, or default to `~/Downloads`. If that file
+  already exists, choose an unused dated
+  or numbered suffix unless the user explicitly requested replacing it.
+
+For example:
 
 ```bash
 node <skill-dir>/scripts/session-export-transcript.mjs \
-  --runtime <self> --match a3f9c1e0d2b4
+  --runtime <self> --match a3f9c1e0d2b4 \
+  --out "$HOME/Downloads/<provider>-<model-if-known>-<session-slug>.md"
 ```
 
 where `<self>` is the runtime you are running as (`claude-code`, `codex`, or
@@ -92,8 +114,8 @@ fallback picked the wrong session.
 
 ### Step 3: Report the output path
 
-The CLI prints the written path. By default it is `~/Downloads/<branch>.md` (with
-`/` in the branch name replaced by `-`). Tell the user where the file was written.
+The CLI prints the written path. Report that absolute path as a clickable file
+link so the user can find the export.
 
 ---
 
@@ -218,6 +240,9 @@ writes Observer checkpoints.
 
 ### Output path resolution
 
+The agent workflow above supplies a descriptive file path using `--out`. The CLI
+itself does not infer a session topic or model; its raw fallback rules remain:
+
 | Input                          | Output                                |
 | ------------------------------ | ------------------------------------- |
 | default                        | `~/Downloads/<branch>.md` (`/` → `-`) |
@@ -261,6 +286,8 @@ See `references/transcript-formats.md` for record shapes and cwd-encoding detail
       environment/AGENTS.md/skill payloads, subagent notifications, or the
       marker line. With `--include-activity`, the separate sanitized, bounded
       activity appendix may intentionally include tool evidence.
-- [ ] Default output is `~/Downloads/<branch>.md`; `--out` and `--all` honored.
+- [ ] For a single export without a user-supplied filename, the agent passes a
+      descriptive provider/model/topic file path with `--out`, omitting an unknown
+      model. Explicit filenames and `--all` are honored.
 - [ ] Exit codes 0 / 1 / 2 / 3 produced as documented.
 - [ ] No third-party dependencies; no network calls; no writes to transcripts.

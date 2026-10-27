@@ -116,7 +116,7 @@ and standalone choices.
 ### Preserve and continue
 
 - [Session Handoff](session-handoff.md) — Prepare portable continuation context with optional observer and transcript-export integrations.
-- [Session Export Transcript](session-export-transcript.md) — Export the current session to a sanitized, branch-named Markdown transcript.
+- [Session Export Transcript](session-export-transcript.md) — Export the current session to a sanitized, descriptively named Markdown transcript.
 - [Session Fork to Destination](session-fork-to-destination.md) — Prepare alpha, read-only destination-tab fork guidance without invoking a provider.
 - [Session Search](session-search.md) — Find a past local Claude Code, Codex, or Cursor session and get ranked, redacted candidates; available standalone or as Session `search`.
 
