@@ -9,8 +9,10 @@ field set so the user reads the same shape in both places.
 This file is the versioned copy of that instruction. The skill does not install
 it. To adopt it, add the text below to user-level agent instructions, for
 example `~/.claude/CLAUDE.md` for Claude Code, the user-level `AGENTS.md` for
-Codex, and a user rule file such as `~/.cursor/rules/end-of-run-status.mdc` for
-Cursor, with `alwaysApply: true` in its frontmatter.
+Codex, and Cursor's User Rules in its settings. A user rule file such as
+`~/.cursor/rules/end-of-run-status.mdc` with `alwaysApply: true` in its
+frontmatter also works in Cursor, but only for projects inside the home
+directory.
 
 ## The instruction
 

@@ -72,8 +72,9 @@ The versioned text ships with the skill as
 [`references/end-of-run-status.md`](https://github.com/tkstang/skills/blob/main/skills/reorient/references/end-of-run-status.md),
 along with the reasons for its shape. To adopt it, copy the instruction into
 your user-level instructions: the user `CLAUDE.md` for Claude Code, the user
-`AGENTS.md` for Codex, and a user `.mdc` rule with `alwaysApply: true` for
-Cursor. Reorient does not install it or prompt you to.
+`AGENTS.md` for Codex, and User Rules in Cursor's settings. A user `.mdc` rule
+with `alwaysApply: true` also works in Cursor, but only for projects inside your
+home directory. Reorient does not install it or prompt you to.
 
 ## Examples
 

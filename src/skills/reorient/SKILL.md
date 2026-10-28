@@ -35,7 +35,10 @@ history, so read it.
    not fetch or install it.
 2. Export the current session with the installed exporter's own current-session
    workflow. Write the file to a new private temporary directory, not the
-   exporter's default download location.
+   exporter's default download location. If the exporter reports that it could
+   not match the current session and fell back to another transcript, do not use
+   that export: continue from the visible context only and label the result
+   partial.
 3. Measure the export's size in bytes.
    - **Under about 60 KB:** read it yourself.
    - **Larger:** give the file to one subagent with the brief in
@@ -116,8 +119,9 @@ reference only when the user asks about that instruction or how to add it.
 
 When the user invoked this skill, end by asking whether to proceed with the
 recommended next action, or which option to take when a real choice is open. Do
-not start the work in the same turn, and do not modify files, change workflow
-state, or resume background work as part of reorienting.
+not start the work in the same turn, and do not modify files other than the
+temporary export, change workflow state, or resume background work as part of
+reorienting.
 
 When you invoked it yourself during work the user already authorized, do not stop
 to ask. State the corrected understanding briefly, then continue the authorized

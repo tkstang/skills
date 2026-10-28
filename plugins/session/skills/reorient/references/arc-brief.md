@@ -19,8 +19,9 @@ Return a structured report of the conversation's arc:
 2. Scope changes and side quests, in order. For each: what prompted it, its
    goal, its outcome (done, open, or abandoned), and the turn where it started.
    Compress resolved detours that did not change the direction into one line.
-3. Decisions: what was decided, who decided it (the user, or the agent without
-   the user), and any later correction of direction.
+3. Decisions: what was decided, who decided it (the user, the agent without the
+   user, or unknown when the transcript does not show who), and any later
+   correction of direction.
 4. Achieved: what the transcript says was completed. Mark each item shown when
    the transcript contains its output, or reported when it is only asserted.
    The export omits tool results, so most test, build, and merge outcomes are
