@@ -83,7 +83,8 @@ It has no runtime or package dependencies.
 Static packaging proves that the metadata and payload are valid. For a behavior
 check, try a two-option choice whose answer depends on a future condition, three
 options with one clearly weak, two open decisions at once, no options at all,
-and an option that rests on an unverified claim. Fresh provider discovery and a
+an option that rests on an unverified claim, and a host that does not render
+diagrams. Fresh provider discovery and a
 useful live answer remain separate evidence.
 
 ## Limitations

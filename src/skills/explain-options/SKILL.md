@@ -23,8 +23,8 @@ Nearby requests need a different answer:
 - Asking why code or a system has its current shape is a design-history question,
   such as `why`.
 - An unclear concept or explanation needs a re-pitch, such as `wait-what`, even
-  while a choice is pending. "Why would I choose B?" belongs here; "I didn't
-  follow how the scheduler works" does not.
+  while a choice is pending. "Why would I choose B?" stays with this skill; "I
+  didn't follow how the scheduler works" goes to the re-pitch.
 - Asking what to do next overall needs a next-step recommendation, such as
   `next-steps`. This skill covers one pending decision.
 
@@ -106,15 +106,16 @@ that separate the options. Skip it for a simple choice. A Markdown table is not 
 visual.
 
 - Draw only from facts you have. Never invent a number or a screen.
-- Keep it small, about six boxes with a few plain words each. Do not repeat in
-  text what the picture shows.
+- Keep it small, about six boxes with a few plain words each. Do not narrate the
+  picture, but keep every fact needed to decide in the text.
 - Use what the host renders, such as a Mermaid diagram, a chart, or an existing
-  screenshot. Where nothing renders, leave it out; the text must stand alone.
+  screenshot. When nothing renders, or you are unsure, leave it out.
 
 ## Step 4: Hand back
 
 End by asking which option to take, or whether to proceed with the
-recommendation. Do not act on it: do not modify files, change workflow state,
+recommendation. For a decision the user already made, confirm their choice
+instead. Do not act on it: do not modify files, change workflow state,
 merge, or resume work as part of explaining.
 
 ## Output shape
