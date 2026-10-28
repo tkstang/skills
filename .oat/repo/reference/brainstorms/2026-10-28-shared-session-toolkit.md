@@ -6,9 +6,9 @@ Date: 2026-10-28. Status: proposal for discussion, not an accepted architecture 
 
 Create one published npm package in this repository with both a typed library API and a CLI. The requested product scope is provider/session identity, transcript-store discovery, reading/parsing, historical search, rendering/export, and structured activity extraction. ORC imports its API; interactive skills can invoke its CLI. Evaluate build-time bundling from the same package for unattended hooks and offline installations. Keep conversational workflows and host orchestration in their current owners.
 
-Use a small pnpm workspace with `packages/session-kit/` as the working package location. Keep existing skill sources and generated distributions where they are. One package can expose both `exports` and `bin`; a separate CLI package, Turborepo, a repository rename, and moving every skill into a workspace are unnecessary for this extraction.
+Use a small pnpm workspace with `packages/session-toolkit/` as the working package location. Keep existing skill sources and generated distributions where they are. One package can expose both `exports` and `bin`; a separate CLI package, Turborepo, a repository rename, and moving every skill into a workspace are unnecessary for this extraction.
 
-After review, my preferred working pair is **`@tkstang/session-kit` / `session-kit`**, subject to the operator's choice and npm publish-rights verification. **`@tkstang/agent-sessions`** remains the more descriptive package-name alternative, but I would choose a distinct bin name rather than `agent-sessions`: that unscoped npm package already exists. Every `npx` instruction must name the intended scoped package explicitly with `--package`.
+The operator selected **`@tkstang/session-toolkit`** as the package and **`seshtk`** as the CLI command; see the [accepted naming decision](../decisions/DR-261028-session-toolkit-naming.md). npm publish rights still need verification. Every `npx` instruction must name the intended scoped package explicitly with `--package`.
 
 ORC is further along in typed package structure and a common CLI envelope, not published distribution: its packages are private, its CLI is checkout-linked, and it has no published release channel or `--version`. Both repositories have exact-identity code. ORC adds bounded, fail-closed evidence and revalidation; Skills adds richer lineage but also mixes exact and heuristic sources in one result type. Merge those strengths. Skills is further along in historical content search and rich transcript/activity processing; neither donor is a complete replacement for the other.
 
@@ -134,7 +134,7 @@ Suggested layout, not an instruction to move current owners yet:
 ```text
 package.json                  # private repository tooling
 pnpm-workspace.yaml           # packages/*; docs app stays separately managed
-packages/session-kit/
+packages/session-toolkit/
   package.json                # one published library + bin
   src/index.ts                # intentional typed API
   src/cli.ts                  # thin command entry
@@ -173,11 +173,11 @@ For runtime CLI consumers, replace mandatory bundled copies with an explicit pre
 4. After selection, invoke the exact chosen executable/version. Do not silently run `@latest` or add a hidden install to each command.
 5. Give ORC a normal declared semver dependency and lockfile. Its library import does not need a global installation or `npx`.
 
-Illustrative commands only, pending package/name/version selection and publication:
+Illustrative commands only, pending version selection and publication:
 
 ```sh
-npm install --global @tkstang/session-kit@<approved-version>
-npx --package=@tkstang/session-kit@<approved-version> session-kit search ... --json
+npm install --global @tkstang/session-toolkit@<approved-version>
+npx --package=@tkstang/session-toolkit@<approved-version> seshtk search ... --json
 ```
 
 This exchanges offline/no-install execution for one runtime release and a visible prerequisite. `npx` still needs a compatible Node runtime and network on a cache miss; global installs can still go stale. Semver compatibility checks and explicit upgrade guidance are therefore part of the skill contract, not incidental setup prose.
@@ -185,6 +185,8 @@ This exchanges offline/no-install execution for one runtime release and a visibl
 Never shorten that to `npx agent-sessions`: it resolves an unrelated existing package. Require the explicit scoped `--package` form in every skill, reference and example even if a distinct command name is chosen.
 
 ## Names
+
+**Selected:** package `@tkstang/session-toolkit`, command `seshtk`. The table below retains earlier alternatives. Follow-up registry checks on 2026-10-28 returned 404 for `session-toolkit`, `@tkstang/session-toolkit` and `seshtk`. No CLI conflict for `seshtk` surfaced in web searches. `stk` conflicts with [StackSpot](https://docs.stackspot.com/en/home/stk-cli/commands/general-commands/) and [ShiftStack](https://shiftstack.ai/stk/); `sesh` conflicts with the [tmux session manager](https://github.com/joshmedeski/sesh). Neither the name selection nor these checks reserve a name or establish publish rights.
 
 | Candidate | Fit | Concern |
 | --- | --- | --- |
@@ -247,8 +249,8 @@ Root-agent dispositions:
 | ORC docs route to observer; redundant commands remain | Added coordinated routing migration and recommended clean removal of the generic namespace after equivalent workflows are verified. No compatibility wrappers assumed. |
 | Release age, bootstrap and local development absent | Added the package-first bootstrap, unpublished tarball development loop and explicit ORC 24-hour hold choice. |
 | First release too broad; defer single-consumer search | Partially accepted: stage the shared core first and defer attention. Keep requested search/activity in the intended toolkit release; avoid exposing single-consumer internals as public APIs. A second consumer is not required to justify the CLI product the operator asked for. |
-| Name/install collision | Changed preferred pair to `@tkstang/session-kit` / `session-kit`; require scoped `npx --package`, plus version/capability probes. Name remains unselected. |
+| Name/install collision | After considering `session-kit`, the operator selected `@tkstang/session-toolkit` / `seshtk`; require scoped `npx --package`, plus version/capability probes. |
 | Workspace/Foundations work understated | Added build/version/test/CI integration scope and called out the new Commander layer. Avoided assuming every inspected tooling file requires a change. |
 | Stoa adapters outside comparison | Noted as a possible later consumer without widening this task. |
 
-Before implementation, the material choices are package/bin name; Node 22 versus 24; runtime versus bundled execution for unattended/offline consumers; exact first-release scope and public exports; retirement of the ORC generic commands; and release cadence/age exemptions. The recommendation is concrete enough to discuss, but these are not decisions made on the operator's behalf. The requested reconnaissance, document and one review are complete; no implementation or publication has begun.
+The package/bin naming choice is accepted. Before implementation, the remaining material choices are Node 22 versus 24; runtime versus bundled execution for unattended/offline consumers; exact first-release scope and public exports; retirement of the ORC generic commands; and release cadence/age exemptions. These remain proposals. The requested reconnaissance, document and one review are complete; no implementation or publication has begun.
