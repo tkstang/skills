@@ -86,6 +86,7 @@ plugin by itself.
 | `src/skills/debrief`                                                                                                             | `skills/debrief/` only                                                                  |
 | `src/skills/sitrep`                                                                                                              | `skills/sitrep/` only                                                                   |
 | `src/skills/next-steps`                                                                                                          | `skills/next-steps/` only                                                               |
+| `src/skills/explain-options`                                                                                                     | `skills/explain-options/` only                                                          |
 | `src/skills/must-we`                                                                                                             | `skills/must-we/` only                                                                  |
 
 Executable owners declare entrypoints in `build.json`; prompt-only skills do

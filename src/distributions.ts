@@ -205,6 +205,17 @@ export const distributions: readonly DistributionDeclaration[] = [
     ],
   },
   {
+    owner: 'explain-options',
+    source: 'src/skills/explain-options',
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'explain-options',
+        output: 'skills/explain-options',
+      },
+    ],
+  },
+  {
     owner: 'sitrep',
     source: 'src/skills/sitrep',
     optionalSkills: [

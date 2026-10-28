@@ -24,6 +24,14 @@
 
 ### Added
 
+- `explain-options` 1.0.0 standalone skill: when an agent has just offered
+  choices, explains them well enough to decide. It restates the decision, gives
+  the background, covers each option's benefits, costs, and reversibility, names
+  what actually decides it, recommends with a confidence level, and asks which to
+  take without acting. It adds a small diagram or chart when that explains the
+  choice faster and the host can render it. It makes only a bounded check of a load-bearing claim and
+  states its boundaries against from-scratch comparison, design history,
+  re-explanation, and next-step recommendation.
 - `reorient` 1.0.0 skill, standalone and as Session plugin member `reorient`
   (`session` plugin 0.5.0): rebuilds the big picture of a long or compacted
   thread. It exports the full session transcript through the required
