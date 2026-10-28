@@ -312,6 +312,30 @@ export const distributions: readonly DistributionDeclaration[] = [
     ],
   },
   {
+    owner: 'reorient',
+    source: 'src/skills/reorient',
+    requiredSkills: [
+      {
+        name: 'session-export-transcript',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/session-export-transcript',
+      },
+    ],
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'reorient',
+        output: 'skills/reorient',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'reorient',
+        output: 'plugins/session/skills/reorient',
+      },
+    ],
+  },
+  {
     owner: 'session-observer-collab',
     source: 'src/skills/session-observer-collab',
     allowedSourceRoots: [

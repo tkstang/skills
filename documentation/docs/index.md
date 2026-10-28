@@ -21,6 +21,7 @@ job you want help with:
 | Check that we agree on the goal and problem before or during work                        | [Align](user-guide/skills/align.md)                                                                |
 | Catch up on what a session did while you were away                                       | [Debrief](user-guide/skills/debrief.md)                                                            |
 | See where a running session stands against its goal                                      | [Sitrep](user-guide/skills/sitrep.md)                                                              |
+| Regain the big picture of a long or compacted thread                                     | [Reorient](user-guide/skills/reorient.md)                                                          |
 | Decide what comes next or whether a proposed step is necessary                           | [Next Steps](user-guide/skills/next-steps.md) or [Must We?](user-guide/skills/must-we.md)          |
 | Check whether a plan or implementation is needlessly complex                             | [Complexity Review](user-guide/skills/complexity-review.md)                                        |
 | Create or improve an agent skill                                                         | [Author Skill](user-guide/skills/author-skill.md)                                                  |
@@ -29,8 +30,8 @@ job you want help with:
 ## Plugins or standalone skills?
 
 **Plugins** bundle related capabilities: Consensus for peer workflows and
-session observation, Session for messaging, continuity, past-session search, and
-retrospective review.
+session observation, Session for messaging, continuity, past-session search,
+long-thread reorientation, and retrospective review.
 **Standalone skills** let you install individual declared capabilities. Some
 skills are available both ways; both navigation paths lead to one guide.
 
