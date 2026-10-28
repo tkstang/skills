@@ -9,7 +9,7 @@ Session skills have canonical descriptive names and may be installed as
 standalone Agent Skills or through a plugin-local short name. Observation and
 collaboration live in the consensus plugin; retro, handoff, export, session search,
 reorient, and destination fork guidance live in the session plugin. `align`, `author-skill`,
-`debrief`, `sitrep`, `next-steps`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` are standalone only.
+`debrief`, `sitrep`, `next-steps`, `explain-options`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` are standalone only.
 
 Choose by what the next session needs:
 
@@ -22,6 +22,7 @@ Choose by what the next session needs:
 | See where the current work stands against its goal                         | [Sitrep](sitrep.md)                                           | A snapshot of what is complete, in progress, remaining, at risk, and waiting on you, from the session and the artifacts it already uses.                                |
 | Rebuild the big picture of a long or compacted thread                      | [Reorient](reorient.md)                                       | The thread's arc, recent exchanges, current state with drift checked, and a recommendation, closing with a Goal, Done, Now, Next, and Needs you block.                  |
 | Understand what to do next and why                                         | [Next Steps](next-steps.md)                                   | A contextual recommendation that identifies the next justified action and who can take it, without executing it.                                                        |
+| Choose between options the agent just offered                              | [Explain Options](explain-options.md)                         | Background, each option's costs and reversibility, what decides it, and a recommendation, ending with a question; nothing is acted on.                                  |
 | Decide whether a requirement or proposal is necessary                      | [Must We?](must-we.md)                                        | An evidence-based verdict, consequence of skipping, and the smallest sufficient path.                                                                                   |
 | Create, revise, migrate, or review an agent skill                          | [Author Skill](author-skill.md)                               | A skill shaped by the target repository’s conventions, with focused verification and explicit live-evidence limits.                                                     |
 | Review one bounded branch diff, file set, or document independently        | [Consensus Review](../consensus/review.md)                    | Validated JSON and OAT-compatible Markdown with findings, provenance, checks, and explicit detection limits; no automatic fixes.                                        |
@@ -56,6 +57,8 @@ and standalone choices.
   a recommendation; requires **session-export-transcript** to see past compaction.
 - **next-steps** — explain the current situation and recommend justified
   actions without executing them.
+- **explain-options** — explain the choices the agent just offered, with
+  background, trade-offs, and a recommendation, then ask which to take.
 - **must-we** — evaluate whether a blocker, requirement, or proposed action is
   necessary and identify a smaller path when warranted.
 - **author-skill** — create, revise, migrate, or review a skill using the target
@@ -106,6 +109,7 @@ and standalone choices.
 - [Sitrep](sitrep.md) — Report where the current work stands against its goal: complete, in progress, remaining, and at risk.
 - [Reorient](reorient.md) — Rebuild the arc of a long or compacted thread, check what changed since, and recommend what comes next; available standalone or as Session `reorient`.
 - [Next Steps](next-steps.md) — Explain the current state and recommend justified actions without executing them.
+- [Explain Options](explain-options.md) — Explain the choices an agent just offered well enough to decide, with a recommendation, without acting on it.
 - [Must We?](must-we.md) — Decide whether a blocker or proposal is necessary and find the smallest sufficient path.
 
 ### Review and improve

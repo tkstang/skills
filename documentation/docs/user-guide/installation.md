@@ -278,6 +278,7 @@ under `skills/`:
 | `sitrep`                          | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/sitrep)                      |
 | `reorient`                        | session `reorient`            | [standalone source](https://github.com/tkstang/skills/tree/main/skills/reorient)                    |
 | `next-steps`                      | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/next-steps)                  |
+| `explain-options`                 | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/explain-options)             |
 | `must-we`                         | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/must-we)                     |
 | `session-retro`                   | session `retro`               | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-retro)               |
 | `session-observer`                | consensus `observer`          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-observer)            |

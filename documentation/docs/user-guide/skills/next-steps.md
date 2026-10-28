@@ -46,7 +46,9 @@ questions and neither is required:
 - [Sitrep](sitrep.md) reports where the current work stands against its goal.
 
 Both end by pointing here when work remains open; neither recommends an action
-itself.
+itself. When the agent has already offered specific choices and you need help
+picking one, [Explain Options](explain-options.md) explains that single
+decision.
 
 ## Examples
 
