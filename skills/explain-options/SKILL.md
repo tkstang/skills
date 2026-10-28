@@ -1,6 +1,6 @@
 ---
 name: explain-options
-description: 'Use when the agent has just offered choices (a question, a list, "A or B", or an AskUserQuestion) and the user wants context to decide: "explain the options", "what are the trade-offs", "why pick one over the other", how they differ, or more detail on them. Explains background, trade-offs, and what decides it, recommends, then asks. Not for comparing tools from scratch, explaining why a system is built as it is, re-explaining an unclear point, or recommending next steps overall.'
+description: 'Use when the agent offered choices, just now or earlier (a question, a list, "A or B", or an AskUserQuestion) and the user wants context to decide: "explain the options", "what are the trade-offs", "why pick one over the other", how they differ, or more detail on them. Explains background, trade-offs, and what decides it, recommends, then asks. Not for comparing tools from scratch, explaining why a system is built as it is, re-explaining an unclear point, or recommending next steps overall.'
 license: MIT
 compatibility: Agent Skills baseline; instruction-only, with no runtime or package dependencies.
 user-invocable: true
@@ -115,7 +115,7 @@ visual.
 
 End by asking which option to take, or whether to proceed with the
 recommendation. For a decision the user already made, confirm their choice
-instead. Do not act on it: do not modify files, change workflow state,
+instead, unless they asked to revisit it. Do not act on it: do not modify files, change workflow state,
 merge, or resume work as part of explaining.
 
 ## Output shape
