@@ -24,6 +24,16 @@
 
 ### Added
 
+- `reorient` 1.0.0 skill, standalone and as Session plugin member `reorient`
+  (`session` plugin 0.5.0): rebuilds the big picture of a long or compacted
+  thread. It exports the full session transcript through the required
+  `session-export-transcript` workflow, reads it inline under about 60 KB or
+  through one subagent above that, checks read-only git and PR state for drift,
+  and ends with a recommendation, an ask, and a Goal / Done / Now / Next /
+  Needs you status block. Its `references/end-of-run-status.md` is the
+  versioned copy of a matching standing instruction for user-level agent
+  instructions.
+
 - Tag Main workflow: a commit on `main` that passes Validate is tagged with the
   next patch release unless a newer tag already covers it (`v0.1.2` was cut by hand on 2026-10-21), so
   `install.sh --ref` can always pin current `main`.

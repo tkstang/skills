@@ -1,18 +1,19 @@
 ---
 title: 'Session'
-description: 'Exchange messages, preserve context, export a transcript, find a past session, prepare an alpha native fork, or review a session.'
+description: 'Exchange messages, preserve context, export a transcript, find a past session, reorient on a long thread, prepare an alpha native fork, or review a session.'
 ---
 
 # Session
 
 The Session plugin helps local coding-agent sessions exchange messages,
-preserve context, find past sessions, and learn from completed work. Choose the capability you
+preserve context, find past sessions, regain the thread of long work, and learn
+from completed work. Choose the capability you
 need; these skills are not a required sequence.
 
 ```mermaid
 flowchart LR
   accTitle: Choosing a Session capability
-  accDescr: Pick by need. Handoff lets someone else continue, messaging coordinates local sessions, export-transcript keeps a readable record, fork-to-destination continues native history elsewhere, retro learns from the episode, and search finds a past session.
+  accDescr: Pick by need. Handoff lets someone else continue, messaging coordinates local sessions, export-transcript keeps a readable record, fork-to-destination continues native history elsewhere, retro learns from the episode, search finds a past session, and reorient rebuilds the big picture of a long thread.
   Q{"What do you need<br/>from this session?"}
   M["messaging · agent-messaging<br/>Durable addressed inbox and shared log<br/>with manual fallback and finite delivery"]
   H["handoff · session-handoff<br/>Portable continuation brief:<br/>goal, state, decisions, evidence,<br/>remaining work, approval boundaries"]
@@ -20,6 +21,7 @@ flowchart LR
   F["fork-to-destination · session-fork-to-destination<br/>Alpha same-provider fork guidance<br/>Prepares instructions only; creates no fork"]
   R["retro · session-retro<br/>Evidence-backed findings and<br/>improvement proposals, not applied"]
   S["search · session-search<br/>Ranked, redacted candidates<br/>from local session stores"]
+  O["reorient · reorient<br/>Arc, current state, and a recommendation<br/>from the full transcript"]
 
   Q -->|"someone else continues the work"| H
   Q -->|"coordinate with local sessions"| M
@@ -27,10 +29,12 @@ flowchart LR
   Q -->|"continue native history<br/>in another worktree"| F
   Q -->|"learn from the episode"| R
   Q -->|"find a past session"| S
+  Q -->|"regain the big picture<br/>of a long thread"| O
+  O -.->|requires| E
   E -.->|optional| H
 ```
 
-_Mermaid updated 2026-10-02_
+_Mermaid updated 2026-10-27_
 
 | What you need                                        | Skill                                                              | What it produces                                                                                                  |
 | ---------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
@@ -39,6 +43,7 @@ _Mermaid updated 2026-10-02_
 | Continue native history in another existing worktree | [Fork to Destination](../../skills/session-fork-to-destination.md) | Alpha, same-provider, destination-safe guidance; preparation does not create a fork or transfer worktree changes. |
 | Find a past Claude Code, Codex, or Cursor session    | [Search](../../skills/session-search.md)                           | A ranked, redacted candidate list with resume hints; local stores only, never written to.                         |
 | Learn from an invocation or bounded episode          | [Retro](../../skills/session-retro.md)                             | Evidence-backed findings and improvement proposals, without applying them.                                        |
+| Regain the big picture of a long or compacted thread | [Reorient](../../skills/reorient.md)                               | The thread's arc, current state with drift checked, and a recommendation; it does not act on it.                  |
 | Exchange addressed work across local sessions        | [Messaging](../../skills/agent-messaging.md)                       | A durable inbox and shared log, with manual fallback and separately verified finite delivery.                     |
 
 ## Installation and names
@@ -53,6 +58,7 @@ Each member also has a standalone form:
 | `fork-to-destination` | `session-fork-to-destination` |
 | `search`              | `session-search`              |
 | `retro`               | `session-retro`               |
+| `reorient`            | `reorient`                    |
 | `messaging`           | `agent-messaging`             |
 
 The linked guides cover both forms. Invocation syntax depends on the host; do
@@ -77,4 +83,5 @@ are incomplete. Static packaging is not proof of live provider discovery or perm
 - [Fork to Destination](../../skills/session-fork-to-destination.md) — Prepare alpha same-provider native fork guidance.
 - [Search](../../skills/session-search.md) — Find a past local session from a fuzzy description.
 - [Retro](../../skills/session-retro.md) — Review a bounded episode and propose improvements.
+- [Reorient](../../skills/reorient.md) — Rebuild the arc of a long or compacted thread and get a recommendation.
 - [Messaging](../../skills/agent-messaging.md) — Exchange durable addressed messages with explicit receipt and delivery boundaries.

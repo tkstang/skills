@@ -10,12 +10,13 @@
   - Plugins
     - [Plugins](docs/user-guide/plugins/index.md) — Choose Consensus for peer perspectives or Session for messaging, continuity, past-session search, and retrospective review.
     - Session
-      - [Session](docs/user-guide/plugins/session/index.md) — Exchange messages, preserve context, export a transcript, find a past session, prepare an alpha native fork, or review a session.
+      - [Session](docs/user-guide/plugins/session/index.md) — Exchange messages, preserve context, export a transcript, find a past session, reorient on a long thread, prepare an alpha native fork, or review a session.
   - Standalone Skills
     - [Standalone Skills](docs/user-guide/skills/index.md) — Find independently installable skills by capability, including members also available through Consensus or Session.
     - [Align](docs/user-guide/skills/align.md) — Check that the agent understands your goal, underlying problem, and success criteria before or during work.
     - [Debrief](docs/user-guide/skills/debrief.md) — Get a concise account of what happened in a session while you were away, without gathering fresh state.
     - [Sitrep](docs/user-guide/skills/sitrep.md) — Get a snapshot of where the current work stands against its goal: complete, in progress, remaining, at risk, and waiting on you.
+    - [Reorient](docs/user-guide/skills/reorient.md) — Rebuild the big picture of a long or compacted thread from its full transcript, check what changed since, and get a recommendation.
     - [Next Steps](docs/user-guide/skills/next-steps.md) — Turn the current situation into a justified recommendation without executing it.
     - [Must We?](docs/user-guide/skills/must-we.md) — Decide whether a blocker, requirement, or proposed action is necessary and identify the smallest sufficient path.
     - [Babysit PR](docs/user-guide/skills/babysit-pr.md) — Repair CI and review findings until a pull request is green, then report readiness without merging.

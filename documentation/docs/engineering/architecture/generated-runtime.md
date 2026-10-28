@@ -77,6 +77,7 @@ plugin by itself.
 | `src/skills/session-export-transcript`                                                                                           | `skills/session-export-transcript/` and `plugins/session/skills/export-transcript/`     |
 | `src/skills/session-fork-to-destination`                                                                                         | `skills/session-fork-to-destination/` and `plugins/session/skills/fork-to-destination/` |
 | `src/skills/session-search`                                                                                                      | `skills/session-search/` and `plugins/session/skills/search/`                           |
+| `src/skills/reorient`                                                                                                            | `skills/reorient/` and `plugins/session/skills/reorient/`                               |
 | `src/skills/complexity-review`                                                                                                   | `skills/complexity-review/` only                                                        |
 | `src/skills/author-skill`                                                                                                        | `skills/author-skill/` only                                                             |
 | `src/skills/babysit-pr`                                                                                                          | `skills/babysit-pr/` only                                                               |
@@ -111,7 +112,7 @@ core skill.
 ```mermaid
 flowchart LR
   accTitle: Session skill runtime dependencies
-  accDescr: Shared transcript code is bundled into session-observer, session-export-transcript and session-search. session-observer-collab and session-retro require installed workflows, and session-handoff integrates optionally with observer and export.
+  accDescr: Shared transcript code is bundled into session-observer, session-export-transcript and session-search. session-observer-collab, session-retro and reorient require installed workflows, and session-handoff integrates optionally with observer and export.
   TRANSCRIPT["Shared transcript code"] -->|bundled code| OBSERVER["session-observer"]
   TRANSCRIPT -->|bundled code| EXPORT["session-export-transcript"]
   TRANSCRIPT -->|bundled code| SEARCH["session-search"]
@@ -120,6 +121,7 @@ flowchart LR
   HANDOFF["session-handoff"] -.->|optional integration| OBSERVER
   HANDOFF -.->|optional integration| EXPORT
   RETRO["session-retro"] -.->|requires installed workflow| EXPORT
+  REORIENT["reorient"] -.->|requires installed workflow| EXPORT
 ```
 
 The distribution declaration carries required and optional workflow references
@@ -159,10 +161,10 @@ forms.
 
 The session plugin is a separate complete package. `export-transcript`,
 `fork-to-destination`, and `search` each carry their own bundled runtime closure
-inside their skill directory; `handoff` and `retro` are instruction-only with
-bundled templates. Their canonical standalone names stay
+inside their skill directory; `handoff`, `retro`, and `reorient` are instruction-only with
+bundled templates or references. Their canonical standalone names stay
 `session-export-transcript`, `session-fork-to-destination`, `session-search`,
-`session-handoff`, and `session-retro`.
+`session-handoff`, `session-retro`, and `reorient`.
 
 ## Import rewriting
 

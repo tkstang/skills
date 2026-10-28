@@ -18,11 +18,11 @@ What ships today:
   follow-up rounds on request;
   `observer` and `observer-collab` provide plugin-local session observation.
 - **Session plugin** — `messaging`, `retro`, `handoff`, `export-transcript`,
-  `search`, and `fork-to-destination` cover addressed coordination, bounded
-  review, continuation, sanitized export, past-session search, and alpha
-  destination-side fork guidance.
+  `search`, `reorient`, and `fork-to-destination` cover addressed coordination,
+  bounded review, continuation, sanitized export, past-session search,
+  long-thread reorientation, and alpha destination-side fork guidance.
 - **Optional standalone skills** — the session capabilities retain descriptive
-  `session-*` names except for `agent-messaging`; `align`, `author-skill`,
+  `session-*` names except for `agent-messaging` and `reorient`; `align`, `author-skill`,
   `debrief`, `sitrep`, `next-steps`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` remain standalone only.
   The PR skills repair CI/review findings until green; only `land-pr` merges.
   Consensus `phone-a-friend` and `review` are also available as the standalone

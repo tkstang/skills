@@ -28,8 +28,8 @@ infrastructure.
 - `skills/phone-a-friend/` — generated standalone advisory skill with its
   bundled provider helper and schema; the Consensus plugin also contains it.
 - `plugins/session/` — generated complete session installation unit with local
-  `messaging`, `retro`, `handoff`, `export-transcript`, `search`, and
-  `fork-to-destination` skills.
+  `messaging`, `retro`, `handoff`, `export-transcript`, `search`, `reorient`,
+  and `fork-to-destination` skills.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` — repo-root marketplace entries.
 - `.oat/` and `.agents/` — project-management infrastructure, not required by plugin consumers.
 
@@ -97,6 +97,7 @@ Inside `plugins/session/`:
   versioned provider manifests.
 - `skills/handoff/` — plugin-local form of `session-handoff`.
 - `skills/retro/` — plugin-local form of `session-retro`.
+- `skills/reorient/` — plugin-local form of `reorient`.
 - `skills/export-transcript/` — plugin-local form of
   `session-export-transcript`, including its generated dependency-free CLI.
 - `skills/fork-to-destination/` — plugin-local form of the alpha

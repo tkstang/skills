@@ -8,7 +8,7 @@ description: 'Find independently installable skills by capability, including mem
 Session skills have canonical descriptive names and may be installed as
 standalone Agent Skills or through a plugin-local short name. Observation and
 collaboration live in the consensus plugin; retro, handoff, export, session search,
-and destination fork guidance live in the session plugin. `align`, `author-skill`,
+reorient, and destination fork guidance live in the session plugin. `align`, `author-skill`,
 `debrief`, `sitrep`, `next-steps`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` are standalone only.
 
 Choose by what the next session needs:
@@ -20,6 +20,7 @@ Choose by what the next session needs:
 | Check shared understanding of the goal, problem, and success criteria      | [Align](align.md)                                             | A revised restatement, material unknowns, and any correction to the current direction; no project changes.                                                              |
 | Catch up on what happened while you were away                              | [Debrief](debrief.md)                                         | A short account of changes, decisions, shown versus reported results, and open questions, from session history only.                                                    |
 | See where the current work stands against its goal                         | [Sitrep](sitrep.md)                                           | A snapshot of what is complete, in progress, remaining, at risk, and waiting on you, from the session and the artifacts it already uses.                                |
+| Rebuild the big picture of a long or compacted thread                      | [Reorient](reorient.md)                                       | The thread's arc, recent exchanges, current state with drift checked, and a recommendation, closing with a Goal, Done, Now, Next, and Needs you block.                  |
 | Understand what to do next and why                                         | [Next Steps](next-steps.md)                                   | A contextual recommendation that identifies the next justified action and who can take it, without executing it.                                                        |
 | Decide whether a requirement or proposal is necessary                      | [Must We?](must-we.md)                                        | An evidence-based verdict, consequence of skipping, and the smallest sufficient path.                                                                                   |
 | Create, revise, migrate, or review an agent skill                          | [Author Skill](author-skill.md)                               | A skill shaped by the target repository’s conventions, with focused verification and explicit live-evidence limits.                                                     |
@@ -34,7 +35,8 @@ Choose by what the next session needs:
 
 Debrief, Sitrep, and Next Steps answer three adjacent questions about work in
 progress: what happened, where it stands, and what to do. Each can be installed
-and used alone.
+and used alone. Reorient covers all three for a whole thread you have lost track
+of, reading the full transcript so it can see past compaction.
 
 These skills are grouped by user-facing behavior. The grouping does not mean
 that they share one implementation, and it does not require installing an
@@ -49,6 +51,9 @@ and standalone choices.
   from its visible history, without recommending what comes next.
 - **sitrep** — report where the current work stands against its goal,
   without recapping an interval or recommending what comes next.
+- **reorient** (session-local `reorient`) — rebuild a long or compacted thread
+  from its full transcript: the original goal, side quests, current state, and
+  a recommendation; requires **session-export-transcript** to see past compaction.
 - **next-steps** — explain the current situation and recommend justified
   actions without executing them.
 - **must-we** — evaluate whether a blocker, requirement, or proposed action is
@@ -99,6 +104,7 @@ and standalone choices.
 - [Align](align.md) — Check shared understanding of the goal, problem, and success criteria before or during work.
 - [Debrief](debrief.md) — Report what happened in a session while you were away, from its visible history only.
 - [Sitrep](sitrep.md) — Report where the current work stands against its goal: complete, in progress, remaining, and at risk.
+- [Reorient](reorient.md) — Rebuild the arc of a long or compacted thread, check what changed since, and recommend what comes next; available standalone or as Session `reorient`.
 - [Next Steps](next-steps.md) — Explain the current state and recommend justified actions without executing them.
 - [Must We?](must-we.md) — Decide whether a blocker or proposal is necessary and find the smallest sufficient path.
 

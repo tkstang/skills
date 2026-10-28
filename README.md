@@ -64,7 +64,8 @@ panels without synthesis, and advice from one peer (one-shot, or bounded follow-
 It also includes Observer and Collaborative Observer.
 
 **Session** offers addressed messaging, portable handoffs, sanitized transcript
-exports, past-session search, and evidence-backed retrospectives. Its **alpha** Fork to Destination
+exports, past-session search, long-thread reorientation, and evidence-backed
+retrospectives. Its **alpha** Fork to Destination
 skill discovers and previews sessions and prepares same-provider fork
 instructions; it does not run the provider or create the fork. Provider coverage
 and end-to-end verification are incomplete.

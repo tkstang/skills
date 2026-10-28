@@ -269,6 +269,7 @@ describe('generated output drift guard', () => {
     expect(generatedOutputRoots).toContain('skills/consensus-review');
     expect(generatedOutputRoots).toContain('skills/must-we');
     expect(generatedOutputRoots).toContain('skills/next-steps');
+    expect(generatedOutputRoots).toContain('skills/reorient');
     expect(generatedOutputRoots).toContain('skills/session-retro');
     expect(generatedOutputRoots).toContain('skills/session-observer');
     expect(generatedOutputRoots).toContain('skills/session-export-transcript');
@@ -293,6 +294,7 @@ describe('generated output drift guard', () => {
     expect(generatedOutputRoots).toContain(
       'plugins/session/skills/fork-to-destination',
     );
+    expect(generatedOutputRoots).toContain('plugins/session/skills/reorient');
     expect(generatedOutputRoots).toContain('plugins/session/skills/retro');
     expect(generatedOutputRoots).toContain('plugins/session/skills/search');
   });
