@@ -29,8 +29,8 @@
   thread. It exports the full session transcript through the required
   `session-export-transcript` workflow, reads it inline under about 60 KB or
   through one subagent above that, checks read-only git and PR state for drift,
-  and ends with a recommendation, an ask, and a Goal / Done / Now / Next /
-  Needs you status block. Its `references/end-of-run-status.md` is the
+  and ends with a recommendation and a Goal / Done / Now / Next / Needs you
+  status block. When the user invokes it, it asks before acting. Its `references/end-of-run-status.md` is the
   versioned copy of a matching standing instruction for user-level agent
   instructions.
 
