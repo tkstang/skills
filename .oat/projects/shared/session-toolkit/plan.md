@@ -138,11 +138,13 @@ No parallel phase groups are declared (`oat_plan_parallel_groups: []`). Package 
 
 ## Reviews
 
-| Scope | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
-| ----- | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
-| plan  | artifact | pending | -    | -        | -             | -          | -           |
-| p01   | code     | pending | -    | -        | -             | -          | -           |
-| final | code     | pending | -    | -        | -             | -          | -           |
+| Scope | Type     | Status  | Date       | Artifact   | Reviewed Head                            | Invocation | Gate Target |
+| ----- | -------- | ------- | ---------- | ---------- | ---------------------------------------- | ---------- | ----------- |
+| plan  | artifact | passed  | 2026-10-29 | structured | a28f2037c2c38c5d665e863129aa794e856ef3fd | auto       | -           |
+| p01   | code     | pending | -          | -          | -                                        | -          | -           |
+| final | code     | pending | -          | -          | -                                        | -          | -           |
+
+Plan artifact review: passed with no findings. Fresh read-only Codex reviewer at inherited `gpt-6.1-sol/high`; structured output returned in memory. The configured brief gate and single user approval remain pending.
 
 ## Implementation Complete
 
