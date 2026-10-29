@@ -162,11 +162,14 @@ Root consumed exactly one `Reconnaissance: not-attempted` confirmation; artifact
 
 **Status:** in_progress
 **Base:** 3810f57b6c1205e918ccee133dd287bc65094736
+**Head:** 1ce8ba8de2fb5cb858bb6f4b273dac84bfa261d6
 **Executor:** phase-implementer:session-toolkit-p02-implement-20261029
 
 Execution shape: one phase implementer in the existing worktree is the sole committing owner for phase product/task records. No parallel group; the provider substrate, shared schemas, CLI, exports and package build outputs overlap and impose sequential dependencies, so root fan-out fails the independence test. Root owns lifecycle state and independent review. Classification: hard-reasoning/high for donor format/coordinate reconciliation, exact identity and safe export boundaries. Recovery default limit10, p02 prior usage0, remaining10, pending null; no phase override.
 
 p02 made concrete from the reviewed p01 package/command contract and consumer inventory. The phase implements the agreed provider core and export, preserves existing consumer state, and records donor parity before migration. This elaborates the approved outcomes and phase boundary; no scope, endpoint or authority change.
+
+Phase verification: final committed product passes333 package tests, root/package type-check, toolkit build, scoped lint/format, generated build:check, validate and smoke. Earlier remaining-suite pass197files/3174tests plus2files/3tests skipped excludes only the two documented baseline collision files; no full-suite pass. Narrow later Cursor frame correction has explicit regression and complete package proof. Exact final34-file archive passes isolated fixture API/CLI/import/type checks on actual Node22.0.0 and24.21.0; reference p02-verification.md records SHA256 and limitations. All five execution records have one implementation plus one journal closure commit. Consumers unchanged. Recovery4/10 remaining6; completed04 pending marker retained for root, volume warning disclosed. Phase remains in_progress for root acceptance and independent review.
 
 ### Task p02-t01: Preserve provider evidence and bounded parsing
 
