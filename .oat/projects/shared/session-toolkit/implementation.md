@@ -376,6 +376,18 @@ p03 made concrete after p02 acceptance, within unchanged approved outcomes and t
 **Commit:** 2389d89ade81557556a658c0cf5f683eedf0c600
 **Verification:** Build;13 focused files/272 tests; root/package types; scoped lint/format; diff review pass. Full long-tool search and explicit threshold refusal proven at public API/built CLI. Search-only projections use existing package provider normalization; flattened declarations. Test helpers copied to tests/helpers because donor helpers cannot enter installed closure; intentional temporary coverage overlap until p04 cutover.
 
+### Task p03-t02: Expose full sensitive activity capture
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p03-implement-20261029
+**Handle:** /root/session_toolkit_p03
+**Intent:** Return correlated raw activity, usage, independent source coordinates and honest provider/page coverage without digest preview caps.
+**Files:** packages/session-toolkit/src/activity.ts; page-summary.ts; cli.ts; index.ts; capabilities.ts; packages/session-toolkit/README.md; tests/release/session-toolkit-activity-public.test.ts; session-toolkit-cli.test.ts; CHANGELOG.md.
+**Proof:** toolkit build; public activity/read/CLI and existing activity suites; root/package type-check; scoped lint/format.
+
+**Commit:** 29983c05b73353bd2c1826ef7db4c7f81bc6d626
+**Verification:** Toolkit build,8 files/102 activity/read/CLI tests, root/package types, scoped lint/format and diff review pass. Controlled long Claude/Codex arguments/results and usage survive untruncated; raw source coordinates and malformed/paged coverage retained. Cursor frame calls preserve long input and terminal/source locators while explicitly reporting missing per-call results/usage. Existing summary delegates to the same extraction function and keeps its prior projection.
+
 ## Phase p04: Publish the toolkit and migrate Skills consumers
 
 **Status:** pending
