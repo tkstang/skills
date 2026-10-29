@@ -39,13 +39,13 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status    | Units | Accepted |
-| ----- | --------- | ----- | -------- |
-| p01   | completed | 1     | 1/1      |
-| p02   | completed | 1     | 1/1      |
-| p03   | pending   | 1     | 0/1      |
-| p04   | pending   | 1     | 0/1      |
-| p05   | pending   | 1     | 0/1      |
+| Phase | Status      | Units | Accepted |
+| ----- | ----------- | ----- | -------- |
+| p01   | completed   | 1     | 1/1      |
+| p02   | completed   | 1     | 1/1      |
+| p03   | in_progress | 1     | 0/1      |
+| p04   | pending     | 1     | 0/1      |
+| p05   | pending     | 1     | 0/1      |
 
 **Total:** 2/5 phases accepted
 
