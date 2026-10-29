@@ -73,13 +73,13 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-10-29T03:23:44.225040Z'
+oat_project_state_updated: '2026-10-29T03:28:35.742225Z'
 oat_brief_gate:
-  status: allowed
-  disposition: passed
+  status: blocked
+  disposition: null
   config_fingerprint: 'sha256:f7e3a5406a8a8a184532a47f3c6ec30ffca5b79b0b4494d47f79df3b4339f2e4'
-  reviewed_head: '02b1f285928e22357f6a8b66a9ddffecb6f3b43e'
-  decided_at: '2026-10-29T03:21:46.256749Z'
+  reviewed_head: 'f0d3c1500124dce013063d326d0e467b0de5e368'
+  decided_at: '2026-10-29T03:28:35.742225Z'
 oat_generated: false
 ---
 
@@ -119,4 +119,4 @@ None
 
 ## Next Milestone
 
-User-approved M1/L1/L2 amendments passed fresh artifact review with no findings. Run the configured brief gate again, then obtain the single final brief approval.
+User-approved M1/L1/L2 amendments passed fresh artifact review with no findings. Configured gate rerun produced a review but failed artifact count validation; formatting repaired without changing findings, and gate revalidation is next. Final brief approval remains pending.

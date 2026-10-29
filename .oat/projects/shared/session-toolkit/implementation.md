@@ -104,6 +104,10 @@ The user explicitly approved all three proposed brief amendments and rerunning b
 
 **Outcome:** fixes_completed; fresh structured artifact re-review passed with no findings at `77599b3deb3bf460225e952900ac8676939e960e`, confirming all three amendments. Configured gate rerun pending. Final brief approval has not occurred.
 
+### Brief gate artifact validation repair
+
+Gate run `ff9d4827-6bdc-434e-8337-0e0b51f9e089` reviewed `f0d3c1500124dce013063d326d0e467b0de5e368` using `claude-opus-5-5-high`. Its envelope returned `artifact_validation_failed`, `receiveEligible: false`, and no handoff: two bookkeeping bullets under a third-level heading were counted as Low findings, contradicting the declared two Low findings. No receipt or pass is claimed. Promoted that bookkeeping heading to a second-level section without changing the review's findings, counts, identity, or content. Rerun the exact configured gate for validation before receipt; this is operational recovery, not acceptance of a failed gate.
+
 ## Deferred Findings
 
 <!-- One line per approved deferral (finding, rationale, approval, follow-up trigger), plus excluded parallel phases and unmerged worktrees. -->
