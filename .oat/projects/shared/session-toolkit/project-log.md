@@ -62,6 +62,14 @@ session-toolkit-p01-root-lint-20261029: Root committed a small review correction
 
 session-toolkit-p02-concrete-20261029: p02 made concrete against p01 package/command contracts and consumer inventory within approved outcomes: exact identity plus lineage, discovery, detailed reads/parsing/evidence, safe export and donor parity. No consumer cutover or publication.
 
+### 2026-10-29 · structural · oat-project-implement · p02
+
+p02 accepted: full-range independent review r2 has zero Critical/High; original-handle High fix loop1 plus root Medium corrections verified;343 package tests and exact archive Node22.0.0/24 proof pass. Recovery4/10 settled; baseline full-suite exclusions retained. Evidence: references/p02-verification.md and reviews/p02-review-2026-10-29T152302Z.md.
+
+### 2026-10-29 · project · friction · serialized package and generated-output verification
+
+Toolkit archive rebuilds and built CLI tests share ignored dist; generated-output-sync temporarily mutates distributions. Run shared-output checks serially, and build:check after the suite; passing reruns required no additional product workaround.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

@@ -4,7 +4,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-29
-oat_current_task_id: p02
+oat_current_task_id: p03
 oat_generated: false
 ---
 
@@ -39,15 +39,15 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status      | Units | Accepted |
-| ----- | ----------- | ----- | -------- |
-| p01   | completed   | 1     | 1/1      |
-| p02   | in_progress | 1     | 0/1      |
-| p03   | pending     | 1     | 0/1      |
-| p04   | pending     | 1     | 0/1      |
-| p05   | pending     | 1     | 0/1      |
+| Phase | Status    | Units | Accepted |
+| ----- | --------- | ----- | -------- |
+| p01   | completed | 1     | 1/1      |
+| p02   | completed | 1     | 1/1      |
+| p03   | pending   | 1     | 0/1      |
+| p04   | pending   | 1     | 0/1      |
+| p05   | pending   | 1     | 0/1      |
 
-**Total:** 1/5 phases accepted
+**Total:** 2/5 phases accepted
 
 ## Phase p01: Establish the package boundary and release contract
 
@@ -160,9 +160,9 @@ Root consumed exactly one `Reconnaissance: not-attempted` confirmation; artifact
 
 ## Phase p02: Consolidate identity, discovery, reads, and safe export
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 3810f57b6c1205e918ccee133dd287bc65094736
-**Head:** f77c538084a66d4ad81525795afc48bcf291b5a8
+**Head:** 1e52610f1082b91e79b1571d1ad417c3d9e00658
 **Executor:** phase-implementer:session-toolkit-p02-implement-20261029
 
 Execution shape: one phase implementer in the existing worktree is the sole committing owner for phase product/task records. No parallel group; the provider substrate, shared schemas, CLI, exports and package build outputs overlap and impose sequential dependencies, so root fan-out fails the independence test. Root owns lifecycle state and independent review. Classification: hard-reasoning/high for donor format/coordinate reconciliation, exact identity and safe export boundaries. Recovery default limit10, p02 prior usage0, remaining10, pending null; no phase override.
@@ -178,6 +178,8 @@ Independent review r1 `session-toolkit-p02-review-20261029-r1` at `1ce8ba8de2fb5
 Root validated fix round1: original handle/request/continuation and exact target match, clean final handoff8a454ba, bounded implementation99132f6 plus separate journal closure, unchanged Phase Base and advanced Head, no recovery reservation or event. All five r1 findings are addressed by t06/t07. Seven execution records and corrected archive evidence are current; phase remains in_progress pending fresh full-range independent review. No later phase Base exists.
 
 Independent review r2 receipt: reviews/p02-review-2026-10-29T152302Z.md, headf77c538084a66d4ad81525795afc48bcf291b5a8, full unchanged Phase Base..Head, 0 Critical / 0 High / 1 Medium / 0 Low. Root consumed exactly one not-attempted reconnaissance signal; no Review Orchestration section; UTC/provenance/counts/scope validate. All prior five findings are confirmed fixed;4,320 bounded donor-prefix comparisons pass. Root accepts new M1 (Codex tool results) after source validation, will correct it inline as t08, and does not claim that correction has independent re-review. No phase acceptance yet; recovery unchanged4/10,pendingnull. No review-orchestration log is created.
+
+p02 accepted by root after independent r2 reviewed full Base..f77c538 with0 Critical/High, prior five findings verified fixed, and root-owned small r2 Medium correctiont08 verified. All dispositions settled, no optional phase gate selected and no HiLL checkpoint. Eight execution records have one code commit plus separate journal closure; full phase Head advances to1e52610f before any later Base. Latest343-test/type/build/freshness/validate/smoke and exact-archive runtime evidence are in references/p02-verification.md. Baseline full-suite limitation retained. High fix loop1/2 used; recovery4/10,pendingnull. Continue to p03, no publication/cutover claimed.
 
 ### Task p02-t01: Preserve provider evidence and bounded parsing
 
@@ -340,13 +342,17 @@ Verification: both intended public regressions failed before correction; discove
 
 ### Task p02-t08: (review) Honor Codex tool-result opt-in
 
-**Status:** in_progress
+**Status:** completed
 **Executor:** root:gpt-6.1-sol/high
 **Source review:** reviews/p02-review-2026-10-29T152302Z.md — M1
 
 Intent: implement the selected independent tool-result opt-in for ordinary Codex read/export projection while preserving natural ask-user answers, preview bounds, coordinates, message limits and sanitizer behavior. Root handles this small Medium finding; no new High fix round or phase-inline substitution.
 Files: provider-runtime.ts, existing read test, changelog and p02 parity/verification references.
 Proof: one pre-failing public parsing regression with literal independent default/calls/results/both expectations and continuation; full package/type/build/lint/freshness/validate/smoke and corrected archive checks on actual22.0.0/24.
+
+**Commit:** 1e52610f1082b91e79b1571d1ad417c3d9e00658
+
+Verification: public regression fails before and passes after correction; all343 package tests, root/package types, toolkit build, scoped lint/format, serialized build:check, validate and smoke pass. Public results-only export and500-character preview controls pass. Latest archive86d0fc3891ca209414e827abf8ef14d0a1298130050ee11dbb7fae26d5f9b741 passes clean API/CLI/types fixture proof on actual22.0.0/24.21.0. r2 MediumM1 resolved; donor projection difference explicitly recorded. No independent re-review of this small Medium correction is claimed; final integrated review remains required. Recovery unchanged4/10,pendingnull.
 
 ## Phase p03: Add search, activity, and CLI update notices
 

@@ -1,6 +1,6 @@
 ---
-oat_current_task: p02
-oat_last_commit: f77c538084a66d4ad81525795afc48bcf291b5a8
+oat_current_task: p03
+oat_last_commit: 1e52610f1082b91e79b1571d1ad417c3d9e00658
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -94,18 +94,18 @@ oat_generated: false
 
 # Project State: session-toolkit
 
-**Status:** Implementing p02
+**Status:** Implementing p03
 **Started:** 2026-10-29
 **Last Updated:** 2026-10-29
 
 ## Current Phase
 
-Implement — p02 identity, discovery, reads and safe export
+Implement — p03 search, activity and CLI update notices
 
 ## Artifacts
 
 - **Plan:** `plan.md` (approved; architecture and CLI diagrams, proposed argument reference, and p05 documentation acceptance included)
-- **Implementation:** `implementation.md` (p01 accepted; four phases remain)
+- **Implementation:** `implementation.md` (p01/p02 accepted; three phases remain)
 - **Research:** `references/research/release-ci-reference.md`
 
 ## Progress
@@ -131,4 +131,6 @@ None
 
 ## Next Milestone
 
-Independently review the verified p02 candidate. The brief’s authorized delivery endpoint remains active; p01 is accepted. Full-suite environmental failures are documented, not passed.
+Make p03 concrete and dispatch its implementation. p01/p02 are accepted;343 package tests and latest exact archive proof pass. The authorized delivery endpoint remains active; full-suite environmental failures remain explicit.
+
+- ✓ p02 accepted after full-range independent review and verified Medium corrections; three phases remain
