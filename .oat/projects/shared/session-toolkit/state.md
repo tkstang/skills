@@ -84,8 +84,18 @@ oat_phase_recovery_policy:
   default_attempt_limit: 10
   phase_attempt_usage:
     p02:
-      used_attempts: 2
-      pending_attempt: null
+      used_attempts: 3
+      pending_attempt:
+        attempt: 3
+        event_id: session-toolkit-p02-recovery-03
+        status: completed
+        original_request_id: session-toolkit-p02-implement-20261029
+        original_task_id: p02-t01
+        original_commit: a009dcc8cbc752589ff97ff63bc2feb37065d924
+        discovered_by: resumed Cursor source-coordinate composition check
+        dispatch_target: oat-phase-implementer-gpt-6-1-sol-high
+        reservation_head: 49cbb22d2990a211569558e6a87d772b621bd41d
+        eligibility: mechanical mapping of page-local sourceRecordIndex to existing global decoded-record coordinate; no scope or public requirement change
     p01:
       used_attempts: 2
       pending_attempt: null

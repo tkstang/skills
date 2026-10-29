@@ -269,6 +269,12 @@ export async function parseTranscript(
             return {
               ...m,
               recordIndex: source.recordIndex,
+              ...(m.sourceRecordIndex === undefined
+                ? {}
+                : {
+                    sourceRecordIndex:
+                      prospective[m.sourceRecordIndex].recordIndex,
+                  }),
               sourceOrdinal: source.sourceOrdinal,
               physicalLine: source.physicalLine,
             };

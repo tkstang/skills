@@ -115,6 +115,45 @@ describe('bounded public parsing', () => {
         'partial-tail',
       ]);
     }));
+  it('retains global Cursor message origins after a resumed metadata page', async () =>
+    fixture(async (path) => {
+      await writeFile(
+        path,
+        [
+          { type: 'session_meta' },
+          {
+            role: 'user',
+            message: { content: [{ type: 'text', text: 'question' }] },
+          },
+          {
+            role: 'assistant',
+            message: { content: [{ type: 'text', text: 'answer' }] },
+          },
+          { type: 'turn_ended', status: 'success' },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+      const first = await parseTranscript({
+        runtime: 'cursor',
+        path,
+        maxRecords: 1,
+      });
+      const resumed = await parseTranscript({
+        runtime: 'cursor',
+        path,
+        cursor: first.nextCursor!,
+      });
+      expect(
+        resumed.messages.map((message) => [
+          message.recordIndex,
+          message.sourceRecordIndex,
+        ]),
+      ).toEqual([
+        [3, 1],
+        [3, 2],
+      ]);
+    }));
   it('keeps tools opt-in and raw fields intact under message limits', async () =>
     fixture(async (path) => {
       await writeFile(
