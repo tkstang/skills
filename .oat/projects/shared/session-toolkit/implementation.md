@@ -97,6 +97,18 @@ Execution shape: one phase implementer, committing owner in the existing project
 **Commit:** 237b4078746d2357b9cecb89a764059d7aa6672b
 **Verification:** Exact 9-file tarball clean-installed on Node v22.0.0 and v24.21.0; API import completion/silence/state and installed CLI version/help/capabilities passed. Node 24 npm publication dry-run passed without publishing. Root/package type-check, 7 scoped tests, oxlint/oxfmt, actionlint and diff whitespace passed. Tests/repo/package-metadata.test.ts was mechanically added to the task boundary for new script declarations; t01's independent prior defect was repaired separately in the recorded recovery. One implementation commit; only effective owned paths changed.
 
+### Task p01-t03: Record staged contracts, consumer state and phase evidence
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p01-implement-20261029
+**Handle:** /root/session_toolkit_p01
+**Intent:** Replace the CLI proposal with a clearly staged implementation contract; record intentional API and evidence boundaries, actual Skills/ORC consumers and state ownership, exact-archive/runtime evidence and remaining release prerequisites.
+**Files:** .oat/projects/shared/session-toolkit/references/package-contract.md, references/cli-command-map.md, references/consumer-inventory.md, references/p01-verification.md (all beneath this project).
+**Proof command:** Lifecycle Markdown formatting via oxfmt stdin; verify contract against built help/capabilities and donor code; pnpm run test, pnpm run validate, pnpm run smoke, pnpm run build:check and root/package type-check at the phase boundary.
+
+**Commit:** 613188d5e3b3fd1735d2fae227be06f083af8088
+**Verification:** Four staged contract/inventory/evidence references formatted and local links checked; built help/version/capabilities agree. Root/package type-check, standalone build:check, validate, smoke, scoped oxlint/oxfmt/actionlint and whitespace checks passed. Full test run: 2,848 passed, 17 baseline environmental failures in two unchanged collaboration files, 3 skipped. Pristine phase-base archive reproduced all 17 failures from pre-existing regular files /tmp/a and /tmp/b; those files remain untouched. Root-directed remaining-suite run excluding exactly those two files passed (184 files, 2,848 tests, 3 skipped). Relevant p01 verification passes with the full-suite limitation unresolved for independent review; no new recovery reservation. One implementation commit changed exactly the four owned references.
+
 ## Phase p02: Consolidate identity, discovery, reads, and safe export
 
 **Status:** pending
