@@ -84,8 +84,18 @@ oat_phase_recovery_policy:
   default_attempt_limit: 10
   phase_attempt_usage:
     p03:
-      used_attempts: 0
-      pending_attempt: null
+      used_attempts: 1
+      pending_attempt:
+        attempt: 1
+        event_id: session-toolkit-p03-recovery-01
+        status: active
+        original_request_id: session-toolkit-p03-implement-20261029
+        original_task_id: p03-t02
+        original_commit: 29983c05b73353bd2c1826ef7db4c7f81bc6d626
+        discovered_by: node /tmp/session-toolkit-p03-continuation-check.mjs
+        dispatch_target: oat-phase-implementer-gpt-6-1-sol-high
+        reservation_head: 5cf676a8a62432866d16296119e416d7ed03d164
+        eligibility: mechanical propagation of validated selected native identity into captured activity; no new behavior, scope or architecture
     p02:
       used_attempts: 4
       pending_attempt: null
