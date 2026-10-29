@@ -3,7 +3,7 @@
 p01 read-only inventory, 2026-10-29. Skills baseline is phase base
 `66b90a7d78f02fc0b5b73e9d24f70a2644743bdc`; ORC was inspected at
 `/Users/tstang/Code/orc`, main `cc845945d0e50f3b60bcbc1ec5cb0a64c9c9e18b`.
-No transcripts were copied into this evidence. No production consumer changes in p01/p02.
+No transcripts were copied into this evidence. No production consumer changes in p01/p02/p03.
 The [package contract](package-contract.md) and [command map](cli-command-map.md)
 define the staged replacement boundary; the rows below identify actual owners,
 not completed migrations.
@@ -139,3 +139,27 @@ read-only and continue serving their consumers until p04/p05; this is temporary
 staged duplication, not completed consolidation or a consumer cutover.
 [Parity and intentional dispositions](p02-parity.md) identify extraction tests
 and preserved consumer-specific policies. Search/full activity remain p03.
+
+## p03 staged ownership handoff
+
+Package `search-*.ts` now owns the extracted search projections, adapters,
+accelerator/fallback pipeline, options, classification and redaction, alongside
+`search.ts` public query validation. They import package `provider-runtime.ts`
+and `sanitize.ts`, not donor source. Full activity uses the existing package
+extractors/correlation and source reader; page summaries share that extraction
+function. There is one normalization/activity engine inside the package. Donor
+search/shared source still serves current Skills consumers and remains unchanged
+until verified p04 migration removes duplication.
+
+Public replacements: `searchSessions`/`estimateSearch` and
+`captureActivity`, or `seshtk search`, `search estimate`, `activity`. The raw
+activity response is sensitive, not an ORC observation/action-policy type.
+Search accelerator environment controls are `SESHTK_SEARCH_*`; p04 must update
+real callers/instructions rather than install legacy aliases. Cursor's structured
+activity supports recorded frame calls and turn lifecycle, with explicit gaps
+for results/per-call outcomes/usage. No state formats or ORC consumers change.
+
+Updater code is reachable from the package bin only. Interactive checks own
+24-hour update metadata under the cache directory; this is not selection/watch
+state. Library imports, future bundled engine functions and machine/hook
+contexts perform no lookup. New package source remains staged and unpublished.

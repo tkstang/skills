@@ -1,8 +1,8 @@
 # Session Toolkit command and argument contract
 
 p01 selected the complete map; p02 delivers identity/list/read/parse/exact Codex
-evidence/export alongside version/help/capabilities. Search, search estimate and
-full activity rows remain reserved for p03. Installed help/capabilities advertise
+evidence/export alongside version/help/capabilities. p03 delivers search, search estimate, full activity and interactive-only cached
+update notices. Installed help/capabilities advertise
 only delivered operations. See the [package contract](package-contract.md),
 [parity matrix](p02-parity.md) and [consumer inventory](consumer-inventory.md).
 
@@ -19,15 +19,17 @@ No arguments prints help. `-h` and `-V` are the documented help/version short
 forms. `capabilities` always returns JSON. Global `--json` is accepted before
 or after the operation; machine help/version also use the v1 envelope. Plain
 help/version use text. Unknown flags/commands and excess arguments exit 1 with
-`E_USAGE`; internal system errors exit 2 with `E_INTERNAL`. There are no prompts,
-colors or automatic network checks. Operational commands read provider stores explicitly.
+`E_USAGE`; internal system errors exit 2 with `E_INTERNAL`. There are no prompts or colors. Operational commands read provider stores explicitly. Cached update checks run
+only after successful interactive operations; both stdin/stderr must be TTYs.
+JSON, capabilities, help/version, CI, opt-out and non-TTY contexts perform no
+update lookup or notice.
 
-Current IDs add `identity.current.v1`, `sessions.list.v1`, `transcript.read.v1`,
-`transcript.parse.v1`, `transcript.evidence.codex.v1`, `export.markdown.v1` to the
+Implemented IDs add `identity.current.v1`, `sessions.list.v1`, `transcript.read.v1`,
+`transcript.parse.v1`, `transcript.evidence.codex.v1`, `export.markdown.v1`, `search.v1`, `search.estimate.v1` and `activity.v1` to the
 three boundary IDs. Providers: claude-code, codex, cursor. The package README
 lists the deliberate root API; no donor state or CLI factory is public.
 
-## Operational usage (search/activity reserved)
+## Implemented operational usage
 
 ```text
 seshtk [--json] self-identify [--cwd <path>]
@@ -69,8 +71,7 @@ their implementations and fixture proof, with intentional root exports.
 
 ## Operational capability identifiers
 
-p02 returns identity/list/read/parse/evidence/export IDs below. Search, estimate
-and activity IDs remain absent until p03 verifies their operations:
+p02/p03 return every operational ID below after fixture and installed archive proof:
 
 | Operation                       | Capability ID                  |
 | ------------------------------- | ------------------------------ |
@@ -92,8 +93,27 @@ checks are both necessary for interactive consumers.
 
 ## Documentation handoff
 
-The package README documents current usage. This internal map supplies p02/p03
-implementation choices; p04 supplies publish-ready package and Skills guidance;
+The package README documents current usage. This internal map records p02/p03
+implementation contracts; p04 supplies publish-ready package and Skills guidance;
 p05 reconciles built help, argument/default/error schemas, examples, diagrams,
 API exports and actual ORC routing against the full canonical documentation site.
-Do not copy the reserved usage tree into a released capability list prematurely.
+The package is still unpublished; publication and consumer cutover remain p04/p05.
+
+## Search/activity response and error specifics
+
+`search` returns the donor-shaped `session-search/v1` query/source/diagnostic and
+ranked-result payload. `search estimate` returns
+`session-search-estimate/v1`, per-runtime files/bytes, total bytes, threshold and
+`incomplete`, without content hits. Both require patterns and reject invalid
+regexes (unless literal). An unapproved content scan beyond the threshold
+returns `E_SCAN_CONFIRMATION`, exit 1, with a structured estimate and the
+`--allow-large-scan` hint. No interaction or automatic authorization occurs.
+
+`activity` returns `kind:sensitive-activity`, `scope:captured-page`, correlated
+raw events, source metadata/usage, provider `support` and `sourceRead` with
+complete raw records and independent source coordinates/coverage. It is not a
+sanitized projection. Cursor records calls/turn evidence but not per-call
+results/usage; unsupported data classes remain explicit. `--out` creates a new
+JSON artifact and returns path/source/coverage; an existing destination fails
+with E_IO/exit 2. All read bounds apply; `fullSource` does not infer unavailable
+provider data.

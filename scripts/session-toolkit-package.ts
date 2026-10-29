@@ -261,11 +261,13 @@ export function validateArchive(archive: string, node = process.execPath) {
       await mkdir(cwd);
       const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
       const claude = join(home, '.claude/projects', cwd.replace(/[/.]/g, '-'), id + '.jsonl');
-      const codex = join(home, '.codex/sessions', 'rollout-' + id + '.jsonl');
+      const codex = join(home, '.codex/sessions/2026/10/29', 'rollout-2026-10-29T00-00-00-' + id + '.jsonl');
       const cursor = join(home, 'cursor.jsonl');
+      const retained = 'raw-archive-detail-'.repeat(100) + 'uncapped-marker';
+      process.env.SESHTK_SEARCH_NO_RG = '1'; process.env.SESHTK_SEARCH_NO_SQLITE3 = '1';
       for (const [path, records] of [
         [claude, [{sessionId:id,cwd,type:'user',message:{content:'archive question'}},{type:'assistant',message:{content:'archive answer'}}]],
-        [codex, [{type:'session_meta',payload:{id,cwd}},{type:'response_item',payload:{type:'message',role:'user',content:[{type:'input_text',text:'archive question'}]}},{type:'response_item',payload:{type:'function_call',call_id:'a',name:'exec_command',arguments:'{"cmd":"echo hi"}'}}]],
+        [codex, [{type:'session_meta',payload:{id,cwd}},{type:'response_item',payload:{type:'message',role:'user',content:[{type:'input_text',text:'archive question'}]}},{type:'response_item',payload:{type:'function_call',call_id:'a',name:'exec_command',arguments:JSON.stringify({cmd:retained})}},{type:'response_item',payload:{type:'function_call_output',call_id:'a',output:retained}}]],
         [cursor, [{role:'user',message:{content:[{type:'text',text:'archive question'}]}},{role:'assistant',message:{content:[{type:'text',text:'archive answer'}]}},{type:'turn_ended',status:'success'}]]
       ]) {
         await mkdir(dirname(path), {recursive:true});
@@ -284,6 +286,18 @@ export function validateArchive(archive: string, node = process.execPath) {
       assert.equal((await api.readTranscript({homeDir:home,session:'claude-code:'+id})).messages[1].text,'archive answer');
       const evidence = await api.readEvidence({homeDir:home,session:'codex:'+id});
       assert.ok(evidence.evidence.cutoff); assert.ok(evidence.activity.events.some(event => event.kind === 'call'));
+      const searchOptions = {home,env:process.env,runtime:'codex',patterns:['uncapped-marker'],includeTools:true};
+      const search = await api.searchSessions(searchOptions);
+      assert.equal(search.results.length,1); assert.match(search.results[0].snippets[0].text,/uncapped-marker/);
+      const estimate = await api.estimateSearch(searchOptions);
+      assert.equal(estimate.totalFiles,1); assert.equal(estimate.incomplete,false);
+      await assert.rejects(api.searchSessions({...searchOptions,largeScanBytes:1}), {code:'E_SCAN_CONFIRMATION'});
+      const activity = await api.captureActivity({homeDir:home,session:'codex:'+id});
+      assert.equal(activity.events.find(e=>e.kind==='result').result,retained);
+      assert.equal(activity.events.find(e=>e.kind==='call').arguments.cmd,retained);
+      assert.equal(activity.sourceRead.coverage.fullSource,true);
+      assert.equal(activity.sourceRead.records[3].physicalLine,4);
+      assert.ok(!(await api.parseTranscript({runtime:'codex',path:codex,includeToolResults:true})).messages.some(m=>m.text.includes('uncapped-marker')));
       const out = join(home,'archive-export.md');
       await api.exportMarkdown({homeDir:home,session:'claude-code:'+id,out});
       assert.match(await readFile(out,'utf8'), /archive answer/);
@@ -298,6 +312,11 @@ export function validateArchive(archive: string, node = process.execPath) {
       assert.equal(cli('read','--session','claude-code:'+id).messages[1].text,'archive answer');
       assert.ok(cli('read','--session','codex:'+id,'--evidence').evidence.cutoff);
       cli('export','--session','claude-code:'+id,'--out',join(home,'cli-export.md'));
+      assert.equal(cli('search','-p','uncapped-marker','--runtime','codex','--include-tools').results.length,1);
+      assert.equal(cli('search','estimate','-p','archive','--runtime','codex').totalFiles,1);
+      assert.equal(cli('activity','--session','codex:'+id).events.find(e=>e.kind==='result').result,retained);
+      cli('activity','--session','codex:'+id,'--out',join(home,'cli-activity.json'));
+      assert.equal(JSON.parse(await readFile(join(home,'cli-activity.json'),'utf8')).kind,'sensitive-activity');
       await assert.rejects(access(process.env.STATE_DIR));
       process.stdout.write('OPERATIONS_OK\\n');
     `,
@@ -310,16 +329,22 @@ export function validateArchive(archive: string, node = process.execPath) {
     writeFileSync(
       consumerTypes,
       `
-      import { parseTranscript, readEvidence, identifyCurrentTranscript, exportMarkdown,
+      import { parseTranscript, readEvidence, identifyCurrentTranscript, exportMarkdown, searchSessions, estimateSearch, captureActivity,
         type ReadOptions, type TranscriptPage, type EvidenceOptions, type CurrentTranscriptIdentity,
-        type ExportResult } from '@tkstang/session-toolkit';
+        type ExportResult, type SearchOptions, type SearchResult, type EstimateResult, type ActivityOptions, type ActivityCapture, type ActivityEvent } from '@tkstang/session-toolkit';
       const options: ReadOptions = {runtime:'cursor',path:'/explicit/fixture.jsonl',maxRecords:10};
       const page: Promise<TranscriptPage> = parseTranscript(options);
       const identity: Promise<CurrentTranscriptIdentity> = identifyCurrentTranscript({cwd:'/repo'});
       const evidenceOptions: EvidenceOptions = {session:'codex:id'};
       const evidence = readEvidence(evidenceOptions);
       const exported: Promise<ExportResult> = exportMarkdown({session:'codex:id',out:'/new/file.md'});
-      void [page,identity,evidence,exported];
+      const searchOptions: SearchOptions = {patterns:['fixture'],tiers:['history','meta','content'],runtime:'auto'};
+      const found: Promise<SearchResult> = searchSessions(searchOptions);
+      const estimate: Promise<EstimateResult> = estimateSearch(searchOptions);
+      const activityOptions: ActivityOptions = {session:'codex:id',maxBytes:4000000};
+      const activity: Promise<ActivityCapture> = captureActivity(activityOptions);
+      function rawFact(event: ActivityEvent): unknown { return event.result ?? event.arguments; }
+      void [page,identity,evidence,exported,found,estimate,activity,rawFact];
     `,
     );
     run(

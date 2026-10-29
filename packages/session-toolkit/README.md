@@ -1,10 +1,9 @@
 # @tkstang/session-toolkit
 
 A typed ESM library and the `seshtk` CLI for exact current identity, historical
-session discovery, bounded transcript reads and sanitized Markdown export.
+session discovery, bounded transcript reads, raw-evidence search, sanitized Markdown export and sensitive full activity capture.
 Supports Claude Code, Codex and Cursor. Exact cutoff/expansion evidence currently
-supports Codex. Search, full activity commands and update notices are reserved
-for the next phase and are absent from capabilities.
+supports Codex. Interactive CLI operations offer cached stable-release notices.
 
 Requires Node **22.0.0 or later**; the same archive is checked on Node 22.0.0
 and 24. Runtime dependencies are installed by npm. Existing Skills and ORC
@@ -62,7 +61,10 @@ The package root is the only export path. Additional value exports are
 `DiscoveryResult`, `SessionCandidate`, `StoreContext`, `ReadOptions`,
 `SessionReadOptions`, `TranscriptPage`, `SourceRecord`, `ReadDiagnostic`,
 `EvidenceOptions`, `ExportOptions`, `ExportResult`, `Provider`, `ErrorCode`,
-`Capabilities`, `CapabilityId`, and `Envelope<T>`. Declarations also describe the
+`Capabilities`, `CapabilityId`, `Envelope<T>`, `SearchOptions`, `SearchResult`,
+`SessionHit`, `Snippet`, `SearchDiagnostics`, `SourceReport`, `EstimateResult`,
+`EstimateRuntime`, `ActivityOptions`, `ActivityCapture` and `ActivityEvent`.
+Value exports also include `searchSessions`, `estimateSearch` and `captureActivity`. Declarations also describe the
 inferred exact-evidence result. Internal parser/activity helpers are not APIs.
 
 Library imports do not parse arguments, resolve stores, perform network access,
@@ -88,19 +90,21 @@ exactly one newline-terminated envelope, including help/version:
 `{ok:true,schema_version:1,data:...}` or
 `{ok:false,schema_version:1,error:{code,message,hint,details?}}`. Diagnostics go to
 stderr. Plain reads print conversation; other plain operations print structured
-JSON. No arguments prints help. No prompts, color or automatic network checks.
+JSON. No arguments prints help. No prompts or color. Interactive-only update checks
+are described below; machine and unattended contexts perform no update lookup.
 
 Exit codes are 0 for an interpretable result (including partial coverage), 1 for
 usage/selection action, and 2 for I/O/unexpected failure. Codes are `E_USAGE`,
 `E_AMBIGUOUS`, `E_UNAVAILABLE`, `E_CURSOR_INVALID`, `E_SOURCE_CHANGED`, `E_IO`,
-`E_INTERNAL`. Exact CLI identity refuses ambiguity/unavailability; its error
+`E_INTERNAL`, `E_SCAN_CONFIRMATION`. Exact CLI identity refuses ambiguity/unavailability; its error
 `details` retains structured evidence. Library identity returns that status.
 No cwd/recency winner is relabeled exact identity. Parent/root/grouping IDs never
 substitute for native identity; Codex parent env values alone are insufficient.
 
 Implemented IDs: `toolkit.capabilities.v1`, `cli.help.v1`, `cli.version.v1`,
 `identity.current.v1`, `sessions.list.v1`, `transcript.read.v1`,
-`transcript.parse.v1`, `transcript.evidence.codex.v1`, `export.markdown.v1`.
+`transcript.parse.v1`, `transcript.evidence.codex.v1`, `export.markdown.v1`,
+`search.v1`, `search.estimate.v1`, `activity.v1`.
 Providers are `claude-code`, `codex`, `cursor`; evidence capability is Codex only.
 
 ## Coordinates, bounds and evidence
@@ -188,12 +192,12 @@ History, metadata and content tiers run in canonical order; `--tiers` selects
 those tiers. A final tool-output pass runs when earlier tiers find nothing;
 `--no-deep` disables it and `--include-tools` includes tools immediately.
 
-Defaults:15 returned sessions,65,536 bytes per decoded line,2,147,483,648
+Defaults: 15 returned sessions, 65,536 bytes per decoded line, 2,147,483,648
 estimated bytes before explicit scan authorization, no deadline. Set
 `--deadline-ms`, `--max-line-bytes`, `--limit` or `--large-scan-bytes` to change
-these bounds. `E_SCAN_CONFIRMATION` (exit1) reports the estimate and requires
+these bounds. `E_SCAN_CONFIRMATION` (exit 1) reports the estimate and requires
 `--allow-large-scan`; it never prompts. No matches returns an empty result
-(exit0). `incomplete`, source status and diagnostics expose deadlines, malformed
+(exit 0). `incomplete`, source status and diagnostics expose deadlines, malformed
 records and oversized lines. Results are ranked bounded evidence, not an
 exhaustive index. Snippets redact complete units before windowing. Search reads
 raw classified records, including full tool fields, rather than digest previews.
@@ -203,7 +207,7 @@ locations. The Node fallback preserves transcript search; unavailable sqlite
 metadata is reported when applicable. Use `SESHTK_SEARCH_NO_RG=1` or
 `SESHTK_SEARCH_NO_SQLITE3=1` to disable them, `SESHTK_SEARCH_RG` and
 `SESHTK_SEARCH_SQLITE3` for explicit executable paths, and
-`SESHTK_SEARCH_PROBE_TIMEOUT_MS` for probe timeout (default3000,clamped500–60000).
+`SESHTK_SEARCH_PROBE_TIMEOUT_MS` for probe timeout (default 3000, clamped 500–60000).
 These controls belong to Session Toolkit; no legacy search environment aliases
 are installed. The library accepts explicit `home` and `env` for isolated stores.
 
@@ -230,7 +234,7 @@ inventing missing data. External persisted outputs and child trajectories are
 reported as not read; payload paths are never followed.
 
 Read bounds and generation-bound continuations work as for `read`; default source
-budget is4,000,000 bytes. `sourceRead.coverage.fullSource` requires coverage from
+budget is 4,000,000 bytes. `sourceRead.coverage.fullSource` requires coverage from
 byte zero to the captured end with no diagnostics. A bounded page or continuation
 can omit earlier correlation context; its raw source coordinates remain intact.
 `sourceRead.records` exposes source ordinals, decoded ordinals, physical lines,
@@ -242,7 +246,7 @@ in the CLI response. Consumers own offsets and watch/selection state.
 ## Update notices
 
 Successful interactive operations check for newer stable releases, at most once
-per24 hours, and print a notice on **stderr**. Both stdin and stderr must be
+per 24 hours, and print a notice on **stderr**. Both stdin and stderr must be
 TTYs. `--json`, bare `capabilities`, help/version, CI and non-TTY invocations
 perform **zero update network lookups** and print no notice. Set
 `SESHTK_NO_UPDATE_CHECK=1` to disable checking explicitly. Library imports and
@@ -250,9 +254,9 @@ bundled library functions cannot invoke this CLI-only updater; unattended hooks
 need no network access.
 
 The cache is `$XDG_CACHE_HOME/session-toolkit/update.json` or
-`~/.cache/session-toolkit/update.json`. Lookup failures are cached for24 hours
+`~/.cache/session-toolkit/update.json`. Lookup failures are cached for 24 hours
 and never fail a session operation. Malformed/expired caches are refreshed.
-The registry request has a1-second timeout; only stable SemVer releases newer
+The registry request has a 1-second timeout; only stable SemVer releases newer
 than the installed version trigger a notice. No automatic upgrade runs. The
 notice gives an explicit-version installation command; stdout remains the
 requested operation's output.

@@ -2,8 +2,7 @@
 
 Selected during p01 on 2026-10-29 against the approved brief, Foundations CLI
 conventions and the [consumer inventory](consumer-inventory.md). This is the
-implementation handoff for later phases, updated in p02 with the delivered subset and parity evidence. The [command map](cli-command-map.md) separates present support from
-reserved operations. Publication and consumer cutover remain p04/p05 work.
+implementation handoff for later phases, updated in p02/p03 with delivered operations and parity evidence. The [command map](cli-command-map.md) records delivered support. Publication and consumer cutover remain p04/p05 work.
 
 ## Package and runtime
 
@@ -28,13 +27,13 @@ reserved operations. Publication and consumer cutover remain p04/p05 work.
 ## Public library surface
 
 0.1.0 exports only the package root. The package README inventories the delivered
-identity/revalidation, discovery, read/parse, Codex evidence and Markdown exports
+identity/revalidation, discovery, read/parse, Codex evidence, Markdown export, search/estimate and sensitive activity exports
 and their concrete types. Internal dist subpaths, CLI factories, consumer state
 and the bin are not exported. Imports perform no I/O or argument handling.
 
 The capability object has `package`, `version`, `schema_version: 1`, `node`,
 `capabilities` and `providers`. Delivered IDs are the three boundary IDs plus identity/list/read/parse/Codex evidence/export,
-with all three providers listed; see the command map for exact identifiers.
+plus search/estimate/activity, with all three providers listed; see the command map for exact identifiers.
 The function creates a fresh object/arrays, so caller mutation cannot change
 later discovery results. Consumers check an acceptable package version **and**
 required IDs. Absence means unsupported; help text is not capability evidence.
@@ -94,8 +93,7 @@ are used; `NO_COLOR` is respected by construction.
 Exit `0` means the requested operation returned an interpretable result, `1`
 means user action is needed, `2` means an unexpected system failure. Current
 error codes are `E_USAGE`, `E_INTERNAL`, `E_AMBIGUOUS`, `E_UNAVAILABLE`,
-`E_CURSOR_INVALID`, `E_SOURCE_CHANGED` and `E_IO`. Search scan confirmation
-remains reserved for p03.
+`E_CURSOR_INVALID`, `E_SOURCE_CHANGED` and `E_IO`. `E_SCAN_CONFIRMATION` refuses unapproved large content scans with an estimate.
 Usage and domain selection
 refusals exit 1; unexpected I/O/system failures exit 2. Successful empty lists
 or no-match searches exit 0 with empty results. A bounded/deadline partial result
@@ -109,7 +107,7 @@ payload semantics; new operations and error codes arrive with their typed
 implementations. Provider-native raw payloads retain their original keys.
 Errors do not dump environment variables, provider content or credentials.
 
-## Selected operational contract (p02 delivered; search/activity reserved)
+## Selected operational contract (p02/p03 delivered)
 
 Provider IDs and runtime IDs are the same: `claude-code`, `codex`, `cursor`.
 `auto` selects stores for discovery/search; it is not a provider or an exact
@@ -184,13 +182,13 @@ bound. Zoned ISO instants are recommended for automation; reject inverted ranges
   truncation. Detailed Codex expansion remains on `read`, avoiding two meanings
   for one expansion token.
 
-The command map fixes spellings and capability IDs. p02/p03 must demonstrate
-these contracts with controlled donor fixtures before advertising them; any
-actual incompatibility needs an explicit disposition, not a misleading alias.
+The command map fixes spellings and capability IDs. Controlled fixtures and
+[p03 parity](p03-parity.md) demonstrate the delivered contracts and intentional
+donor differences. No consumer cutover is implied.
 
 ## Update notice and consumer ownership
 
-p01/p02 perform no update lookup. p03 adds cached, best-effort stable-release
+The CLI bin owns cached, best-effort stable-release
 notices for interactive CLI use only. Both stdin and stderr must be TTYs;
 `--json`, capabilities, help/version, CI and non-TTY invocations are quiet and
 perform no lookup. Library imports and bundled hooks cannot invoke update code.
@@ -206,3 +204,31 @@ callers, persistence boundaries and later parity gates. No consumer is cut over
 in p01. Before interactive skill migration, p04 must amend dependency guidance
 and revise the relevant standalone/shared-transcript decisions through their
 own workflow; this project reference does not silently supersede them.
+
+## p03 payload boundaries
+
+`searchSessions(SearchOptions)` and `estimateSearch(SearchOptions)` are the
+intentional root APIs. Search query/scope/cost inputs are typed with optional
+`home`/`env`; internal matchers, adapters, scanner stages and helper exports
+remain private. Search retains donor `session-search/v1` and estimate
+`session-search-estimate/v1` payload schemas inside the toolkit envelope.
+`incomplete` accounts for degraded sources, malformed/skipped source records,
+deadlines and scan authorization. No-match remains an ordinary empty result.
+Search uses raw full tool/answer units independently from preview projections.
+Toolkit accelerator controls use `SESHTK_SEARCH_*`, documented in the README;
+there are no old-name environment aliases.
+
+`captureActivity(ActivityOptions)` returns `ActivityCapture`: correlated raw
+events, source metadata/usage and independent raw `sourceRead` records,
+coordinates, diagnostics, generation and continuation. Captured raw instruction
+carriers are intentionally sensitive. `sourceRead.coverage.fullSource` means
+from byte zero through the captured end without diagnostics; semantic data
+class availability is separate. No digest/projectActivity preview limits apply.
+Cursor frame extraction retains calls, long arguments and source/delivery
+coordinates, while results/per-call outcomes/usage are explicitly unavailable
+on the recorded surface. `--out` exclusively creates a sensitive JSON artifact.
+
+Updater metadata is `update.json` with `checkedAt`/`latest`; stable successful
+lookups and failed/invalid lookups are cached for 24 hours. Expired/malformed
+caches trigger a fresh best-effort request. It imports from the bin only;
+no updater code enters the library/bundled engine closure.
