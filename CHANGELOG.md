@@ -4,7 +4,7 @@
 
 ### Added
 
-- Session Toolkit 0.1.0 provider evidence substrate and bounded stateless parsing, with independent source coordinates and generation-bound continuation.
+- Session Toolkit 0.1.0 exact identity, revalidation, bounded historical discovery and session reads, plus provider evidence substrate and bounded stateless parsing, with independent source coordinates and generation-bound continuation.
 
 ### Added
 

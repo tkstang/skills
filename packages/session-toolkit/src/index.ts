@@ -9,3 +9,19 @@ export type {
 } from './reader.js';
 export { ToolkitError } from './domain.js';
 export type { Provider, ErrorCode } from './domain.js';
+export {
+  identifyCurrentTranscript,
+  revalidateCurrentTranscript,
+} from './identity.js';
+export type {
+  CurrentTranscriptOptions,
+  CurrentTranscriptIdentity,
+} from './identity.js';
+export { listSessions, readTranscript } from './discovery.js';
+export type {
+  DiscoveryOptions,
+  DiscoveryResult,
+  SessionCandidate,
+  SessionReadOptions,
+  StoreContext,
+} from './discovery.js';
