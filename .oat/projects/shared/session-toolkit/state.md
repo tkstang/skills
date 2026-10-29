@@ -73,7 +73,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-10-29T16:09:29.943761Z'
+oat_project_state_updated: '2026-10-29T16:12:59.518548Z'
 oat_brief_gate:
   status: allowed
   disposition: passed
@@ -83,6 +83,9 @@ oat_brief_gate:
 oat_phase_recovery_policy:
   default_attempt_limit: 10
   phase_attempt_usage:
+    p04:
+      used_attempts: 0
+      pending_attempt: null
     p03:
       used_attempts: 1
       pending_attempt: null

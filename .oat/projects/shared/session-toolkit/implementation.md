@@ -39,13 +39,13 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status    | Units | Accepted |
-| ----- | --------- | ----- | -------- |
-| p01   | completed | 1     | 1/1      |
-| p02   | completed | 1     | 1/1      |
-| p03   | completed | 1     | 1/1      |
-| p04   | pending   | 1     | 0/1      |
-| p05   | pending   | 1     | 0/1      |
+| Phase | Status      | Units | Accepted |
+| ----- | ----------- | ----- | -------- |
+| p01   | completed   | 1     | 1/1      |
+| p02   | completed   | 1     | 1/1      |
+| p03   | completed   | 1     | 1/1      |
+| p04   | in_progress | 1     | 0/1      |
+| p05   | pending     | 1     | 0/1      |
 
 **Total:** 3/5 phases accepted
 
@@ -465,7 +465,11 @@ Root acceptance: review M1 and L1 are fixed by this bounded record, all disposit
 
 ## Phase p04: Publish the toolkit and migrate Skills consumers
 
-**Status:** pending
+**Status:** in_progress
+**Base:** ca95fb7238abb239c103b39d4b4405d68cc0aa98
+**Executor:** phase-implementer:session-toolkit-p04-implement-20261029
+
+Execution shape: one phase implementer in the existing worktree, sole reversible product/journal committing owner while active. No declared parallel group; release archive/workflow, package contracts, shared distribution build/lockfile and later consumer migration impose sequential dependencies, so root fan-out fails independence. Root retains lifecycle/independent reviews and every merge/publication/credential/settings action at an explicit clean ownership handoff. No implementation-inline exception. Classification: consequential/high for release safety and cross-consumer offline/state fidelity. Effective default recovery limit10, no phase override; p04 used0, remaining10, pendingnull, prior phase counters preserved.
 
 p04 made concrete after p03 acceptance within unchanged approved outcomes and authority. Release preparation and migration share package/distribution/lockfile outputs, so they remain sequential with one phase implementer; root retains independent review and irreversible/account execution. A clean intermediate release-candidate handoff precedes publication, and published-version evidence precedes interactive cutover. This is phase elaboration, not an up-front task plan. Missing npm authentication remains a known prerequisite; reversible preparation and review come first.
 
