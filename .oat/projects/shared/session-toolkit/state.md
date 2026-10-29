@@ -27,6 +27,10 @@ oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 #         - { harness: cursor, model: gpt-5.5-xhigh }
 #   source: project-state
 # oat_dispatch_ceiling: # legacy compatibility alias for capped managed provider targets
+oat_dispatch_policy:
+  mode: managed
+  policy: high
+  source: project-state
 oat_workflow_mode: brief # spec-driven | quick | import
 oat_workflow_origin: native # native | imported
 # oat_implement_exit_gate: # optional; durable configured implementation exit-gate state
@@ -69,7 +73,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-10-29T02:58:56.414734Z'
+oat_project_state_updated: '2026-10-29T03:09:55.081373Z'
 oat_generated: false
 ---
 
@@ -87,7 +91,7 @@ Plan - Authoring the Project Brief
 
 - **Plan:** `plan.md` (alignment interview in progress; complete draft with agreed design, outcomes, five phases, and delivery authority)
 - **Implementation:** `implementation.md` (scaffolded brief journal template — not started)
-- **Research:** `references/research/` (empty)
+- **Research:** `references/research/release-ci-reference.md`
 
 ## Progress
 
@@ -95,10 +99,18 @@ Plan - Authoring the Project Brief
 - ✓ Brief and implementation artifacts scaffolded
 - ⧗ Design choices recorded, including Node 22/24 support; complete brief drafted for pre-implementation review
 
+## Review Setup
+
+- User selected High managed dispatch policy for this project.
+- Additional cross-runtime phase gate: disabled by user; built-in phase/final reviews remain required.
+- Configured brief lifecycle gate: keep.
+- Configured implementation lifecycle gate: keep.
+- No project gate-disable override is written; configured gates remain enabled.
+
 ## Blockers
 
 None
 
 ## Next Milestone
 
-Resolve dispatch and gate setup, review the committed brief, then obtain the single brief approval
+Review the committed brief, run its configured lifecycle gate, then obtain the single brief approval

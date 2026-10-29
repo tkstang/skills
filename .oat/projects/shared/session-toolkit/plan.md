@@ -82,6 +82,7 @@ Migrate the actual workflows described by ORC's skill guidance, including the ob
 - **ORC cutover (accepted):** remove redundant `orc session-log` entrypoints after parity and update callers/docs; retain enriched identity and host integrations. Keeping redundant command surfaces was rejected.
 - **Release references (requested):** adapt Exhibit for one-package exact-artifact publication and OAT for workspace package validation, alongside Foundations. Multi-package lockstep and Changesets are unnecessary for this package.
 - **Delivery (accepted):** merged, published, and migrated across Skills and ORC. Reviewed PRs alone are insufficient.
+- **Review setup (accepted):** High managed dispatch ceiling. The user disabled the optional additional cross-runtime phase gate and kept both configured brief and implementation lifecycle gates. Built-in per-phase and final reviews remain required.
 - **Workflow (selected):** brief fits one cross-repository delivery with settled architecture and phase-level evidence. Tasks remain execution records; no up-front task plan or additional discovery/spec/design document is required.
 
 ## Known Unknowns
