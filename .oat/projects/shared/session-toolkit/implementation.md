@@ -69,6 +69,34 @@ Execution shape: one phase implementer, committing owner in the existing project
 **Commit:** e2b2d8e014728d204f9da5c16649f6cab206cebe
 **Verification:** Package build, root/package type-check, 3 public CLI/import tests, scoped oxlint/oxfmt, diff whitespace and generated build:check passed. Exact one implementation commit from dispatch base; only declared owned files. A precommit help-framing defect was fixed and reproved; no recovery attempt consumed.
 
+### Recovery Event session-toolkit-p01-recovery-01
+
+- Phase/task: p01 / p01-t01
+- Original request: session-toolkit-p01-implement-20261029
+- Original commit: e2b2d8e014728d204f9da5c16649f6cab206cebe
+- Defect class: test
+- Discovered by: pnpm run test:vitest tests/repo/package-metadata.test.ts
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-6-1-sol-high
+- Recovery commit: 7d4056de6f0398b2e7ffa7994c35d8122c58d230
+- Verification: Focused metadata guard and relevant phase checks (root/package type-check, build:check, 3 toolkit CLI/import tests) passed before candidate and immediately against committed HEAD; tree clean at handoff.
+- Reason: Mechanically propagate t01 root script inventory/type-check command into the existing pinned guard. No behavior, architecture or requirements change; original task commit retained. Reservation HEAD c8c95966dbb8877d8a4477d8736b4b2084fdad92; used 1, remaining 9; committed pending marker completed for root validation. Live-owner t02 capture at /tmp/session-toolkit-p01-t02-self-capture-20261029, manifest sha256:51b4d9ce24d19c5cea48d2ae8655043e71fc8ef6eed170e462be838affa9eb28, size 80850 bytes; pristine replay verified. Restored with checked patch and clean three-way reconciliation of the shared guard; ledger never replayed or cleared.
+
+### Task p01-t02: Validate exact package archives and release dry runs
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p01-implement-20261029
+**Handle:** /root/session_toolkit_p01
+**Intent:** Inspect packed metadata/dependencies/contents, verify isolated installed artifacts on the Node floor and 24, and establish validation-only CI plus exact-archive release prerequisites.
+**Files:** scripts/session-toolkit-package.ts, tests/release/session-toolkit-package.test.ts, tests/repo/package-metadata.test.ts, .github/workflows/session-toolkit.yml, package.json, packages/AGENTS.md, packages/session-toolkit/README.md, RELEASING.md, CONTRIBUTING.md.
+**Scope addition:** The existing package-metadata guard constructs the root test-command contract. Update its exact expected command mechanically so full tests build the ignored package output in clean CI checkouts.
+**Proof command:** pnpm run release:toolkit:dry-run --out <new-directory> on Node 24, followed by toolkit:pack:check --archive <same-tarball> --node <Node-22.0.0>; scoped tests, type-check, lint/format.
+
+**Commit:** 237b4078746d2357b9cecb89a764059d7aa6672b
+**Verification:** Exact 9-file tarball clean-installed on Node v22.0.0 and v24.21.0; API import completion/silence/state and installed CLI version/help/capabilities passed. Node 24 npm publication dry-run passed without publishing. Root/package type-check, 7 scoped tests, oxlint/oxfmt, actionlint and diff whitespace passed. Tests/repo/package-metadata.test.ts was mechanically added to the task boundary for new script declarations; t01's independent prior defect was repaired separately in the recorded recovery. One implementation commit; only effective owned paths changed.
+
 ## Phase p02: Consolidate identity, discovery, reads, and safe export
 
 **Status:** pending
