@@ -182,6 +182,35 @@ Proof: `pnpm run build:toolkit`; `pnpm run test:vitest tests/release/session-too
 
 Verification: 133 focused tests and build/type-check passed. A cheap oxlint result was failing when commit orchestration proceeded; immutable task commit retained and append-only recovery follows.
 
+### Recovery Event session-toolkit-p02-recovery-01
+
+- Phase/task: p02 / p02-t01
+- Original request: session-toolkit-p02-implement-20261029
+- Original commit: a009dcc8cbc752589ff97ff63bc2feb37065d924
+- Defect class: lint
+- Discovered by: pnpm exec oxlint packages/session-toolkit/src tests/release/session-toolkit-runtime.test.ts tests/release/session-toolkit-read.test.ts
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-6-1-sol-high
+- Recovery commit: e5a658bb40ebf6c604adca738219c94ccbf758e5
+- Verification: focused lint, toolkit build, root/package type-check and 136 runtime/read/CLI tests passed before and immediately after the recovery commit.
+- Reason: One unnecessary selector regex escape was a mechanically bounded lint defect. The original commit is immutable. Commit orchestration now explicitly stops unless each check exits zero with no running session. Completed ledger marker retained for root validation; remaining capacity9.
+
+### Task p02-t02: Add exact identity and bounded historical discovery
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p02-implement-20261029
+**Handle:** /root/session_toolkit_p02
+
+Intent: preserve ORC's message-free exact identity and revalidation, add Skills lineage, and provide separate stateless bounded historical listing and exact-session reads.
+Files: package identity, discovery and time modules, public exports, focused identity/discovery tests and changelog.
+Proof: `pnpm run build:toolkit`; focused identity/discovery/runtime/read tests; root/package type-check and scoped lint/format.
+
+**Commit:** 84d53213ef8f1d417a0eea5ccbfe2bcf8bb242c4
+
+Verification: 182 focused tests, toolkit build, root/package type-check, scoped oxlint/oxfmt and diff whitespace passed. Explicit self variables intersect harness evidence; Codex grouping variables remain parent evidence, never native-thread fallbacks.
+
 ## Phase p03: Add search, activity, and CLI update notices
 
 **Status:** pending
