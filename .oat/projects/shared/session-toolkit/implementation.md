@@ -110,12 +110,14 @@ Gate run `ff9d4827-6bdc-434e-8337-0e0b51f9e089` reviewed `f0d3c1500124dce013063d
 
 ### Configured brief gate: validated rerun
 
-Run `5d6cd688-7c86-40f7-9640-679ef9b04f2e` at `95f5d507325fe66d4437799057002780ee92e0ed`, target `claude-opus-5-5-high`: `status: ok`, `review_completed_gate_passed`, threshold High, `receiveEligible: true`, corroborated handoff. Findings: Critical 0 · High 0 · Medium 0 · Low 4. Artifact: `reviews/artifact-plan-review-2026-10-29T033029Z.md`. Root read the entire artifact and agrees with four proposed artifact-local clarifications; user confirmation requested, not yet received.
+Run `5d6cd688-7c86-40f7-9640-679ef9b04f2e` at `95f5d507325fe66d4437799057002780ee92e0ed`, target `claude-opus-5-5-high`: `status: ok`, `review_completed_gate_passed`, threshold High, `receiveEligible: true`, corroborated handoff. Findings: Critical 0 · High 0 · Medium 0 · Low 4. Artifact (local-only): `reviews/archived/artifact-plan-review-2026-10-29T033029Z.md`. Root read the entire artifact and agrees with four artifact-local clarifications. The user explicitly approved applying all four and rerunning the required reviews in this session. All four are now applied; no tasks were created.
 
-- L1 (Low, Minor scope): add p03 evidence that search/activity retain detail absent from a lossy digest; recommended `resolve_in_artifact`.
-- L2 (Low, Minor scope): name ad-hoc `oat-review-provide` in ORC and carry its path/range/disposition into final integrated review; recommended `resolve_in_artifact`.
-- L3 (Low, Minor scope): require independent review of publish-ready p04 release/migration candidates before merge/publication; recommended `resolve_in_artifact`.
-- L4 (Low, Minor scope): assign dependency-instruction and DR amendments to p04 before consumer cutover and use full DR slugs; recommended `resolve_in_artifact`.
+- L1 (Low, Minor scope): add p03 evidence that search/activity retain detail absent from a lossy digest; `resolve_in_artifact` applied.
+- L2 (Low, Minor scope): name ad-hoc `oat-review-provide` in ORC and carry its path/range/disposition into final integrated review; `resolve_in_artifact` applied.
+- L3 (Low, Minor scope): require independent review of publish-ready p04 release/migration candidates before merge/publication; `resolve_in_artifact` applied.
+- L4 (Low, Minor scope): assign dependency-instruction and DR amendments to p04 before consumer cutover and use full DR slugs; `resolve_in_artifact` applied.
+
+**Outcome:** fixes_completed; fresh artifact review and configured gate rerun pending.
 
 Original M1/L1/L2 are confirmed resolved. The prior validation-failed run `ff9d4827-…` is superseded by this validated gate, not retroactively passed or received; its artifact is archived at `reviews/archived/artifact-plan-review-2026-10-29T032603Z.md`, and its bound ledger row is preserved. No implementation has begun and no final brief approval is recorded.
 

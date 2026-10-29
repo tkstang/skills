@@ -73,7 +73,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-10-29T03:32:52.294831Z'
+oat_project_state_updated: '2026-10-29T03:39:57.087946Z'
 oat_brief_gate:
   status: allowed
   disposition: passed
@@ -119,4 +119,4 @@ None
 
 ## Next Milestone
 
-User-approved M1/L1/L2 amendments passed fresh artifact review with no findings. Configured Opus gate passed its High threshold after artifact validation repair (0 Critical/High/Medium, 4 Low). User confirmation of four proposed brief clarifications is pending; final brief approval has not occurred.
+User-approved M1/L1/L2 amendments passed fresh artifact review with no findings. Configured Opus gate passed its High threshold after artifact validation repair (0 Critical/High/Medium, 4 Low). The user approved the four Low clarifications; they are applied and awaiting fresh artifact review and gate rerun. Final brief approval has not occurred.
