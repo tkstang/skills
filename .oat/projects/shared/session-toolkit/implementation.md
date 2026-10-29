@@ -121,6 +121,14 @@ Run `5d6cd688-7c86-40f7-9640-679ef9b04f2e` at `95f5d507325fe66d4437799057002780e
 
 Original M1/L1/L2 are confirmed resolved. The prior validation-failed run `ff9d4827-…` is superseded by this validated gate, not retroactively passed or received; its artifact is archived at `reviews/archived/artifact-plan-review-2026-10-29T032603Z.md`, and its bound ledger row is preserved. No implementation has begun and no final brief approval is recorded.
 
+### Configured brief gate: final approval candidate
+
+Run `219402e5-a762-40e8-9520-92e07df79555` reviewed `8914e11e839212f394c2cf0ef9c638fd9396f98a` with `claude-opus-5-5-high`. Envelope: `status: ok`, `review_completed_gate_passed`, threshold High, `receiveEligible: true`, matched run/project/invocation and corroborated handoff. Findings: Critical 0 · High 0 · Medium 0 · Low 1. Artifact: `reviews/artifact-plan-review-2026-10-29T034251Z.md`. Root read the complete artifact; all prior L1–L4 clarifications are confirmed resolved.
+
+- L1 (Low, Negligible scope): the brief-contract reference is machine-specific. Root agrees; propose `resolve_in_artifact` by replacing the absolute reference with `oat-project-brief/references/brief-contract.md`. No Outcome, Approach, Decision, phase boundary, or authority changes; this is the editorial exception in brief Step 3.7, requiring no review-ladder rerun. Include the exact fix in the single final brief approval prompt; do not apply it before confirmation.
+
+**Outcome:** gate passed; single final brief approval and editorial L1 disposition pending. No implementation has started.
+
 ## Deferred Findings
 
 <!-- One line per approved deferral (finding, rationale, approval, follow-up trigger), plus excluded parallel phases and unmerged worktrees. -->
