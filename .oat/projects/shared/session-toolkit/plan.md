@@ -45,23 +45,31 @@ Create `@tkstang/session-toolkit` with the `seshtk` CLI as the maintained owner 
 
 <!-- Number each outcome and name the evidence that will show it holds. Completion is audited against this list. -->
 
-1. **[Observable outcome]** — Evidence: [test, command, artifact, or review that will prove it]
-2. **[Observable outcome]** — Evidence: [test, command, artifact, or review that will prove it]
+1. **One maintained session toolkit serves Skills and ORC** — Evidence: package API and CLI acceptance checks, consumer integration evidence, and removal of duplicate authored provider implementations. Exact capabilities and phase evidence will be written after alignment.
+2. **The CLI notifies users when a newer release is available** — Evidence: controlled current/newer-version and failed-lookup checks, with session command behavior and machine-readable stdout preserved.
 
 ## Approach
 
-Alignment interview in progress. Use the existing reconnaissance and independent Opus review as evidence inputs. Package location, consumer distribution, migration boundaries, and delivery authority remain to be agreed; the brainstorm is a proposal rather than an approved design.
+Use a small pnpm workspace in this repository with one public library and CLI package at `packages/session-toolkit/`. Keep existing skill sources and the separately managed documentation app in place. ORC imports the published package API. Interactive skills invoke the CLI with explicit prerequisite handling. Unattended hook entrypoints bundle the toolkit functions they need at build time from that same authored package source; they never fetch dependencies or prompt while firing.
+
+Alignment interview remains in progress for the runtime baseline, ORC command disposition, delivery endpoint and authority. The existing reconnaissance and independent Opus review are evidence inputs; their other recommendations are not automatically accepted design.
+
+**Proposed update-notice behavior:** best-effort, cached checks report a newer release on interactive CLI runs through stderr. Registry failures do not fail session commands. Automatic hooks and noninteractive machine invocations remain quiet. The cache interval and check mechanism are phase-local implementation choices; there is no automatic upgrade.
 
 <!-- Optional: add a `### Design` subsection when architecture decisions need recording. Delete this comment otherwise. -->
 
 ## Constraints and Out of Scope
 
-- **Constraint:** [A rule the work must respect.]
-- **Out of scope:** [Adjacent work intentionally excluded.]
+- **Constraint:** Preserve one authored provider implementation across runtime CLI and bundled-hook distributions. Bundled hooks receive toolkit changes through rebuilds and installation updates.
+- **Constraint:** CLI stdout retains its documented output contract when update notices are emitted.
+- **Out of scope:** Automatic package upgrades are not requested.
 
 ## Decisions
 
 - **Accepted naming:** npm package `@tkstang/session-toolkit`; CLI `seshtk`. Recorded in DR-261028-session-toolkit-naming. Alternatives `stk` and `sesh` were rejected after finding existing CLI conflicts.
+- **Package home (accepted):** one public library + CLI package in a small pnpm workspace here. Keeps engine and skill changes together with bounded package build/release tooling; separate-repository and ORC-owned publication were rejected.
+- **Distribution (accepted):** interactive CLI prerequisites plus build-time bundling for unattended hook entrypoints. The user accepted the clarified recommendation. This preserves autonomous/offline hook execution, at the cost of rebuilding hooks for toolkit fixes; requiring a preinstalled CLI for hooks and bundling every skill were not selected.
+- **Update notifications (required):** the user requested notice when a newer CLI version is available. Notification timing and output details above remain a proposed implementation contract pending overall design alignment.
 - **Workflow:** the user selected brief mode after comparing it with quick-start and pursuing-goals. One cross-repository delivery needs architecture alignment and phases with completion evidence; execution records will be created during implementation.
 
 ## Known Unknowns
