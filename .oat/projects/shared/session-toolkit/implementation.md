@@ -512,6 +512,8 @@ Both fresh reviewers returned exactly one valid `**Reconnaissance:** not-attempt
 
 Root retains build/write ownership after both explicit clean handoffs. The small M1 correction is handled by root under pr-self-review's small-finding rule, not a replacement phase implementer or recovery attempt. It is a bounded prepublication review fix in current p04; original phase handle and recovery usage0/10 remain unchanged. It does not alter prior phase anchors. A delta-only independent confirmation will follow before merge/publication; package version remains unpublished0.1.0.
 
+The original correctness reviewer accepted readiness for the single bounded M1 delta confirmation `cont-session-toolkit-p04-release-m1-confirm-1`, unchanged exact native target/model/effort and authority. It waits for clean corrected candidate evidence; root records acceptance before preparation. This continuation reviews the five changed product/test/doc paths only; prior range/audit coverage is inherited. No replacement reviewer or second full audit is dispatched.
+
 ### Task p04-t02: Restrict sensitive activity artifact permissions
 
 **Status:** completed
@@ -555,7 +557,7 @@ Invocation-evidence clarification: exact native materialized roles select model 
 
 - run/v1 · request=session-toolkit-p04-implement-20261029 · scope=p04 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-6-1-sol-high · launch=accepted · outcome=needs-context · terminal=no · class=live · continuation=~ · observed=~ · match=~
 
-- run/v1 · request=session-toolkit-p04-release-review-20261029-r1 · scope=p04-release · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p04-release action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+- run/v1 · request=session-toolkit-p04-release-review-20261029-r1 · scope=p04-release · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p04-release action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=running · terminal=no · class=live · continuation=cont-session-toolkit-p04-release-m1-confirm-1 · observed=~ · match=~
 
 - run/v1 · request=session-toolkit-p04-release-audits-20261029-r1 · scope=p04-release-audits · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p04-release-audits action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
