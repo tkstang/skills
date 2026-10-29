@@ -745,7 +745,7 @@ export function discoverPaths(runtime: Runtime): string[] {
 
 /**
  * Encode a cwd path for Claude Code's directory-name scheme.
- * Current Claude Code project dirs replace both '/' and '.' with '-'. For
+ * Current Claude Code project dirs replace every non-alphanumeric with '-'. For
  * example, '/Users/jane.doe/.superconductor' becomes
  * '-Users-jane-doe--superconductor'. Codex has no path encoding.
  * Cursor uses slash/dot-separated non-empty path segments joined by '-'.
@@ -761,8 +761,8 @@ export function encodeCwd(runtime: Runtime, cwd: string): string | null {
 
 /**
  * Return all known cwd slug variants for a runtime, ordered by preference.
- * Claude Code has used at least two observable schemes: the current scheme
- * sanitizes '/' and '.', while older docs/tests assumed slash-only encoding.
+ * Current Claude Code sanitizes every non-alphanumeric. Retain the selected
+ * slash/dot and slash-only variants for existing provider layouts.
  *
  * @param {'claude-code' | 'codex' | 'cursor'} runtime
  * @param {string} cwd
@@ -773,7 +773,11 @@ export function encodeCwdVariants(runtime: Runtime, cwd: string): string[] {
   if (runtime === 'cursor') {
     return [cwd.split(/[/.]/u).filter(Boolean).join('-')];
   }
-  const variants = [cwd.replace(/[/.]/g, '-'), cwd.replace(/\//g, '-')];
+  const variants = [
+    cwd.replace(/[^A-Za-z0-9]/g, '-'),
+    cwd.replace(/[/.]/g, '-'),
+    cwd.replace(/\//g, '-'),
+  ];
   return [...new Set(variants)];
 }
 

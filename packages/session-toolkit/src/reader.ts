@@ -121,6 +121,85 @@ function decode(token: string): Continuation {
     );
   }
 }
+/**
+ * Prefix counts are nondecreasing for Codex (correlation only adds answers),
+ * Cursor (settled groups retain the question/user tail and add terminal output),
+ * and Claude except when a reused tool ID changes an earlier answer's type.
+ * With tool results included, both Claude result forms still contribute one.
+ */
+function mayReduceMessageCount(
+  records: SourceRecord[],
+  options: ReadOptions,
+): boolean {
+  if (options.runtime !== 'claude-code' || options.includeToolResults)
+    return false;
+  const names = new Map<string, string>();
+  for (const { record } of records) {
+    const message =
+      record.message &&
+      typeof record.message === 'object' &&
+      !Array.isArray(record.message)
+        ? (record.message as JsonObject)
+        : record;
+    if (!Array.isArray(message.content)) continue;
+    for (const block of message.content) {
+      if (!block || typeof block !== 'object' || Array.isArray(block)) continue;
+      const tool = block as JsonObject;
+      if (
+        tool.type !== 'tool_use' ||
+        typeof tool.id !== 'string' ||
+        !tool.id ||
+        typeof tool.name !== 'string' ||
+        !tool.name
+      )
+        continue;
+      if (names.has(tool.id) && names.get(tool.id) !== tool.name) return true;
+      names.set(tool.id, tool.name);
+    }
+  }
+  return false;
+}
+/** Find the first whole-record boundary without rendering every growing prefix. */
+function messageBoundary(
+  records: SourceRecord[],
+  options: ReadOptions,
+  limit: number,
+): { length: number; excludeCrossing: boolean } | null {
+  const raw = records.map((row) => row.record);
+  const counts = new Map<number, number>([[0, 0]]);
+  const count = (length: number): number => {
+    let value = counts.get(length);
+    if (value === undefined) {
+      value = normalizeEntries(
+        options.runtime,
+        raw.slice(0, length),
+        options,
+      ).length;
+      counts.set(length, value);
+    }
+    return value;
+  };
+  let end: number;
+  if (mayReduceMessageCount(records, options)) {
+    // Preserve the donor's first boundary for contradictory reused-ID input.
+    // This exceptional path retains prefix cost; ordinary pages never use it.
+    end = 1;
+    while (end <= records.length && count(end) < limit) end++;
+    if (end > records.length) return null;
+  } else {
+    if (count(records.length) < limit) return null;
+    let start = 1;
+    end = records.length;
+    while (start < end) {
+      const middle = Math.floor((start + end) / 2);
+      if (count(middle) >= limit) end = middle;
+      else start = middle + 1;
+    }
+  }
+  // A single first contributing record may exceed the requested message limit.
+  const excludeCrossing = count(end) > limit && count(end - 1) > 0;
+  return { length: excludeCrossing ? end - 1 : end, excludeCrossing };
+}
 /** A stateless source-byte-bounded page. No discovery, state writes or digest slicing. */
 export async function parseTranscript(
   options: ReadOptions,
@@ -205,7 +284,6 @@ export async function parseTranscript(
     }
     const records: SourceRecord[] = [],
       diagnostics: ReadDiagnostic[] = [];
-    let messages: TranscriptPage['messages'] = [];
     const reasons: string[] = [];
     let offset = 0;
     while (offset < bytesRead) {
@@ -259,37 +337,7 @@ export async function parseTranscript(
           closed,
         };
         if (p.source >= p.from) {
-          const prospective = [...records, row];
-          const projected = normalizeEntries(
-            runtime,
-            prospective.map((r) => r.record),
-            options,
-          ).map((m) => {
-            const source = prospective[m.recordIndex];
-            return {
-              ...m,
-              recordIndex: source.recordIndex,
-              ...(m.sourceRecordIndex === undefined
-                ? {}
-                : {
-                    sourceRecordIndex:
-                      prospective[m.sourceRecordIndex].recordIndex,
-                  }),
-              sourceOrdinal: source.sourceOrdinal,
-              physicalLine: source.physicalLine,
-            };
-          });
-          // Consume whole source records so multiple content blocks are never lost.
-          if (
-            maxMessages &&
-            messages.length > 0 &&
-            projected.length > maxMessages
-          ) {
-            reasons.push('message-limit');
-            break;
-          }
           records.push(row);
-          messages = projected;
         }
         p.decoded++;
       }
@@ -313,11 +361,62 @@ export async function parseTranscript(
         if (p.byte < before.size) reasons.push('record-limit');
         break;
       }
-      if (maxMessages && messages.length >= maxMessages) {
-        if (p.byte < before.size) reasons.push('message-limit');
-        break;
+    }
+    if (maxMessages) {
+      const boundary = messageBoundary(records, options, maxMessages);
+      if (boundary !== null) {
+        const excluded = boundary.excludeCrossing
+          ? records[boundary.length]
+          : undefined;
+        const last = records[boundary.length - 1];
+        p = excluded
+          ? {
+              byte: excluded.byteStart,
+              source: excluded.sourceOrdinal,
+              decoded: excluded.recordIndex,
+              line: excluded.physicalLine,
+              from: p.from,
+            }
+          : {
+              byte: last.byteEnd,
+              source: last.sourceOrdinal + 1,
+              decoded: last.recordIndex + 1,
+              line: last.physicalLine + 1,
+              from: p.from,
+            };
+        records.length = boundary.length;
+        const firstOmittedDiagnostic = diagnostics.findIndex(
+          (diagnostic) => diagnostic.byteStart >= p.byte,
+        );
+        if (firstOmittedDiagnostic !== -1)
+          diagnostics.length = firstOmittedDiagnostic;
+        reasons.length = 0;
+        if (p.byte < before.size)
+          reasons.push(
+            maxRecords && boundary.length >= maxRecords
+              ? 'record-limit'
+              : 'message-limit',
+          );
       }
     }
+    const messages: TranscriptPage['messages'] = normalizeEntries(
+      runtime,
+      records.map((row) => row.record),
+      options,
+    ).map((message) => {
+      const source = records[message.recordIndex];
+      return {
+        ...message,
+        recordIndex: source.recordIndex,
+        ...(message.sourceRecordIndex === undefined
+          ? {}
+          : {
+              sourceRecordIndex: records[message.sourceRecordIndex].recordIndex,
+            }),
+        sourceOrdinal: source.sourceOrdinal,
+        physicalLine: source.physicalLine,
+      };
+    });
     if (p.byte < before.size && reasons.length === 0)
       reasons.push('byte-budget');
     const after = await handle.stat();

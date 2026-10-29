@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Session Toolkit 0.1.0 filters unrelated Codex sessions during exact selection, recognizes current Claude project slugs containing spaces or underscores, and avoids repeated growing-prefix projection on ordinary bounded reads while preserving whole-record message limits.
+
 ### Added
 
 - Session Toolkit 0.1.0 library and built `seshtk` identity/list/read/parse/export CLI, exact-archive fixture checks on Node 22.0.0/24, and sanitized Markdown export with marker/batch selection and confined destinations, redacted Codex cutoff/expansion evidence and opt-in page activity summaries, exact identity, revalidation, bounded historical discovery and session reads, plus provider evidence substrate and bounded stateless parsing, with independent source coordinates and generation-bound continuation.

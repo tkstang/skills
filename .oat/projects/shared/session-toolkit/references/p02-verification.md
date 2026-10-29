@@ -31,7 +31,10 @@ command. [Parity matrix](p02-parity.md) records donor differences and limitation
   with its generated-output mutation guards).
 - `pnpm run validate` and `pnpm run smoke`: pass.
 
-## Exact archive
+## Exact archive (superseded before review fixes)
+
+The following archive predates H1–H3 and must be rebuilt and rechecked after
+root-owned M1/M2 corrections. It is retained as historical evidence only.
 
 Prepared on actual Node24.21.0 with:
 
@@ -77,3 +80,22 @@ runtime proofs repeated. The unrelated broad suite was not repeated. One t05
 package run overlapped an archive rebuild of ignored dist and saw missing bin
 files; it was rerun after that build completed, with no product change. Checks
 that build and execute the same output must run serially.
+
+## Review fix p02-t06 (H1–H3)
+
+- Regression proof before correction: the focused discovery/identity/read run
+  failed the three intended assertions (unrelated Codex completeness, current
+  Claude cwd slug, and practical 5,000-row parsing). The old 5,000-row parse
+  took 22,807ms; log `/tmp/session-toolkit-p02-fix-r1-red.log`.
+- Focused corrected run: 3 files / 64 tests pass in 329ms (250ms tests), including
+  independently expected 5,000-row text/counts and a 4,500-message page, each
+  below 5,000ms; record atomicity, diagnostic boundaries, contradictory Claude
+  tool-ID fallback and Cursor pending-question/terminal continuation are covered.
+- Final fix checks: toolkit build pass before test execution; all 15 package
+  files / 340 tests pass; root and package type-check pass; scoped oxlint/oxfmt
+  pass; build:check after the suite pass; validate and smoke pass. Every command
+  completed with exit0. The unrelated broad suite was not repeated; its
+  historical exclusions above remain explicit.
+- Recovery ledger is settled: used4/10, remaining6, pendingnull. Review fixes
+  consume no recovery attempt. The earlier completed04 handoff text above is
+  historical and has since been settled by root.

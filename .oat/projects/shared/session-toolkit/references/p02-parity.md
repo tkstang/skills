@@ -49,3 +49,21 @@ provider certification, marketplace validation or npm publication is inferred.
 Baseline full-suite failures in the two collaboration fixture files remain an
 explicit environment limitation; the remaining-suite result is reported
 separately in p02 verification evidence.
+
+## Review H1–H3 corrections
+
+Exact Codex discovery filters valid unrelated native sessions; conflicting carriers
+claiming the selected ID, duplicate native matches and incomplete scans still refuse.
+Claude exact identity and discovery share the current every-nonalphanumeric cwd
+slug plus the selected slash/dot and slash-only variants. Cursor discovery and
+raw-vs-canonical evidence cwd review findings M1/M2 remain root-owned.
+
+Ordinary reads normalize once. Message-limited reads count cached prefixes with
+a logarithmic boundary search, then normalize the selected whole records once;
+provider correlation and terminal context remain intact. Claude tool-ID reuse
+with conflicting names and tool results opted out can reduce an earlier prefix's
+message count. That detected exceptional input retains sequential-prefix counting
+to preserve the donor's first boundary, and can still take quadratic CPU within
+the existing byte/record bounds. Tests protect this concrete fallback, atomic
+multi-block records, diagnostics/continuation positions and Cursor pending
+questions before terminal collapse.

@@ -196,6 +196,39 @@ describe('historical listing and exact identity remain separate', () => {
         readTranscript({ homeDir: home, session: `codex:${ID}` }),
       ).rejects.toMatchObject({ code: 'E_AMBIGUOUS' });
     }));
+  it('filters unrelated valid Codex sessions but refuses a carrier claiming the selected ID', async () =>
+    fixture(async (home, cwd) => {
+      const dir = join(home, '.codex/sessions');
+      await put(join(dir, 'native-carrier.jsonl'), [
+        { type: 'session_meta', payload: { id: ID, cwd } },
+        {
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'user',
+            content: 'selected conversation',
+          },
+        },
+      ]);
+      await put(join(dir, `rollout-${PARENT}.jsonl`), [
+        { type: 'session_meta', payload: { id: PARENT, cwd } },
+      ]);
+      const options = { homeDir: home, session: `codex:${ID}` };
+      const listed = await listSessions(options);
+      expect(listed.coverage.complete).toBe(true);
+      expect(listed.candidates.map((candidate) => candidate.sessionId)).toEqual(
+        [ID],
+      );
+      expect(
+        (await readTranscript(options)).messages.map((message) => message.text),
+      ).toEqual(['selected conversation']);
+      await put(join(dir, `rollout-${ID}.jsonl`), [
+        { type: 'session_meta', payload: { id: PARENT, cwd } },
+      ]);
+      await expect(readTranscript(options)).rejects.toMatchObject({
+        code: 'E_UNAVAILABLE',
+      });
+    }));
   it('reports budgets, result omissions, time filters and exact duplicate refusal', async () =>
     fixture(async (home, cwd) => {
       for (const n of ['one', 'two'])

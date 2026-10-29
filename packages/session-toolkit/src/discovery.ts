@@ -207,7 +207,16 @@ export async function listSessions(
             continue;
           }
           if (pin && meta.sessionId !== pin.id) {
-            reasons.add(`${runtime}:identity-mismatch`);
+            // Codex scans native metadata across the store. A different valid
+            // session is a filtered nonmatch; a filename claiming this pin is
+            // contradictory evidence and must still refuse exact selection.
+            const carrierId = basename(path, '.jsonl').toLowerCase();
+            if (
+              runtime !== 'codex' ||
+              carrierId === pin.id.toLowerCase() ||
+              carrierId.endsWith(`-${pin.id.toLowerCase()}`)
+            )
+              reasons.add(`${runtime}:identity-mismatch`);
             continue;
           }
           const project = relative(root, path).split(sep)[0];

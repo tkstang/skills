@@ -8,6 +8,7 @@ import {
   identifyCurrentTranscript,
   revalidateCurrentTranscript,
 } from '../../packages/session-toolkit/src/identity.js';
+import { listSessions } from '../../packages/session-toolkit/src/index.js';
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof fs>();
@@ -116,6 +117,34 @@ describe('identifyCurrentTranscript', () => {
     });
     expect(JSON.stringify(result)).not.toContain(SECRET);
     expect(await fs.readFile(path)).toEqual(bytes);
+  });
+
+  it('recognizes the current Claude underscore/space project slug in exact identity and discovery', async () => {
+    cwd = join(home, 'repo_with space');
+    await fs.mkdir(cwd);
+    // Independent literal suffix; this fixture home contains only /, _, letters, digits and -.
+    const expectedSlug =
+      home.replaceAll('/', '-').replaceAll('_', '-') + '-repo-with-space';
+    const path = await write(
+      claudePath(THREAD, expectedSlug),
+      JSON.stringify({
+        type: 'user',
+        sessionId: THREAD,
+        message: { content: 'current slug' },
+      }) + '\n',
+    );
+    expect(await identify({ CLAUDE_SESSION_ID: THREAD })).toMatchObject({
+      status: 'authoritative',
+      path,
+    });
+    const listed = await listSessions({
+      homeDir: home,
+      cwd,
+      runtime: 'claude-code',
+    });
+    expect(listed.candidates).toMatchObject([
+      { sessionId: THREAD, recordedCwd: cwd, cwdEvidence: 'project-layout' },
+    ]);
   });
 
   it('never selects the parent grouping ID or newest unrelated rollout', async () => {

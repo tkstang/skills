@@ -4,7 +4,10 @@ import { homedir } from 'node:os';
 import { isAbsolute, join, relative, sep } from 'node:path';
 
 // Staged extraction from ORC packages/session-log/src/identity.ts at cc845945.
-import { extractMetaFromRecords } from './provider-runtime.js';
+import {
+  encodeCwdVariants,
+  extractMetaFromRecords,
+} from './provider-runtime.js';
 import type { TranscriptMeta } from './provider-runtime.js';
 
 export type TranscriptIdentityRuntime =
@@ -221,7 +224,7 @@ export async function identifyCurrentTranscript(
     const project = relative(root, path).split(sep)[0];
     const slugs =
       runtime === 'claude-code'
-        ? [cwd.replace(/[/.]/g, '-'), cwd.replace(/\//g, '-')]
+        ? encodeCwdVariants(runtime, cwd)
         : [
             cwd.split(/[/.]/).filter(Boolean).join('-'),
             cwd.replace(/[/.]/g, '-'),
@@ -315,10 +318,9 @@ export async function locateTranscriptById(options: {
     // character than a letter or digit turned into `-` (all 364 CLI and SDK
     // transcripts checked on 2026-10-26); the older forms are kept too.
     const slugs = new Set(
-      [options.cwd, cwd].flatMap((path) => [
-        path.replace(/[^A-Za-z0-9]/g, '-'),
-        path.replace(/[/.]/g, '-'),
-      ]),
+      [options.cwd, cwd].flatMap((path) =>
+        encodeCwdVariants('claude-code', path),
+      ),
     );
     const found: string[] = [];
     for (const slug of slugs) {

@@ -187,6 +187,227 @@ describe('bounded public parsing', () => {
       expect(page.activity?.counts.deliveredRange.calls).toBe(1);
       expect(page.activity?.counts.displayed.calls).toBe(1);
     }));
+  it(
+    'projects multi-thousand-record pages with and without a message limit in practical time',
+    async () =>
+      fixture(async (path) => {
+        await writeFile(
+          path,
+          Array.from({ length: 5000 }, (_, index) =>
+            JSON.stringify({
+              type: 'user',
+              message: { content: `line ${index}` },
+            }),
+          ).join('\n') + '\n',
+        );
+        const started = performance.now();
+        const all = await parseTranscript({ runtime: 'claude-code', path });
+        expect(performance.now() - started).toBeLessThan(5000);
+        expect(all.messages).toHaveLength(5000);
+        expect(all.messages[0].text).toBe('line 0');
+        expect(all.messages[4999].text).toBe('line 4999');
+        expect(all.coverage.complete).toBe(true);
+        const limitedStarted = performance.now();
+        const limited = await parseTranscript({
+          runtime: 'claude-code',
+          path,
+          maxMessages: 4500,
+        });
+        expect(performance.now() - limitedStarted).toBeLessThan(5000);
+        expect(limited.messages).toHaveLength(4500);
+        expect(limited.messages[4499].text).toBe('line 4499');
+        expect(limited.nextOffset).toBe(4500);
+        expect(limited.coverage.reasons).toEqual(['message-limit']);
+      }),
+    30000,
+  );
+  it('keeps message-limited content records atomic and resumes the excluded record', async () =>
+    fixture(async (path) => {
+      await writeFile(
+        path,
+        [
+          { type: 'user', message: { content: 'one' } },
+          {
+            type: 'assistant',
+            message: { content: [{ text: 'two' }, { text: 'three' }] },
+          },
+          { type: 'user', message: { content: 'four' } },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+      const first = await parseTranscript({
+        runtime: 'claude-code',
+        path,
+        maxMessages: 2,
+      });
+      expect(first.messages.map((message) => message.text)).toEqual(['one']);
+      expect(first.records).toHaveLength(1);
+      const second = await parseTranscript({
+        runtime: 'claude-code',
+        path,
+        maxMessages: 1,
+        cursor: first.nextCursor!,
+      });
+      expect(second.messages.map((message) => message.text)).toEqual([
+        'two',
+        'three',
+      ]);
+      expect(second.nextOffset).toBe(2);
+    }));
+  it('stops exact message limits before later diagnostics but retains diagnostics before an excluded oversized record', async () =>
+    fixture(async (path) => {
+      const first = JSON.stringify({
+        type: 'user',
+        message: { content: 'one' },
+      });
+      const next = JSON.stringify({
+        type: 'assistant',
+        message: { content: [{ text: 'two' }, { text: 'three' }] },
+      });
+      await writeFile(path, `${first}\nBAD\n${next}\n`);
+      const exact = await parseTranscript({
+        runtime: 'claude-code',
+        path,
+        maxMessages: 1,
+      });
+      expect(exact.diagnostics).toEqual([]);
+      expect(exact.nextOffset).toBe(1);
+      const resumed = await parseTranscript({
+        runtime: 'claude-code',
+        path,
+        cursor: exact.nextCursor!,
+      });
+      expect(
+        resumed.diagnostics.map((diagnostic) => diagnostic.sourceOrdinal),
+      ).toEqual([1]);
+      expect(resumed.messages.map((message) => message.text)).toEqual([
+        'two',
+        'three',
+      ]);
+      const oversized = await parseTranscript({
+        runtime: 'claude-code',
+        path,
+        maxMessages: 2,
+      });
+      expect(
+        oversized.diagnostics.map((diagnostic) => diagnostic.sourceOrdinal),
+      ).toEqual([1]);
+      expect(oversized.nextOffset).toBe(2);
+      expect(oversized.messages.map((message) => message.text)).toEqual([
+        'one',
+      ]);
+    }));
+  it('preserves Cursor pending-question boundaries before terminal collapse for both tool projections', async () =>
+    fixture(async (path) => {
+      await writeFile(
+        path,
+        [
+          {
+            role: 'assistant',
+            message: {
+              content: [
+                {
+                  type: 'tool_use',
+                  name: 'AskQuestion',
+                  input: {
+                    title: 'Gate',
+                    questions: [{ id: 'q', prompt: 'Proceed?' }],
+                  },
+                },
+              ],
+            },
+          },
+          {
+            role: 'user',
+            message: { content: [{ type: 'text', text: 'Yes' }] },
+          },
+          {
+            role: 'assistant',
+            message: { content: [{ type: 'text', text: 'Done' }] },
+          },
+          { type: 'turn_ended', status: 'success' },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+      for (const includeToolCalls of [false, true]) {
+        const first = await parseTranscript({
+          runtime: 'cursor',
+          path,
+          includeToolCalls,
+          maxMessages: 2,
+        });
+        expect(first.records).toHaveLength(2);
+        expect(first.messages.map((message) => message.kind)).toEqual([
+          'ask_user',
+          'message',
+        ]);
+        expect(first.messages[1].text).toBe('Yes');
+        expect(first.nextOffset).toBe(2);
+        expect(first.coverage.reasons).toEqual(['message-limit']);
+        const rest = await parseTranscript({
+          runtime: 'cursor',
+          path,
+          includeToolCalls,
+          cursor: first.nextCursor!,
+        });
+        expect(rest.messages.map((message) => message.text)).toEqual(['Done']);
+        expect(rest.messages[0]).toMatchObject({
+          recordIndex: 3,
+          sourceRecordIndex: 2,
+          physicalLine: 4,
+        });
+      }
+    }));
+  it('preserves the first message boundary when conflicting Claude tool IDs later reduce the projection', async () =>
+    fixture(async (path) => {
+      await writeFile(
+        path,
+        [
+          {
+            type: 'user',
+            message: {
+              content: [
+                { type: 'tool_result', tool_use_id: 'a', content: 'answer' },
+              ],
+            },
+          },
+          {
+            type: 'assistant',
+            message: {
+              content: [
+                {
+                  type: 'tool_use',
+                  id: 'a',
+                  name: 'AskUserQuestion',
+                  input: { questions: [{ question: 'Choice?' }] },
+                },
+              ],
+            },
+          },
+          {
+            type: 'assistant',
+            message: {
+              content: [{ type: 'tool_use', id: 'a', name: 'Read', input: {} }],
+            },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+      const page = await parseTranscript({
+        runtime: 'claude-code',
+        path,
+        maxMessages: 2,
+      });
+      expect(page.records).toHaveLength(2);
+      expect(page.messages.map((message) => message.kind)).toEqual([
+        'ask_user',
+        'ask_user',
+      ]);
+      expect(page.nextOffset).toBe(2);
+    }));
   it('keeps tools opt-in and raw fields intact under message limits', async () =>
     fixture(async (path) => {
       await writeFile(
