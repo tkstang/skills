@@ -27,3 +27,5 @@ export type {
 } from './discovery.js';
 export { readEvidence } from './evidence.js';
 export type { EvidenceOptions } from './evidence.js';
+export { exportMarkdown, renderTranscriptMarkdown } from './export.js';
+export type { ExportOptions, ExportResult } from './export.js';

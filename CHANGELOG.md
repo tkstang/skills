@@ -4,7 +4,7 @@
 
 ### Added
 
-- Session Toolkit 0.1.0 redacted Codex cutoff/expansion evidence and opt-in page activity summaries, exact identity, revalidation, bounded historical discovery and session reads, plus provider evidence substrate and bounded stateless parsing, with independent source coordinates and generation-bound continuation.
+- Session Toolkit 0.1.0 sanitized Markdown export with marker/batch selection and confined destinations, redacted Codex cutoff/expansion evidence and opt-in page activity summaries, exact identity, revalidation, bounded historical discovery and session reads, plus provider evidence substrate and bounded stateless parsing, with independent source coordinates and generation-bound continuation.
 
 ### Added
 
