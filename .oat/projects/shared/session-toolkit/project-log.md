@@ -90,6 +90,10 @@ p04 concrete: sequential exact-archive release preparation/review/root publicati
 
 The journal checker implement-preflight boundary refused because future p04/p05 phases are pending. The required validate-plan check and scoped accepted-phase journal review check passed; no future phase status was changed to satisfy that all-phase boundary. session-toolkit-p04-checkboundary-20261029
 
+### 2026-10-29 · project · worked-well · Release prefix handoff
+
+p04-t01 returned a clean NEEDS_CONTEXT ownership handoff with 634 toolkit tests, 3476 broader passing tests with the two established exclusions, and clean exact-archive installs on actual Node22.0.0/24.21.0. Root integrated main through 863eede without rewriting accepted phase anchors; reprepare against that source before independent release review. No publication or consumer migration is claimed.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

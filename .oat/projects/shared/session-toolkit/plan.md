@@ -204,7 +204,7 @@ Initial Codex artifact review passed with no findings. The configured Opus brief
 
 ## Implementation Complete
 
-Implementation is active. p01–p03 are accepted after independent reviews and bounded corrections; p04–p05 remain provisional. Two phases remain unaccepted. The package is not yet published and no consumer cutover has occurred.
+Implementation is active. p01–p03 are accepted after independent reviews and bounded corrections; p04 is concrete and in progress; p05 remains provisional. Two phases remain unaccepted. The package is not yet published and no consumer cutover has occurred.
 
 ## References
 

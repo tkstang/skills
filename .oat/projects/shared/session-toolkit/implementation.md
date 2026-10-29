@@ -473,6 +473,14 @@ Execution shape: one phase implementer in the existing worktree, sole reversible
 
 p04 made concrete after p03 acceptance within unchanged approved outcomes and authority. Release preparation and migration share package/distribution/lockfile outputs, so they remain sequential with one phase implementer; root retains independent review and irreversible/account execution. A clean intermediate release-candidate handoff precedes publication, and published-version evidence precedes interactive cutover. This is phase elaboration, not an up-front task plan. Missing npm authentication remains a known prerequisite; reversible preparation and review come first.
 
+### Release-prefix ownership handoff
+
+Root validated the original p04 handle's `NEEDS_CONTEXT` report at `91cc50d1d6c603f381dadf36c2ddc621f5c46115`: one bounded implementation commit `22556ca8efc19958abe69ae78b5d75781b8983e4`, separate journal closure, clean tree, no active processes, recovery usage 0/10 and pending null. All tracked-write/build ownership explicitly returned to root; no final phase Head or acceptance is asserted. The same handle will receive verified publication evidence or bounded release-review corrections.
+
+The pre-integration candidate in `/tmp/session-toolkit-p04-release-candidate-20261029/` binds that handoff HEAD; SHA256 `d88b7e67042fc8b5c15bcf7ab0886cc04f483757bdd4c4d8e956fa79ad831793`, integrity `sha512-InsyZZO9KZDed4koTQ9x3S0E9CgMoJ5HxIzHcZ+GmBdEsqBwWSEDGkDdCtS7z1FS241pKOLYGkB9O/hcWII7CQ==`. Child reports clean preparation and installed verification on actual Node 22.0.0/24.21.0. It remains development/review evidence, not a publication receipt.
+
+Root fetched current main `ecc8b2be5235384641ea6b3d41c73410c125d0a5` and integrated its unrelated explain-options release through append-only merge `863eede105e3f2f658750c0f08f3db817f93e00f`; CHANGELOG merged automatically. Accepted phase heads remain ancestors. Reprepare/revalidate the candidate against the committed integrated tree before independent explicit-range release review. Package/consumer publication, protected environment, bootstrap/trusted publishing, and registry/install acceptance remain unverified; no account action, tag, PR or cutover occurred.
+
 ### Task p04-t01: Prepare the bound exact-archive release path
 
 **Status:** completed
@@ -519,7 +527,7 @@ Invocation-evidence clarification: exact native materialized roles select model 
 
 - run/v1 · request=session-toolkit-p03-review-20261029-r1 · scope=p03 · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
-- run/v1 · request=session-toolkit-p04-implement-20261029 · scope=p04 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-6-1-sol-high · launch=accepted · outcome=running · terminal=no · class=live · continuation=~ · observed=~ · match=~
+- run/v1 · request=session-toolkit-p04-implement-20261029 · scope=p04 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-6-1-sol-high · launch=accepted · outcome=needs-context · terminal=no · class=live · continuation=~ · observed=~ · match=~
 
 <!-- orchestration-runs-end -->
 

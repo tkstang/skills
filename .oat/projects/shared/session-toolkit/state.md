@@ -1,6 +1,6 @@
 ---
 oat_current_task: p04
-oat_last_commit: c193bf0f6600457bf040e9a1820e2f5eb1fea114
+oat_last_commit: 22556ca8efc19958abe69ae78b5d75781b8983e4
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -111,7 +111,7 @@ Implement — p04 publication and Skills migration preparation
 ## Artifacts
 
 - **Plan:** `plan.md` (approved; architecture and CLI diagrams, proposed argument reference, and p05 documentation acceptance included)
-- **Implementation:** `implementation.md` (p01/p02 accepted; three phases remain)
+- **Implementation:** `implementation.md` (p01–p03 accepted; p04 release preparation verified; two phases remain)
 - **Research:** `references/research/release-ci-reference.md`
 
 ## Progress
@@ -121,7 +121,7 @@ Implement — p04 publication and Skills migration preparation
 - ✓ Design choices and delivery authority recorded; artifact review and configured Opus gate completed
 - ✓ User approved the reviewed brief and citation fix; requested visual and final-phase documentation addenda applied
 - ✓ Five-phase journal initialized: p01 concrete, p02–p05 provisional; no parallel groups
-- ✓ p01 accepted after independent review and bounded Medium/Low corrections; four phases remain
+- ✓ p01–p03 accepted after independent review and bounded corrections; two phases remain
 
 ## Review Setup
 
@@ -137,7 +137,7 @@ None
 
 ## Next Milestone
 
-Make p04 concrete, prepare and independently review release automation and the clean publish-ready candidate, then execute authorized publication and Skills migration when credentials and checks permit. p01–p03 are accepted; two phases remain. Final p03 fixes pass 628 package tests and exact archive checks on actual Node 22.0.0/24.21.0. No package publication or consumer cutover has occurred. Baseline full-suite environment failures remain explicit.
+p04-t01 is committed and verified; root owns the clean intermediate publication handoff. Independently review the integrated clean release candidate, then execute authorized publication and resume the same implementer for Skills migration when credentials and checks permit. p01–p03 are accepted; two phases remain. Final p03 fixes pass 628 package tests and exact archive checks on actual Node 22.0.0/24.21.0. No package publication or consumer cutover has occurred. Baseline full-suite environment failures remain explicit.
 
 - ✓ p02 accepted after full-range independent review and verified corrections
 - ✓ p03 accepted after full-range independent review and bounded M1/L1 correction; recovery usage 1/10, pending null
