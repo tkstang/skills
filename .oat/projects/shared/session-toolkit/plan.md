@@ -188,7 +188,7 @@ No parallel phase groups are declared (`oat_plan_parallel_groups: []`). Package 
 | Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target          |
 | ----- | -------- | --------------- | ---------- | ----------------------------------------------------------- | ---------------------------------------- | ---------- | -------------------- |
 | plan  | artifact | passed          | 2026-10-29 | structured                                                  | a28f2037c2c38c5d665e863129aa794e856ef3fd | auto       | -                    |
-| p01   | code     | pending         | -          | -                                                           | -                                        | -          | -                    |
+| p01   | code     | fixes_added     | 2026-10-29 | reviews/p01-review-2026-10-29T135009Z.md                    | 4212674c1bb9a12bc1a61a3256c85f20e971fbc9 | manual     | -                    |
 | final | code     | pending         | -          | -                                                           | -                                        | -          | -                    |
 | plan  | artifact | fixes_completed | 2026-10-29 | reviews/archived/artifact-plan-review-2026-10-29T031602Z.md | 02b1f285928e22357f6a8b66a9ddffecb6f3b43e | gate       | claude-opus-5-5-high |
 | plan  | artifact | passed          | 2026-10-29 | structured                                                  | 77599b3deb3bf460225e952900ac8676939e960e | auto       | -                    |

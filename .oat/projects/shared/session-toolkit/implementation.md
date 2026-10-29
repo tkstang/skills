@@ -114,6 +114,28 @@ Root pre-review validation: all three execution commits and separate record comm
 **Commit:** 613188d5e3b3fd1735d2fae227be06f083af8088
 **Verification:** Four staged contract/inventory/evidence references formatted and local links checked; built help/version/capabilities agree. Root/package type-check, standalone build:check, validate, smoke, scoped oxlint/oxfmt/actionlint and whitespace checks passed. Full test run: 2,848 passed, 17 baseline environmental failures in two unchanged collaboration files, 3 skipped. Pristine phase-base archive reproduced all 17 failures from pre-existing regular files /tmp/a and /tmp/b; those files remain untouched. Root-directed remaining-suite run excluding exactly those two files passed (184 files, 2,848 tests, 3 skipped). Relevant p01 verification passes with the full-suite limitation unresolved for independent review; no new recovery reservation. One implementation commit changed exactly the four owned references.
 
+### Review Received: p01
+
+**Date:** 2026-10-29
+**Review artifact:** reviews/p01-review-2026-10-29T135009Z.md
+**Reviewed head:** 4212674c1bb9a12bc1a61a3256c85f20e971fbc9
+**Findings:** Critical 0 · High 0 · Medium 1 · Low 1
+
+Root consumed exactly one `Reconnaissance: not-attempted` confirmation; artifact has no Review Orchestration section. Anchors, actual reviewed range and severity counts validate. The reviewer confirms the recorded baseline environmental limitation is adequately separated from p01. No full-suite pass is claimed.
+
+- M1 (Medium, Minor scope): `statSync` follows linked packed files, permitting a non-self-contained archive to pass the regular-file check. Agree with the demonstrated control; fix in p01-t04 by rejecting archive link members before extraction and checking extracted entries without following links.
+- L1 (Low, Negligible scope): `tests/AGENTS.md` still says root test runs only Vitest. Agree; align it with the toolkit build prerequisite and direct scoped test command in p01-t04.
+
+**Outcome:** zero Critical/High; bounded corrections queued, not yet accepted. Host guidance directs root to fix small findings directly. The original implementer remains the phase executor; root is the committing owner only for the following review correction. No new phase or recovery attempt is consumed.
+
+### Task p01-t04: Correct packed-file validation and test guidance (review)
+
+**Status:** in_progress
+**Executor:** root
+**Intent:** Resolve M1 and L1 without changing public toolkit behavior or expanding release authority.
+**Files:** scripts/session-toolkit-package.ts, tests/release/session-toolkit-package.test.ts, tests/AGENTS.md.
+**Proof command:** Failure-before/pass-after malformed-archive regression, focused package tests, type-check, scoped lint/format, and unchanged exact-archive validation on Node 22.0.0/24.21.0. No full-suite repeat for this bounded guard/instruction fix; existing environment limitation retained.
+
 ## Phase p02: Consolidate identity, discovery, reads, and safe export
 
 **Status:** pending
@@ -138,7 +160,7 @@ Root pre-review validation: all three execution commits and separate record comm
 
 - run/v1 · request=session-toolkit-p01-implement-20261029 · scope=p01 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
-- run/v1 · request=session-toolkit-p01-review-20261029-r1 · scope=p01 · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=running · terminal=no · class=live · continuation=~ · observed=~ · match=~
+- run/v1 · request=session-toolkit-p01-review-20261029-r1 · scope=p01 · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 <!-- orchestration-runs-end -->
 
