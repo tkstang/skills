@@ -73,13 +73,13 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-10-29T03:28:35.742225Z'
+oat_project_state_updated: '2026-10-29T03:32:52.294831Z'
 oat_brief_gate:
-  status: blocked
-  disposition: null
+  status: allowed
+  disposition: passed
   config_fingerprint: 'sha256:f7e3a5406a8a8a184532a47f3c6ec30ffca5b79b0b4494d47f79df3b4339f2e4'
-  reviewed_head: 'f0d3c1500124dce013063d326d0e467b0de5e368'
-  decided_at: '2026-10-29T03:28:35.742225Z'
+  reviewed_head: '95f5d507325fe66d4437799057002780ee92e0ed'
+  decided_at: '2026-10-29T03:32:52.294831Z'
 oat_generated: false
 ---
 
@@ -119,4 +119,4 @@ None
 
 ## Next Milestone
 
-User-approved M1/L1/L2 amendments passed fresh artifact review with no findings. Configured gate rerun produced a review but failed artifact count validation; formatting repaired without changing findings, and gate revalidation is next. Final brief approval remains pending.
+User-approved M1/L1/L2 amendments passed fresh artifact review with no findings. Configured Opus gate passed its High threshold after artifact validation repair (0 Critical/High/Medium, 4 Low). User confirmation of four proposed brief clarifications is pending; final brief approval has not occurred.
