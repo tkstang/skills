@@ -168,6 +168,20 @@ Execution shape: one phase implementer in the existing worktree is the sole comm
 
 p02 made concrete from the reviewed p01 package/command contract and consumer inventory. The phase implements the agreed provider core and export, preserves existing consumer state, and records donor parity before migration. This elaborates the approved outcomes and phase boundary; no scope, endpoint or authority change.
 
+### Task p02-t01: Preserve provider evidence and bounded parsing
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p02-implement-20261029
+**Handle:** /root/session_toolkit_p02
+
+Intent: extract the provider normalization and detailed-evidence substrate, and add stateless bounded file parsing with explicit source coordinates and generation-bound continuation.
+Files: package provider-runtime, reader, domain types/errors and public exports; extracted donor runtime protections and focused bounded API tests; changelog.
+Proof: `pnpm run build:toolkit`; `pnpm run test:vitest tests/release/session-toolkit-runtime.test.ts tests/release/session-toolkit-read.test.ts`; root/package type-check and scoped lint/format.
+
+**Commit:** a009dcc8cbc752589ff97ff63bc2feb37065d924
+
+Verification: 133 focused tests and build/type-check passed. A cheap oxlint result was failing when commit orchestration proceeded; immutable task commit retained and append-only recovery follows.
+
 ## Phase p03: Add search, activity, and CLI update notices
 
 **Status:** pending
