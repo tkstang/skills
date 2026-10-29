@@ -10,7 +10,9 @@ export type CapabilityId =
   | 'transcript.read.v1'
   | 'transcript.parse.v1'
   | 'transcript.evidence.codex.v1'
-  | 'export.markdown.v1';
+  | 'export.markdown.v1'
+  | 'search.v1'
+  | 'search.estimate.v1';
 
 export interface Capabilities {
   readonly package: '@tkstang/session-toolkit';
@@ -38,6 +40,8 @@ export function getCapabilities(): Capabilities {
       'transcript.parse.v1',
       'transcript.evidence.codex.v1',
       'export.markdown.v1',
+      'search.v1',
+      'search.estimate.v1',
     ],
     providers: ['claude-code', 'codex', 'cursor'],
   };

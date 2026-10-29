@@ -171,3 +171,38 @@ The validator inspects packed paths/dependencies, installs outside the checkout,
 proves import safety, and runs fixture API/CLI operations. Recheck those exact
 bytes with `pnpm run toolkit:pack:check --archive <tarball> --node <node-path>`.
 No publication occurs; see root `RELEASING.md` for publication prerequisites.
+
+## Historical search
+
+```sh
+seshtk search -p 'deployment.*failed' --runtime codex --cwd ~/Code/project --json
+seshtk search estimate -p 'deployment.*failed' --json
+```
+
+`searchSessions({ patterns: ['deployment.*failed'], runtime: 'codex' })` and
+`estimateSearch` provide the same stateless operations to library callers.
+Patterns are case-insensitive regexes by default; `--literal` matches text.
+Repeat `-p` and `--cwd` as needed. Cwd hints widen to other sessions if they
+find no matches. `--since`/`--until` use the time syntax described above.
+History, metadata and content tiers run in canonical order; `--tiers` selects
+those tiers. A final tool-output pass runs when earlier tiers find nothing;
+`--no-deep` disables it and `--include-tools` includes tools immediately.
+
+Defaults:15 returned sessions,65,536 bytes per decoded line,2,147,483,648
+estimated bytes before explicit scan authorization, no deadline. Set
+`--deadline-ms`, `--max-line-bytes`, `--limit` or `--large-scan-bytes` to change
+these bounds. `E_SCAN_CONFIRMATION` (exit1) reports the estimate and requires
+`--allow-large-scan`; it never prompts. No matches returns an empty result
+(exit0). `incomplete`, source status and diagnostics expose deadlines, malformed
+records and oversized lines. Results are ranked bounded evidence, not an
+exhaustive index. Snippets redact complete units before windowing. Search reads
+raw classified records, including full tool fields, rather than digest previews.
+
+Optional `rg`/`sqlite3` accelerators are discovered from PATH and common system
+locations. The Node fallback preserves transcript search; unavailable sqlite
+metadata is reported when applicable. Use `SESHTK_SEARCH_NO_RG=1` or
+`SESHTK_SEARCH_NO_SQLITE3=1` to disable them, `SESHTK_SEARCH_RG` and
+`SESHTK_SEARCH_SQLITE3` for explicit executable paths, and
+`SESHTK_SEARCH_PROBE_TIMEOUT_MS` for probe timeout (default3000,clamped500–60000).
+These controls belong to Session Toolkit; no legacy search environment aliases
+are installed. The library accepts explicit `home` and `env` for isolated stores.

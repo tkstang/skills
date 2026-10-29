@@ -29,3 +29,15 @@ export { readEvidence } from './evidence.js';
 export type { EvidenceOptions } from './evidence.js';
 export { exportMarkdown, renderTranscriptMarkdown } from './export.js';
 export type { ExportOptions, ExportResult } from './export.js';
+
+export { searchSessions, estimateSearch } from './search.js';
+export type {
+  SearchOptions,
+  SearchResult,
+  SessionHit,
+  Snippet,
+  SearchDiagnostics,
+  SourceReport,
+  EstimateResult,
+  EstimateRuntime,
+} from './search.js';

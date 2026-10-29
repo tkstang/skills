@@ -1,5 +1,6 @@
 export type Provider = 'claude-code' | 'codex' | 'cursor';
 export type ErrorCode =
+  | 'E_SCAN_CONFIRMATION'
   | 'E_USAGE'
   | 'E_INTERNAL'
   | 'E_AMBIGUOUS'

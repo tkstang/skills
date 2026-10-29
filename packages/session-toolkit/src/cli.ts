@@ -11,6 +11,11 @@ import { exportMarkdown } from './export.js';
 import { identifyCurrentTranscript } from './identity.js';
 import { parseTranscript } from './reader.js';
 import type { ReadOptions } from './reader.js';
+import {
+  searchSessions,
+  estimateSearch,
+  type SearchOptions,
+} from './search.js';
 interface Output {
   stdout(text: string): void;
   stderr(text: string): void;
@@ -128,7 +133,7 @@ function createProgram(output: Output, json: boolean): Command {
     description: string,
     configure: (command: Command) => Command,
     run: (o: Record<string, unknown>, args: string[]) => Promise<unknown>,
-  ): void {
+  ): Command {
     const command = configure(
       new Command(name)
         .description(description)
@@ -158,6 +163,7 @@ function createProgram(output: Output, json: boolean): Command {
       } else output.stdout(JSON.stringify(data, null, 2) + '\n');
     });
     program.addCommand(command);
+    return command;
   }
   program.addCommand(
     new Command('capabilities')
@@ -289,6 +295,81 @@ function createProgram(output: Output, json: boolean): Command {
         ),
     async (o) => exportMarkdown({ ...o, out: o.out as string }),
   );
+  function searchFlags(c: Command): Command {
+    const collect = (value: string, previous: string[]) => [...previous, value];
+    return c
+      .option(
+        '-p, --pattern <pattern>',
+        'Repeatable regex or literal pattern',
+        collect,
+        [],
+      )
+      .option('--literal', 'Match literal text instead of regex')
+      .option(
+        '--runtime <provider-or-auto>',
+        'claude-code, codex, cursor or auto',
+        'auto',
+      )
+      .option('--cwd <path>', 'Repeatable widening cwd hint', collect, [])
+      .option('--since <time>', 'Inclusive lower time bound')
+      .option('--until <time>', 'Exclusive upper time bound')
+      .option(
+        '--tiers <comma-list>',
+        'history,meta,content in canonical order',
+        'history,meta,content',
+      )
+      .option('--no-deep', 'Disable tool-output fallback')
+      .option('--include-tools', 'Include raw tool units')
+      .option(
+        '--allow-large-scan',
+        'Explicitly authorize scans over the byte threshold',
+      )
+      .option(
+        '--large-scan-bytes <positive-int>',
+        'Scan authorization threshold',
+        positiveInteger,
+        2147483648,
+      )
+      .option(
+        '--max-line-bytes <positive-int>',
+        'Decoded line budget (oversize carriers reported)',
+        positiveInteger,
+        65536,
+      )
+      .option(
+        '--limit <positive-int>',
+        'Returned ranked sessions',
+        positiveInteger,
+        15,
+      )
+      .option(
+        '--deadline-ms <positive-int>',
+        'Operation deadline',
+        positiveInteger,
+      );
+  }
+  const searchInput = (o: Record<string, unknown>): SearchOptions => ({
+    ...o,
+    patterns: o.pattern as string[],
+    tiers: (o.tiers as string).split(',') as SearchOptions['tiers'],
+  });
+  const search = operation(
+    'search',
+    'Search raw historical evidence with tiered widening',
+    searchFlags,
+    async (o) => searchSessions(searchInput(o)),
+  );
+  const estimate = searchFlags(
+    new Command('estimate')
+      .description('Estimate candidate bytes without content hits')
+      .option('--json', 'Emit one JSON envelope'),
+  );
+  estimate.action(async () => {
+    const data = await estimateSearch(searchInput(estimate.optsWithGlobals()));
+    if (json) emit(output, { ok: true, schema_version: 1, data });
+    else output.stdout(JSON.stringify(data, null, 2) + '\n');
+  });
+  search.addCommand(estimate);
   return program;
 }
 /** Only the bin sets process.exitCode. Domain errors never expose provider content. */
@@ -299,7 +380,11 @@ export async function main(
   const json = argv.includes('--json');
   let captured = '';
   const program = createProgram(output, json);
-  for (const command of [program, ...program.commands])
+  const commands = (command: Command): Command[] => [
+    command,
+    ...command.commands.flatMap(commands),
+  ];
+  for (const command of commands(program))
     command.exitOverride().configureOutput({
       writeOut: (text) => {
         captured += text;
