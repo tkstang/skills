@@ -370,9 +370,9 @@ p03 made concrete after p02 acceptance, within unchanged approved outcomes and t
 
 **Status:** completed
 **Executor:** phase-implementer:session-toolkit-p03-implement-20261029
-**Handle:** /root/session*toolkit_p03
+**Handle:** `/root/session_toolkit_p03`
 **Intent:** Preserve donor tiered raw-unit search, accelerators, redaction, widening and cost semantics behind a deliberate typed package API and CLI.
-**Files:** packages/session-toolkit/src/search-*.ts; index.ts; cli.ts; capabilities.ts; domain.ts; tests/release/session-toolkit-search-\_.test.ts; CHANGELOG.md.
+**Files:** packages/session-toolkit/src/search-\*.ts; index.ts; cli.ts; capabilities.ts; domain.ts; tests/release/session-toolkit-search-\_.test.ts; CHANGELOG.md.
 **Proof:** pnpm run build:toolkit; pnpm run test:vitest tests/release/session-toolkit-search-\*.test.ts tests/release/session-toolkit-cli.test.ts tests/release/session-toolkit-operations.test.ts; pnpm run type-check; scoped oxlint/oxfmt.
 
 **Commit:** 2389d89ade81557556a658c0cf5f683eedf0c600
@@ -382,7 +382,7 @@ p03 made concrete after p02 acceptance, within unchanged approved outcomes and t
 
 **Status:** completed
 **Executor:** phase-implementer:session-toolkit-p03-implement-20261029
-**Handle:** /root/session_toolkit_p03
+**Handle:** `/root/session_toolkit_p03`
 **Intent:** Return correlated raw activity, usage, independent source coordinates and honest provider/page coverage without digest preview caps.
 **Files:** packages/session-toolkit/src/activity.ts; page-summary.ts; cli.ts; index.ts; capabilities.ts; packages/session-toolkit/README.md; tests/release/session-toolkit-activity-public.test.ts; session-toolkit-cli.test.ts; CHANGELOG.md.
 **Proof:** toolkit build; public activity/read/CLI and existing activity suites; root/package type-check; scoped lint/format.
@@ -394,7 +394,7 @@ p03 made concrete after p02 acceptance, within unchanged approved outcomes and t
 
 **Status:** completed
 **Executor:** phase-implementer:session-toolkit-p03-implement-20261029
-**Handle:** /root/session_toolkit_p03
+**Handle:** `/root/session_toolkit_p03`
 **Intent:** Notify interactive operation users of stable newer releases through stderr only, with24-hour cache and a1-second registry timeout, zero update I/O in machine/library/hook contexts.
 **Files:** packages/session-toolkit/src/update-notice.ts; bin.ts; packages/session-toolkit/README.md; tests/release/session-toolkit-update.test.ts; CHANGELOG.md.
 **Proof:** Build; built CLI subprocess tests intercept the external fetch boundary and independently log requests; current/newer/offline/cache/quiet/timeout cases; root/package types and scoped lint/format.
@@ -406,7 +406,7 @@ p03 made concrete after p02 acceptance, within unchanged approved outcomes and t
 
 **Status:** completed
 **Executor:** phase-implementer:session-toolkit-p03-implement-20261029
-**Handle:** /root/session_toolkit_p03
+**Handle:** `/root/session_toolkit_p03`
 **Intent:** Extend exact packed API/CLI/declaration proof for search/activity, reconcile docs/parity/inventory and record phase-wide verification on Node22.0.0/24.21.0.
 **Files:** scripts/session-toolkit-package.ts; packages/session-toolkit/README.md; references/package-contract.md; cli-command-map.md; consumer-inventory.md; p03-parity.md; p03-verification.md; CHANGELOG.md.
 **Proof:** Build; all package and unchanged donor/repository suites with exactly the documented baseline exclusions; root/package types; scoped lint/format; validate/smoke; build:check after broad suite; fresh Node24 release dry run and same-archive Node22.0.0 proof with installed strict declarations.
@@ -418,7 +418,7 @@ p03 made concrete after p02 acceptance, within unchanged approved outcomes and t
 
 **Status:** completed
 **Executor:** phase-implementer:session-toolkit-p03-implement-20261029
-**Handle:** /root/session_toolkit_p03
+**Handle:** `/root/session_toolkit_p03`
 **Intent:** Record successful append-only continuation-identity recovery and refreshed exact-archive proof after the correction.
 **Files:** references/p03-parity.md; references/p03-verification.md.
 **Proof:** Fresh Node24 release dry run, same-archive Node22.0.0 proof, installed continuation assertion on both runtimes; scoped Markdown formatting and diff check; repository validate.
@@ -440,6 +440,8 @@ p03 made concrete after p02 acceptance, within unchanged approved outcomes and t
 - Recovery commit: 6b801bc74e205ee0491f36d0d65f9c583bc885be
 - Verification: focused public continuation assertion and5-test activity regression pass; root/package types,210files/3466tests with documented baseline exclusions, build:check, validate and smoke pass before and immediately after candidate commit; fresh exact archive and installed continuation proof pass on actual22.0.0/24.21.0.
 - Reason: mechanically propagate already validated selected native identity into activity/usage extraction on headerless suffix pages; no scope, architecture or public requirement change. Reservation656db99 precedes edits; immutable original task commit preserved. Prior usage0, used1, limit10, remaining9; matching completed pending marker retained for root validation. p01/p02 ledger entries unchanged.
+
+Root pre-review validation: the five implementation records and their separate journal commits reconcile with all 13 append-only commits from dispatch base `9f46b0c6cf8ebabf0457a5a83a084cc5b7db9897` to handoff `633ab2234d4b1986dcf9d940d950a721456eeefa`. Anchors exist and the base is an ancestor of the recorded head. Recovery reservation, immutable original task, bounded correction, matching committed completed marker, canonical event and authoritative committed-HEAD evidence reconcile; root cleared only that marker, preserving usage 1/10 and prior p01/p02 counts. The archive hash matches the recorded receipt. All five records are complete; p03 stays in progress pending independent review. Historical marker-retention statements above describe the pre-bookkeeping handoff.
 
 ## Phase p04: Publish the toolkit and migrate Skills consumers
 
