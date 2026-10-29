@@ -57,6 +57,18 @@ oat_generated: false
 
 Execution shape: one phase implementer, committing owner in the existing project worktree. No parallel group is declared; workspace, lockfile, build, validation and contract changes share files and dependencies, so root fan-out fails the independence test. The phase implementer owns p01 product commits and its separate execution-record bookkeeping; root owns lifecycle state, review and acceptance. Implementation was separately invoked by the user; the approved delivery authority is now active. No publication or production consumer cutover occurs in p01.
 
+### Task p01-t01: Establish the public package and CLI boundary
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p01-implement-20261029
+**Handle:** /root/session_toolkit_p01
+**Intent:** Add the bounded workspace, import-safe ESM API, command factories and truthful versioned capabilities; retain all existing consumers.
+**Files:** packages/session-toolkit/**, packages/AGENTS.md, pnpm-workspace.yaml, package.json, pnpm-lock.yaml, .gitignore, scripts/build-session-toolkit.ts, tests/release/session-toolkit-cli.test.ts, README.md, CONTRIBUTING.md, CHANGELOG.md.
+**Proof command:\*\* pnpm run build:toolkit && pnpm run type-check && pnpm run test:vitest tests/release/session-toolkit-cli.test.ts; scoped lint/format and generated freshness.
+
+**Commit:** e2b2d8e014728d204f9da5c16649f6cab206cebe
+**Verification:** Package build, root/package type-check, 3 public CLI/import tests, scoped oxlint/oxfmt, diff whitespace and generated build:check passed. Exact one implementation commit from dispatch base; only declared owned files. A precommit help-framing defect was fixed and reproved; no recovery attempt consumed.
+
 ## Phase p02: Consolidate identity, discovery, reads, and safe export
 
 **Status:** pending
