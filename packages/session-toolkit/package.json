@@ -1,0 +1,49 @@
+{
+  "name": "@tkstang/session-toolkit",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Provider/session evidence primitives and the seshtk CLI",
+  "homepage": "https://github.com/tkstang/skills/tree/main/packages/session-toolkit#readme",
+  "bugs": {
+    "url": "https://github.com/tkstang/skills/issues"
+  },
+  "license": "MIT",
+  "author": "Thomas Stang",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tkstang/skills.git",
+    "directory": "packages/session-toolkit"
+  },
+  "bin": {
+    "seshtk": "./dist/bin.js"
+  },
+  "files": [
+    "dist/*.js",
+    "dist/*.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "node ../../node_modules/tsx/dist/cli.mjs ../../scripts/build-session-toolkit.ts",
+    "type-check": "tsc -p tsconfig.json --noEmit --emitDeclarationOnly false"
+  },
+  "dependencies": {
+    "commander": "^14.0.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

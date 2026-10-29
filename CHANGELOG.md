@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- `@tkstang/session-toolkit` 0.1.0 package boundary with the `seshtk` CLI,
+  import-safe ESM capability discovery and typed JSON envelopes. Provider
+  operations and consumer migration remain under construction.
+
 ### Changed
 
 - `session-export-transcript` 2.0.43 instructs agents to select descriptive
