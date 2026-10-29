@@ -88,6 +88,22 @@ Intent, files, proof command, result.
 
 <!-- Receipts for final, milestone and multi-phase reviews (a phase review receipt may stay in its phase) and one terminal line per gate run. state.md owns gate transitions; this slot keeps the outcome, waivers and operator choices. -->
 
+### Review Received: plan (configured brief gate)
+
+**Date:** 2026-10-29
+**Review artifact (local-only):** reviews/archived/artifact-plan-review-2026-10-29T031602Z.md
+**Reviewed head:** 02b1f285928e22357f6a8b66a9ddffecb6f3b43e
+**Gate run:** 6a396241-6423-4c4c-b586-f5743085cf37, target `claude-opus-5-5-high`; passed High threshold.
+**Findings:** Critical 0 · High 0 · Medium 1 · Low 2
+
+The user explicitly approved all three proposed brief amendments and rerunning both reviews in this session. No implementation tasks were created.
+
+- M1 (Medium, Minor scope): Skills anchors omit ORC changes → resolve_in_artifact. Require independent explicit-range ORC review before merge; record ORC base/head SHAs and PR links in p05 and include that range in final integrated review.
+- L1 (Low, Minor scope): squash-only merges can break phase ancestry → resolve_in_artifact. Require a documented branch strategy and anchors when p04 becomes concrete.
+- L2 (Low, Negligible scope): update-notice evidence and rationale incomplete → resolve_in_artifact. p03 now requires no notices or network checks in hooks/machine mode; the decision rejects no notice and uncached per-invocation checks with rationale.
+
+**Outcome:** fixes_completed; fresh artifact review and configured gate rerun pending. Final brief approval has not occurred.
+
 ## Deferred Findings
 
 <!-- One line per approved deferral (finding, rationale, approval, follow-up trigger), plus excluded parallel phases and unmerged worktrees. -->

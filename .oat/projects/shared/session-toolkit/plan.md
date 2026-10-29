@@ -60,6 +60,8 @@ Package publication precedes production consumer cutover requiring that version.
 
 Migrate the actual workflows described by ORC's skill guidance, including the observer path, alongside API consumers. Inventory the existing `locate/select/read/catch-up/export/forget` operations and their selection-state semantics. Remove redundant generic commands only once replacement behavior and affected callers are verified. Preserve ORC's enriched `self-identify`. Do not silently discard or reinterpret existing selection/cursor state; a material state-contract change requires realignment.
 
+ORC changes receive an independent explicit-range review in the ORC checkout before merging (`oat_review_scope_source: explicit`). Record ORC base/head SHAs and PR links in the p05 journal, and supply that ORC range alongside the Skills phase anchors to the final integrated review. When p04 becomes concrete, document a branch strategy that preserves earlier phase heads as ancestors across squash-only merges (for example, retain the project branch and merge `main` back after each squash merge), and record the strategy and review anchors in the journal.
+
 ## Constraints and Out of Scope
 
 - Preserve one authored provider implementation across CLI and bundled-hook distributions. Generated shipped copies are acceptable; independently maintained engine copies are not.
@@ -77,7 +79,7 @@ Migrate the actual workflows described by ORC's skill guidance, including the ob
 - **Home (accepted):** one public package in a small workspace here. Co-locating engine and skill changes is worth bounded build/release tooling; separate-repository and ORC-owned publication were rejected.
 - **Distribution (accepted):** CLI prerequisites for interactive skills; build-time bundling from the same package source for unattended hook entrypoints. This retains autonomous/offline hooks at the cost of rebuilding and updating bundled consumers for engine fixes. A preinstalled CLI requirement for every hook and bundling every skill were not selected.
 - **Runtime (accepted):** support Node 22 and 24, with verification on both. Raising the consumer minimum to Node 24 solely to match CI/Foundations was rejected. OAT already separates its Node 22 consumer floor from Node 24 publication tooling.
-- **CLI update notice (required):** notify interactive users of a newer release with cached best-effort checks, stderr notices, and quiet hook/machine behavior. This adds limited registry access and local cache state to interactive CLI operation; session operations remain usable when checks fail.
+- **CLI update notice (required):** notify interactive users of a newer release with cached best-effort checks, stderr notices, and quiet hook/machine behavior. This adds limited registry access and local cache state to interactive CLI operation; session operations remain usable when checks fail. No notification was rejected because it omits the requested behavior; uncached registry checks on every invocation were rejected because they add unnecessary network use and latency.
 - **Scope (requested):** identity, discovery, parsing/reads, search, export, and activity belong in this delivery. Stage shared core before complementary features without declaring the requested toolkit complete early. Avoid unnecessarily broad public library exports.
 - **ORC cutover (accepted):** remove redundant `orc session-log` entrypoints after parity and update callers/docs; retain enriched identity and host integrations. Keeping redundant command surfaces was rejected.
 - **Release references (requested):** adapt Exhibit for one-package exact-artifact publication and OAT for workspace package validation, alongside Foundations. Multi-package lockstep and Changesets are unnecessary for this package.
@@ -117,7 +119,7 @@ Migrate the actual workflows described by ORC's skill guidance, including the ob
 ## Phase p03: Add search, activity, and CLI update notices
 
 **Intent:** Bring the requested stateless search and rich activity behavior into the package with a narrow public surface and consistent CLI outcomes. Add interactive version notifications without altering hook or machine contracts.
-**Exit evidence:** Search acceptance covers tiered widening, no matches, partial/deadline results, redaction and scan confirmation; activity/export evidence preserves tool/usage/provenance/coverage semantics; version-notice checks cover current/newer/offline behavior and stdout isolation; the built tarball operates without donor-repository sources on Node 22 and 24.
+**Exit evidence:** Search acceptance covers tiered widening, no matches, partial/deadline results, redaction and scan confirmation; activity/export evidence preserves tool/usage/provenance/coverage semantics; version-notice checks cover current/newer/offline behavior, stdout isolation, and the absence of both notices and network checks in hook and machine contexts; the built tarball operates without donor-repository sources on Node 22 and 24.
 **Provisional:** yes
 
 ## Phase p04: Publish the toolkit and migrate Skills consumers
@@ -129,7 +131,7 @@ Migrate the actual workflows described by ORC's skill guidance, including the ob
 ## Phase p05: Migrate ORC and verify integrated delivery
 
 **Intent:** Move ORC's typed consumers to the published toolkit, update its actual skill routing and documentation, and remove redundant generic session-log commands after parity. Preserve host enrichment and consumer state, then audit the whole delivery.
-**Exit evidence:** ORC has a normal published semver dependency and clean lockfile with no development override; package age policy is satisfied; API/routed-skill parity and enriched self-identify checks pass; redundant commands/callers and duplicate provider code are removed; ORC PRs are merged. Final integrated review and required gates pass, with all numbered Outcomes mapped to observed release/consumer evidence.
+**Exit evidence:** ORC has a normal published semver dependency and clean lockfile with no development override; package age policy is satisfied; API/routed-skill parity and enriched self-identify checks pass; redundant commands/callers and duplicate provider code are removed; ORC base/head SHAs, PR links, and independent explicit-range review results are recorded before ORC PRs are merged. Final integrated review covers that ORC range alongside the Skills phase anchors; the review and required gates pass, with all numbered Outcomes mapped to observed release/consumer evidence.
 **Provisional:** yes
 
 ## Parallelism
@@ -138,14 +140,14 @@ No parallel phase groups are declared (`oat_plan_parallel_groups: []`). Package 
 
 ## Reviews
 
-| Scope | Type     | Status   | Date       | Artifact                                           | Reviewed Head                            | Invocation | Gate Target |
-| ----- | -------- | -------- | ---------- | -------------------------------------------------- | ---------------------------------------- | ---------- | ----------- |
-| plan  | artifact | passed   | 2026-10-29 | structured                                         | a28f2037c2c38c5d665e863129aa794e856ef3fd | auto       | -           |
-| p01   | code     | pending  | -          | -                                                  | -                                        | -          | -           |
-| final | code     | pending  | -          | -                                                  | -                                        | -          | -           |
-| plan  | artifact | received | 2026-10-29 | reviews/artifact-plan-review-2026-10-29T031602Z.md | -                                        | -          | -           |
+| Scope | Type     | Status          | Date       | Artifact                                                    | Reviewed Head                            | Invocation | Gate Target          |
+| ----- | -------- | --------------- | ---------- | ----------------------------------------------------------- | ---------------------------------------- | ---------- | -------------------- |
+| plan  | artifact | passed          | 2026-10-29 | structured                                                  | a28f2037c2c38c5d665e863129aa794e856ef3fd | auto       | -                    |
+| p01   | code     | pending         | -          | -                                                           | -                                        | -          | -                    |
+| final | code     | pending         | -          | -                                                           | -                                        | -          | -                    |
+| plan  | artifact | fixes_completed | 2026-10-29 | reviews/archived/artifact-plan-review-2026-10-29T031602Z.md | 02b1f285928e22357f6a8b66a9ddffecb6f3b43e | gate       | claude-opus-5-5-high |
 
-Plan artifact review: passed with no findings. Fresh read-only Codex reviewer at inherited `gpt-6.1-sol/high`; structured output returned in memory. The configured brief gate and single user approval remain pending.
+Initial Codex artifact review passed with no findings. The configured Opus brief gate passed its High threshold with M1 (Medium) and L1/L2 (Low); the user approved all three amendments, now applied. Fresh artifact review and gate reruns precede the single final brief approval.
 
 ## Implementation Complete
 
