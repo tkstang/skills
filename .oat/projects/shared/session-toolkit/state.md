@@ -83,6 +83,9 @@ oat_brief_gate:
 oat_phase_recovery_policy:
   default_attempt_limit: 10
   phase_attempt_usage:
+    p02:
+      used_attempts: 0
+      pending_attempt: null
     p01:
       used_attempts: 2
       pending_attempt: null
@@ -91,7 +94,7 @@ oat_generated: false
 
 # Project State: session-toolkit
 
-**Status:** p01 accepted; p02 preparation
+**Status:** Implementing p02
 **Started:** 2026-10-29
 **Last Updated:** 2026-10-29
 
@@ -128,4 +131,4 @@ None
 
 ## Next Milestone
 
-Make p02 concrete and execute it. The brief’s authorized delivery endpoint remains active; p01 is accepted. Full-suite environmental failures are documented, not passed.
+Execute and independently review p02. The brief’s authorized delivery endpoint remains active; p01 is accepted. Full-suite environmental failures are documented, not passed.
