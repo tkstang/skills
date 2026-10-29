@@ -1,6 +1,6 @@
 ---
-oat_current_task: p01
-oat_last_commit: 9881dc4cfccc3935e3202a36c000cd915c35bef7
+oat_current_task: p02
+oat_last_commit: 6e85a86be21bec2c2eee26f9e5e5d54fc77a69a8
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -73,7 +73,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-10-29T13:41:07.950226Z'
+oat_project_state_updated: '2026-10-29T13:55:52.157993Z'
 oat_brief_gate:
   status: allowed
   disposition: passed
@@ -85,37 +85,24 @@ oat_phase_recovery_policy:
   phase_attempt_usage:
     p01:
       used_attempts: 2
-      pending_attempt:
-        attempt: 2
-        event_id: session-toolkit-p01-recovery-02
-        original_request_id: session-toolkit-p01-review-correction-root-t04
-        original_task_id: p01-t04
-        original_commit: b23418aa7320c8d4af241ce878259669f482df6f
-        defect_class: lint
-        discovered_by: pnpm exec oxlint scripts/session-toolkit-package.ts tests/release/session-toolkit-package.test.ts
-        dispatch_target: root:gpt-6.1-sol-high
-        reservation_head: b23418aa7320c8d4af241ce878259669f482df6f
-        status: completed
-        bounded_files: [tests/release/session-toolkit-package.test.ts]
-        authorization: phase-standing
-        eligibility: Mechanical removal of useless spread in root-owned bounded review correction; same root execution target retained per host small-fix guidance.
+      pending_attempt: null
 oat_generated: false
 ---
 
 # Project State: session-toolkit
 
-**Status:** p01 implementation verified; independent review pending
+**Status:** p01 accepted; p02 preparation
 **Started:** 2026-10-29
 **Last Updated:** 2026-10-29
 
 ## Current Phase
 
-Implement — p01 package boundary and release contract
+Implement — p02 identity, discovery, reads and safe export
 
 ## Artifacts
 
 - **Plan:** `plan.md` (approved; architecture and CLI diagrams, proposed argument reference, and p05 documentation acceptance included)
-- **Implementation:** `implementation.md` (p01 tasks complete; phase review pending; five phases unaccepted)
+- **Implementation:** `implementation.md` (p01 accepted; four phases remain)
 - **Research:** `references/research/release-ci-reference.md`
 
 ## Progress
@@ -125,7 +112,7 @@ Implement — p01 package boundary and release contract
 - ✓ Design choices and delivery authority recorded; artifact review and configured Opus gate completed
 - ✓ User approved the reviewed brief and citation fix; requested visual and final-phase documentation addenda applied
 - ✓ Five-phase journal initialized: p01 concrete, p02–p05 provisional; no parallel groups
-- ⧗ p01 implementation started; five phases remain unaccepted
+- ✓ p01 accepted after independent review and bounded Medium/Low corrections; four phases remain
 
 ## Review Setup
 
@@ -141,4 +128,4 @@ None
 
 ## Next Milestone
 
-Independently review p01. The user separately invoked implementation; the brief’s authorized delivery endpoint is active. No phase is accepted yet.
+Make p02 concrete and execute it. The brief’s authorized delivery endpoint remains active; p01 is accepted. Full-suite environmental failures are documented, not passed.

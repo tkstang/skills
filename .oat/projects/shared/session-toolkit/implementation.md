@@ -4,7 +4,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-29
-oat_current_task_id: p01
+oat_current_task_id: p02
 oat_generated: false
 ---
 
@@ -39,21 +39,21 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status      | Units | Accepted |
-| ----- | ----------- | ----- | -------- |
-| p01   | in_progress | 1     | 0/1      |
-| p02   | pending     | 1     | 0/1      |
-| p03   | pending     | 1     | 0/1      |
-| p04   | pending     | 1     | 0/1      |
-| p05   | pending     | 1     | 0/1      |
+| Phase | Status    | Units | Accepted |
+| ----- | --------- | ----- | -------- |
+| p01   | completed | 1     | 1/1      |
+| p02   | pending   | 1     | 0/1      |
+| p03   | pending   | 1     | 0/1      |
+| p04   | pending   | 1     | 0/1      |
+| p05   | pending   | 1     | 0/1      |
 
-**Total:** 0/5 phases accepted
+**Total:** 1/5 phases accepted
 
 ## Phase p01: Establish the package boundary and release contract
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 66b90a7d78f02fc0b5b73e9d24f70a2644743bdc
-**Head:** 4212674c1bb9a12bc1a61a3256c85f20e971fbc9
+**Head:** 6e85a86be21bec2c2eee26f9e5e5d54fc77a69a8
 **Executor:** phase-implementer:session-toolkit-p01-implement-20261029
 
 **Phase verification:** Relevant p01 checks passed against committed head: root/package type-check, standalone build:check, validate, smoke, scoped lint/format/actionlint and exact-archive Node 22.0.0/24.21.0 proofs. After all task commits, the root-directed suite excluding exactly src/shared/collaboration/log.test.ts and messages.test.ts passed again (184 files, 2,848 tests, 3 skipped). Full unfiltered suite remains failed solely by 17 reproduced baseline environmental failures from pre-existing /tmp/a and /tmp/b files; no full-suite pass claimed. See references/p01-verification.md. DONE_WITH_CONCERNS for independent review/root disposition; phase acceptance remains pending. Recovery usage 1/10, remaining 9; completed pending attempt retained for root validation.
@@ -126,7 +126,7 @@ Root consumed exactly one `Reconnaissance: not-attempted` confirmation; artifact
 - M1 (Medium, Minor scope): `statSync` follows linked packed files, permitting a non-self-contained archive to pass the regular-file check. Agree with the demonstrated control; fix in p01-t04 by rejecting archive link members before extraction and checking extracted entries without following links.
 - L1 (Low, Negligible scope): `tests/AGENTS.md` still says root test runs only Vitest. Agree; align it with the toolkit build prerequisite and direct scoped test command in p01-t04.
 
-**Outcome:** zero Critical/High; bounded corrections queued, not yet accepted. Host guidance directs root to fix small findings directly. The original implementer remains the phase executor; root is the committing owner only for the following review correction. No new phase or recovery attempt is consumed.
+**Outcome:** fixes_completed for M1/L1 after root correction and changed-boundary verification; the independent review had zero Critical/High. No clean independent re-review is claimed. All dispositions settled; optional extra phase gate disabled by user; p01 accepted. Host guidance directs root to fix small findings directly. The original implementer remains the phase executor; root is the committing owner only for the following review correction. No new phase or recovery attempt is consumed.
 
 ### Task p01-t04: Correct packed-file validation and test guidance (review)
 
@@ -140,6 +140,23 @@ Root consumed exactly one `Reconnaissance: not-attempted` confirmation; artifact
 
 **Commit:** b23418aa7320c8d4af241ce878259669f482df6f
 **Verification:** Symlink regression failed before correction by reaching the blocked npm boundary and passed afterward; all eight focused tests and exact archive checks on Node 22.0.0/24.21.0 pass, as does type-check. Scoped lint reported a useless array spread in the new fixture; root mistakenly committed before handling that failed result. The original commit is preserved and a bounded mechanical recovery is reserved below. No full-suite pass is claimed.
+
+### Recovery Event session-toolkit-p01-recovery-02
+
+- Phase/task: p01 / p01-t04
+- Original request: session-toolkit-p01-review-correction-root-t04
+- Original commit: b23418aa7320c8d4af241ce878259669f482df6f
+- Defect class: lint
+- Discovered by: pnpm exec oxlint scripts/session-toolkit-package.ts tests/release/session-toolkit-package.test.ts
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 2/10
+- Dispatch target: root:gpt-6.1-sol-high
+- Recovery commit: 6e85a86be21bec2c2eee26f9e5e5d54fc77a69a8
+- Verification: Scoped lint, all eight focused package/CLI/metadata tests, and root/package type-check passed before and immediately after the committed correction; immutable original remains an ancestor. Completed marker validated and cleared only after those postcommit results; durable usage remains 2/10.
+- Reason: Root-owned small review correction per host instruction; remove only a useless spread in its inline test fixture, with the same root model/effort and unchanged product behavior. No phase-agent replacement or route fallback. The root initially failed to act on a precommit lint result and records that mistake explicitly.
+
+**Root acceptance evidence:** Linked archive members are now rejected before extraction and installed commands are never reached; extracted entries use lstat. Regression failed before the correction by reaching blocked npm, then passed. The unchanged exact archive still clean-installs on actual Node 22.0.0 and 24.21.0, and all eight focused tests, type-check, scoped lint/format/whitespace checks pass. L1 test-command guidance corrected. The original independent review's anchored coverage remains historical; this narrow changed-boundary verification settles its two nonblocking findings. Full-suite baseline limitation remains explicit in p01-verification.md. No publication or consumer cutover occurred.
 
 ## Phase p02: Consolidate identity, discovery, reads, and safe export
 
@@ -234,7 +251,7 @@ Document any intentional deviations from the brief. Include accepted review find
 
 ## Final Summary (for PR/docs)
 
-Pending implementation. No package, consumer migration, or release has shipped.
+p01 package foundation, contract inventory and release dry run complete and accepted. The package is unpublished; provider functionality, consumer migrations and releases remain p02–p05.
 
 ## References
 
