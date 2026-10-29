@@ -84,8 +84,18 @@ oat_phase_recovery_policy:
   default_attempt_limit: 10
   phase_attempt_usage:
     p02:
-      used_attempts: 1
-      pending_attempt: null
+      used_attempts: 2
+      pending_attempt:
+        attempt: 2
+        event_id: session-toolkit-p02-recovery-02
+        status: completed
+        original_request_id: session-toolkit-p02-implement-20261029
+        original_task_id: p02-t02
+        original_commit: 84d53213ef8f1d417a0eea5ccbfe2bcf8bb242c4
+        discovered_by: donor parity transition check of Codex native carrier and filename casing protections
+        dispatch_target: oat-phase-implementer-gpt-6-1-sol-high
+        reservation_head: 517108c36af839c10d416b44afc7e5c0604d978d
+        eligibility: mechanical removal of premature Codex filename filter; bounded metadata already owns native session identity; no public behavior or architecture decision
     p01:
       used_attempts: 2
       pending_attempt: null

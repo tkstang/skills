@@ -178,6 +178,24 @@ describe('historical listing and exact identity remain separate', () => {
         }),
       ).toMatchObject({ status: 'invalid', path: null });
     }));
+  it('finds native Codex IDs under nonstandard or case-varied filenames and refuses duplicate carriers', async () =>
+    fixture(async (home, cwd) => {
+      const dir = join(home, '.codex/sessions/2026/10/29');
+      await put(join(dir, 'native-carrier.jsonl'), [
+        { type: 'session_meta', payload: { id: ID, cwd } },
+      ]);
+      expect(
+        (await readTranscript({ homeDir: home, session: `codex:${ID}` }))
+          .metadata?.nativeSessionId,
+      ).toBe(ID);
+      await put(
+        join(dir, `rollout-2026-10-29T10-00-00-${ID.toUpperCase()}.jsonl`),
+        [{ type: 'session_meta', payload: { id: ID, cwd } }],
+      );
+      await expect(
+        readTranscript({ homeDir: home, session: `codex:${ID}` }),
+      ).rejects.toMatchObject({ code: 'E_AMBIGUOUS' });
+    }));
   it('reports budgets, result omissions, time filters and exact duplicate refusal', async () =>
     fixture(async (home, cwd) => {
       for (const n of ['one', 'two'])

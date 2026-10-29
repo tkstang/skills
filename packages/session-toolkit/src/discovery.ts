@@ -175,13 +175,6 @@ export async function listSessions(
           if (!entry.isFile() || !entry.name.endsWith('.jsonl')) continue;
           if (pin && runtime !== 'codex' && basename(path, '.jsonl') !== pin.id)
             continue;
-          if (
-            pin &&
-            runtime === 'codex' &&
-            !entry.name.endsWith(`-${pin.id}.jsonl`) &&
-            basename(path, '.jsonl') !== pin.id
-          )
-            continue;
           const info = await stat(path);
           if (
             (since !== undefined && info.mtimeMs < since) ||
