@@ -352,3 +352,18 @@ p01 package foundation, contract inventory and release dry run complete and acce
 - Brief: `plan.md`
 - Research: `references/research/`
 - CLI design aid: `references/cli-command-map.md`
+
+### Recovery Event session-toolkit-p02-recovery-03
+
+- Phase/task: p02 / p02-t01
+- Original request: session-toolkit-p02-implement-20261029
+- Original commit: a009dcc8cbc752589ff97ff63bc2feb37065d924
+- Defect class: composition
+- Discovered by: resumed Cursor source-coordinate composition check
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 3/10
+- Dispatch target: oat-phase-implementer-gpt-6-1-sol-high
+- Recovery commit: cb6af5808da6ff5c26443c6ca65e41127a1eb5fa
+- Verification: Regression failed before correction with page-local origins0/1 instead of global1/2. Six read tests and329 package tests, toolkit build, root/package type-check and scoped lint passed before and immediately after candidate at clean committed HEAD.
+- Reason: Mechanical mapping of donor sourceRecordIndex to existing global decoded-record coordinate. Original task preserved; reservation49cbb22d2990a211569558e6a87d772b621bd41d; priorusage2 settled there; used3/10 remaining7 completedmarker. Elevated recovery-volume warning at3 events. Earlier8-path t05 park replay verified SHA256c9867f266ed3bfabffb66e09e1faeed6e5648e945e593832cabdb42731b51c4e base8e63229f0ca836296e633af013663c33b1953128 size83837. No unrelated change or route fallback.
