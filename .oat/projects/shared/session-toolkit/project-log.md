@@ -70,6 +70,10 @@ p02 accepted: full-range independent review r2 has zero Critical/High; original-
 
 Toolkit archive rebuilds and built CLI tests share ignored dist; generated-output-sync temporarily mutates distributions. Run shared-output checks serially, and build:check after the suite; passing reruns required no additional product workaround.
 
+### 2026-10-29 · structural · oat-project-implement · p03-concrete
+
+p03 made concrete within approved search/activity/update-notice outcomes after p02 acceptance; detailed-source fidelity, explicit scan authorization, machine/hook zero updater I/O and exact archive Node22/24 evidence are selected. No consumer cutover or publication in p03.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

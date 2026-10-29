@@ -358,6 +358,8 @@ Verification: public regression fails before and passes after correction; all343
 
 **Status:** pending
 
+p03 made concrete after p02 acceptance, within unchanged approved outcomes and the p01 command/package contract. Search/estimate, full structured activity and interactive-only cached notices share CLI/capabilities/schema/archive outputs; no parallel group or independent fan-out slices qualify. No consumer cutover, package publication or state-policy redesign. Public boundary proof, deliberate exports, donor parity, zero machine/hook update I/O and exact tarball runtime checks are explicit exit evidence. This elaborates the phase, not a new task plan or changed authority.
+
 ## Phase p04: Publish the toolkit and migrate Skills consumers
 
 **Status:** pending

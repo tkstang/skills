@@ -163,9 +163,9 @@ The final reference covers every shipped command, argument, flag, default, selec
 
 ## Phase p03: Add search, activity, and CLI update notices
 
-**Intent:** Bring the requested stateless search and rich activity behavior into the package with a narrow public surface and consistent CLI outcomes. Add interactive version notifications without altering hook or machine contracts.
-**Exit evidence:** Search acceptance covers tiered widening, no matches, partial/deadline results, redaction and scan confirmation; activity/export evidence preserves tool/usage/provenance/coverage semantics; public search and activity outputs preserve known fixture detail absent from a lossy digest, proving that a digest is not their sole evidence source; version-notice checks cover current/newer/offline behavior, stdout isolation, and the absence of both notices and network checks in hook and machine contexts; the built tarball operates without donor-repository sources on Node 22 and 24.
-**Provisional:** yes
+**Intent:** Implement the selected stateless search/estimate and sensitive structured activity library/CLI boundaries in references/package-contract.md and cli-command-map.md, using the canonical search pipeline and detailed activity/provider substrate. Preserve search history→metadata→content→deep widening, donor scope/time semantics, redaction before snippet windowing, finite scan/deadline accounting and optional rg/sqlite3 with correct fallbacks. Keep rich activity provenance/usage/coverage and explicit provider support independent from lossy conversation digests. Add the selected cached interactive update notice only at the CLI boundary: both stdin/stderr TTY, quiet JSON/capabilities/help/version/CI/non-TTY, explicit SESHTK_NO_UPDATE_CHECK,24-hour cache and at-most1-second best-effort registry timeout, stderr-only and no auto-upgrade. Consumers, state/watch ownership, publication and release credentials remain untouched; donor source remains staged until p04/p05. Keep root exports deliberate and capability IDs truthful.
+**Exit evidence:** Controlled public API and built CLI fixtures cover regex/literal queries, canonical tiers/deep, cwd/time widening, no matches, partial/deadline/oversized-line outcomes, metadata/history hits and complete-unit redaction; a scan beyond the selected threshold refuses actionably with an estimate until explicitly authorized, without prompting. Optional-accelerator and fallback behavior is preserved with traceable donor parity. Activity captures known long/raw fixture detail, tool associations, usage, provenance, independent source coordinates and honest incomplete coverage for implemented providers; unsupported shapes/providers refuse or report explicit coverage gaps. Public search/activity outputs prove detailed evidence absent from a lossy digest is retained. Cached updater evidence covers current/newer/offline/malformed-cache behavior, bounded failure latency and stdout isolation; library imports and machine/hook contexts (including bare capabilities) perform zero update network calls or notices. Package docs/command map/parity/inventory agree with implemented exports/help/capabilities; every archive import/type dependency is shipped. Relevant package/donor/repository checks and a fresh exact tarball clean install with representative search/activity operations pass on actual Node22.0.0/24; baseline full-suite environment limitations stay explicit. No consumer requires an unpublished release and no publication occurs in this phase.
+**Provisional:** no
 
 ## Phase p04: Publish the toolkit and migrate Skills consumers
 
@@ -203,7 +203,7 @@ Initial Codex artifact review passed with no findings. The configured Opus brief
 
 ## Implementation Complete
 
-Implementation is active. p01 and p02 are accepted after independent review and bounded corrections; p03–p05 remain provisional. Three phases remain unaccepted. The package is not yet published and no consumer cutover has occurred.
+Implementation is active. p01 and p02 are accepted after independent review and bounded corrections; p03 is concrete and p04–p05 remain provisional. Three phases remain unaccepted. The package is not yet published and no consumer cutover has occurred.
 
 ## References
 
