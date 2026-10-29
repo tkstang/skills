@@ -23,7 +23,7 @@ What ships today:
   long-thread reorientation, and alpha destination-side fork guidance.
 - **Optional standalone skills** — the session capabilities retain descriptive
   `session-*` names except for `agent-messaging` and `reorient`; `align`, `author-skill`,
-  `debrief`, `sitrep`, `next-steps`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` remain standalone only.
+  `debrief`, `sitrep`, `next-steps`, `explain-options`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` remain standalone only.
   The PR skills repair CI/review findings until green; only `land-pr` merges.
   Consensus `phone-a-friend` and `review` are also available as the standalone
   skills `phone-a-friend` and `consensus-review`; its six other peer workflows

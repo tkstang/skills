@@ -18,6 +18,7 @@
     - [Sitrep](docs/user-guide/skills/sitrep.md) — Get a snapshot of where the current work stands against its goal: complete, in progress, remaining, at risk, and waiting on you.
     - [Reorient](docs/user-guide/skills/reorient.md) — Rebuild the big picture of a long or compacted thread from its full transcript, check what changed since, and get a recommendation.
     - [Next Steps](docs/user-guide/skills/next-steps.md) — Turn the current situation into a justified recommendation without executing it.
+    - [Explain Options](docs/user-guide/skills/explain-options.md) — Explain the choices an agent just offered well enough to decide, with trade-offs and a recommendation, without acting on it.
     - [Must We?](docs/user-guide/skills/must-we.md) — Decide whether a blocker, requirement, or proposed action is necessary and identify the smallest sufficient path.
     - [Babysit PR](docs/user-guide/skills/babysit-pr.md) — Repair CI and review findings until a pull request is green, then report readiness without merging.
     - [Land PR](docs/user-guide/skills/land-pr.md) — Repair and verify a pull request, then merge its checked head and confirm the remote result.

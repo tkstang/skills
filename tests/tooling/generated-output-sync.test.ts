@@ -269,6 +269,7 @@ describe('generated output drift guard', () => {
     expect(generatedOutputRoots).toContain('skills/consensus-review');
     expect(generatedOutputRoots).toContain('skills/must-we');
     expect(generatedOutputRoots).toContain('skills/next-steps');
+    expect(generatedOutputRoots).toContain('skills/explain-options');
     expect(generatedOutputRoots).toContain('skills/reorient');
     expect(generatedOutputRoots).toContain('skills/session-retro');
     expect(generatedOutputRoots).toContain('skills/session-observer');
