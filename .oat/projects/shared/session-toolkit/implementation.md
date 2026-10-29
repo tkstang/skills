@@ -240,6 +240,20 @@ Verification: 91 focused evidence/read/activity tests, root/package type-check, 
 - Verification: 5 discovery regressions and 181 runtime/read/identity/CLI tests, toolkit build, root/package type-check and scoped lint passed before and immediately after the candidate at clean HEAD. Regression fails against the immutable uncorrected discovery source.
 - Reason: Premature Codex filename filtering excluded valid native metadata carriers and case-varied filenames. Removed only that filter, retaining bounded metadata/ambiguity checks. Recovery01 settled by root commit517108c36af839c10d416b44afc7e5c0604d978d; usage2/10, remaining8; completed marker retained. Live-owner t03 dirt was captured outside the tree at `/var/folders/_v/ld1wc16d0sg2qxkqjxgm7dyc0000gn/T/seshtk-p02-t03-park-nr7flnz7`, manifest SHA256 `c8aa14824c9f476cad2861b6dbdc7d2c752d66e9cdb5260f7170757bfe98adc0`, size323819bytes/base517108c. All26 exact owned paths verified against manifest before parking and after byte-for-byte replay; no unrelated paths/history touched and no recovery-patch commit was needed for the same live owner's in-flight work.
 
+### Task p02-t04: Add sanitized Markdown selection and export
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p02-implement-20261029
+**Handle:** /root/session_toolkit_p02
+
+Intent: preserve the donor hidden-payload sanitizer, independent tool opt-ins and marker/batch workflows, with explicit ambiguity/no-match outcomes, bounded source coverage and confined non-overwriting destinations.
+Files: package sanitizer/export API, extracted sanitizer protections and export boundary tests, changelog.
+Proof: focused sanitizer/export tests, type-check, lint/format and toolkit build.
+
+**Commit:** c61c6efd7e80d80f557fd3d4725372204306b378
+
+Verification: 51 sanitizer/export tests, root/package type-check, scoped lint/format, toolkit build and diff whitespace passed. No transcript or consumer state writes; only explicit new export destinations are created. Marker misses refuse instead of donor newest-session fallback, as selected by the p01 contract.
+
 ## Phase p03: Add search, activity, and CLI update notices
 
 **Status:** pending
