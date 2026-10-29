@@ -116,13 +116,13 @@ function privateWorkspaceNames(): Set<string> {
   return names;
 }
 
-export function validateArchive(archive: string, node = process.execPath) {
+export function inspectArchive(archive: string) {
   const paths = run('tar', ['-tzf', archive]).trim().split('\n');
   assert.ok(paths.length > 0);
   for (const path of paths) {
     assert.match(
       path,
-      /^package\/(?:package\.json|README\.md|LICENSE|dist\/[a-z-]+\.(?:js|d\.ts))$/,
+      /^package\/(?:package\.json|README\.md|CHANGELOG\.md|LICENSE|dist\/[a-z-]+\.(?:js|d\.ts))$/,
       `Unexpected packed path: ${path}`,
     );
   }
@@ -151,6 +151,11 @@ export function validateArchive(archive: string, node = process.execPath) {
     run('tar', ['-xOzf', archive, 'package/package.json']),
   );
   validatePackedMetadata(pkg, privateWorkspaceNames());
+  return { pkg, paths };
+}
+
+export function validateArchive(archive: string, node = process.execPath) {
+  const { pkg, paths } = inspectArchive(archive);
   const temporary = mkdtempSync(join(tmpdir(), 'session-toolkit-pack-'));
   try {
     const env = {

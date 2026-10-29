@@ -28,7 +28,10 @@
     "prepare": "test \"$GIT_HOOKS\" = \"0\" && exit 0; node tools/git-hooks/manage-hooks.mjs setup 2>/dev/null || true",
     "build:toolkit": "tsx scripts/build-session-toolkit.ts",
     "toolkit:pack:check": "tsx scripts/session-toolkit-package.ts",
-    "release:toolkit:dry-run": "pnpm run build:toolkit && tsx scripts/session-toolkit-package.ts"
+    "release:toolkit:dry-run": "pnpm run build:toolkit && tsx scripts/session-toolkit-package.ts",
+    "release:toolkit:prepare": "tsx scripts/session-toolkit-release.ts prepare",
+    "release:toolkit:verify": "tsx scripts/session-toolkit-release.ts verify",
+    "release:toolkit:publish": "tsx scripts/session-toolkit-release.ts publish"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.0",

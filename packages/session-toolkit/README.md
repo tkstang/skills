@@ -11,17 +11,18 @@ consumers retain their engines until their migrations are verified.
 
 ## Install and inspect
 
-This checkout is unpublished. After publication, select the approved version:
+Install the selected published version:
 
 ```sh
-npm install --global @tkstang/session-toolkit@<approved-version>
+npm install --global @tkstang/session-toolkit@0.1.0
 seshtk --version
 seshtk --help
 seshtk capabilities --json
-npx --package=@tkstang/session-toolkit@<approved-version> seshtk capabilities --json
+npx --package=@tkstang/session-toolkit@0.1.0 -- seshtk capabilities --json
 ```
 
-Developers can install a validated tarball. Interactive consumers must check the
+Publication availability is established by npm; a repository candidate alone
+is not a publication receipt. Developers can install a validated tarball. Interactive consumers must check the
 version and required capability IDs; unattended hooks remain self-contained.
 
 ## Library
@@ -174,7 +175,11 @@ releases. On Node 24, run `pnpm run release:toolkit:dry-run --out <new-directory
 The validator inspects packed paths/dependencies, installs outside the checkout,
 proves import safety, and runs fixture API/CLI operations. Recheck those exact
 bytes with `pnpm run toolkit:pack:check --archive <tarball> --node <node-path>`.
-No publication occurs; see root `RELEASING.md` for publication prerequisites.
+No publication occurs. For a clean committed candidate, use
+`pnpm run release:toolkit:prepare --out <new-directory-outside-repo>` and
+`pnpm run release:toolkit:verify --directory <candidate-directory>`;
+`--tag session-toolkit-v0.1.0` additionally requires the real tag at source HEAD.
+See root `RELEASING.md` for independent review and publication prerequisites.
 
 ## Historical search
 
@@ -260,3 +265,12 @@ The registry request has a 1-second timeout; only stable SemVer releases newer
 than the installed version trigger a notice. No automatic upgrade runs. The
 notice gives an explicit-version installation command; stdout remains the
 requested operation's output.
+
+## Release provenance
+
+See [package release notes](CHANGELOG.md) for the independently versioned toolkit
+content. Tags use `session-toolkit-vX.Y.Z`. Release validation installs the exact
+archive on Node 22.0.0 and 24 and binds its hash to the source commit and notes.
+Automated publication uses the same downloaded bytes; local first-publication
+bootstrap and later OIDC provenance have separate receipts. This does not certify
+every provider install path or migrate existing Skills/ORC state.

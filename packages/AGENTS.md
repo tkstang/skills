@@ -28,5 +28,13 @@ Archive checks: on Node 24, `pnpm run release:toolkit:dry-run --out
 run on the exact archive. `pnpm run toolkit:pack:check --archive <tarball>
 [--node <absolute-node-executable>]` rechecks the same bytes against a consumer
 runtime. Release/bootstrap authority and prerequisites live in `RELEASING.md`.
-The Session Toolkit workflow prepares on 24 and verifies the same artifact on
-22.0.0 and 24; it has no publication job or OIDC permission yet.
+`release:toolkit:prepare --out <new-directory-outside-repo>` requires clean
+committed source and binds one built archive to HEAD/tree, version, intended tag
+and curated package changelog notes. `release:toolkit:verify --directory
+<candidate-directory> [--node <node-executable>]` revalidates that binding and
+installed behavior; `--tag session-toolkit-vX.Y.Z` requires the actual tag at HEAD.
+The Session Toolkit workflow checks the same downloaded bytes on 22.0.0/24.
+Only its separately enabled protected `npm` publication job has OIDC write
+permission. Root owns live bootstrap/publication and settings per RELEASING.md.
+Keep `session-toolkit/CHANGELOG.md` current for the selected package version; a
+local candidate is not a publication receipt.

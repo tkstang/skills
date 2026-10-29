@@ -57,8 +57,15 @@ output before running the suite; build first for scoped CLI tests. Read
 [package README](packages/session-toolkit/README.md) before editing it. Its
 Node 22.0.0 consumer floor is separate from Node 24 release tooling.
 
-The validation-only `Session Toolkit` workflow builds on Node 24 and installs
-one validated archive on Node 22.0.0 and 24. To reproduce locally, run
-`pnpm run release:toolkit:dry-run --out <new-directory>` on Node 24 and
+The `Session Toolkit` workflow builds a clean source-bound candidate on Node 24
+and checks the same downloaded archive on Node 22.0.0 and 24. Its publication
+job is separately gated by a protected `npm` environment and explicit repository
+variable; only that job has OIDC write permission. For local development, use
+`pnpm run release:toolkit:dry-run --out <new-directory>` and
 `pnpm run toolkit:pack:check --archive <tarball> --node <node-executable>`.
-These checks do not publish or change consumer dependencies.
+For a release candidate, commit first, then use
+`pnpm run release:toolkit:prepare --out <new-directory-outside-repo>` and
+`pnpm run release:toolkit:verify --directory <candidate-directory>`.
+See [Releasing](RELEASING.md#session-toolkit-package) for exact-archive review,
+bootstrap and trusted-publication prerequisites. Preparation does not publish
+or change consumer dependencies.

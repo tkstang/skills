@@ -211,89 +211,133 @@ PR, replace active user installations, uninstall old copies, or run a global
 sync merely to prove packaging. Record the transitional owner until the
 separate PR is merged.
 
-## Session Toolkit package (publication pending)
+## Session Toolkit package
 
 `@tkstang/session-toolkit` has independent SemVer in
-`packages/session-toolkit/package.json` and curated entries in the root
-`CHANGELOG.md`. Reserve `session-toolkit-vX.Y.Z` tags: `vX.Y.Z` is the existing
-standalone-payload tag stream, while `session-v*` and `consensus-v*` belong to
-plugins. The current package boundary is not a complete session engine or a
-publication receipt. No production consumer requires its unpublished version.
+`packages/session-toolkit/package.json` and curated package notes in
+`packages/session-toolkit/CHANGELOG.md`. Keep the root `CHANGELOG.md` current
+as well. Use `session-toolkit-vX.Y.Z`; the existing standalone `vX.Y.Z`,
+`session-v*` and `consensus-v*` streams retain their meanings.
 
-### Validate exact archives
+Publication and consumer migration are separate acceptance boundaries. A local
+candidate or green validation job is not a publication receipt. Production
+consumers may require a version only after registry integrity and fresh installed
+acceptance have been recorded.
 
-Use Node 24 for release tooling while testing the consumer floor separately.
-Keep the root pnpm 10.13.1 pin. From the repository root:
+### Prepare and review the candidate
+
+Keep pnpm 10.13.1 and use Node 24 for release tooling. Consumer support remains
+Node 22.0.0 and 24. In a clean checkout, with output outside the repository:
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm run build:check
 pnpm run type-check
 pnpm run build:toolkit
-pnpm run test:vitest tests/release/session-toolkit-cli.test.ts tests/release/session-toolkit-package.test.ts
-pnpm run release:toolkit:dry-run --out /absolute/path/to/new-release-directory
-pnpm run toolkit:pack:check --archive /absolute/path/to/new-release-directory/tkstang-session-toolkit-0.1.0.tgz --node /absolute/path/to/node-22.0.0
+pnpm run test:vitest tests/release/session-toolkit-*.test.ts
+pnpm run validate
+pnpm run smoke
+pnpm run release:toolkit:prepare --out /absolute/path/to/new-release-directory
+pnpm run release:toolkit:verify --directory /absolute/path/to/new-release-directory --node /absolute/path/to/node-22.0.0
+pnpm run release:toolkit:verify --directory /absolute/path/to/new-release-directory --node /absolute/path/to/node-24
 ```
 
-Select the actual package version in the archive filename. The output directory
-must not exist. Preparation runs `pnpm pack` once, inspects the packed manifest
-and file inventory, rejects private workspace names even after protocol
-rewriting, rejects local/unresolved dependency specs and install scripts, and
-installs outside the checkout with an isolated HOME/STATE_DIR. It checks the
-public API import and installed `seshtk` version/help/capabilities. No donor
-repository sources are used. Source coordinates, provider parsing and other
-controlled-fixture operations join this proof as those capabilities ship.
+Preparation refuses tracked or untracked source changes, builds after that
+check, packs once and validates the actual file inventory, modes, metadata,
+private workspace names, dependency protocols and absence of install scripts.
+It installs outside the checkout with isolated HOME/STATE_DIR, exercises the
+public API and strict declarations, and runs installed identity/list/read/parse,
+Codex evidence, search/estimate, export and sensitive activity fixtures. npm's
+publication dry run receives the same tarball.
 
-The dry run passes the same archive to `npm publish --dry-run --ignore-scripts
---access public --registry https://registry.npmjs.org/` and writes
-`release.json` plus `SHA256SUMS`. Metadata includes the source HEAD, intended
-tag, SHA-256, npm SHA-512 integrity and verified runtime. It explicitly sets
-`publication_authorized: false`: a development dry run can include uncommitted
-changes and does not establish a clean reviewed release binding. The
-validation-only workflow prepares on Node 24 and checks the same uploaded
-archive on 22.0.0 and 24. It has read-only permissions and cannot publish.
+The fresh output directory contains the tarball, `release.json`, `SHA256SUMS`
+and `RELEASE_NOTES.md`. The manifest binds archive SHA-256/npm SHA-512 integrity,
+package version, intended tag, actual Git HEAD/tree and notes extracted from that
+version's curated package changelog. Verification compares these fields to the
+actual clean checkout, packed manifest and notes. `--tag session-toolkit-vX.Y.Z`
+also requires that exact Git tag to point at HEAD. Hashes alone do not prove
+source review: independently review the candidate's explicit source range and
+record its source commit, archive/hash, check results and dispositions before
+merge or publication.
 
-### First publication and subsequent trusted publishing
+`release:toolkit:dry-run --out <new-directory>` remains a development check that
+can include uncommitted edits. Its `publication_authorized: false` manifest is
+not accepted by the bound release verifier or publication command.
 
-Before p04 publication, the root must complete these prerequisites:
+Skills allows squash merges only. Retain the project branch and earlier phase
+heads; merge `main` back after each squash merge rather than rewriting accepted
+history. After merge, prepare/verify a candidate at the clean merged source and
+record its actual archive identity and review binding. A manifest from a
+premerge SHA cannot be relabeled to the squash commit. Publication requires the
+source commit to be an ancestor of freshly fetched `origin/main` and the actual
+package tag to point to that same commit.
 
-1. Finish the operations and consumers selected by the approved brief for the
-   publish-ready package. Review that candidate on its explicit commit range
-   and record its archive identity before any publication or consumer cutover.
-2. Verify npm ownership/access for the `@tkstang` scope and authenticate the
-   publishing maintainer through the host secret mechanism. On 2026-10-29 this
-   host's `npm whoami` returned `ENEEDAUTH`, anonymous package lookup returned
-   `E404`, repository Actions secrets were empty and the only environment was
-   `github-pages`. These observations do not prove npm scope rights. GitHub
-   ADMIN access was verified for Skills and ORC. No credentials were changed.
-3. Make a clean release checkout on `main` at the independently reviewed
-   candidate, verify ancestry, match package version to
-   `session-toolkit-vX.Y.Z`, and bind checksums/notes to the commit and archive.
-   Complete the supported-runtime matrix and repository gates.
-4. Bootstrap the first public version from **that validated tarball** using
-   the authenticated maintainer's currently supported npm authentication and
-   2FA flow. Trusted publishing must not be assumed to bootstrap an uncreated
-   package. Recheck npm's current bootstrap requirements at execution time.
-5. Configure the package's GitHub trusted publisher specifically for
-   `tkstang/skills`, its selected package-release workflow filename and its
-   protected `npm` environment. Donor trust does not carry over. Verify account
-   permission, environment approvals, provenance and npm >=11.5.1 support.
-6. Add the publication job in p04: prepare/upload once, download the archive
-   without rebuilding, verify its manifest/hash/tag/commit/notes, then grant
-   only that job `id-token: write` behind the protected environment and an
-   explicit release-enable setting. Publish the validated archive, never a
-   rebuilt directory. A retry encountering an existing version succeeds only
-   when registry `dist.integrity` equals the validated archive; a mismatch or
-   registry error stops publication.
-7. Verify the registry's published integrity, fresh API/CLI install and
-   provenance, then register receipts before Skills or ORC requires that
-   published version. Preserve ORC's 24-hour minimum-release-age hold unless
-   the user authorizes a narrow exception.
+### First-publication bootstrap
 
-Skills allows squash merges only. Keep the project branch and earlier phase
-heads intact; after a reviewed squash merge, merge `main` back into the project
-branch rather than rebasing or recreating accepted phase history. Record
-release/migration ranges and branch handling when p04 becomes concrete. ORC
-allows squash/rebase, but its separate changes still require explicit-range
-review before merge. No package publishing, tags, npm settings or production
-consumer dependencies change during p01.
+Root owns merge, tags, account access, publication and settings. Complete all
+reversible preparation and independent candidate review before requesting a
+needed secret through the host secret mechanism. Do not put credentials in
+release metadata, logs or this repository.
+
+1. Verify npm publishing rights for `@tkstang` and the maintainer's current
+   authentication/2FA flow. Prior `ENEEDAUTH` and anonymous package `E404`
+   observations establish neither rights nor publication. A new package must
+   not be assumed to have trusted publishing configured.
+2. Merge the reviewed source with required CI checks passing, fetch `origin/main`
+   and tags, create `session-toolkit-v0.1.0` at the clean merged source, and bind
+   the publication candidate/review to that commit and exact archive. Run the
+   supported-runtime checks above against the candidate. Root records the PR,
+   reviewed range, merge SHA, tag target, notes/hash and CI identities.
+3. Using Node 24 and npm >=11.5.1, run the explicit bootstrap on that validated
+   tarball directory after authentication is available:
+
+   ```sh
+   pnpm run release:toolkit:publish --directory /absolute/path/to/validated-release-directory --tag session-toolkit-v0.1.0 --bootstrap
+   ```
+
+   This validates the candidate/tag/source again and passes the **tarball path**
+   to `npm publish --ignore-scripts --access public`, without rebuilding or
+   requiring OIDC provenance for local bootstrap. Follow npm's current 2FA
+   requirements at execution time. The command verifies registry integrity
+   afterward. Record the real publication receipt and any provenance actually
+   available; do not claim OIDC provenance for a local bootstrap.
+
+4. Verify fresh installs of the published version on actual Node 22.0.0 and 24,
+   including public API/declarations, capabilities and fixture operations.
+   Preserve the validated archive and registry integrity as receipts. Publication
+   alone does not prove Skills/ORC migration or provider certification.
+
+### Subsequent trusted publishing
+
+Configure npm's package-specific GitHub trusted publisher for `tkstang/skills`,
+workflow `session-toolkit.yml`, environment `npm`. Root must verify that the
+GitHub `npm` environment is protected with the selected approval/branch/tag
+rules, verify npm account rights/trusted-publisher identity, then set the
+**repository** variable `SESSION_TOOLKIT_RELEASE_ENABLED` to literal `true`.
+The workflow declaration alone does not establish those live settings. Check
+[npm's current setup expiry](https://docs.npmjs.com/trusted-publishers/): a new
+trusted publisher currently requires its first successful publication within
+two days, and saving the configuration does not verify it.
+
+The Session Toolkit workflow prepares/uploads one clean candidate, verifies the
+same downloaded archive on Node 22.0.0/24, then publishes only on
+`session-toolkit-v*` pushes or a manual retry naming an existing package tag.
+Publication needs both validation jobs, the explicit enable variable and the
+`npm` environment. Only the publication job has `id-token: write`; other jobs
+have read-only permissions. The job uses Node 24/npm 11.20.0 (the tool requires
+npm >=11.5.1), downloads the artifact and publishes those bytes with provenance.
+It never rebuilds or publishes a directory. Verify the live protection/enable
+settings before enabling the first automated release.
+
+The publication command requires `SESSION_TOOLKIT_RELEASE_ENABLED=true` unless
+explicitly bootstrapping. An existing version is an idempotent success **only**
+when registry `dist.integrity` equals the validated archive. A mismatched
+integrity, registry/auth/network error or malformed response refuses publication;
+only explicit registry `E404` permits a new publish. Recheck the registry after
+publication and record actual provenance/CI receipts. Manual workflow retries
+prepare a candidate from the existing tag and apply the same integrity rule;
+they do not overwrite a version.
+
+Keep ORC's 24-hour `minimumReleaseAge` hold unless the user explicitly authorizes
+a narrow exception. Consumer migration, plugin/skill releases and installation
+acceptance follow publication and require their own recorded checks.

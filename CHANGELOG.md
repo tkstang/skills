@@ -4,6 +4,11 @@
 
 ### Added
 
+- Session Toolkit 0.1.0: clean source/tag/notes-bound exact-archive release
+  preparation, supported-runtime installation checks and protected, explicitly
+  enabled trusted publication with integrity-only idempotent retries. Bootstrap
+  publishes the validated tarball; consumer cutover remains separate.
+
 - Session Toolkit 0.1.0: cached stable-release notices on interactive CLI operations only, with quiet machine/library/hook execution and best-effort offline behavior.
 
 - Session Toolkit 0.1.0: sensitive full activity API/CLI capture with raw records, correlations, usage, source coordinates and explicit Cursor capability gaps.
@@ -27,7 +32,7 @@
 ### Added
 
 - `@tkstang/session-toolkit` 0.1.0 package boundary with the `seshtk` CLI,
-  import-safe ESM capability discovery and typed JSON envelopes. Search/full activity and consumer migration remain under construction.
+  import-safe ESM capability discovery and typed JSON envelopes. Consumer migration remains separate from package publication.
 
 ### Changed
 
