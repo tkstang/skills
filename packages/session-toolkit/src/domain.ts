@@ -12,6 +12,7 @@ export class ToolkitError extends Error {
     readonly code: ErrorCode,
     message: string,
     readonly hint: string,
+    readonly details?: unknown,
   ) {
     super(message);
   }

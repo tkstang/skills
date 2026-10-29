@@ -3,7 +3,7 @@
 p01 read-only inventory, 2026-10-29. Skills baseline is phase base
 `66b90a7d78f02fc0b5b73e9d24f70a2644743bdc`; ORC was inspected at
 `/Users/tstang/Code/orc`, main `cc845945d0e50f3b60bcbc1ec5cb0a64c9c9e18b`.
-No transcripts were copied into this evidence. No consumer changes in p01.
+No transcripts were copied into this evidence. No production consumer changes in p01/p02.
 The [package contract](package-contract.md) and [command map](cli-command-map.md)
 define the staged replacement boundary; the rows below identify actual owners,
 not completed migrations.
@@ -126,3 +126,16 @@ publication. p05 independently reviews the ORC range in its own checkout and
 records checkout/base/head/PR/artifact/dispositions for final integrated review.
 No package publication, tag, consumer cutover or live-provider certification is
 claimed by this inventory.
+
+## p02 staged package ownership
+
+`packages/session-toolkit/src/` now owns its independent runtime closure:
+`provider-runtime.ts` (Skills transcript runtime), `identity.ts` (ORC exact
+identity plus Skills lineage/env knowledge), bounded `reader.ts`/`discovery.ts`,
+`evidence.ts` (observer evidence without digest/state), `sanitize.ts`/`export.ts`,
+and the activity/cursor/terminal closure needed by evidence/page summaries.
+All package imports resolve within the package or Node/Commander. Donors remain
+read-only and continue serving their consumers until p04/p05; this is temporary
+staged duplication, not completed consolidation or a consumer cutover.
+[Parity and intentional dispositions](p02-parity.md) identify extraction tests
+and preserved consumer-specific policies. Search/full activity remain p03.

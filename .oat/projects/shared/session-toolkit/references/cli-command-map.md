@@ -1,10 +1,10 @@
 # Session Toolkit command and argument contract
 
-p01 selected this map against the donors. **0.1.0 currently implements only
-version, help and capabilities.** The remaining rows are reserved implementation
-contracts for p02/p03. Their presence in this file is not support evidence;
-installed help and capabilities expose only implemented operations. See the
-[package/API contract](package-contract.md) and [consumer inventory](consumer-inventory.md).
+p01 selected the complete map; p02 delivers identity/list/read/parse/exact Codex
+evidence/export alongside version/help/capabilities. Search, search estimate and
+full activity rows remain reserved for p03. Installed help/capabilities advertise
+only delivered operations. See the [package contract](package-contract.md),
+[parity matrix](p02-parity.md) and [consumer inventory](consumer-inventory.md).
 
 ## Implemented in the package boundary
 
@@ -20,12 +20,14 @@ forms. `capabilities` always returns JSON. Global `--json` is accepted before
 or after the operation; machine help/version also use the v1 envelope. Plain
 help/version use text. Unknown flags/commands and excess arguments exit 1 with
 `E_USAGE`; internal system errors exit 2 with `E_INTERNAL`. There are no prompts,
-colors, provider reads or automatic network checks in p01.
+colors or automatic network checks. Operational commands read provider stores explicitly.
 
-Current IDs: `toolkit.capabilities.v1`, `cli.help.v1`, `cli.version.v1`.
-Current provider support is empty. The sole API value export is `getCapabilities`.
+Current IDs add `identity.current.v1`, `sessions.list.v1`, `transcript.read.v1`,
+`transcript.parse.v1`, `transcript.evidence.codex.v1`, `export.markdown.v1` to the
+three boundary IDs. Providers: claude-code, codex, cursor. The package README
+lists the deliberate root API; no donor state or CLI factory is public.
 
-## Reserved operational usage
+## Operational usage (search/activity reserved)
 
 ```text
 seshtk [--json] self-identify [--cwd <path>]
@@ -63,12 +65,12 @@ Consumers compose stateless reads with their own saved positions and controls.
 Time strings preserve the donor search semantics described in the package
 contract; paths and conflicting selectors are validated at command boundaries.
 Operational response schemas and provider-specific evidence are added alongside
-their implementations and fixture proof, without widening the p01 export surface.
+their implementations and fixture proof, with intentional root exports.
 
-## Reserved capability identifiers
+## Operational capability identifiers
 
-These IDs are **not returned by p01**. Each is advertised only after its operation
-and declared provider behavior have passed their parity checks:
+p02 returns identity/list/read/parse/evidence/export IDs below. Search, estimate
+and activity IDs remain absent until p03 verifies their operations:
 
 | Operation                       | Capability ID                  |
 | ------------------------------- | ------------------------------ |

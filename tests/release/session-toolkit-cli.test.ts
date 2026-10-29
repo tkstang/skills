@@ -53,8 +53,14 @@ describe('Session Toolkit public CLI boundary', () => {
             'toolkit.capabilities.v1',
             'cli.help.v1',
             'cli.version.v1',
+            'identity.current.v1',
+            'sessions.list.v1',
+            'transcript.read.v1',
+            'transcript.parse.v1',
+            'transcript.evidence.codex.v1',
+            'export.markdown.v1',
           ],
-          providers: [],
+          providers: ['claude-code', 'codex', 'cursor'],
         },
       });
     }
@@ -105,7 +111,7 @@ describe('Session Toolkit public CLI boundary', () => {
         process.argv.push('read', '--unknown');
         const { getCapabilities } = await import(${JSON.stringify(library)});
         const capabilities = getCapabilities();
-        if (capabilities.providers.length !== 0) throw new Error('Unexpected provider support');
+        if (!capabilities.capabilities.includes('transcript.parse.v1')) throw new Error('Missing parse support');
       `,
         ],
         { cwd, env, encoding: 'utf8' },

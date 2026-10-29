@@ -2,8 +2,7 @@
 
 Selected during p01 on 2026-10-29 against the approved brief, Foundations CLI
 conventions and the [consumer inventory](consumer-inventory.md). This is the
-implementation handoff for later phases, not a claim that their operations ship
-in 0.1.0. The [command map](cli-command-map.md) separates present support from
+implementation handoff for later phases, updated in p02 with the delivered subset and parity evidence. The [command map](cli-command-map.md) separates present support from
 reserved operations. Publication and consumer cutover remain p04/p05 work.
 
 ## Package and runtime
@@ -12,9 +11,9 @@ reserved operations. Publication and consumer cutover remain p04/p05 work.
   The private root and `packages/session-toolkit` are the entire pnpm workspace;
   `documentation/` retains its own package manager context and lockfile.
 - Node **22.0.0** is the declared consumer floor; Node 22 and 24 are supported.
-  Current runtime APIs are plain ESM, process streams and pure object creation.
+  Runtime APIs use Node filesystem/process/crypto and pure projections.
   Commander 14.0.3 requires Node >=20 and has no runtime dependencies of its own.
-  esbuild targets `node22.0`; TypeScript checks ES2022 with Node 22 declarations.
+  esbuild targets `node22.0`; TypeScript targets ES2022 with ES2023 library declarations for Node 22-supported array APIs.
   No newer `node:sqlite`, native TypeScript or JSON-import runtime support is
   required: the build embeds package metadata. The same packed bytes were
   exercised on actual v22.0.0 and v24.21.0.
@@ -28,16 +27,14 @@ reserved operations. Publication and consumer cutover remain p04/p05 work.
 
 ## Public library surface
 
-0.1.0 exports only the package root. It exports the pure function
-`getCapabilities(): Capabilities` and types `Capabilities`, `CapabilityId` and
-`Envelope<T>`. `dist/*` subpaths, CLI factories and the bin are not exported.
-Importing the API neither runs a CLI nor parses arguments, scans stores, performs
-network access, writes state or exits the process. The bin alone sets exitCode.
-Type declarations accompany the same ESM API checked by clean installs.
+0.1.0 exports only the package root. The package README inventories the delivered
+identity/revalidation, discovery, read/parse, Codex evidence and Markdown exports
+and their concrete types. Internal dist subpaths, CLI factories, consumer state
+and the bin are not exported. Imports perform no I/O or argument handling.
 
 The capability object has `package`, `version`, `schema_version: 1`, `node`,
-`capabilities` and `providers`. Current capability IDs are exactly
-`toolkit.capabilities.v1`, `cli.help.v1`, `cli.version.v1`; providers is `[]`.
+`capabilities` and `providers`. Delivered IDs are the three boundary IDs plus identity/list/read/parse/Codex evidence/export,
+with all three providers listed; see the command map for exact identifiers.
 The function creates a fresh object/arrays, so caller mutation cannot change
 later discovery results. Consumers check an acceptable package version **and**
 required IDs. Absence means unsupported; help text is not capability evidence.
@@ -96,10 +93,10 @@ are used; `NO_COLOR` is respected by construction.
 
 Exit `0` means the requested operation returned an interpretable result, `1`
 means user action is needed, `2` means an unexpected system failure. Current
-error codes are `E_USAGE` and `E_INTERNAL`. Later operational codes are reserved
-as `E_AMBIGUOUS`, `E_UNAVAILABLE`, `E_SCAN_CONFIRMATION_REQUIRED`,
-`E_CURSOR_INVALID`, `E_SOURCE_CHANGED` and `E_IO`; they are **not** current
-0.1.0 `Envelope` members or advertised capabilities. Usage and domain selection
+error codes are `E_USAGE`, `E_INTERNAL`, `E_AMBIGUOUS`, `E_UNAVAILABLE`,
+`E_CURSOR_INVALID`, `E_SOURCE_CHANGED` and `E_IO`. Search scan confirmation
+remains reserved for p03.
+Usage and domain selection
 refusals exit 1; unexpected I/O/system failures exit 2. Successful empty lists
 or no-match searches exit 0 with empty results. A bounded/deadline partial result
 exits 0 and explicitly carries incomplete coverage and the reason; it cannot be
@@ -112,7 +109,7 @@ payload semantics; new operations and error codes arrive with their typed
 implementations. Provider-native raw payloads retain their original keys.
 Errors do not dump environment variables, provider content or credentials.
 
-## Selected operational contract (not implemented in p01)
+## Selected operational contract (p02 delivered; search/activity reserved)
 
 Provider IDs and runtime IDs are the same: `claude-code`, `codex`, `cursor`.
 `auto` selects stores for discovery/search; it is not a provider or an exact
@@ -193,7 +190,7 @@ actual incompatibility needs an explicit disposition, not a misleading alias.
 
 ## Update notice and consumer ownership
 
-p01 performs no update lookup. p03 adds cached, best-effort stable-release
+p01/p02 perform no update lookup. p03 adds cached, best-effort stable-release
 notices for interactive CLI use only. Both stdin and stderr must be TTYs;
 `--json`, capabilities, help/version, CI and non-TTY invocations are quiet and
 perform no lookup. Library imports and bundled hooks cannot invoke update code.

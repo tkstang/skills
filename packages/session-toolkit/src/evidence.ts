@@ -20,6 +20,7 @@ import {
   readRecordsDetailed,
 } from './provider-runtime.js';
 import { normalizeEntries } from './provider-runtime.js';
+import { parseTranscript } from './reader.js';
 interface EvidenceCandidate {
   runtime: string;
   sessionId: string;
@@ -32,6 +33,8 @@ interface EvidenceArgs {
   related?: boolean;
   expandOffset?: number;
   maxBytes?: number;
+  maxRecords?: number;
+  maxMessages?: number;
 }
 export interface EvidenceOptions extends StoreContext {
   session: string;
@@ -40,6 +43,8 @@ export interface EvidenceOptions extends StoreContext {
   related?: boolean;
   expandOffset?: number;
   maxBytes?: number;
+  maxRecords?: number;
+  maxMessages?: number;
 }
 /** Exact redacted evidence; only Codex currently records the selected reference semantics. */
 export async function readEvidence(options: EvidenceOptions) {
@@ -69,6 +74,8 @@ export async function readEvidence(options: EvidenceOptions) {
       'Use a nonnegative safe integer.',
     );
   positive(options.maxBytes, 'maxBytes');
+  positive(options.maxRecords, 'maxRecords');
+  positive(options.maxMessages, 'maxMessages');
   const candidate = await resolveSession(options.session, options);
   if (!candidate.recordedCwd)
     throw new ToolkitError(
@@ -298,9 +305,23 @@ export async function buildEvidenceReview(
   ) {
     throw new Error('EVIDENCE_CUTOFF_SOURCE_MISMATCH');
   }
+  const bounded =
+    !frozen && (args.maxRecords !== undefined || args.maxMessages !== undefined)
+      ? await parseTranscript({
+          runtime: 'codex',
+          path: transcriptPath,
+          maxRecords: args.maxRecords,
+          maxMessages: args.maxMessages,
+          maxBytes: Math.min(args.maxBytes ?? 4_000_000, SOURCE_LIMIT),
+        })
+      : undefined;
   const read = await readRecordsDetailed(transcriptPath, {
     maxBytes: Math.min(args.maxBytes ?? 4_000_000, SOURCE_LIMIT),
-    ...(frozen ? { endBytes: frozen.endBytes } : {}),
+    ...(frozen
+      ? { endBytes: frozen.endBytes }
+      : bounded
+        ? { endBytes: bounded.coverage.throughByte }
+        : {}),
   });
   const generation = read.fileGeneration;
   if (!generation)
@@ -618,6 +639,12 @@ export async function buildEvidenceReview(
       source: { ...source, ...generation, sourceBytes: read.sourceBytes },
       indexBase: 'zero-based-jsonl-record-index',
       selectedRange: { start: 0, end: read.records.length },
+      sourceCapture: {
+        complete: read.sourceBytes === currentStat.size,
+        capturedBytes: read.sourceBytes,
+        totalBytes: currentStat.size,
+        reasons: bounded?.coverage.reasons ?? [],
+      },
       renderedCoverage: digest.accounting,
       parseDiagnostics: read.diagnostics,
       coverage: safeValue(activity.coverage),

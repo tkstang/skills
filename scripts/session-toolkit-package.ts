@@ -9,6 +9,7 @@ import {
   readdirSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -242,8 +243,108 @@ export function validateArchive(archive: string, node = process.execPath) {
       before,
       'Library import wrote state',
     );
+    // Exercise the installed bytes, public exports and bin outside the checkout.
+    // Unit/CLI tests cannot catch missing packed modules or runtime-floor APIs.
+    const operational = run(
+      node,
+      [
+        '--input-type=module',
+        '-e',
+        `
+      import assert from 'node:assert/strict';
+      import { mkdir, writeFile, readFile, access, realpath } from 'node:fs/promises';
+      import { join, dirname } from 'node:path';
+      import { spawnSync } from 'node:child_process';
+      import * as api from '@tkstang/session-toolkit';
+      const home = await realpath(process.env.HOME), cwd = join(home, 'fixture-repo');
+      process.env.HOME = home;
+      await mkdir(cwd);
+      const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+      const claude = join(home, '.claude/projects', cwd.replace(/[/.]/g, '-'), id + '.jsonl');
+      const codex = join(home, '.codex/sessions', 'rollout-' + id + '.jsonl');
+      const cursor = join(home, 'cursor.jsonl');
+      for (const [path, records] of [
+        [claude, [{sessionId:id,cwd,type:'user',message:{content:'archive question'}},{type:'assistant',message:{content:'archive answer'}}]],
+        [codex, [{type:'session_meta',payload:{id,cwd}},{type:'response_item',payload:{type:'message',role:'user',content:[{type:'input_text',text:'archive question'}]}},{type:'response_item',payload:{type:'function_call',call_id:'a',name:'exec_command',arguments:'{"cmd":"echo hi"}'}}]],
+        [cursor, [{role:'user',message:{content:[{type:'text',text:'archive question'}]}},{role:'assistant',message:{content:[{type:'text',text:'archive answer'}]}},{type:'turn_ended',status:'success'}]]
+      ]) {
+        await mkdir(dirname(path), {recursive:true});
+        await writeFile(path, records.map(r=>JSON.stringify(r)).join('\\n')+'\\n');
+      }
+      const listed = await api.listSessions({homeDir:home,cwd});
+      assert.equal(listed.kind, 'historical'); assert.equal(listed.candidates.length,2);
+      const exact = await api.identifyCurrentTranscript({homeDir:home,cwd,env:{CLAUDE_SESSION_ID:id}});
+      assert.equal(exact.status,'authoritative');
+      assert.equal((await api.revalidateCurrentTranscript(exact,{homeDir:home,cwd,env:{CLAUDE_SESSION_ID:id}})).status,'authoritative');
+      for (const [runtime,path] of [['claude-code',claude],['codex',codex],['cursor',cursor]]) {
+        const page = await api.parseTranscript({runtime,path});
+        assert.equal(page.messages[0].text,'archive question');
+        assert.equal(page.coverage.complete,true);
+      }
+      assert.equal((await api.readTranscript({homeDir:home,session:'claude-code:'+id})).messages[1].text,'archive answer');
+      const evidence = await api.readEvidence({homeDir:home,session:'codex:'+id});
+      assert.ok(evidence.evidence.cutoff); assert.ok(evidence.activity.events.some(event => event.kind === 'call'));
+      const out = join(home,'archive-export.md');
+      await api.exportMarkdown({homeDir:home,session:'claude-code:'+id,out});
+      assert.match(await readFile(out,'utf8'), /archive answer/);
+      const cli = (...args) => {
+        const result = spawnSync(process.execPath, [${JSON.stringify(bin)}, ...args, '--json'], {cwd,env:process.env,encoding:'utf8'});
+        assert.equal(result.status,0,result.stderr+result.stdout);
+        const value = JSON.parse(result.stdout); assert.equal(value.ok,true); return value.data;
+      };
+      assert.equal(cli('list').candidates.length,2);
+      for (const [runtime,path] of [['claude-code',claude],['codex',codex],['cursor',cursor]])
+        assert.equal(cli('parse',path,'--runtime',runtime).messages[0].text,'archive question');
+      assert.equal(cli('read','--session','claude-code:'+id).messages[1].text,'archive answer');
+      assert.ok(cli('read','--session','codex:'+id,'--evidence').evidence.cutoff);
+      cli('export','--session','claude-code:'+id,'--out',join(home,'cli-export.md'));
+      await assert.rejects(access(process.env.STATE_DIR));
+      process.stdout.write('OPERATIONS_OK\\n');
+    `,
+      ],
+      prefix,
+      env,
+    );
+    assert.equal(operational, 'OPERATIONS_OK\n');
+    const consumerTypes = join(prefix, 'consumer.mts');
+    writeFileSync(
+      consumerTypes,
+      `
+      import { parseTranscript, readEvidence, identifyCurrentTranscript, exportMarkdown,
+        type ReadOptions, type TranscriptPage, type EvidenceOptions, type CurrentTranscriptIdentity,
+        type ExportResult } from '@tkstang/session-toolkit';
+      const options: ReadOptions = {runtime:'cursor',path:'/explicit/fixture.jsonl',maxRecords:10};
+      const page: Promise<TranscriptPage> = parseTranscript(options);
+      const identity: Promise<CurrentTranscriptIdentity> = identifyCurrentTranscript({cwd:'/repo'});
+      const evidenceOptions: EvidenceOptions = {session:'codex:id'};
+      const evidence = readEvidence(evidenceOptions);
+      const exported: Promise<ExportResult> = exportMarkdown({session:'codex:id',out:'/new/file.md'});
+      void [page,identity,evidence,exported];
+    `,
+    );
+    run(
+      process.execPath,
+      [
+        join(root, 'node_modules/typescript/bin/tsc'),
+        '--noEmit',
+        '--strict',
+        '--module',
+        'nodenext',
+        '--target',
+        'es2022',
+        '--lib',
+        'es2023',
+        '--types',
+        'node',
+        '--typeRoots',
+        join(root, 'node_modules/@types'),
+        consumerTypes,
+      ],
+      prefix,
+      env,
+    );
     console.log(
-      `Archive clean-install proof passed on ${runtime}: ${paths.length} files, version/help/capabilities/API.`,
+      `Archive clean-install proof passed on ${runtime}: ${paths.length} files, import/version/help/capabilities and fixture API/CLI operations.`,
     );
     return { pkg, runtime, paths };
   } finally {
