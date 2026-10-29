@@ -67,9 +67,9 @@ oat_workflow_origin: native # native | imported
 oat_docs_updated: null # null | skipped | complete — documentation sync status
 oat_pr_status: null # null | ready | open | closed | merged — actual PR state for the current project
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
-oat_project_created: "2026-10-29T00:02:50.225Z" # ISO 8601 UTC timestamp — set once at project creation
+oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-10-29T00:02:50.225Z" # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: '2026-10-29T00:03:31.208001Z'
 oat_generated: false
 ---
 
@@ -85,7 +85,7 @@ Plan - Authoring the Project Brief
 
 ## Artifacts
 
-- **Plan:** `plan.md` (scaffolded Project Brief template — not started)
+- **Plan:** `plan.md` (alignment interview in progress; accepted goal and naming recorded)
 - **Implementation:** `implementation.md` (scaffolded brief journal template — not started)
 - **Research:** `references/research/` (empty)
 
@@ -93,7 +93,7 @@ Plan - Authoring the Project Brief
 
 - ✓ Brief project scaffolded
 - ✓ Brief and implementation artifacts scaffolded
-- ⧗ Awaiting brief interview and authoring
+- ⧗ Alignment interview: package home and consumer distribution choices pending
 
 ## Blockers
 
@@ -101,4 +101,4 @@ None
 
 ## Next Milestone
 
-Run `oat-project-brief` to author and approve the brief
+Settle architecture and delivery authority, then author and review the complete brief

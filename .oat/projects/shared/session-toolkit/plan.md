@@ -39,7 +39,7 @@ provisional. Do not add `### Task` headings to phases.
 
 ## Goal
 
-[State the outcome this project must achieve and why it matters.]
+Create `@tkstang/session-toolkit` with the `seshtk` CLI as the maintained owner of provider/session identity, transcript discovery, parsing and reads, historical search, export, and structured activity extraction shared by Skills and ORC. Remove duplicated authored provider logic while preserving the capabilities each repository already provides.
 
 ## Outcomes
 
@@ -50,7 +50,7 @@ provisional. Do not add `### Task` headings to phases.
 
 ## Approach
 
-[Describe the intended approach: the modules and contracts involved and how the change fits them.]
+Alignment interview in progress. Use the existing reconnaissance and independent Opus review as evidence inputs. Package location, consumer distribution, migration boundaries, and delivery authority remain to be agreed; the brainstorm is a proposal rather than an approved design.
 
 <!-- Optional: add a `### Design` subsection when architecture decisions need recording. Delete this comment otherwise. -->
 
@@ -61,7 +61,8 @@ provisional. Do not add `### Task` headings to phases.
 
 ## Decisions
 
-- [Record each decision made by the user during the interview, with its rationale.]
+- **Accepted naming:** npm package `@tkstang/session-toolkit`; CLI `seshtk`. Recorded in DR-261028-session-toolkit-naming. Alternatives `stk` and `sesh` were rejected after finding existing CLI conflicts.
+- **Workflow:** the user selected brief mode after comparing it with quick-start and pursuing-goals. One cross-repository delivery needs architecture alignment and phases with completion evidence; execution records will be created during implementation.
 
 ## Known Unknowns
 
@@ -136,4 +137,7 @@ Ready for final code review and PR preparation.
 
 - Journal: `implementation.md`
 - Research: `references/research/`
+- Reconnaissance: `../../../repo/reference/brainstorms/2026-10-28-shared-session-toolkit.md`
+- Independent proposal review: `../../../repo/reference/brainstorms/2026-10-28-shared-session-toolkit-opus-review.md`
+- Accepted naming: `../../../repo/reference/decisions/DR-261028-session-toolkit-naming.md`
 - Project log: `project-log.md` (when enabled)
