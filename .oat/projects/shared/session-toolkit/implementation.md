@@ -368,9 +368,9 @@ p03 made concrete after p02 acceptance, within unchanged approved outcomes and t
 
 **Status:** completed
 **Executor:** phase-implementer:session-toolkit-p03-implement-20261029
-**Handle:** /root/session_toolkit_p03
+**Handle:** /root/session*toolkit_p03
 **Intent:** Preserve donor tiered raw-unit search, accelerators, redaction, widening and cost semantics behind a deliberate typed package API and CLI.
-**Files:** packages/session-toolkit/src/search-_.ts; index.ts; cli.ts; capabilities.ts; domain.ts; tests/release/session-toolkit-search-_.test.ts; CHANGELOG.md.
+**Files:** packages/session-toolkit/src/search-*.ts; index.ts; cli.ts; capabilities.ts; domain.ts; tests/release/session-toolkit-search-\_.test.ts; CHANGELOG.md.
 **Proof:** pnpm run build:toolkit; pnpm run test:vitest tests/release/session-toolkit-search-\*.test.ts tests/release/session-toolkit-cli.test.ts tests/release/session-toolkit-operations.test.ts; pnpm run type-check; scoped oxlint/oxfmt.
 
 **Commit:** 2389d89ade81557556a658c0cf5f683eedf0c600
@@ -411,6 +411,33 @@ p03 made concrete after p02 acceptance, within unchanged approved outcomes and t
 
 **Commit:** d87404a9a5e80b861aafaf7b3149f9a6b290372c
 **Verification:**28 package files/623 tests; remaining repository suite210files/3465tests plus2files/3tests skipped with exactly the2known baseline exclusions; root/package types and scoped lint/format pass. Serialized build:check,validate,smoke pass. Initial51-file exact archive50579cf159c725d50c621332e0523ddc5d8d8ea7823d41a92b8dbabe45957918 passes clean API/CLI/strict declarations on actual22.0.0/24.21.0 and npm publication dry run. References reconcile current API/help/capabilities and donor parity. No publication or migration. Final headerless-continuation provenance transition remains to verify; if corrected, initial archive is superseded by fresh proof.
+
+### Task p03-t05: Finalize recovery and exact-archive evidence
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p03-implement-20261029
+**Handle:** /root/session_toolkit_p03
+**Intent:** Record successful append-only continuation-identity recovery and refreshed exact-archive proof after the correction.
+**Files:** references/p03-parity.md; references/p03-verification.md.
+**Proof:** Fresh Node24 release dry run, same-archive Node22.0.0 proof, installed continuation assertion on both runtimes; scoped Markdown formatting and diff check; repository validate.
+
+**Commit:** eebdfcea2c2a6787305d8fa667bb9385fac234bd
+**Verification:** Final51-file archive4490775e57a55e1b659226c60f29fc65e7546e5086a9303b91dc6c9970521c84 passes clean installed API/CLI/strict declarations on actual22.0.0/24.21.0 and npm publication dry run. Separate installed continuation assertion passes on both runtimes. Markdown formatting, diff check and repository validate pass. Final package bytes derive from successful recovery6b801bc; this unit changes evidence only.
+
+### Recovery Event session-toolkit-p03-recovery-01
+
+- Phase/task: p03/p03-t02
+- Original request: session-toolkit-p03-implement-20261029
+- Original commit: 29983c05b73353bd2c1826ef7db4c7f81bc6d626
+- Defect class: composition
+- Discovered by: node /tmp/session-toolkit-p03-continuation-check.mjs
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 1/10
+- Dispatch target: oat-phase-implementer-gpt-6-1-sol-high
+- Recovery commit: 6b801bc74e205ee0491f36d0d65f9c583bc885be
+- Verification: focused public continuation assertion and5-test activity regression pass; root/package types,210files/3466tests with documented baseline exclusions, build:check, validate and smoke pass before and immediately after candidate commit; fresh exact archive and installed continuation proof pass on actual22.0.0/24.21.0.
+- Reason: mechanically propagate already validated selected native identity into activity/usage extraction on headerless suffix pages; no scope, architecture or public requirement change. Reservation656db99 precedes edits; immutable original task commit preserved. Prior usage0, used1, limit10, remaining9; matching completed pending marker retained for root validation. p01/p02 ledger entries unchanged.
 
 ## Phase p04: Publish the toolkit and migrate Skills consumers
 
