@@ -106,6 +106,39 @@ it('preserves full Codex fields, associations, usage and source evidence absent 
     'tail-evidence',
   );
 });
+it('retains selected Codex identity and usage when continuation omits the header', async () => {
+  const path = codex();
+  appendFileSync(
+    path,
+    JSON.stringify({
+      type: 'token_usage_record',
+      payload: {
+        thread_id: id,
+        response_id: 'response',
+        usage: { input_tokens: 23 },
+      },
+    }) + '\n',
+  );
+  const first = await captureActivity({ ...options(), maxRecords: 1 });
+  expect(first.sourceRead.nextCursor).toBeTypeOf('string');
+  const suffix = await captureActivity({
+    ...options(),
+    cursor: first.sourceRead.nextCursor!,
+  });
+  expect(suffix.source).toEqual(first.source);
+  expect(suffix.source).toMatchObject({ sessionId: id, nativeSessionId: id });
+  expect(suffix.events.find((e) => e.kind === 'result')?.eventKey).toContain(
+    'codex:' + id + ':',
+  );
+  expect(
+    suffix.sourceMetadata?.usage?.samples.map((sample) => sample.tokens),
+  ).toContainEqual({ usage: { input_tokens: 23 } });
+  expect(suffix.sourceMetadata?.usage?.diagnostics).not.toContainEqual(
+    expect.objectContaining({ code: 'USAGE_SESSION_MISMATCH' }),
+  );
+  expect(suffix.sourceRead.coverage.fullSource).toBe(false);
+  expect(suffix.sourceRead.coverage.reasons).toContain('prefix-not-read');
+});
 it('retains Claude arguments/results and honest malformed/paged source coordinates', async () => {
   const path = writeClaudeSession(temp.home, {
     sessionId: id,

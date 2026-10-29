@@ -88,7 +88,7 @@ oat_phase_recovery_policy:
       pending_attempt:
         attempt: 1
         event_id: session-toolkit-p03-recovery-01
-        status: active
+        status: completed
         original_request_id: session-toolkit-p03-implement-20261029
         original_task_id: p03-t02
         original_commit: 29983c05b73353bd2c1826ef7db4c7f81bc6d626

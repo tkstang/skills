@@ -2,8 +2,9 @@ import type {
   CorrelatedActivity,
   CorrelatedActivityEvent,
 } from './activity-types.js';
-import { readTranscript, type SessionReadOptions } from './discovery.js';
+import { resolveSession, type SessionReadOptions } from './discovery.js';
 import { extractPageActivity } from './page-summary.js';
+import { parseTranscript } from './reader.js';
 import type { TranscriptPage, SourceRecord, ReadDiagnostic } from './reader.js';
 
 export type ActivityOptions = Omit<
@@ -36,13 +37,21 @@ export interface ActivityCapture extends CorrelatedActivity {
 export async function captureActivity(
   options: ActivityOptions,
 ): Promise<ActivityCapture> {
-  const page = await readTranscript({
+  const selected = await resolveSession(options.session, options);
+  const page = await parseTranscript({
     ...options,
+    runtime: selected.runtime,
+    path: selected.transcriptPath,
     includeToolCalls: false,
     includeToolResults: false,
     includeActivity: false,
   });
-  const correlated = extractPageActivity(page);
+  const correlated = extractPageActivity(page, {
+    runtime: selected.runtime,
+    sessionId: selected.sessionId,
+    nativeSessionId: selected.metadata.nativeSessionId ?? selected.sessionId,
+    transcriptPath: selected.transcriptPath,
+  });
   if (page.runtime === 'cursor')
     for (const diagnostic of page.diagnostics) {
       correlated.diagnostics.push({

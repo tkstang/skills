@@ -4,7 +4,7 @@ import { correlateActivity } from './activity-correlate.js';
 import { extractCursorActivity } from './activity-cursor.js';
 import { extractActivity } from './activity-extract.js';
 import { projectActivity } from './activity-project.js';
-import type { ActivityReport } from './activity-types.js';
+import type { ActivityReport, ActivitySource } from './activity-types.js';
 import { createCursorTurnAccumulator } from './cursor-analysis.js';
 import type { CursorTranscriptScan } from './cursor-frames.js';
 import type { TranscriptPage } from './reader.js';
@@ -13,12 +13,16 @@ export type PageActivitySummary = Pick<
   'counts' | 'coverage' | 'diagnostics' | 'sourceMetadata'
 > & { scope: 'captured-page'; sourceComplete: boolean };
 /** Summaries retain explicit source coverage and usage, independently of conversation filters. */
-export function extractPageActivity(page: TranscriptPage) {
+export function extractPageActivity(
+  page: TranscriptPage,
+  selectedSource?: ActivitySource,
+) {
   const id =
+    selectedSource?.nativeSessionId ??
     page.metadata?.nativeSessionId ??
     page.metadata?.sessionId ??
     basename(page.path, '.jsonl');
-  const source = {
+  const source = selectedSource ?? {
     runtime: page.runtime,
     sessionId: id,
     nativeSessionId: id,
