@@ -388,6 +388,18 @@ p03 made concrete after p02 acceptance, within unchanged approved outcomes and t
 **Commit:** 29983c05b73353bd2c1826ef7db4c7f81bc6d626
 **Verification:** Toolkit build,8 files/102 activity/read/CLI tests, root/package types, scoped lint/format and diff review pass. Controlled long Claude/Codex arguments/results and usage survive untruncated; raw source coordinates and malformed/paged coverage retained. Cursor frame calls preserve long input and terminal/source locators while explicitly reporting missing per-call results/usage. Existing summary delegates to the same extraction function and keeps its prior projection.
 
+### Task p03-t03: Add isolated cached interactive update notices
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p03-implement-20261029
+**Handle:** /root/session_toolkit_p03
+**Intent:** Notify interactive operation users of stable newer releases through stderr only, with24-hour cache and a1-second registry timeout, zero update I/O in machine/library/hook contexts.
+**Files:** packages/session-toolkit/src/update-notice.ts; bin.ts; packages/session-toolkit/README.md; tests/release/session-toolkit-update.test.ts; CHANGELOG.md.
+**Proof:** Build; built CLI subprocess tests intercept the external fetch boundary and independently log requests; current/newer/offline/cache/quiet/timeout cases; root/package types and scoped lint/format.
+
+**Commit:** d2daf936a9574a7b1eaa6179eb340865885fa9c3
+**Verification:** Build,2files/13 updater+CLI tests, root/package types, scoped lint/format and diff review pass. Built subprocesses observe external fetch calls and cache files independently: current/newer/prerelease/offline/malformed/expired/default-cache cases;1-second abort; unchanged stdout; all suppressed contexts including bare capabilities/library import issue zero requests and no cache writes. Test preload controls only external fetch and TTY facts, not own modules or production flags. Updater is bin-only and absent from public exports.
+
 ## Phase p04: Publish the toolkit and migrate Skills consumers
 
 **Status:** pending
