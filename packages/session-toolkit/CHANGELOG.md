@@ -14,6 +14,8 @@ plugin versions. These notes describe package content, not publication receipts.
   sanitized conversational Markdown export and separate sensitive full activity.
 - Offer cached, best-effort stable-release notices only for interactive CLI
   operations; machine/library/hook contexts do not check for updates.
+- Create sensitive activity JSON artifacts with owner-only permissions and
+  refuse existing destinations.
 - Validate one exact archive through clean installed API, declaration and CLI
   checks on supported runtimes. Skills and ORC migration is separate delivery;
   their state, watch/control and host policy remain consumer-owned.

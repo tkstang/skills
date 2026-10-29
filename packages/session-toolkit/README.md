@@ -229,6 +229,8 @@ retains full raw captured records (including instruction carriers), raw tool
 arguments/results, correlations, usage when recorded, provenance and source
 coordinates. The activity events select supported tool/item/metadata facts;
 the raw records preserve other provider detail. No preview caps apply.
+`--out` creates a new file with owner-only permissions (`0600`) and refuses
+to overwrite an existing destination.
 
 All three providers support captured activity. Cursor uses frame extraction:
 recorded calls and turn lifecycle are available; individual call results,

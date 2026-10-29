@@ -317,7 +317,7 @@ function createProgram(output: Output, json: boolean): Command {
         await writeFile(
           o.out as string,
           JSON.stringify(capture, null, 2) + '\n',
-          { flag: 'wx' },
+          { flag: 'wx', mode: 0o600 },
         );
         return {
           kind: 'sensitive-activity-artifact',

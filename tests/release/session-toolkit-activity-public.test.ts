@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { beforeEach, afterEach, expect, it } from 'vitest';
@@ -212,7 +212,13 @@ it('returns the same sensitive evidence through the built CLI and exclusive JSON
     ).result,
   ).toBe(long);
   const out = join(temp.root, 'activity.json');
-  expect(cli(['--session', 'codex:' + id, '--out', out]).status).toBe(0);
+  const previousUmask = process.umask(0o022);
+  try {
+    expect(cli(['--session', 'codex:' + id, '--out', out]).status).toBe(0);
+  } finally {
+    process.umask(previousUmask);
+  }
+  expect(statSync(out).mode & 0o777).toBe(0o600);
   expect(
     JSON.parse(readFileSync(out, 'utf8')).sourceRead.coverage.fullSource,
   ).toBe(true);

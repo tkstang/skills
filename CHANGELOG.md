@@ -17,6 +17,9 @@
 
 ### Fixed
 
+- Session Toolkit 0.1.0 creates sensitive activity JSON artifacts with owner-only
+  permissions while preserving exclusive creation.
+
 - Session Toolkit 0.1.0 reports incomplete search coverage when bounded history or index readers skip malformed/oversized records or cannot read the metadata index.
 
 - Session Toolkit 0.1.0 honors the independent Codex tool-result opt-in for ordinary reads and sanitized Markdown export.
