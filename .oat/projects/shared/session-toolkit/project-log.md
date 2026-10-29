@@ -58,6 +58,10 @@ session-toolkit-p01-release-prereqs-20261029: Read-only checks establish GitHub 
 
 session-toolkit-p01-root-lint-20261029: Root committed a small review correction before acting on a reported lint error. History was preserved; attempt 2 repaired only the useless fixture spread and passed scoped lint, eight tests and type-check before and after commit. Keep command failures visible and inspect every independent result before committing.
 
+### 2026-10-29 · structural · oat-project-implement · p02
+
+session-toolkit-p02-concrete-20261029: p02 made concrete against p01 package/command contracts and consumer inventory within approved outcomes: exact identity plus lineage, discovery, detailed reads/parsing/evidence, safe export and donor parity. No consumer cutover or publication.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

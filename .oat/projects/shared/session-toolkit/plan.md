@@ -157,9 +157,9 @@ The final reference covers every shipped command, argument, flag, default, selec
 
 ## Phase p02: Consolidate identity, discovery, reads, and safe export
 
-**Intent:** Merge donor provider knowledge and complementary identity/lineage behavior into the package, with bounded detailed reads and explicit safe export projections. Remove replaced donor source only as consumers transition, retaining a traceable migration inventory.
-**Exit evidence:** Representative provider regression fixtures and parity evidence cover exact/ambiguous/unavailable identity, discovery/ranking separation, lineage, source coordinates, incomplete/malformed tails, sanitization and opt-in tools. Import safety and Node 22/24 checks pass; any discovered behavior difference has an explicit disposition.
-**Provisional:** yes
+**Intent:** Implement the p01-selected identity, list, read, parse, exact Codex evidence and sanitized Markdown export library/CLI boundaries from `references/package-contract.md` and `references/cli-command-map.md`. Merge ORC's fail-closed exact identity/revalidation with Skills lineage and provider knowledge; keep historical ranking separate. Retain raw/detailed evidence and explicit provider coordinates underneath projections, with bounded reads, generation-bound continuation and discovery coverage. Keep consumers and their state untouched until p04/p05; donor code may remain during this staged transition, with traceable ownership in the inventory. No toolkit selection/watch state, ORC dependency, search/activity completion or publication is introduced here.
+**Exit evidence:** Controlled Claude Code, Codex and Cursor fixtures exercise the public API and built CLI for exact/ambiguous/unavailable identity and lineage, discovery/ranking separation and budgets, explicit-file parsing, detailed source carriers/physical and decoded ordinals, malformed/incomplete tails, source-generation/cursor validation, bounded continuation and opt-in conversation/tools. Exact Codex evidence preserves cutoff/expansion/redaction semantics with unsupported providers refusing explicitly. Sanitized export preserves marker/batch/ambiguity behavior, independent tool opt-ins and destination confinement. A donor-parity matrix records every intentional difference and its disposition, and the consumer inventory is current without production cutover. Capability IDs/providers advertise only verified behavior. Import safety, typed declarations, relevant donor/package/repository checks, and a clean archive install with representative fixture operations on actual Node 22.0.0 and 24 pass; full-suite baseline environment limitations remain explicit rather than passed. No package module imports donor-repository source, private ORC packages or consumer state; no live transcripts are needed for fixture evidence.
+**Provisional:** no
 
 ## Phase p03: Add search, activity, and CLI update notices
 
@@ -189,6 +189,7 @@ No parallel phase groups are declared (`oat_plan_parallel_groups: []`). Package 
 | ----- | -------- | --------------- | ---------- | ----------------------------------------------------------- | ---------------------------------------- | ---------- | -------------------- |
 | plan  | artifact | passed          | 2026-10-29 | structured                                                  | a28f2037c2c38c5d665e863129aa794e856ef3fd | auto       | -                    |
 | p01   | code     | fixes_completed | 2026-10-29 | reviews/p01-review-2026-10-29T135009Z.md                    | 4212674c1bb9a12bc1a61a3256c85f20e971fbc9 | manual     | -                    |
+| p02   | code     | pending         | -          | -                                                           | -                                        | -          | -                    |
 | final | code     | pending         | -          | -                                                           | -                                        | -          | -                    |
 | plan  | artifact | fixes_completed | 2026-10-29 | reviews/archived/artifact-plan-review-2026-10-29T031602Z.md | 02b1f285928e22357f6a8b66a9ddffecb6f3b43e | gate       | claude-opus-5-5-high |
 | plan  | artifact | passed          | 2026-10-29 | structured                                                  | 77599b3deb3bf460225e952900ac8676939e960e | auto       | -                    |
@@ -201,7 +202,7 @@ Initial Codex artifact review passed with no findings. The configured Opus brief
 
 ## Implementation Complete
 
-Implementation is active. p01 is accepted after independent review and bounded corrections; p02–p05 remain provisional and unaccepted. The package is not yet published and no consumer cutover has occurred.
+Implementation is active. p01 is accepted after independent review and bounded corrections; p02 is concrete; p03–p05 remain provisional. Four phases remain unaccepted. The package is not yet published and no consumer cutover has occurred.
 
 ## References
 

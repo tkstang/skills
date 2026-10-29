@@ -162,6 +162,8 @@ Root consumed exactly one `Reconnaissance: not-attempted` confirmation; artifact
 
 **Status:** pending
 
+p02 made concrete from the reviewed p01 package/command contract and consumer inventory. The phase implements the agreed provider core and export, preserves existing consumer state, and records donor parity before migration. This elaborates the approved outcomes and phase boundary; no scope, endpoint or authority change.
+
 ## Phase p03: Add search, activity, and CLI update notices
 
 **Status:** pending
