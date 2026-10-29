@@ -137,7 +137,7 @@ None
 
 ## Next Milestone
 
-p04-t01 is committed and verified; root owns the clean intermediate publication handoff. Independently review the integrated clean release candidate, then execute authorized publication and resume the same implementer for Skills migration when credentials and checks permit. p01–p03 are accepted; two phases remain. Final p03 fixes pass 628 package tests and exact archive checks on actual Node 22.0.0/24.21.0. No package publication or consumer cutover has occurred. Baseline full-suite environment failures remain explicit.
+p04-t01 is committed and verified; root owns the clean intermediate publication handoff. Release candidate and bounded M1 correction are independently reviewed; PR149 awaits latest-head CI/review completion before authorized merge. Then prepare from merged source, verify exact reviewed archive equivalence, complete npm bootstrap/trusted-publisher prerequisites and publication, and resume the same implementer for Skills migration. p01–p03 are accepted; two phases remain. Final p03 fixes pass 628 package tests and exact archive checks on actual Node 22.0.0/24.21.0. No package publication or consumer cutover has occurred. Baseline full-suite environment failures remain explicit.
 
 - ✓ p02 accepted after full-range independent review and verified corrections
 - ✓ p03 accepted after full-range independent review and bounded M1/L1 correction; recovery usage 1/10, pending null

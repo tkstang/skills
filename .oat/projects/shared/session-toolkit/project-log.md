@@ -94,6 +94,14 @@ The journal checker implement-preflight boundary refused because future p04/p05 
 
 p04-t01 returned a clean NEEDS_CONTEXT ownership handoff with 634 toolkit tests, 3476 broader passing tests with the two established exclusions, and clean exact-archive installs on actual Node22.0.0/24.21.0. Root integrated main through 863eede without rewriting accepted phase anchors; reprepare against that source before independent release review. No publication or consumer migration is claimed.
 
+### 2026-10-29 · project · bug · Sensitive activity output
+
+Independent release review demonstrated activity --out created0644 raw evidence under umask022. Root fix3323435 sets0600 with exclusive creation retained; the existing CLI regression fails before/passes after,634 package tests pass, and a bounded independent confirmation verifies the replacement archive on actual22.0.0/24.21.0.
+
+### 2026-10-29 · structural · oat-project-implement · p04-release-ci-wait
+
+PR149 release-prefix review and one bounded confirmation are complete; final correction/receipt push proceeds to latest-head CI/review checks, with T3 host watch required before asynchronous wait. Package publication and Skills migration remain pending; no phase acceptance or delivery completion is claimed.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
