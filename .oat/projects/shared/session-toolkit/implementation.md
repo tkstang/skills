@@ -211,6 +211,35 @@ Proof: `pnpm run build:toolkit`; focused identity/discovery/runtime/read tests; 
 
 Verification: 182 focused tests, toolkit build, root/package type-check, scoped oxlint/oxfmt and diff whitespace passed. Explicit self variables intersect harness evidence; Codex grouping variables remain parent evidence, never native-thread fallbacks.
 
+### Task p02-t03: Preserve exact Codex evidence projections
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p02-implement-20261029
+**Handle:** /root/session_toolkit_p02
+
+Intent: extract complete activity provenance as the internal substrate for exact generation-bound Codex evidence, with redacted cutoff/ref/expansion semantics and opt-in read summaries. Full activity/search commands remain p03.
+Files: package activity and Cursor helper closure, evidence API, read activity summary and extracted evidence/activity protections.
+Proof: toolkit build, package activity/evidence/read tests, type-check, scoped lint/format.
+
+**Commit:** 4ea21f5a8d021a1bc21ee9ba012e5a2ef24caecf
+
+Verification: 91 focused evidence/read/activity tests, root/package type-check, scoped lint/format and build passed. The extracted activity tests protect native provenance/usage/correlation, independently of the new public evidence controls; these protections are not removed from donors during staged migration. Full activity is not advertised.
+
+### Recovery Event session-toolkit-p02-recovery-02
+
+- Phase/task: p02 / p02-t02
+- Original request: session-toolkit-p02-implement-20261029
+- Original commit: 84d53213ef8f1d417a0eea5ccbfe2bcf8bb242c4
+- Defect class: composition
+- Discovered by: donor parity transition check of Codex native carrier and filename casing protections
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 2/10
+- Dispatch target: oat-phase-implementer-gpt-6-1-sol-high
+- Recovery commit: eb745159dda9b807adfe7a1e27663a376b123fdf
+- Verification: 5 discovery regressions and 181 runtime/read/identity/CLI tests, toolkit build, root/package type-check and scoped lint passed before and immediately after the candidate at clean HEAD. Regression fails against the immutable uncorrected discovery source.
+- Reason: Premature Codex filename filtering excluded valid native metadata carriers and case-varied filenames. Removed only that filter, retaining bounded metadata/ambiguity checks. Recovery01 settled by root commit517108c36af839c10d416b44afc7e5c0604d978d; usage2/10, remaining8; completed marker retained. Live-owner t03 dirt was captured outside the tree at `/var/folders/_v/ld1wc16d0sg2qxkqjxgm7dyc0000gn/T/seshtk-p02-t03-park-nr7flnz7`, manifest SHA256 `c8aa14824c9f476cad2861b6dbdc7d2c752d66e9cdb5260f7170757bfe98adc0`, size323819bytes/base517108c. All26 exact owned paths verified against manifest before parking and after byte-for-byte replay; no unrelated paths/history touched and no recovery-patch commit was needed for the same live owner's in-flight work.
+
 ## Phase p03: Add search, activity, and CLI update notices
 
 **Status:** pending
