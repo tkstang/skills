@@ -173,7 +173,18 @@ export async function listSessions(
             continue;
           }
           if (!entry.isFile() || !entry.name.endsWith('.jsonl')) continue;
-          if (pin && runtime !== 'codex' && basename(path, '.jsonl') !== pin.id)
+          if (
+            pin &&
+            runtime !== 'codex' &&
+            basename(path, '.jsonl') !== pin.id &&
+            !(
+              runtime === 'cursor' &&
+              ['transcript', 'conversation', 'messages'].includes(
+                basename(path, '.jsonl'),
+              ) &&
+              basename(directory) === pin.id
+            )
+          )
             continue;
           const info = await stat(path);
           if (

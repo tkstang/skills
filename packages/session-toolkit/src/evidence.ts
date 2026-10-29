@@ -337,10 +337,13 @@ export async function buildEvidenceReview(
     read.records.map(({ record }) => record),
     transcriptPath,
   );
+  const capturedCwd = identity?.recordedCwd
+    ? await realpath(identity.recordedCwd)
+    : undefined;
   if (
     !identity ||
     identity.nativeSessionId !== candidate.sessionId ||
-    identity.recordedCwd !== args.cwd
+    capturedCwd !== args.cwd
   )
     throw new Error('EVIDENCE_SOURCE_IDENTITY_MISMATCH');
   const boundary: Boundary = {

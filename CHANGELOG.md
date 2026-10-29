@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Session Toolkit 0.1.0 reads generic Cursor transcript carriers returned by listing and accepts canonical Codex cwd aliases while keeping evidence cutoffs bound to their original directory.
+
 - Session Toolkit 0.1.0 filters unrelated Codex sessions during exact selection, recognizes current Claude project slugs containing spaces or underscores, and avoids repeated growing-prefix projection on ordinary bounded reads while preserving whole-record message limits.
 
 ### Added

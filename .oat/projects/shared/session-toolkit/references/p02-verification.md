@@ -99,3 +99,28 @@ that build and execute the same output must run serially.
 - Recovery ledger is settled: used4/10, remaining6, pendingnull. Review fixes
   consume no recovery attempt. The earlier completed04 handoff text above is
   historical and has since been settled by root.
+
+## Review fix p02-t07 (M1/M2) and corrected archive
+
+- Both public regressions failed before correction: exact read of a listed
+  generic Cursor carrier returned E_UNAVAILABLE; captured Codex cwd alias
+  returned EVIDENCE_SOURCE_IDENTITY_MISMATCH. Log:
+  `/tmp/session-toolkit-p02-medium-red.log`.
+- Corrected public discovery/evidence tests pass12/12; the final Cursor oracle
+  checks retained raw records because uncommitted Cursor turns intentionally
+  have no conversation projection. Duplicate generic carriers still refuse;
+  alias retargeting refuses an old cutoff with E_CURSOR_INVALID; raw source
+  bytes remain unchanged.
+- All342 package tests pass after toolkit build; root/package type-check,
+  scoped lint/format, generated build:check (after tests), validate and smoke
+  pass. The unrelated broad suite was not repeated; historical baseline
+  exclusions remain as documented above. Recovery stays4/10,pendingnull.
+- Corrected archive:
+  `/tmp/session-toolkit-p02-reviewed-proof-20261029/tkstang-session-toolkit-0.1.0.tgz`.
+  SHA256: `148d1980d82cafe30e20d557064b06de38d2da8481a45e394b18257b1d02bd28`.
+  All34 packed files validated; exact bytes clean-installed and fixture API/CLI
+  operations, import safety, version/help/capabilities and strict installed
+  declarations pass on actual v22.0.0 and v24.21.0. npm publication dry run
+  passes. The receipt names preparation HEAD8a454ba plus the pending M1/M2
+  product diff; this is development proof, not publication attestation.
+  Earlier archives are historical only. No publication or consumer cutover.

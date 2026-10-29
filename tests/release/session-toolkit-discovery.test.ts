@@ -229,6 +229,44 @@ describe('historical listing and exact identity remain separate', () => {
         code: 'E_UNAVAILABLE',
       });
     }));
+  it('reads listed generic Cursor carriers and refuses duplicates', async () =>
+    fixture(async (home, cwd) => {
+      const dir = join(
+        home,
+        '.cursor/projects',
+        cwd.split(/[/.]/u).filter(Boolean).join('-'),
+        'agent-transcripts',
+        ID,
+      );
+      await put(join(dir, 'transcript.jsonl'), [
+        {
+          role: 'user',
+          message: { content: [{ type: 'text', text: 'generic carrier' }] },
+        },
+      ]);
+      const listed = await listSessions({
+        homeDir: home,
+        cwd,
+        runtime: 'cursor',
+      });
+      expect(listed.candidates.map((candidate) => candidate.sessionId)).toEqual(
+        [ID],
+      );
+      const options = { homeDir: home, session: `cursor:${ID}` };
+      expect((await readTranscript(options)).records[0].record).toEqual({
+        role: 'user',
+        message: { content: [{ type: 'text', text: 'generic carrier' }] },
+      });
+      await put(join(dir, 'conversation.jsonl'), [
+        {
+          role: 'user',
+          message: { content: [{ type: 'text', text: 'duplicate carrier' }] },
+        },
+      ]);
+      await expect(readTranscript(options)).rejects.toMatchObject({
+        code: 'E_AMBIGUOUS',
+      });
+    }));
   it('reports budgets, result omissions, time filters and exact duplicate refusal', async () =>
     fixture(async (home, cwd) => {
       for (const n of ['one', 'two'])

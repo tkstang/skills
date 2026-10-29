@@ -55,8 +55,10 @@ separately in p02 verification evidence.
 Exact Codex discovery filters valid unrelated native sessions; conflicting carriers
 claiming the selected ID, duplicate native matches and incomplete scans still refuse.
 Claude exact identity and discovery share the current every-nonalphanumeric cwd
-slug plus the selected slash/dot and slash-only variants. Cursor discovery and
-raw-vs-canonical evidence cwd review findings M1/M2 remain root-owned.
+slug plus the selected slash/dot and slash-only variants. Cursor exact selection also accepts the three generic transcript carrier names
+under the selected native-ID directory, preserving duplicate refusal. Exact Codex
+evidence canonicalizes captured cwd metadata for comparison without changing raw
+records; cutoffs remain bound to the canonical selected directory.
 
 Ordinary reads normalize once. Message-limited reads count cached prefixes with
 a logarithmic boundary search, then normalize the selected whole records once;

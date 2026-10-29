@@ -6,6 +6,8 @@ import {
   rm,
   realpath,
   rename,
+  symlink,
+  readFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -104,6 +106,31 @@ describe('public exact Codex evidence', () => {
       expect(serialized).not.toContain('edge-secret-value');
       expect(serialized).not.toContain('private.example');
       expect(serialized).toContain('[REDACTED]');
+    }));
+  it('canonicalizes captured cwd aliases while binding cutoffs to the original directory', async () =>
+    fixture(async (home, path, cwd) => {
+      const alias = join(home, 'repo-alias');
+      await symlink(cwd, alias, 'dir');
+      const raw = (await readFile(path, 'utf8')).replace(
+        JSON.stringify(cwd),
+        JSON.stringify(alias),
+      );
+      await writeFile(path, raw);
+      const options = { homeDir: home, session: `codex:${ID}` };
+      const base = await readEvidence(options);
+      expect(base.recordedCwd).toBe(cwd);
+      expect(
+        (await readEvidence({ ...options, cutoff: base.evidence.cutoff }))
+          .evidence.cutoff,
+      ).toBe(base.evidence.cutoff);
+      expect(await readFile(path, 'utf8')).toBe(raw);
+      const other = join(home, 'other-repo');
+      await mkdir(other);
+      await rm(alias);
+      await symlink(other, alias, 'dir');
+      await expect(
+        readEvidence({ ...options, cutoff: base.evidence.cutoff }),
+      ).rejects.toMatchObject({ code: 'E_CURSOR_INVALID' });
     }));
   it('freezes appends but refuses rewrite, shrink, replacement and foreign references', async () =>
     fixture(async (home, path) => {
