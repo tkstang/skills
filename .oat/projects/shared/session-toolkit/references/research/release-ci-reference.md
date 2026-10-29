@@ -29,7 +29,7 @@ OAT's CLI declares `node >=22.17.0`. Its release workflow explicitly runs Node 2
 
 Sources: [OAT consumer engines, lines 72–73](https://github.com/voxmedia/open-agent-toolkit/blob/56f864ae0c3b070b8fb227e97983caab3c062fdf/packages/cli/package.json#L72), [OAT release runtime, lines 88–95](https://github.com/voxmedia/open-agent-toolkit/blob/56f864ae0c3b070b8fb227e97983caab3c062fdf/.github/workflows/release.yml#L88), [Exhibit engines, lines 109–112](https://github.com/tkstang/exhibit/blob/40687f9074f65443a020275ee97b1164d04dda70/package.json#L109).
 
-The user has not yet selected the toolkit consumer floor. Current recommendation: support Node 22 and 24, validate the chosen dependencies and built artifact against both, and use Node 24 for release tooling. Select an exact supported Node 22 patch floor from actual code and dependency requirements.
+The user selected support for Node 22 and 24. Validate the chosen dependencies and built artifact against both, and use Node 24 for release tooling. Select an exact supported Node 22 patch floor from actual code and dependency requirements.
 
 ## Bootstrap and trusted publishing
 

@@ -17,105 +17,123 @@ oat_generated: false
 
 # Project Brief: session-toolkit
 
-> Execute this brief using `oat-project-implement`. Phases are the units of
-> progress: each `## Phase pNN:` block carries intent and exit evidence instead
-> of planned tasks, and only the next phase must be concrete. Execution records
-> (`### Task pNN-tNN:`) live in `implementation.md`, never here.
-
-**Commit Convention:** `{type}({scope}): {description}` - e.g., `feat(p01-t01): add user auth endpoint`
-
-**Phase block grammar (strict):** each phase is one `## Phase pNN: <name>`
-heading followed by a blank line and these exact lines:
-
-```markdown
-**Intent:** one or more non-empty lines
-**Exit evidence:** one or more non-empty lines
-**Provisional:** no
-```
-
-Phase IDs are stable and document order governs execution. `**Provisional:**`
-accepts `yes` or `no`; absent means `no`. The first phase must not be
-provisional. Do not add `### Task` headings to phases.
-
 ## Goal
 
 Create `@tkstang/session-toolkit` with the `seshtk` CLI as the maintained owner of provider/session identity, transcript discovery, parsing and reads, historical search, export, and structured activity extraction shared by Skills and ORC. Remove duplicated authored provider logic while preserving the capabilities each repository already provides.
 
 ## Outcomes
 
-<!-- Number each outcome and name the evidence that will show it holds. Completion is audited against this list. -->
-
-1. **One maintained session toolkit serves Skills and ORC** — Evidence: package API and CLI acceptance checks, consumer integration evidence, and removal of duplicate authored provider implementations. Exact capabilities and phase evidence will be written after alignment.
-2. **The CLI notifies users when a newer release is available** — Evidence: controlled current/newer-version and failed-lookup checks, with session command behavior and machine-readable stdout preserved.
+1. **A public library and CLI install independently of this checkout.** Evidence: an inspected npm tarball installs in a clean temporary location; its public API imports without side effects; installed `seshtk --version`, help, machine-readable capabilities, and a representative controlled-fixture operation work on supported Node 22 and 24 versions. Packed dependencies contain no private workspace packages or unresolved workspace specifications.
+2. **Shared provider facts preserve the complementary strengths of both donors.** Evidence: representative Claude Code, Codex, and Cursor fixtures demonstrate exact identity, ambiguity/unavailability, lineage, discovery, detailed source coordinates, bounded reads, and incomplete/malformed input behavior. ORC's fail-closed evidence and revalidation combine with observer lineage; heuristic historical selection remains distinct from exact current identity.
+3. **The toolkit provides the requested search, export, and activity capabilities.** Evidence: CLI behavior checks cover the existing stateless search tiers and widening/scan-limit outcomes; sanitized Markdown retains safe defaults and explicit tool inclusion; complete activity output preserves provenance, usage, and coverage without being described as sanitized/shareable. Lossy digest projections do not become the sole source for search or activity.
+4. **Skills and ORC use one authored session engine.** Evidence: the consumer inventory maps each migrated callsite to the toolkit API, CLI, or bundled package source; selected skills and hooks pass their integration checks; ORC passes integration checks with a declared published semver dependency. Duplicate authored provider engines and redundant generic `orc session-log` command entrypoints are removed after parity, with updated callers and routing documentation. Enriched ORC `self-identify` and host integrations continue to work.
+5. **Interactive CLI users learn when a newer release is available.** Evidence: controlled version-check cases demonstrate a notice for a newer stable release, no notice for a current version, and successful session commands when the lookup fails. Notices preserve stdout contracts and remain quiet for unattended hooks and machine-oriented invocations.
+6. **The package and migrated consumers reach the agreed delivery endpoint.** Evidence: merged Skills and ORC PRs, an installed published npm release matching the validated archive, applicable skill/plugin releases, and recorded consumer verification against that release. CI and release documentation describe the package's independent version, first-publication bootstrap, and subsequent trusted publishing.
 
 ## Approach
 
-Use a small pnpm workspace in this repository with one public library and CLI package at `packages/session-toolkit/`. Keep existing skill sources and the separately managed documentation app in place. ORC imports the published package API. Interactive skills invoke the CLI with explicit prerequisite handling. Unattended hook entrypoints bundle the toolkit functions they need at build time from that same authored package source; they never fetch dependencies or prompt while firing.
+### Package and consumer boundaries
 
-Alignment interview remains in progress for the runtime baseline and acceptance of the complete design. ORC command disposition and the delivery endpoint have been selected. The existing reconnaissance and independent Opus review are evidence inputs; their other recommendations are not automatically accepted design.
+Use a small pnpm workspace with one public library + CLI package at `packages/session-toolkit/`. Keep root repository tooling private, existing canonical skills and generated distributions in place, and the separately locked documentation app outside workspace globs. Use the Foundations ESM/TypeScript library and agent-facing CLI conventions, including command factories and boundary validation where appropriate; donor CLIs currently parse arguments manually, so the new CLI boundary is new work.
 
-**Proposed update-notice behavior:** best-effort, cached checks report a newer release on interactive CLI runs through stderr. Registry failures do not fail session commands. Automatic hooks and noninteractive machine invocations remain quiet. The cache interval and check mechanism are phase-local implementation choices; there is no automatic upgrade.
+Expose an intentional typed library API and the `seshtk` bin from the same package. Library imports must not scan stores, parse process arguments, run a CLI main function, exit the process, or write state. Keep raw/detailed provider evidence separate from conversation, digest, search, and activity projections. Preserve provider-specific coordinates and coverage states rather than flattening them into one message count. Public exports are deliberate semver commitments; internal search stages need not become public APIs.
 
-<!-- Optional: add a `### Design` subsection when architecture decisions need recording. Delete this comment otherwise. -->
+ORC imports the published library. Keep its observation bridge, `RuntimeSessionObservation`, action policy, live Orca/T3 probes, terminal-attention policy, and host enrichments in ORC. The dependency direction is ORC → toolkit; the toolkit must not depend on ORC or its private packages. Preserve existing consumer state ownership and formats initially. Shared readers can support watch/catch-up without introducing a new shared state store.
+
+Interactive skills invoke compatible `seshtk` commands. A missing or incompatible executable produces a clear prerequisite choice: persistent installation or fetched execution of an explicitly selected version using `npx --package=@tkstang/session-toolkit@<approved-version> seshtk ...`. Skills check version and required capabilities and reuse valid checks within the session. They never silently fetch `@latest`. Unattended hook entrypoints bundle the functions they need from this same authored package source at build time, retaining offline execution without prompts or runtime downloads. No copied-parser fallback is maintained.
+
+### Behavior and runtime
+
+Support Node 22 and 24. Determine the exact minimum Node 22 patch and compatible dependency versions from actual APIs and dependencies, then declare and verify that floor. Run release tooling on Node 24 independently of the consumer minimum. Keep the existing repository package-manager/toolchain pins unless a concrete package requirement necessitates a scoped change.
+
+Exact self-identification requires exact evidence and explicit ambiguity/unavailability states. Historical discovery/search may rank candidates, but a unique same-cwd or newest transcript does not become exact current identity. Merge donor identity strengths without treating parent/grouping IDs as interchangeable session/thread IDs.
+
+Preserve stateless history → metadata → content → deep/tool-output search, with current redaction, widening, deadlines, and scan controls. Preserve safe conversational export defaults, explicit tool inclusion, and the separate sensitive rich-activity output contract. Transcript operations remain read-only; explicit export destinations and existing consumer state are separate write boundaries.
+
+CLI machine mode emits one stable JSON envelope on stdout; diagnostics use stderr, errors expose stable codes and actionable hints, and commands support noninteractive operation. Ship version and machine-readable capabilities. Update notifications are best-effort and cached, appear on interactive invocations through stderr, and never cause session commands to fail. Suppress notices and automatic update checks in hook and machine contexts. No automatic upgrades are introduced; cache/check details are phase-local choices.
+
+### Release and migration
+
+Adapt Exhibit's single-package validation and exact-archive handoff, plus OAT's inspection of packed metadata and non-public workspace dependency names. Use separate validation, release dry-run, and publication responsibilities with npm trusted publishing after the first-publication bootstrap. Use one independent toolkit SemVer and curated changelog; retain existing independent skill/plugin version semantics. Choose a package-specific tag namespace that coexists with existing release tags. Do not copy OAT's five-package release coordinator.
+
+Package publication precedes production consumer cutover requiring that version. Test unreleased ORC integration through a locally packed tarball and an uncommitted override; no local paths or development overrides enter release commits. ORC's 24-hour `minimumReleaseAge` hold remains in force: wait for eligibility unless the user explicitly chooses a narrow exemption. Publishing alone does not prove consumer migration or installation acceptance.
+
+Migrate the actual workflows described by ORC's skill guidance, including the observer path, alongside API consumers. Inventory the existing `locate/select/read/catch-up/export/forget` operations and their selection-state semantics. Remove redundant generic commands only once replacement behavior and affected callers are verified. Preserve ORC's enriched `self-identify`. Do not silently discard or reinterpret existing selection/cursor state; a material state-contract change requires realignment.
 
 ## Constraints and Out of Scope
 
-- **Constraint:** Preserve one authored provider implementation across runtime CLI and bundled-hook distributions. Bundled hooks receive toolkit changes through rebuilds and installation updates.
-- **Constraint:** CLI stdout retains its documented output contract when update notices are emitted.
-- **Out of scope:** Automatic package upgrades are not requested.
+- Preserve one authored provider implementation across CLI and bundled-hook distributions. Generated shipped copies are acceptable; independently maintained engine copies are not.
+- Keep Node 22 consumers supported and verify Node 22 and 24. Hook bundling does not supply a different Node runtime.
+- Respect existing sanitization, provider-fidelity, stateless-search, source-coordinate, ambiguity, and bounded-read contracts. Avoid live transcript contents in fixtures, logs, and public release artifacts.
+- Update canonical skill versions, generated payloads, affected plugin releases, changelogs, human documentation, and governing instructions alongside their changes. Package-source edits bundled into skills must participate in version-impact checks.
+- Amend the dependency/no-install instructions explicitly for migrated interactive skills; preserve the self-contained hook promise. Revise or supersede the relevant parts of DR-260514-session-observer-is-standalone and DR-260604-shared-transcript-knowledge through the decision workflow; retain behavioral plugin grouping in DR-260914 and build contracts in DR-260616 where they still apply.
+- No compatibility aliases, redundant wrapper commands, or old-name fallbacks are selected. The user selected removal after verified parity.
+- Out of scope: Stoa adapter migration, a persistent search index, remote synchronization, a daemon, a plugin registry, unified consumer state storage, automatic upgrades, new host integrations, terminal-attention extraction, and changes to native import/fork behavior beyond consuming shared read primitives where necessary.
+- Do not close BL-260619-shared-session-log-substrate: it concerns stateless multi-session activity merge, not this package extraction. Other backlog items close only if their own acceptance criteria are actually met.
 
 ## Decisions
 
-- **Accepted naming:** npm package `@tkstang/session-toolkit`; CLI `seshtk`. Recorded in DR-261028-session-toolkit-naming. Alternatives `stk` and `sesh` were rejected after finding existing CLI conflicts.
-- **Package home (accepted):** one public library + CLI package in a small pnpm workspace here. Keeps engine and skill changes together with bounded package build/release tooling; separate-repository and ORC-owned publication were rejected.
-- **Distribution (accepted):** interactive CLI prerequisites plus build-time bundling for unattended hook entrypoints. The user accepted the clarified recommendation. This preserves autonomous/offline hook execution, at the cost of rebuilding hooks for toolkit fixes; requiring a preinstalled CLI for hooks and bundling every skill were not selected.
-- **Update notifications (required):** the user requested notice when a newer CLI version is available. Notification timing and output details above remain a proposed implementation contract pending overall design alignment.
-- **ORC commands (accepted):** remove redundant generic `orc session-log` commands only after equivalent toolkit behavior is verified, updating callers and routing documentation together. Retain enriched ORC `self-identify` and host integrations. Keeping redundant command entrypoints was rejected in favor of the clean cutover. Map active selection-state behavior before removing dependent operations; do not silently discard state.
-- **Delivery endpoint (accepted):** merged changes, the published npm package, and migrated Skills + ORC consumers. Reviewed PRs alone do not satisfy delivery. Merge/release execution authority is subject to the final approved brief and required checks.
-- **Release references (requested):** inspect Exhibit and Open Agent Toolkit CI/release processes alongside Foundations, reuse applicable established patterns, and document why multi-package machinery is unnecessary where appropriate.
-- **Workflow:** the user selected brief mode after comparing it with quick-start and pursuing-goals. One cross-repository delivery needs architecture alignment and phases with completion evidence; execution records will be created during implementation.
+- **Naming (accepted):** package `@tkstang/session-toolkit`, command `seshtk`, per DR-261028-session-toolkit-naming. `stk` and `sesh` were rejected after finding CLI conflicts.
+- **Home (accepted):** one public package in a small workspace here. Co-locating engine and skill changes is worth bounded build/release tooling; separate-repository and ORC-owned publication were rejected.
+- **Distribution (accepted):** CLI prerequisites for interactive skills; build-time bundling from the same package source for unattended hook entrypoints. This retains autonomous/offline hooks at the cost of rebuilding and updating bundled consumers for engine fixes. A preinstalled CLI requirement for every hook and bundling every skill were not selected.
+- **Runtime (accepted):** support Node 22 and 24, with verification on both. Raising the consumer minimum to Node 24 solely to match CI/Foundations was rejected. OAT already separates its Node 22 consumer floor from Node 24 publication tooling.
+- **CLI update notice (required):** notify interactive users of a newer release with cached best-effort checks, stderr notices, and quiet hook/machine behavior. This adds limited registry access and local cache state to interactive CLI operation; session operations remain usable when checks fail.
+- **Scope (requested):** identity, discovery, parsing/reads, search, export, and activity belong in this delivery. Stage shared core before complementary features without declaring the requested toolkit complete early. Avoid unnecessarily broad public library exports.
+- **ORC cutover (accepted):** remove redundant `orc session-log` entrypoints after parity and update callers/docs; retain enriched identity and host integrations. Keeping redundant command surfaces was rejected.
+- **Release references (requested):** adapt Exhibit for one-package exact-artifact publication and OAT for workspace package validation, alongside Foundations. Multi-package lockstep and Changesets are unnecessary for this package.
+- **Delivery (accepted):** merged, published, and migrated across Skills and ORC. Reviewed PRs alone are insufficient.
+- **Workflow (selected):** brief fits one cross-repository delivery with settled architecture and phase-level evidence. Tasks remain execution records; no up-front task plan or additional discovery/spec/design document is required.
 
 ## Known Unknowns
 
-- **Node runtime floor:** user asked whether requiring Node 24 excludes Node 22. Node 24 would make Node 22 unsupported; `npx` does not supply another Node runtime. Selection remains pending. Verified local OAT precedent separates the consumer minimum (`packages/cli/package.json`: Node >=22.17.0) from Node 24 in `.github/workflows/release.yml` for npm trusted publishing; release CI does not force a Node 24 consumer minimum.
-- **Release implementation details:** Exhibit and OAT CI comparison is recorded in `references/research/release-ci-reference.md`. Proposed basis: Exhibit single-package validated-artifact publication plus OAT packed workspace-dependency checks. Verify publish rights/bootstrap, select a package tag namespace that coexists with existing skill/plugin releases, and adapt the checks during package/release establishment; phase assignment follows complete brief authoring.
+- Exact supported Node 22 patch, dependency versions, CLI envelope/capability schema, and exported type boundaries — settled by p01 against donor contracts and clean packed-package checks.
+- Caller-to-command mapping and selection/cursor-state dependencies, including actual ORC observer routing — inventoried in p01; verified and resolved within unchanged consumer contracts in p04/p05. Material state redesign triggers realignment.
+- Provider-specific identity-variable semantics, parser/projection differences, malformed tails, and fidelity gaps — resolved in p02/p03 using donor fixtures and bounded representative evidence.
+- npm publishing account rights, first-publish bootstrap, trusted-publisher configuration, package release tag namespace, and coexistence with existing CI — investigated in p01; executed and evidenced in p04. Missing credentials or human-only bootstrap steps are reported rather than bypassed.
+- Exact skill/plugin release set and the propagation of bundled package changes into skill version checks — resolved in p01 inventory and p04 migration.
+- ORC's fresh-version eligibility — resolved in p05 by waiting for the configured 24-hour hold unless a narrow exception is explicitly authorized.
 
 ## Delivery endpoint and authority
 
-- **Endpoint:** merged — Skills and ORC changes merged, `@tkstang/session-toolkit` published, and migrated consumers verified against the published package. Package publication must precede consumer cutover that requires the release.
-- **Authority:** the user approves the reviewed brief once. Once approved and implementation is invoked, the agent may implement, verify, open and merge the required PRs, publish the agreed package/releases, and complete consumer cutover subject to required checks and reviews. This interview does not activate implementation or grant approval to an unfinished brief. Material changes to outcomes, approach, constraints, or delivery authority require realignment.
+- **Endpoint:** merged — Skills and ORC changes merged, the toolkit published, applicable migrated skill/plugin releases delivered, and actual consumers verified against the published version. Package publication precedes consumer cutover that depends on it.
+- **Authority:** the user approves the reviewed brief once. After approval and invocation of implementation, the agent may implement, verify, open and merge required PRs, publish the agreed package/releases, and migrate consumers subject to required checks and independent reviews. Root retains credential and irreversible-action execution; request any needed secret through the host secret mechanism. Material changes to outcomes, approach, constraints, endpoint, or authority require realignment. Brief authoring does not activate implementation.
+- **Acceptance:** the agent accepts phases from recorded exit evidence and review dispositions within the approved scope. Registry/package settings requiring unavailable account access remain explicit blockers. General provider certification and untested marketplace paths are never inferred from fixture or local-install results.
 
 ## Milestones
 
-<!-- Reserved for goal mode. Brief projects deliver once and leave this section empty. -->
+## Phase p01: Establish the package boundary and release contract
 
-## Phase p01: [Phase Name]
-
-**Intent:** [What this phase changes and why.]
-**Exit evidence:** [The verification that shows the phase is done.]
+**Intent:** Add the minimal workspace and one public library/CLI package; settle intentional contracts, consumer mapping, runtime floor, package checks, and the scoped instruction/build changes needed for a shared engine. Establish validation and a release dry run using the applicable Exhibit/OAT patterns without publishing or cutting consumers over prematurely.
+**Exit evidence:** The API and command/capability contract and consumer/state inventory are recorded; the package builds and type-checks; a clean tarball install imports its API and runs version/help/capabilities on the declared Node 22 floor and Node 24; packed contents/dependencies are validated; scoped repository checks pass; release/bootstrap/tag strategy and prerequisites are documented; no production skill requires an unpublished package version.
 **Provisional:** no
 
-## Phase p02: [Phase Name]
+## Phase p02: Consolidate identity, discovery, reads, and safe export
 
-**Intent:** [What this phase is expected to change; refine before it starts.]
-**Exit evidence:** [The verification expected to show the phase is done.]
+**Intent:** Merge donor provider knowledge and complementary identity/lineage behavior into the package, with bounded detailed reads and explicit safe export projections. Remove replaced donor source only as consumers transition, retaining a traceable migration inventory.
+**Exit evidence:** Representative provider regression fixtures and parity evidence cover exact/ambiguous/unavailable identity, discovery/ranking separation, lineage, source coordinates, incomplete/malformed tails, sanitization and opt-in tools. Import safety and Node 22/24 checks pass; any discovered behavior difference has an explicit disposition.
 **Provisional:** yes
 
----
+## Phase p03: Add search, activity, and CLI update notices
+
+**Intent:** Bring the requested stateless search and rich activity behavior into the package with a narrow public surface and consistent CLI outcomes. Add interactive version notifications without altering hook or machine contracts.
+**Exit evidence:** Search acceptance covers tiered widening, no matches, partial/deadline results, redaction and scan confirmation; activity/export evidence preserves tool/usage/provenance/coverage semantics; version-notice checks cover current/newer/offline behavior and stdout isolation; the built tarball operates without donor-repository sources on Node 22 and 24.
+**Provisional:** yes
+
+## Phase p04: Publish the toolkit and migrate Skills consumers
+
+**Intent:** Merge and publish the validated toolkit release through the agreed bootstrap/trusted-publishing flow, then migrate interactive skills and bundled hooks to the package source. Update consumer versions, generated payloads, instructions, docs, and applicable plugin releases; remove replaced Skills engine source.
+**Exit evidence:** npm contains the validated release; a fresh published install imports the API and executes the CLI; interactive prerequisite paths and bundled hooks work without runtime downloads; affected Skills verification, generated freshness, version/changelog and documentation checks pass; required PRs are merged and applicable releases/install acceptance are recorded. Duplicate-source inventory shows one authored provider engine for migrated Skills paths.
+**Provisional:** yes
+
+## Phase p05: Migrate ORC and verify integrated delivery
+
+**Intent:** Move ORC's typed consumers to the published toolkit, update its actual skill routing and documentation, and remove redundant generic session-log commands after parity. Preserve host enrichment and consumer state, then audit the whole delivery.
+**Exit evidence:** ORC has a normal published semver dependency and clean lockfile with no development override; package age policy is satisfied; API/routed-skill parity and enriched self-identify checks pass; redundant commands/callers and duplicate provider code are removed; ORC PRs are merged. Final integrated review and required gates pass, with all numbered Outcomes mapped to observed release/consumer evidence.
+**Provisional:** yes
 
 ## Parallelism
 
-Phases that have no overlapping file modifications may run concurrently. To declare parallelism:
-
-```yaml
-oat_plan_parallel_groups: [['p02', 'p03']]
-```
-
-Each inner array is a group of phases that execute in parallel (each in its own worktree) and merge back in plan order after all pass. Groups may be declared whenever the phases become concrete.
-
-Default is `[]` (fully sequential, no worktrees).
-
----
+No parallel phase groups are declared (`oat_plan_parallel_groups: []`). Package contracts, source moves, the shared lockfile/build outputs, publication, and consumer cutovers impose dependencies. Implementation may delegate bounded independent slices when they satisfy the brief contract; do not parallelize overlapping generated outputs or lockfiles.
 
 ## Reviews
 
@@ -125,32 +143,18 @@ Default is `[]` (fully sequential, no worktrees).
 | p01   | code     | pending | -    | -        | -             | -          | -           |
 | final | code     | pending | -    | -        | -             | -          | -           |
 
-Add one `code` row per phase as phases become concrete. For code-review events,
-`Reviewed Head` is the full 40-character SHA at the head of the reviewed range.
-Writers must preserve every existing row and every unknown trailing cell.
-
-**Status values:** `pending` → `received` → `fixes_added` → `fixes_completed` → `passed`
-
----
-
 ## Implementation Complete
 
-**Summary:**
-
-- Phase p01: [Description]
-
-**Total: [N] phases**
-
-Ready for final code review and PR preparation.
-
----
+Pending implementation. Five phases are planned: p01 is concrete; p02–p05 are provisional. No implementation has started or been accepted.
 
 ## References
 
-- Journal: `implementation.md`
-- Research: `references/research/`
-- Release CI comparison: `references/research/release-ci-reference.md`
-- Reconnaissance: `../../../repo/reference/brainstorms/2026-10-28-shared-session-toolkit.md`
-- Independent proposal review: `../../../repo/reference/brainstorms/2026-10-28-shared-session-toolkit-opus-review.md`
-- Accepted naming: `../../../repo/reference/decisions/DR-261028-session-toolkit-naming.md`
-- Project log: `project-log.md` (when enabled)
+- Journal: [implementation.md](implementation.md).
+- Research: `references/research/`.
+- Release CI comparison: [release-ci-reference.md](references/research/release-ci-reference.md).
+- Reconnaissance: [shared-session-toolkit brainstorm](../../../repo/reference/brainstorms/2026-10-28-shared-session-toolkit.md).
+- Independent proposal review: [Opus review](../../../repo/reference/brainstorms/2026-10-28-shared-session-toolkit-opus-review.md); this covered the original proposal and does not replace review of this brief.
+- Accepted naming: [DR-261028-session-toolkit-naming](../../../repo/reference/decisions/DR-261028-session-toolkit-naming.md).
+- Brief contract: `/Users/tstang/.agents/skills/oat-project-brief/references/brief-contract.md`.
+- Project log: `project-log.md` when enabled.
+- Formatting: use the documented `pnpm exec oxfmt --write <owned authored paths>` form. Lifecycle files under `.oat/` are excluded by repository formatter globs; format their contents through `pnpm exec oxfmt --stdin-filepath <basename>` and save stdout to the owned file. Never format generated distributions or agent instructions.

@@ -69,7 +69,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-10-29T02:46:45.217587Z'
+oat_project_state_updated: '2026-10-29T02:58:56.414734Z'
 oat_generated: false
 ---
 
@@ -85,7 +85,7 @@ Plan - Authoring the Project Brief
 
 ## Artifacts
 
-- **Plan:** `plan.md` (alignment interview in progress; goal, naming, package home, distribution, and update-notice requirement recorded)
+- **Plan:** `plan.md` (alignment interview in progress; complete draft with agreed design, outcomes, five phases, and delivery authority)
 - **Implementation:** `implementation.md` (scaffolded brief journal template — not started)
 - **Research:** `references/research/` (empty)
 
@@ -93,7 +93,7 @@ Plan - Authoring the Project Brief
 
 - ✓ Brief project scaffolded
 - ✓ Brief and implementation artifacts scaffolded
-- ⧗ Alignment interview: package home, hybrid distribution, ORC command cutover, and merged/published/migrated endpoint accepted; runtime baseline and full-design alignment pending
+- ⧗ Design choices recorded, including Node 22/24 support; complete brief drafted for pre-implementation review
 
 ## Blockers
 
@@ -101,4 +101,4 @@ None
 
 ## Next Milestone
 
-Settle architecture and delivery authority, then author and review the complete brief
+Resolve dispatch and gate setup, review the committed brief, then obtain the single brief approval
