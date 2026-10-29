@@ -254,6 +254,50 @@ Proof: focused sanitizer/export tests, type-check, lint/format and toolkit build
 
 Verification: 51 sanitizer/export tests, root/package type-check, scoped lint/format, toolkit build and diff whitespace passed. No transcript or consumer state writes; only explicit new export destinations are created. Marker misses refuse instead of donor newest-session fallback, as selected by the p01 contract.
 
+### Recovery Event session-toolkit-p02-recovery-03
+
+- Phase/task: p02 / p02-t01
+- Original request: session-toolkit-p02-implement-20261029
+- Original commit: a009dcc8cbc752589ff97ff63bc2feb37065d924
+- Defect class: composition
+- Discovered by: resumed Cursor source-coordinate composition check
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 3/10
+- Dispatch target: oat-phase-implementer-gpt-6-1-sol-high
+- Recovery commit: cb6af5808da6ff5c26443c6ca65e41127a1eb5fa
+- Verification: Regression failed before correction with page-local origins0/1 instead of global1/2. Six read tests and329 package tests, toolkit build, root/package type-check and scoped lint passed before and immediately after the candidate at clean committed HEAD.
+- Reason: Mechanically map donor sourceRecordIndex through existing global decoded-record coordinates. Original task history preserved. Prior usage2/10 settled by root49cbb22d2990a211569558e6a87d772b621bd41d; now3/10, remaining7, completed marker retained. Elevated recovery-volume warning at three events. Eight exact t05 paths parked outside the checkout at `/var/folders/_v/ld1wc16d0sg2qxkqjxgm7dyc0000gn/T/seshtk-p02-t05-park-elst12j2`, manifest SHA256 `c9867f266ed3bfabffb66e09e1faeed6e5648e945e593832cabdb42731b51c4e`, size83837bytes/base8e63229f0ca836296e633af013663c33b1953128. Every captured hash/base verified before park and byte-for-byte replay on disjoint paths. No unrelated paths or history changed.
+
+### Recovery Event session-toolkit-p02-recovery-04
+
+- Phase/task: p02 / p02-t03
+- Original request: session-toolkit-p02-implement-20261029
+- Original commit: 4ea21f5a8d021a1bc21ee9ba012e5a2ef24caecf
+- Defect class: composition
+- Discovered by: public Cursor page activity frame-range parity check
+- Disposition: recovered
+- Authorization: phase-standing
+- Attempt: 4/10
+- Dispatch target: oat-phase-implementer-gpt-6-1-sol-high
+- Recovery commit: 4220f41eec502065328499fc6edb86781c42222f
+- Verification: Public regression failed with captured calls1 but delivered/displayed0 after malformed frames. Seven read and330 package tests, toolkit build, root/package type-check and scoped lint passed before and immediately after candidate at clean committed HEAD. First package run encountered stale ignored t05 dist after source parking; one no-edit rebuild of committed inputs and identical rerun passed, acknowledged by root. No code change or attempt reset for that setup correction.
+- Reason: Mechanical Cursor delivery endpoints now use existing frameIndex coordinates instead of decoded indices. No public requirement or architecture change. Original task preserved. Root settled03 at ffea28a2a491f0819020ac7a2f36253ee22de9b5, used3 retained; now4/10 remaining6, completed04 marker retained. Elevated recovery-volume warning continues. Sixteen t05 paths captured outside checkout at `/var/folders/_v/ld1wc16d0sg2qxkqjxgm7dyc0000gn/T/seshtk-p02-t05b-park-t6a9sm0u`, manifest SHA256 `37dd924cf50dbd8015e2bb63bada962d65091662694073322b5f9d1768fbe24d`, size235468bytes/basecb6af5808da6ff5c26443c6ca65e41127a1eb5fa; hashes verified before park and byte-for-byte replay. Replay expands settled03 text once, preserving its identity/outcome. No unrelated paths/history or route fallback.
+
+### Task p02-t05: Deliver the CLI, truthful capabilities and install proof
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p02-implement-20261029
+**Handle:** /root/session_toolkit_p02
+
+Intent: expose the selected public operations through the CLI with validated selectors/bounds/envelopes, advertise only delivered capability IDs/providers, and verify the same archive outside the checkout on actual Node22.0.0 and24. Update package documentation, command map and donor parity evidence.
+Files: package CLI/bin/capabilities and operation boundary refinements; exact archive verifier and package/CLI boundary tests; package README, command/API contract, inventory/parity evidence and changelog.
+Proof: focused package/CLI tests, type-check, lint/format, toolkit build, exact archive installs on Node22.0.0/24; phase-wide remaining suite, build:check, validate and smoke.
+
+**Commit:** 3cfcaef7961954e0a450045dc556615c786820dc
+
+Verification: All333 package tests, toolkit build, root/package type-check, scoped lint/format, validation and smoke passed. Remaining suite passed197files/3174tests (2files/3tests skipped), excluding exactly the two documented unchanged baseline collision files; no full-suite pass is claimed. Generated build:check passed after the broad suite. Narrow later frame-range correction was verified by its failing-before public regression and package suite; unrelated broad tests were not repeated. Final exact archive `/tmp/session-toolkit-p02-final-proof-20261029/tkstang-session-toolkit-0.1.0.tgz`, SHA256 `1156ee8cbe1cc1f77856c4cc2de4ed8265d40fed3462cececeb0ec2bd5da70d0`, clean-installs on actual22.0.0/24.21.0 with fixture API/CLI operations, import safety and strict installed declaration compilation. Packed runtime/README/license bytes equal committed product outputs. Parity and detailed evidence: references/p02-parity.md and p02-verification.md. Consumers unchanged; no publication. Recovery4/10 remaining6, completed04 marker retained; elevated volume warning disclosed. t05 effective commit base4220f41 after append-only recoveries; one implementation commit and one journal-only closure. No scope expansion beyond selected p02 boundaries.
+
 ## Phase p03: Add search, activity, and CLI update notices
 
 **Status:** pending
@@ -352,18 +396,3 @@ p01 package foundation, contract inventory and release dry run complete and acce
 - Brief: `plan.md`
 - Research: `references/research/`
 - CLI design aid: `references/cli-command-map.md`
-
-### Recovery Event session-toolkit-p02-recovery-03
-
-- Phase/task: p02 / p02-t01
-- Original request: session-toolkit-p02-implement-20261029
-- Original commit: a009dcc8cbc752589ff97ff63bc2feb37065d924
-- Defect class: composition
-- Discovered by: resumed Cursor source-coordinate composition check
-- Disposition: recovered
-- Authorization: phase-standing
-- Attempt: 3/10
-- Dispatch target: oat-phase-implementer-gpt-6-1-sol-high
-- Recovery commit: cb6af5808da6ff5c26443c6ca65e41127a1eb5fa
-- Verification: Regression failed before correction with page-local origins0/1 instead of global1/2. Six read tests and329 package tests, toolkit build, root/package type-check and scoped lint passed before and immediately after candidate at clean committed HEAD.
-- Reason: Mechanical mapping of donor sourceRecordIndex to existing global decoded-record coordinate. Original task preserved; reservation49cbb22d2990a211569558e6a87d772b621bd41d; priorusage2 settled there; used3/10 remaining7 completedmarker. Elevated recovery-volume warning at3 events. Earlier8-path t05 park replay verified SHA256c9867f266ed3bfabffb66e09e1faeed6e5648e945e593832cabdb42731b51c4e base8e63229f0ca836296e633af013663c33b1953128 size83837. No unrelated change or route fallback.
