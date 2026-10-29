@@ -95,7 +95,7 @@ oat_phase_recovery_policy:
         discovered_by: pnpm exec oxlint scripts/session-toolkit-package.ts tests/release/session-toolkit-package.test.ts
         dispatch_target: root:gpt-6.1-sol-high
         reservation_head: b23418aa7320c8d4af241ce878259669f482df6f
-        status: active
+        status: completed
         bounded_files: [tests/release/session-toolkit-package.test.ts]
         authorization: phase-standing
         eligibility: Mechanical removal of useless spread in root-owned bounded review correction; same root execution target retained per host small-fix guidance.
