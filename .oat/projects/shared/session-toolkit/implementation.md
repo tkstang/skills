@@ -366,6 +366,8 @@ run/v1 · request=session-toolkit-p02-fix-20261029-r1 · scope=p02 · action=fix
 
 <!-- orchestration-runs-end -->
 
+run/v1 · request=session-toolkit-p02-review-20261029-r2 · scope=p02 · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=running · terminal=no · class=live · continuation=~ · observed=~ · match=~
+
 ## Reviews and Gates
 
 <!-- Receipts for final, milestone and multi-phase reviews (a phase review receipt may stay in its phase) and one terminal line per gate run. state.md owns gate transitions; this slot keeps the outcome, waivers and operator choices. -->
