@@ -364,6 +364,18 @@ Execution shape: one phase implementer, sole committing owner in the existing wo
 
 p03 made concrete after p02 acceptance, within unchanged approved outcomes and the p01 command/package contract. Search/estimate, full structured activity and interactive-only cached notices share CLI/capabilities/schema/archive outputs; no parallel group or independent fan-out slices qualify. No consumer cutover, package publication or state-policy redesign. Public boundary proof, deliberate exports, donor parity, zero machine/hook update I/O and exact tarball runtime checks are explicit exit evidence. This elaborates the phase, not a new task plan or changed authority.
 
+### Task p03-t01: Extract stateless search and estimate boundaries
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p03-implement-20261029
+**Handle:** /root/session_toolkit_p03
+**Intent:** Preserve donor tiered raw-unit search, accelerators, redaction, widening and cost semantics behind a deliberate typed package API and CLI.
+**Files:** packages/session-toolkit/src/search-_.ts; index.ts; cli.ts; capabilities.ts; domain.ts; tests/release/session-toolkit-search-_.test.ts; CHANGELOG.md.
+**Proof:** pnpm run build:toolkit; pnpm run test:vitest tests/release/session-toolkit-search-\*.test.ts tests/release/session-toolkit-cli.test.ts tests/release/session-toolkit-operations.test.ts; pnpm run type-check; scoped oxlint/oxfmt.
+
+**Commit:** 2389d89ade81557556a658c0cf5f683eedf0c600
+**Verification:** Build;13 focused files/272 tests; root/package types; scoped lint/format; diff review pass. Full long-tool search and explicit threshold refusal proven at public API/built CLI. Search-only projections use existing package provider normalization; flattened declarations. Test helpers copied to tests/helpers because donor helpers cannot enter installed closure; intentional temporary coverage overlap until p04 cutover.
+
 ## Phase p04: Publish the toolkit and migrate Skills consumers
 
 **Status:** pending
