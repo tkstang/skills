@@ -4,7 +4,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-10-29
-oat_current_task_id: p03
+oat_current_task_id: p04
 oat_generated: false
 ---
 
@@ -39,15 +39,15 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status      | Units | Accepted |
-| ----- | ----------- | ----- | -------- |
-| p01   | completed   | 1     | 1/1      |
-| p02   | completed   | 1     | 1/1      |
-| p03   | in_progress | 1     | 0/1      |
-| p04   | pending     | 1     | 0/1      |
-| p05   | pending     | 1     | 0/1      |
+| Phase | Status    | Units | Accepted |
+| ----- | --------- | ----- | -------- |
+| p01   | completed | 1     | 1/1      |
+| p02   | completed | 1     | 1/1      |
+| p03   | completed | 1     | 1/1      |
+| p04   | pending   | 1     | 0/1      |
+| p05   | pending   | 1     | 0/1      |
 
-**Total:** 2/5 phases accepted
+**Total:** 3/5 phases accepted
 
 ## Phase p01: Establish the package boundary and release contract
 
@@ -356,10 +356,10 @@ Verification: public regression fails before and passes after correction; all343
 
 ## Phase p03: Add search, activity, and CLI update notices
 
-**Status:** in_progress
+**Status:** completed
 **Base:** e51f7588588e8fe8f2204059b810f7c52066d471
 **Executor:** phase-implementer:session-toolkit-p03-implement-20261029
-**Head:** 2776448d5a023cd34b2c75a7577abc927fb500a5
+**Head:** c193bf0f6600457bf040e9a1820e2f5eb1fea114
 **Phase verification:** Pass on the completed record set: root/package types;210 files/3466 tests pass,2 files/3 tests skipped, with exactly the2pre-established baseline exclusions; build:check after suite, validate and smoke pass. Final log /tmp/session-toolkit-p03-final-suite.log. Fresh51-file exact archive4490775e57a55e1b659226c60f29fc65e7546e5086a9303b91dc6c9970521c84 passes actual Node22.0.0/24.21.0 installed API/CLI/types plus continuation proof. No full-suite pass claimed. Effective recovery limit10, prior usage0, used1, remaining9; matching completed marker retained for root validation. Independent review and acceptance remain root-owned.
 
 Execution shape: one phase implementer, sole committing owner in the existing worktree. No parallel group; shared provider/search types, CLI/capabilities, package declarations/archive output and changelog impose sequential dependencies, so root fan-out fails the independence test. Root owns lifecycle and independent reviews. Hard-reasoning/high: reconcile search raw-evidence classifications and rich activity with package contracts plus prove updater isolation. Effective recovery default10, no phase override; prior p03 usage0,remaining10,pendingnull; p01/p02 counters retained.
@@ -452,11 +452,16 @@ Independent request `session-toolkit-p03-review-20261029-r1` reviewed the full a
 
 ### Task p03-t06: Correct reviewed cheap-source coverage and changelog history
 
-**Status:** in_progress
+**Status:** completed
 **Executor:** root
 **Intent:** Resolve M1/L1 without expanding public API or changing scan/selection policy.
 **Files:** `packages/session-toolkit/src/search-codex.ts`, `search-claude-code.ts`; `tests/release/session-toolkit-search-public.test.ts`; `CHANGELOG.md`; package/parity/verification references as needed for corrected archive evidence.
 **Proof:** Public valid/no-match/malformed/oversized history/index regression fails before correction and passes afterward; relevant search and package suites, root/package types, scoped lint/format, fresh exact archive on actual Node 22.0.0/24.21.0, build:check/validate/smoke. Existing source-degradation notes bound reporting per file, avoiding one note per skipped record.
+
+**Commit:** c193bf0f6600457bf040e9a1820e2f5eb1fea114
+**Verification:** 28 package files/628 tests; focused 4-file/65-test search suite; root/package types; scoped lint/format; reviewer nine-control cheap-source probe passes on actual Node 22.0.0; fresh 51-file archive `b6fe342a819d420da78c7ad60fa7e8f550a25dedd403f9d0bfd18d683c560a5f` passes installed API/CLI/types on actual 22.0.0/24.21.0 and npm publish dry run. Serialized build:check, validate and smoke pass. Original broader suite is historical; baseline exclusions remain explicit. No instruction changes needed.
+
+Root acceptance: review M1 and L1 are fixed by this bounded record, all dispositions are settled, and no optional phase gate is selected. Phase p03 is accepted. The review row records fixes_completed at its actual reviewed head, with no independent clean re-review of the root correction claimed. Final integrated review and configured implementation exit gate remain required. Recovery usage remains 1/10, pending null. No publication or consumer cutover occurred.
 
 ## Phase p04: Publish the toolkit and migrate Skills consumers
 
@@ -557,7 +562,7 @@ Document any intentional deviations from the brief. Include accepted review find
 
 ## Final Summary (for PR/docs)
 
-p01 package foundation, contract inventory and release dry run complete and accepted. The package is unpublished; provider functionality, consumer migrations and releases remain p02–p05.
+p01–p03 are accepted: package foundation, shared identity/discovery/read/export, search/activity and CLI update notices. Package 0.1.0 remains unpublished; Skills publication/migration and ORC/integrated documentation delivery remain p04–p05.
 
 ## References
 

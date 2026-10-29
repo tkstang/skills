@@ -191,7 +191,7 @@ No parallel phase groups are declared (`oat_plan_parallel_groups: []`). Package 
 | p01   | code     | fixes_completed | 2026-10-29 | reviews/p01-review-2026-10-29T135009Z.md                    | 4212674c1bb9a12bc1a61a3256c85f20e971fbc9 | manual     | -                    |
 | p02   | code     | fixes_completed | 2026-10-29 | reviews/p02-review-2026-10-29T145255Z.md                    | 1ce8ba8de2fb5cb858bb6f4b273dac84bfa261d6 | manual     | -                    |
 | p02   | code     | fixes_completed | 2026-10-29 | reviews/p02-review-2026-10-29T152302Z.md                    | f77c538084a66d4ad81525795afc48bcf291b5a8 | manual     | -                    |
-| p03   | code     | fixes_added     | 2026-10-29 | reviews/p03-review-2026-10-29T160106Z.md                    | 2776448d5a023cd34b2c75a7577abc927fb500a5 | manual     | -                    |
+| p03   | code     | fixes_completed | 2026-10-29 | reviews/p03-review-2026-10-29T160106Z.md                    | 2776448d5a023cd34b2c75a7577abc927fb500a5 | manual     | -                    |
 | final | code     | pending         | -          | -                                                           | -                                        | -          | -                    |
 | plan  | artifact | fixes_completed | 2026-10-29 | reviews/archived/artifact-plan-review-2026-10-29T031602Z.md | 02b1f285928e22357f6a8b66a9ddffecb6f3b43e | gate       | claude-opus-5-5-high |
 | plan  | artifact | passed          | 2026-10-29 | structured                                                  | 77599b3deb3bf460225e952900ac8676939e960e | auto       | -                    |
@@ -204,7 +204,7 @@ Initial Codex artifact review passed with no findings. The configured Opus brief
 
 ## Implementation Complete
 
-Implementation is active. p01 and p02 are accepted after independent review and bounded corrections; p03 is concrete and p04–p05 remain provisional. Three phases remain unaccepted. The package is not yet published and no consumer cutover has occurred.
+Implementation is active. p01–p03 are accepted after independent reviews and bounded corrections; p04–p05 remain provisional. Two phases remain unaccepted. The package is not yet published and no consumer cutover has occurred.
 
 ## References
 

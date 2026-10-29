@@ -74,6 +74,14 @@ Toolkit archive rebuilds and built CLI tests share ignored dist; generated-outpu
 
 p03 made concrete within approved search/activity/update-notice outcomes after p02 acceptance; detailed-source fidelity, explicit scan authorization, machine/hook zero updater I/O and exact archive Node22/24 evidence are selected. No consumer cutover or publication in p03.
 
+### 2026-10-29 · structural · oat-project-implement · p03
+
+p03 accepted after independent full-anchor review (0C/0H/1M/1L) and bounded root M1/L1 correction; review-fix rounds 0/2, recovery usage 1/10 settled. Evidence: references/p03-verification.md and reviews/p03-review-2026-10-29T160106Z.md. session-toolkit-p03-outcome-20261029
+
+### 2026-10-29 · project · bug · cheap-source coverage
+
+Cheap-tier history/index readers retained donor omissions while the new public response promised complete coverage. A public negative control exposed false no-match completeness; per-file degraded notes now preserve bounded reads and disclose skipped records. session-toolkit-p03-cheapcoverage-20261029
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

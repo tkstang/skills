@@ -1,6 +1,6 @@
 ---
-oat_current_task: p03
-oat_last_commit: 2776448d5a023cd34b2c75a7577abc927fb500a5
+oat_current_task: p04
+oat_last_commit: c193bf0f6600457bf040e9a1820e2f5eb1fea114
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
 oat_kind: implementation # implementation | coordination; coordination parents may use oat_phase: decomposition
@@ -73,7 +73,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-10-29T15:54:36.399226Z'
+oat_project_state_updated: '2026-10-29T16:09:29.943761Z'
 oat_brief_gate:
   status: allowed
   disposition: passed
@@ -97,13 +97,13 @@ oat_generated: false
 
 # Project State: session-toolkit
 
-**Status:** Implementing p03
+**Status:** Implementing p04
 **Started:** 2026-10-29
 **Last Updated:** 2026-10-29
 
 ## Current Phase
 
-Implement — p03 search, activity and CLI update notices
+Implement — p04 publication and Skills migration preparation
 
 ## Artifacts
 
@@ -134,6 +134,7 @@ None
 
 ## Next Milestone
 
-p03 implementation is complete and awaits independent full-anchor review. Five execution records, one append-only recovery and the clean handoff were validated. Recovery usage is 1/10 with no pending attempt; p01/p02 usage remains unchanged. Package checks and the latest exact archive proof pass on actual Node 22.0.0 and 24.21.0. Full-suite environmental failures remain explicit. No publication or consumer cutover has occurred.
+Make p04 concrete, prepare and independently review release automation and the clean publish-ready candidate, then execute authorized publication and Skills migration when credentials and checks permit. p01–p03 are accepted; two phases remain. Final p03 fixes pass 628 package tests and exact archive checks on actual Node 22.0.0/24.21.0. No package publication or consumer cutover has occurred. Baseline full-suite environment failures remain explicit.
 
-- ✓ p02 accepted after full-range independent review and verified Medium corrections; three phases remain
+- ✓ p02 accepted after full-range independent review and verified corrections
+- ✓ p03 accepted after full-range independent review and bounded M1/L1 correction; recovery usage 1/10, pending null
