@@ -48,7 +48,7 @@ export function selector(value: string): { runtime: Provider; id: string } {
   if (
     colon < 1 ||
     !id ||
-    /[\/\\]/u.test(id) ||
+    /[/\\]/u.test(id) ||
     [...id].some((c) => c.charCodeAt(0) < 32)
   )
     throw new ToolkitError(
