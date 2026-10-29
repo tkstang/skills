@@ -1,91 +1,97 @@
-# Session Toolkit: proposed CLI command and argument map
+# Session Toolkit command and argument contract
 
-This is a design aid for the approved brief, requested by the user. **No commands below are implemented yet.** p01 settles the exact syntax, option support/defaults, mutual exclusions, units, capability identifiers, exit codes, and versioned JSON schemas against the donor inventory. A flag shown here is a proposed spelling; it is not an additional accepted feature or a compatibility alias. Existing capabilities remain the parity target even if p01 chooses a different spelling.
+p01 selected this map against the donors. **0.1.0 currently implements only
+version, help and capabilities.** The remaining rows are reserved implementation
+contracts for p02/p03. Their presence in this file is not support evidence;
+installed help and capabilities expose only implemented operations. See the
+[package/API contract](package-contract.md) and [consumer inventory](consumer-inventory.md).
 
-## Usage tree
+## Implemented in the package boundary
 
 ```text
-seshtk [--json] <command> [arguments] [options]
-│
-├── self-identify [--cwd <path>]
-│   └── Exact current identity, lineage, ambiguity/unavailability
-│
-├── list [--runtime <provider|auto>] [--cwd <path>]
-│        [--session <provider:id>] [--since <time>] [--until <time>]
-│   └── Historical candidates; ranking does not establish current identity
-│
-├── read --session <provider:id> [read-options]
-│   └── Explicit session records; optional explicit offset/cursor
-│
-├── parse <transcript-path> --runtime <provider> [read-options]
-│   └── Parse a caller-selected file without discovery
-│
-├── search -p <pattern>... [search-options]
-│   └── Ranked stateless search; repeat -p for multiple patterns
-│   └── estimate -p <pattern>... [search-options]
-│       └── Estimate the candidate scan before authorizing a large scan
-│
-├── export --session <provider:id> --out <path> [export-options]
-│   └── Sanitized conversational Markdown; tool inclusion is explicit
-│
-├── activity --session <provider:id> [activity-options]
-│   └── Structured evidence and coverage; sensitive, not publish-safe
-│
-├── capabilities --json
-│   └── Versioned machine-readable supported operations/providers
-│
-├── --help       (also <command> --help)
-└── --version
+seshtk [--json] --help
+seshtk [--json] --version
+seshtk [--json] capabilities [--json]
+seshtk capabilities --help [--json]
 ```
 
-`provider` denotes Claude Code, Codex, or Cursor. Donor spellings are `claude-code`, `codex`, and `cursor`; p01 settles whether provider IDs and runtime IDs are identical. `<provider:id>` qualifies an exact identity without confusing sessions that share an unqualified ID. Angle brackets are value placeholders; brackets denote optional arguments. Ellipsis after `-p` denotes repetition, not shell syntax. These are one-shot operations; invoking them does not mark a session read or persist a selection.
+No arguments prints help. `-h` and `-V` are the documented help/version short
+forms. `capabilities` always returns JSON. Global `--json` is accepted before
+or after the operation; machine help/version also use the v1 envelope. Plain
+help/version use text. Unknown flags/commands and excess arguments exit 1 with
+`E_USAGE`; internal system errors exit 2 with `E_INTERNAL`. There are no prompts,
+colors, provider reads or automatic network checks in p01.
 
-## Option groups and behavior
+Current IDs: `toolkit.capabilities.v1`, `cli.help.v1`, `cli.version.v1`.
+Current provider support is empty. The sole API value export is `getCapabilities`.
 
-| Command/group               | Proposed arguments and flags                                                                                                                                           | Contract to preserve / p01 decision                                                                                                                                                                                                                                                                    |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Common boundary             | `--help`, `--version`, `--json`                                                                                                                                        | Help exposes usage, defaults, value types and exits. Machine operations emit one stable JSON envelope on stdout; diagnostics use stderr. p01 settles command/global flag placement and exact exit meanings. Respect `NO_COLOR`.                                                                        |
-| Exact identity              | `self-identify [--cwd <path>] [--json]`                                                                                                                                | Harness evidence, ambiguity and lineage; cwd can scope/revalidate evidence but never promote a historical heuristic to exact identity. No host/git/live-probe enrichment in toolkit.                                                                                                                   |
-| Discovery filters           | `list --runtime <provider                                                                                                                                              | auto> --cwd <path> --session <provider:id> --since <time> --until <time>` (each optional)                                                                                                                                                                                                              | Bounded historical enumeration and candidate provenance. p01 defines filter combination, timestamp interpretation, limits/pagination and empty-result semantics.                                                                                                         |
-| Read/file input             | `read --session <provider:id>`; `parse <transcript-path> --runtime <provider>`                                                                                         | Explicit source, detailed records and source coordinates. p01 settles output projections, provider/path validation, sensitive fields/redaction and structured output; detailed provider evidence must remain available to search/activity through the library.                                         |
-| Read bounds                 | `--from-offset <n>`, `--cursor <token>`, `--max-records <n>`, `--max-messages <n>`, `--max-bytes <n>`                                                                  | Explicit bounds/resume inputs, accounting, malformed/incomplete tails and coverage. Offset units and offset/cursor conflicts are deliberately unresolved. No hidden consumer read-state writes. Not every bound applies to every provider/projection.                                                  |
-| Read projections            | `--include-tool-calls`, `--include-tool-results`, `--include-activity`                                                                                                 | Explicit opt-ins with bounded projections and declared coverage. p01 settles names, supported combinations and safe defaults from donor behavior. A digest cannot replace the detailed evidence model.                                                                                                 |
-| Search query/scope          | repeatable `-p <pattern>`, `--literal`, repeatable `--cwd <path>`, `--runtime <provider                                                                                | auto>`, `--since <time>`, `--until <time>`                                                                                                                                                                                                                                                             | Preserve current regex/literal semantics and widening. Search cwd is a widening hint; do not silently make it an exact-only filter.                                                                                                                                      |
-| Search stages               | `--tiers <history,meta,content>`, `--no-deep`, `--include-tools`                                                                                                       | Preserve stateless history → metadata → content → deep/tool search and source-attributed results. p01 documents tier interactions; no positional-query alias is implied.                                                                                                                               |
-| Search cost/output          | `--allow-large-scan`, `--large-scan-bytes <n>`, `--max-line-bytes <n>`, `--limit <n>`, `--deadline-ms <n>`, `--json`                                                   | Preserve estimate/confirmation, redaction, bounded scan behavior and partial/deadline outcomes. CLI can report that explicit authorization is needed without prompting in machine mode.                                                                                                                |
-| Safe export                 | `--session <provider:id>`, `--out <path>`, `--include-tool-calls`, `--include-tool-results`, `--include-activity`                                                      | Sanitized Markdown is the default artifact. Exact tool/projection flags and defaults settled in p01; activity summaries do not imply complete sensitive evidence is safe to publish.                                                                                                                   |
-| Export historical selection | `--runtime <provider                                                                                                                                                   | auto>`, `--cwd <path>`, `--match <marker>`, `--all`                                                                                                                                                                                                                                                    | Preserve donor candidate/marker/batch workflows somewhere in the migrated workflow. p01 decides which selectors belong on export versus list + explicit selection and how batch output destinations work; do not require `--session` when using a validated alternative. |
-| Activity/evidence           | `--session <provider:id>`, `--out <path>`, `--json`; proposed evidence controls `--evidence`, `--cutoff <token>`, `--expand <ref>`, `--related`, `--expand-offset <n>` | Preserve source attribution, usage, coverage and detailed expansion. Existing exact Codex evidence controls are provider-specific; p01 settles whether they live on read or activity, which providers support them, output destinations and invalid combinations. Complete activity remains sensitive. |
-| Prerequisite discovery      | `capabilities --json` plus `--version`                                                                                                                                 | Skills check supported version and capabilities, not executable presence/help alone. Public capability/schema identifiers are fixed in p01.                                                                                                                                                            |
-| Update notices              | No new flag spelling selected                                                                                                                                          | Interactive CLI only: cached best-effort registry checks and stderr notices; no auto-upgrade. No notices or automatic checks for `--json`, hook or other machine execution. p01/p03 settle detection, cache lifetime and any explicit opt-out/environment interface.                                   |
+## Reserved operational usage
 
-This layout does **not** select shared `select`, `forget`, `state`, `watch`, `watch-ctl`, or `--persist` operations. Observer keeps watch/control and read-offset state. ORC keeps its host/state responsibilities; p01/p05 must map existing select/catch-up/forget callers before generic command removal. Stateless `read` inputs can support those workflows without a new shared state store. Existing consumer behavior and state formats remain the acceptance baseline.
-
-## Proposed invocation examples
-
-These illustrate shape, not copy-ready release instructions. Replace `<approved-version>`, IDs and paths after p01; use controlled fixture files in verification.
-
-```sh
-npx --package=@tkstang/session-toolkit@<approved-version> seshtk --version
-seshtk capabilities --json
-seshtk self-identify --json
-seshtk list --runtime codex --cwd /path/to/project --json
-seshtk read --session codex:<id> --max-records 100 --json
-seshtk parse /path/to/fixture.jsonl --runtime codex --json
-seshtk search -p 'release contract' --literal --cwd /path/to/project --json
-seshtk search estimate -p 'release contract' --literal --json
-seshtk export --session codex:<id> --out /path/to/transcript.md
-seshtk activity --session codex:<id> --out /path/to/sensitive-activity.json --json
+```text
+seshtk [--json] self-identify [--cwd <path>]
+seshtk [--json] list [discovery-options]
+seshtk [--json] read --session <provider:id> [read-options]
+seshtk [--json] parse <transcript-path> --runtime <provider> [read-options]
+seshtk [--json] search -p <pattern>... [search-options]
+seshtk [--json] search estimate -p <pattern>... [search-options]
+seshtk [--json] export --out <path> [selection-options] [projection-options]
+seshtk [--json] activity --session <provider:id> [--out <path>] [read-bounds]
 ```
 
-## Evidence and final documentation handoff
+Providers are `claude-code`, `codex`, `cursor`. `auto` is a discovery/search
+selector. No toolkit `select`, `forget`, `state`, `watch`, `watch-ctl`,
+`--persist`, old `--provider` alias or separate catch-up command is selected.
+Consumers compose stateless reads with their own saved positions and controls.
 
-The inventory was read-only; no live transcript contents were accessed. Evidence paths are donor locations, not public install prerequisites:
+| Group                      | Selected flags and defaults                                                                                                                                           | Rules                                                                                                                                                                                                      |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Common                     | `--json`, `-h/--help`, `-V/--version`                                                                                                                                 | One envelope in machine mode; required actionable error hints; no interaction.                                                                                                                             |
+| Discovery                  | `--runtime <provider-or-auto>` (auto), `--cwd <path>` (invocation cwd), `--session <provider:id>`, `--since <time>`, `--until <time>`, `--limit <positive-int>` (100) | Session/runtime must agree. Filters intersect; ranking remains historical. Finite scan budgets and omitted-candidate coverage are explicit.                                                                |
+| Read identity              | `read --session <provider:id>`                                                                                                                                        | Explicit session is required; no implicit current selection or persisted cursor.                                                                                                                           |
+| File parsing               | `parse <path> --runtime <provider>`                                                                                                                                   | Both explicit path and provider required; no discovery or auto runtime.                                                                                                                                    |
+| Read bounds                | `--from-offset <nonnegative-int>` (0), `--cursor <token>`, `--max-records <positive-int>`, `--max-messages <positive-int>`, `--max-bytes <positive-int>` (4000000)    | Offset is a declared provider source ordinal. Cursor conflicts with offset and binds generation/projection. Bytes bound source reads; record/message limits may combine and surface continuation/coverage. |
+| Projection                 | `--include-tool-calls`, `--include-tool-results`, `--include-activity` (all false)                                                                                    | Natural-language conversation by default. Tool/result opt-ins are independent; no debug alias that silently broadens data. Activity summary remains distinct from sensitive full activity.                 |
+| Exact evidence (read only) | `--evidence`, `--cutoff <token>`, `--expand <ref>`, `--related`, `--expand-offset <nonnegative-byte-count>`                                                           | Codex/JSON only initially; not ordinary offset/cursor mode. Expansion requires cutoff; related requires expand (max16). Expand-offset requires one expand and conflicts with related.                      |
+| Search query               | Repeat `-p/--pattern <pattern>`, `--literal` (false), repeat `--cwd <path>`, `--runtime <provider-or-auto>` (auto), `--since`, `--until`                              | Nonempty patterns required. Regex by default. Cwd is a widening hint.                                                                                                                                      |
+| Search tiers               | `--tiers <comma-list>` (history,meta,content), `--no-deep`, `--include-tools` (false)                                                                                 | Deep is a separate fallback rung, not a selectable tier. Preserve donor widening/source attribution.                                                                                                       |
+| Search cost                | `--allow-large-scan` (false), `--large-scan-bytes` (2147483648), `--max-line-bytes` (65536), `--limit` (15), `--deadline-ms` (omitted)                                | All numeric values positive safe integers. Large scans require explicit authorization, with a machine refusal/estimate instead of prompting. Partial and no-match are distinguishable.                     |
+| Search estimate            | Same query/scope/cost flags                                                                                                                                           | Reports estimates and coverage without returning content hits.                                                                                                                                             |
+| Export selection           | `--session <provider:id>` OR historical `--runtime <provider-or-auto>`, `--cwd <path>`, optional `--match <marker>`, `--all`                                          | Exact session conflicts with match/all. Historical ambiguity refuses unless disambiguated or all explicitly requested. Keep marker and batch workflows.                                                    |
+| Export destination         | `--out <path>` required, plus projection opt-ins                                                                                                                      | One file normally; directory with all. Sanitized Markdown. No selection/read-state writes.                                                                                                                 |
+| Activity                   | `--session <provider:id>`, optional `--out <path>`, read bounds                                                                                                       | Sensitive structured evidence with provenance, usage and explicit coverage; no sanitization/shareability claim.                                                                                            |
 
-- Skills identity/discovery/read/watch/evidence entrypoint: `src/skills/session-observer/src/session-observer.ts` (identity near 534, discovery/read near 485–509, watch near 576–604, exact evidence near 2272). Persistent offsets: `src/skills/session-observer/src/lib/state.ts`.
-- Skills search/estimate: `src/skills/session-search/src/session-search.ts:26` and `:192`.
-- Skills export/activity: `src/skills/session-export-transcript/src/session-export-transcript.ts:260`, `:306`, `:1634`.
-- ORC donor checkout: `/Users/tstang/Code/orc`; `packages/cli/src/commands/session-log.ts` (help near 731, read near 363, catch-up near 451, export near 585) and `packages/cli/src/session-log-state.ts` (selection/resume ownership). Enriched identity: `packages/cli/src/commands/self-identify.ts:24`.
-- Foundations CLI boundary guidance: `conventions/archetype.md:55` and `conventions/code-style.md:33` in `/Users/tstang/Code/foundations`. Commander command factories/boundary validation may take intentional package dependencies; self-contained shipped hooks remain a separate distribution contract.
+Time strings preserve the donor search semantics described in the package
+contract; paths and conflicting selectors are validated at command boundaries.
+Operational response schemas and provider-specific evidence are added alongside
+their implementations and fixture proof, without widening the p01 export surface.
 
-p01 replaces unresolved proposals with an intentional contract. p05 reconciles this map and the plan diagrams against built `--help`, capabilities and library exports, and maps the final coverage to published documentation. The canonical consumer reference belongs under `documentation/docs/user-guide/`, linked from existing Session pages; architecture/API/distribution/release guidance belongs in Engineering. Existing skill-specific pages retain workflow context and link the shared command reference. Package README and ORC docs describe their real entrypoints. No draft flag is documented as shipped merely because it appears here.
+## Reserved capability identifiers
+
+These IDs are **not returned by p01**. Each is advertised only after its operation
+and declared provider behavior have passed their parity checks:
+
+| Operation                       | Capability ID                  |
+| ------------------------------- | ------------------------------ |
+| Exact current identity          | `identity.current.v1`          |
+| Historical listing              | `sessions.list.v1`             |
+| Bounded stateless reads         | `transcript.read.v1`           |
+| Explicit file parsing           | `transcript.parse.v1`          |
+| Generation-bound Codex evidence | `transcript.evidence.codex.v1` |
+| Stateless historical search     | `search.v1`                    |
+| Search estimates                | `search.estimate.v1`           |
+| Sanitized Markdown export       | `export.markdown.v1`           |
+| Sensitive structured activity   | `activity.v1`                  |
+
+The providers array lists providers with implemented operational support, not
+all proposed providers. Provider-specific limitations belong in each operation's
+documented payload/support contract; a listed provider never implies that the
+Codex-specific evidence capability works for it. Version and required capability
+checks are both necessary for interactive consumers.
+
+## Documentation handoff
+
+The package README documents current usage. This internal map supplies p02/p03
+implementation choices; p04 supplies publish-ready package and Skills guidance;
+p05 reconciles built help, argument/default/error schemas, examples, diagrams,
+API exports and actual ORC routing against the full canonical documentation site.
+Do not copy the reserved usage tree into a released capability list prematurely.
