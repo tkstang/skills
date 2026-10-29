@@ -12,7 +12,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress # Status: in_progress | complete | pr_open
+oat_phase_status: complete # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_dispatch_policy: # optional project dispatch policy; managed keeps OAT selection active, inherit leaves controls to the host
 #   mode: managed # managed | inherit
@@ -73,7 +73,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-10-29T03:44:18.604803Z'
+oat_project_state_updated: '2026-10-29T04:13:40.212016Z'
 oat_brief_gate:
   status: allowed
   disposition: passed
@@ -91,19 +91,22 @@ oat_generated: false
 
 ## Current Phase
 
-Plan - Authoring the Project Brief
+Plan complete — approved brief ready for implementation
 
 ## Artifacts
 
-- **Plan:** `plan.md` (alignment interview in progress; complete draft with agreed design, outcomes, five phases, and delivery authority)
-- **Implementation:** `implementation.md` (scaffolded brief journal template — not started)
+- **Plan:** `plan.md` (approved; architecture and CLI diagrams, proposed argument reference, and p05 documentation acceptance included)
+- **Implementation:** `implementation.md` (initialized: five pending phases; implementation not started)
 - **Research:** `references/research/release-ci-reference.md`
 
 ## Progress
 
 - ✓ Brief project scaffolded
 - ✓ Brief and implementation artifacts scaffolded
-- ⧗ Design choices recorded, including Node 22/24 support; complete brief drafted for pre-implementation review
+- ✓ Design choices and delivery authority recorded; artifact review and configured Opus gate completed
+- ✓ User approved the reviewed brief and citation fix; requested visual and final-phase documentation addenda applied
+- ✓ Five-phase journal initialized: p01 concrete, p02–p05 provisional; no parallel groups
+- ⧗ Implementation awaits separate invocation
 
 ## Review Setup
 
@@ -119,4 +122,4 @@ None
 
 ## Next Milestone
 
-Fresh artifact review passed with no findings. The configured Opus gate passed (0 Critical/High/Medium, 1 Low citation-portability nit) and confirmed all four prior clarifications. Obtain the single final brief approval, including the proposed editorial skill-relative citation fix. Implementation has not started.
+Run `oat-project-implement` when separately invoked. The brief was approved at `8914e11e839212f394c2cf0ef9c638fd9396f98a`; its editorial citation fix and subsequent user-requested diagrams/command map and documentation acceptance are applied. Native artifact review had no findings; configured Opus gate passed with one Low citation finding now fixed (status `fixes_completed`, no clean re-review claimed). Gate provenance retains its actual reviewed head. No implementation has started.

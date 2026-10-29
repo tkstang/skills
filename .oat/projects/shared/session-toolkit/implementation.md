@@ -1,4 +1,5 @@
 ---
+oat_template: false
 oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
@@ -42,39 +43,31 @@ oat_generated: false
 | ----- | ------- | ----- | -------- |
 | p01   | pending | 1     | 0/1      |
 | p02   | pending | 1     | 0/1      |
+| p03   | pending | 1     | 0/1      |
+| p04   | pending | 1     | 0/1      |
+| p05   | pending | 1     | 0/1      |
 
-**Total:** 0/[N] phases accepted
+**Total:** 0/5 phases accepted
 
----
-
-## Phase p01: [Phase Name]
-
-**Status:** pending
-**Base:** [full base SHA, recorded when the phase starts]
-**Head:** [full head SHA, recorded when the phase's work ends, before its review]
-**Executor:** [root | phase-implementer:<id> | worker:<id> | inline:<exception-ref> | reconciled]
-
-[Summary prose: verification, review disposition, authority changes, deviations, next action.]
-
-<!-- Execution records follow the summary. Replace this example with real records when work starts: -->
-
-```markdown
-### Task p01-t01: [Execution record name]
-
-**Status:** completed
-**Commit:** [full commit SHA]
-**Executor:** worker:w1
-
-Intent, files, proof command, result.
-```
-
----
-
-## Phase p02: [Phase Name]
+## Phase p01: Establish the package boundary and release contract
 
 **Status:** pending
 
----
+## Phase p02: Consolidate identity, discovery, reads, and safe export
+
+**Status:** pending
+
+## Phase p03: Add search, activity, and CLI update notices
+
+**Status:** pending
+
+## Phase p04: Publish the toolkit and migrate Skills consumers
+
+**Status:** pending
+
+## Phase p05: Migrate ORC and verify integrated delivery
+
+**Status:** pending
 
 ## Orchestration Runs
 
@@ -123,11 +116,17 @@ Original M1/L1/L2 are confirmed resolved. The prior validation-failed run `ff9d4
 
 ### Configured brief gate: final approval candidate
 
-Run `219402e5-a762-40e8-9520-92e07df79555` reviewed `8914e11e839212f394c2cf0ef9c638fd9396f98a` with `claude-opus-5-5-high`. Envelope: `status: ok`, `review_completed_gate_passed`, threshold High, `receiveEligible: true`, matched run/project/invocation and corroborated handoff. Findings: Critical 0 · High 0 · Medium 0 · Low 1. Artifact: `reviews/artifact-plan-review-2026-10-29T034251Z.md`. Root read the complete artifact; all prior L1–L4 clarifications are confirmed resolved.
+Run `219402e5-a762-40e8-9520-92e07df79555` reviewed `8914e11e839212f394c2cf0ef9c638fd9396f98a` with `claude-opus-5-5-high`. Envelope: `status: ok`, `review_completed_gate_passed`, threshold High, `receiveEligible: true`, matched run/project/invocation and corroborated handoff. Findings: Critical 0 · High 0 · Medium 0 · Low 1. Artifact: `reviews/archived/artifact-plan-review-2026-10-29T034251Z.md`. Root read the complete artifact; all prior L1–L4 clarifications are confirmed resolved.
 
-- L1 (Low, Negligible scope): the brief-contract reference is machine-specific. Root agrees; propose `resolve_in_artifact` by replacing the absolute reference with `oat-project-brief/references/brief-contract.md`. No Outcome, Approach, Decision, phase boundary, or authority changes; this is the editorial exception in brief Step 3.7, requiring no review-ladder rerun. Include the exact fix in the single final brief approval prompt; do not apply it before confirmation.
+- L1 (Low, Negligible scope): the brief-contract reference is machine-specific. User approved `resolve_in_artifact` with the brief; replaced the absolute reference with `oat-project-brief/references/brief-contract.md`. This is the editorial exception in brief Step 3.7; no review-ladder rerun is required.
 
-**Outcome:** gate passed; single final brief approval and editorial L1 disposition pending. No implementation has started.
+**Outcome:** gate passed; editorial L1 fix applied, review event `fixes_completed` (no clean re-review claimed). The user approved the reviewed brief and citation fix in this session at `8914e11e839212f394c2cf0ef9c638fd9396f98a`. No implementation has started.
+
+### Approved brief completion and requested addenda
+
+After approval, the user explicitly requested architecture/CLI diagrams, a clearer commands/arguments presentation, and comprehensive documentation in the final phase. Applied two Mermaid diagrams and `references/cli-command-map.md`; syntax and defaults remain p01 proposals rather than new public commitments. The addenda elaborate existing package/consumer ownership and documentation constraints without changing outcomes, phase boundaries or delivery authority. p05 now names documentation coverage, CLI/API accuracy, package/Skills/ORC guidance, navigation, docs checks/build and responsive/theme visual verification as acceptance evidence. p04 still supplies publish-ready package/consumer documentation before release.
+
+Read-only recon handles `/root/cli_surface_inventory` and `/root/cli_docs_conventions` supplied donor CLI/state evidence and documentation/Foundations guidance. Root checked donor entrypoints and `documentation/AGENTS.md`, validated phase grammar, and checked whitespace. Reviews above retain their actual commit scopes; none is claimed to have reviewed these later explanatory addenda. The brief is complete; five journal phases remain pending. Implementation, merge and publication authority activates only upon separate implementation invocation.
 
 ## Deferred Findings
 
@@ -143,31 +142,10 @@ Document any intentional deviations from the brief. Include accepted review find
 
 ## Final Summary (for PR/docs)
 
-**What shipped:**
-
-- [capability 1]
-
-**Behavioral changes (user-facing):**
-
-- [bullet]
-
-**Key files / modules:**
-
-- `[path]` - [purpose]
-
-**Verification performed:**
-
-- [tests/lint/typecheck/build/manual steps]
-
-**Outcomes audit:**
-
-- Outcome 1: [observed evidence (accepted phase, commit, or verification result) or the recorded deferral]
-
-**Brief deltas (if any):**
-
-- [what changed vs plan.md and why]
+Pending implementation. No package, consumer migration, or release has shipped.
 
 ## References
 
 - Brief: `plan.md`
 - Research: `references/research/`
+- CLI design aid: `references/cli-command-map.md`

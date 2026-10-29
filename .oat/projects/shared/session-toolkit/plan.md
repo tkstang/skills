@@ -1,11 +1,11 @@
 ---
-oat_template: true
-oat_status: in_progress
-oat_ready_for: null
+oat_template: false
+oat_status: complete
+oat_ready_for: oat-project-implement
 oat_blockers: []
 oat_last_updated: 2026-10-29
 oat_phase: plan
-oat_phase_status: in_progress
+oat_phase_status: complete
 oat_plan_hill_phases: [] # [] = none for brief modes
 oat_plan_parallel_groups: [] # groups of phases that run concurrently in worktrees; [] = fully sequential
 oat_plan_source: brief
@@ -42,6 +42,42 @@ ORC imports the published library. Keep its observation bridge, `RuntimeSessionO
 
 Interactive skills invoke compatible `seshtk` commands. A missing or incompatible executable produces a clear prerequisite choice: persistent installation or fetched execution of an explicitly selected version using `npx --package=@tkstang/session-toolkit@<approved-version> seshtk ...`. Skills check version and required capabilities and reuse valid checks within the session. They never silently fetch `@latest`. Unattended hook entrypoints bundle the functions they need from this same authored package source at build time, retaining offline execution without prompts or runtime downloads. No copied-parser fallback is maintained.
 
+### Architecture and command map
+
+```mermaid
+flowchart TD
+    accTitle: Shared session engine and consumer ownership
+    accDescr: Provider evidence flows through one authored toolkit to the CLI, bundled hooks and ORC library consumers; each consumer retains its own state.
+    stores["Claude Code · Codex · Cursor stores"] --> evidence["Toolkit: identity, discovery, detailed reads"]
+    evidence --> projections["Toolkit: search, safe export, sensitive activity"]
+    evidence --> api["Typed library API"]
+    projections --> api
+    api --> cli["seshtk CLI"]
+    api --> bundled["Build-time bundled hook functions"]
+    api --> orc["ORC: enrichment, policy, host integrations"]
+    cli --> skills["Interactive Skills: prerequisite checks"]
+    bundled --> hooks["Unattended hooks: offline execution"]
+```
+
+The arrows show evidence flow and consumption. The package owns provider facts; consumers retain selection, read offsets, watch/control state, and host policy. The CLI and bundled hooks derive from the same authored engine. Only the interactive CLI may perform cached update checks; library imports and hook/machine operations do not.
+
+```mermaid
+flowchart LR
+    accTitle: Proposed seshtk command hierarchy
+    accDescr: The proposed CLI groups exact identity, historical discovery, reads, file parsing, search and estimates, safe export, sensitive activity, and capability/help discovery. p01 finalizes syntax.
+    root["seshtk"] --> identity["self-identify: exact current identity"]
+    root --> list["list: historical discovery"]
+    root --> read["read: session records and pagination"]
+    root --> parse["parse: explicit transcript file"]
+    root --> search["search / search estimate: historical content"]
+    root --> export["export: sanitized Markdown"]
+    root --> activity["activity: sensitive structured evidence"]
+    root --> caps["capabilities: machine-readable support"]
+    root --> help["--help / --version"]
+```
+
+This is a **proposed command layout**, not an implemented or frozen CLI contract. [CLI command and argument map](references/cli-command-map.md) gives the draft usage tree, option groups, donor evidence, and unresolved p01 choices. p01 validates names, defaults, mutual exclusions, units, output/error schemas, and capability IDs before implementation depends on them. Stateful selection, marking records read, watch loops, and watch control remain consumer responsibilities.
+
 ### Behavior and runtime
 
 Support Node 22 and 24. Determine the exact minimum Node 22 patch and compatible dependency versions from actual APIs and dependencies, then declare and verify that floor. Run release tooling on Node 24 independently of the consumer minimum. Keep the existing repository package-manager/toolchain pins unless a concrete package requirement necessitates a scoped change.
@@ -61,6 +97,12 @@ Package publication precedes production consumer cutover requiring that version.
 Migrate the actual workflows described by ORC's skill guidance, including the observer path, alongside API consumers. Inventory the existing `locate/select/read/catch-up/export/forget` operations and their selection-state semantics. Remove redundant generic commands only once replacement behavior and affected callers are verified. Preserve ORC's enriched `self-identify`. Do not silently discard or reinterpret existing selection/cursor state; a material state-contract change requires realignment.
 
 ORC changes receive an independent ad-hoc `oat-review-provide <base>..<head>` review executed in the ORC checkout before merging. Record explicit scope, ORC checkout path, base/head SHAs, PR links, review artifact location, and per-finding dispositions in the p05 journal; the final integrated review receives that ORC checkout path and range alongside the Skills phase anchors, so it can inspect both repositories directly. Do not pass ORC SHAs to the Skills-only project range resolver. Before each p04 merge or publication, independently review the relevant publish-ready release or migration candidate on its explicit commit range; publication also requires verification that the archive is the reviewed release artifact. These pre-action reviews supplement the built-in anchored phase review; merge, publish, and install receipts become exit evidence only after the respective reviews and checks pass. When p04 becomes concrete, document a branch strategy that preserves earlier phase heads as ancestors across squash-only merges (for example, retain the project branch and merge `main` back after each squash merge), and record the strategy and review anchors in the journal.
+
+### Documentation delivery
+
+Documentation is part of delivery, with a final coverage and accuracy audit in p05. Maintain the existing canonical User Guide and Engineering trunks: a consolidated toolkit command reference, installation and prerequisite guidance, the intentional library API, architecture/distribution boundaries, and package/release maintenance guidance. Update existing Session skill/plugin pages and ORC guidance alongside consumer changes; link shared reference material instead of copying command documentation into every skill. The package README must let npm users install and start without repository knowledge.
+
+The final reference covers every shipped command, argument, flag, default, selector, output mode, error/exit contract, and representative workflow. Explain Node 22/24 support, versioned `npx --package` invocation, interactive update notices and machine/hook suppression, source/coverage limitations, sanitized export versus sensitive activity, state ownership, and the final ORC command surface. Reconcile the proposed diagrams and command map to built help and public exports. p04 supplies publish-ready package and migrated-Skills documentation; p05 verifies the complete published-package/Skills/ORC documentation set before acceptance.
 
 ## Constraints and Out of Scope
 
@@ -98,6 +140,8 @@ ORC changes receive an independent ad-hoc `oat-review-provide <base>..<head>` re
 
 ## Delivery endpoint and authority
 
+- **Brief approved:** 2026-10-29 by user at 8914e11e839212f394c2cf0ef9c638fd9396f98a.
+- **Requested addenda:** after approval, the user explicitly requested architecture/CLI visuals, a clearer command/argument layout, and comprehensive documentation as part of p05. These elaborate the existing scope; command syntax remains a p01 proposal.
 - **Endpoint:** merged — Skills and ORC changes merged, the toolkit published, applicable migrated skill/plugin releases delivered, and actual consumers verified against the published version. Package publication precedes consumer cutover that depends on it.
 - **Authority:** the user approves the reviewed brief once. After approval and invocation of implementation, the agent may implement, verify, open and merge required PRs, publish the agreed package/releases, and migrate consumers subject to required checks and independent reviews. Root retains credential and irreversible-action execution; request any needed secret through the host secret mechanism. Material changes to outcomes, approach, constraints, endpoint, or authority require realignment. Brief authoring does not activate implementation.
 - **Acceptance:** the agent accepts phases from recorded exit evidence and review dispositions within the approved scope. Registry/package settings requiring unavailable account access remain explicit blockers. General provider certification and untested marketplace paths are never inferred from fixture or local-install results.
@@ -130,8 +174,8 @@ ORC changes receive an independent ad-hoc `oat-review-provide <base>..<head>` re
 
 ## Phase p05: Migrate ORC and verify integrated delivery
 
-**Intent:** Move ORC's typed consumers to the published toolkit, update its actual skill routing and documentation, and remove redundant generic session-log commands after parity. Preserve host enrichment and consumer state, then audit the whole delivery.
-**Exit evidence:** ORC has a normal published semver dependency and clean lockfile with no development override; package age policy is satisfied; API/routed-skill parity and enriched self-identify checks pass; redundant commands/callers and duplicate provider code are removed; ORC checkout path, base/head SHAs, PR links, ad-hoc explicit-range review artifact location, and root dispositions are recorded in p05 before ORC PRs are merged. The final integrated review inspects the supplied ORC checkout and range alongside the Skills phase anchors; the review and required gates pass, with all numbered Outcomes mapped to observed release/consumer evidence.
+**Intent:** Move ORC's typed consumers to the published toolkit, update its actual skill routing and documentation, and remove redundant generic session-log commands after parity. Preserve host enrichment and consumer state, complete the documentation coverage/accuracy audit, then audit the whole delivery.
+**Exit evidence:** ORC has a normal published semver dependency and clean lockfile with no development override; package age policy is satisfied; API/routed-skill parity and enriched self-identify checks pass; redundant commands/callers and duplicate provider code are removed; ORC checkout path, base/head SHAs, PR links, ad-hoc explicit-range review artifact location, and root dispositions are recorded in p05 before ORC PRs are merged. Documentation acceptance maps all shipped commands/arguments/flags/defaults, library exports, install/prerequisite paths, Node support, update notices, safety/coverage boundaries, and Skills/ORC workflows to canonical pages and runnable controlled-fixture examples. Package README, affected repository/release/contribution guidance, local Contents maps and sidebars are current; the generated documentation inventory is refreshed. From `documentation/`, `pnpm exec oat docs check --target-dir .` and `pnpm build` pass; affected diagrams/sidebar render legibly at desktop/phone widths in light/dark themes. CLI reference examples and diagrams match built help/capabilities and public API exports, with no remaining draft syntax presented as shipped. Record these checks and the documentation coverage map in p05. The final integrated review inspects the supplied ORC checkout and range alongside the Skills phase anchors; the review and required gates pass, with all numbered Outcomes mapped to observed release/consumer evidence.
 **Provisional:** yes
 
 ## Parallelism
@@ -150,9 +194,9 @@ No parallel phase groups are declared (`oat_plan_parallel_groups: []`). Package 
 | plan  | artifact | received        | 2026-10-29 | reviews/archived/artifact-plan-review-2026-10-29T032603Z.md | -                                        | -          | -                    |
 | plan  | artifact | fixes_completed | 2026-10-29 | reviews/archived/artifact-plan-review-2026-10-29T033029Z.md | 95f5d507325fe66d4437799057002780ee92e0ed | gate       | claude-opus-5-5-high |
 | plan  | artifact | passed          | 2026-10-29 | structured                                                  | e3111ad79d813d44af10e815947673e5102496ae | auto       | -                    |
-| plan  | artifact | received        | 2026-10-29 | reviews/artifact-plan-review-2026-10-29T034251Z.md          | -                                        | -          | -                    |
+| plan  | artifact | fixes_completed | 2026-10-29 | reviews/archived/artifact-plan-review-2026-10-29T034251Z.md | 8914e11e839212f394c2cf0ef9c638fd9396f98a | gate       | claude-opus-5-5-high |
 
-Initial Codex artifact review passed with no findings. The configured Opus brief gate passed its High threshold with M1 (Medium) and L1/L2 (Low); the user approved all three amendments, now applied. Fresh read-only Codex artifact re-review passed with zero findings at `77599b3deb3bf460225e952900ac8676939e960e`. The configured Opus gate rerun passed its High threshold at `95f5d507325fe66d4437799057002780ee92e0ed` (0 Critical/High/Medium, 4 Low). All original M1/L1/L2 amendments were confirmed. The user approved all four new Low clarifications; they are applied and passed fresh structured artifact review with no findings at `e3111ad79d813d44af10e815947673e5102496ae`. The configured Opus gate passed at `8914e11e839212f394c2cf0ef9c638fd9396f98a`, confirming all four clarifications, with no Critical/High/Medium findings and one Low citation-portability nit. Final brief approval and the proposed editorial skill-relative citation fix remain pending. The archived `032603Z` review was not receive-eligible and is superseded by the validated `033029Z` gate event.
+Initial Codex artifact review passed with no findings. The configured Opus brief gate passed its High threshold with M1 (Medium) and L1/L2 (Low); the user approved all three amendments, now applied. Fresh read-only Codex artifact re-review passed with zero findings at `77599b3deb3bf460225e952900ac8676939e960e`. The configured Opus gate rerun passed its High threshold at `95f5d507325fe66d4437799057002780ee92e0ed` (0 Critical/High/Medium, 4 Low). All original M1/L1/L2 amendments were confirmed. The user approved all four new Low clarifications; they are applied and passed fresh structured artifact review with no findings at `e3111ad79d813d44af10e815947673e5102496ae`. The configured Opus gate passed at `8914e11e839212f394c2cf0ef9c638fd9396f98a`, confirming all four clarifications, with no Critical/High/Medium findings and one Low citation-portability nit. The user approved the reviewed brief and editorial skill-relative citation fix; the fix is applied. The subsequent user-requested visual/command reference and p05 documentation addenda elaborate existing boundaries and evidence, and were checked against donor entrypoints and documentation instructions. They do not finalize p01 syntax or change delivery authority; no additional approval is required. The recorded reviews cover their named commits, before these addenda. The archived `032603Z` review was not receive-eligible and is superseded by the validated `033029Z` gate event.
 
 ## Implementation Complete
 
@@ -162,10 +206,11 @@ Pending implementation. Five phases are planned: p01 is concrete; p02–p05 are 
 
 - Journal: [implementation.md](implementation.md).
 - Research: `references/research/`.
+- CLI proposal: [command and argument map](references/cli-command-map.md).
 - Release CI comparison: [release-ci-reference.md](references/research/release-ci-reference.md).
 - Reconnaissance: [shared-session-toolkit brainstorm](../../../repo/reference/brainstorms/2026-10-28-shared-session-toolkit.md).
 - Independent proposal review: [Opus review](../../../repo/reference/brainstorms/2026-10-28-shared-session-toolkit-opus-review.md); this covered the original proposal and does not replace review of this brief.
 - Accepted naming: [DR-261028-session-toolkit-naming](../../../repo/reference/decisions/DR-261028-session-toolkit-naming.md).
-- Brief contract: `/Users/tstang/.agents/skills/oat-project-brief/references/brief-contract.md`.
+- Brief contract: `oat-project-brief/references/brief-contract.md`.
 - Project log: `project-log.md` when enabled.
 - Formatting: use the documented `pnpm exec oxfmt --write <owned authored paths>` form. Lifecycle files under `.oat/` are excluded by repository formatter globs; format their contents through `pnpm exec oxfmt --stdin-filepath <basename>` and save stdout to the owned file. Never format generated distributions or agent instructions.
