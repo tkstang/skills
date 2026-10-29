@@ -84,8 +84,21 @@ oat_phase_recovery_policy:
   default_attempt_limit: 10
   phase_attempt_usage:
     p01:
-      used_attempts: 0
-      pending_attempt: null
+      used_attempts: 1
+      pending_attempt:
+        attempt: 1
+        event_id: session-toolkit-p01-recovery-01
+        original_request_id: session-toolkit-p01-implement-20261029
+        original_task_id: p01-t01
+        original_commit: e2b2d8e014728d204f9da5c16649f6cab206cebe
+        defect_class: test
+        discovered_by: pnpm run test:vitest tests/repo/package-metadata.test.ts
+        dispatch_target: oat-phase-implementer-gpt-6-1-sol-high
+        reservation_head: c8c95966dbb8877d8a4477d8736b4b2084fdad92
+        status: completed
+        bounded_files: [tests/repo/package-metadata.test.ts]
+        authorization: phase-standing
+        eligibility: Mechanical script-inventory and type-check expectation propagation; no public behavior, architecture or requirements change; original task and exact target retained.
 oat_generated: false
 ---
 
