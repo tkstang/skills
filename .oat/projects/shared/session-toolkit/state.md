@@ -80,6 +80,12 @@ oat_brief_gate:
   config_fingerprint: 'sha256:f7e3a5406a8a8a184532a47f3c6ec30ffca5b79b0b4494d47f79df3b4339f2e4'
   reviewed_head: '8914e11e839212f394c2cf0ef9c638fd9396f98a'
   decided_at: '2026-10-29T03:44:18.604803Z'
+oat_phase_recovery_policy:
+  default_attempt_limit: 10
+  phase_attempt_usage:
+    p01:
+      used_attempts: 0
+      pending_attempt: null
 oat_generated: false
 ---
 
