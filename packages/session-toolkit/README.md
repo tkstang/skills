@@ -238,3 +238,21 @@ byte ranges and Cursor frame indices independently. Cursor event locators retain
 source and terminal delivery frame coordinates. `--out` creates a new JSON file
 exclusively and refuses existing destinations; without it the capture is returned
 in the CLI response. Consumers own offsets and watch/selection state.
+
+## Update notices
+
+Successful interactive operations check for newer stable releases, at most once
+per24 hours, and print a notice on **stderr**. Both stdin and stderr must be
+TTYs. `--json`, bare `capabilities`, help/version, CI and non-TTY invocations
+perform **zero update network lookups** and print no notice. Set
+`SESHTK_NO_UPDATE_CHECK=1` to disable checking explicitly. Library imports and
+bundled library functions cannot invoke this CLI-only updater; unattended hooks
+need no network access.
+
+The cache is `$XDG_CACHE_HOME/session-toolkit/update.json` or
+`~/.cache/session-toolkit/update.json`. Lookup failures are cached for24 hours
+and never fail a session operation. Malformed/expired caches are refreshed.
+The registry request has a1-second timeout; only stable SemVer releases newer
+than the installed version trigger a notice. No automatic upgrade runs. The
+notice gives an explicit-version installation command; stdout remains the
+requested operation's output.
