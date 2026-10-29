@@ -400,6 +400,18 @@ p03 made concrete after p02 acceptance, within unchanged approved outcomes and t
 **Commit:** d2daf936a9574a7b1eaa6179eb340865885fa9c3
 **Verification:** Build,2files/13 updater+CLI tests, root/package types, scoped lint/format and diff review pass. Built subprocesses observe external fetch calls and cache files independently: current/newer/prerelease/offline/malformed/expired/default-cache cases;1-second abort; unchanged stdout; all suppressed contexts including bare capabilities/library import issue zero requests and no cache writes. Test preload controls only external fetch and TTY facts, not own modules or production flags. Updater is bin-only and absent from public exports.
 
+### Task p03-t04: Prove the installed archive and reconcile delivered contracts
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p03-implement-20261029
+**Handle:** /root/session_toolkit_p03
+**Intent:** Extend exact packed API/CLI/declaration proof for search/activity, reconcile docs/parity/inventory and record phase-wide verification on Node22.0.0/24.21.0.
+**Files:** scripts/session-toolkit-package.ts; packages/session-toolkit/README.md; references/package-contract.md; cli-command-map.md; consumer-inventory.md; p03-parity.md; p03-verification.md; CHANGELOG.md.
+**Proof:** Build; all package and unchanged donor/repository suites with exactly the documented baseline exclusions; root/package types; scoped lint/format; validate/smoke; build:check after broad suite; fresh Node24 release dry run and same-archive Node22.0.0 proof with installed strict declarations.
+
+**Commit:** d87404a9a5e80b861aafaf7b3149f9a6b290372c
+**Verification:**28 package files/623 tests; remaining repository suite210files/3465tests plus2files/3tests skipped with exactly the2known baseline exclusions; root/package types and scoped lint/format pass. Serialized build:check,validate,smoke pass. Initial51-file exact archive50579cf159c725d50c621332e0523ddc5d8d8ea7823d41a92b8dbabe45957918 passes clean API/CLI/strict declarations on actual22.0.0/24.21.0 and npm publication dry run. References reconcile current API/help/capabilities and donor parity. No publication or migration. Final headerless-continuation provenance transition remains to verify; if corrected, initial archive is superseded by fresh proof.
+
 ## Phase p04: Publish the toolkit and migrate Skills consumers
 
 **Status:** pending
