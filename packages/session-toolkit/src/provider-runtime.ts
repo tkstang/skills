@@ -2075,6 +2075,8 @@ function normalizeCodex(
   opts: NormalizeEntriesOptions,
 ): DigestEntry[] {
   const includeToolCalls = opts.includeToolCalls ?? false;
+  const includeToolResults = opts.includeToolResults ?? false;
+  const toolNamesByCallId = new Map<string, string>();
   const askUserToolName = ASK_USER_TOOL_NAMES.codex;
 
   // Codex keys its answers by question id, not question text, so the questions
@@ -2086,10 +2088,12 @@ function normalizeCodex(
   for (const record of records) {
     const payload = isObject(record.payload) ? record.payload : record;
     if (asString(payload.type) !== 'function_call') continue;
-    if ((asString(payload.name) ?? asString(record.name)) !== askUserToolName)
-      continue;
+    const name =
+      asString(payload.name) ?? asString(record.name) ?? 'function_call';
     const callId = asString(payload.call_id) ?? asString(record.call_id);
     if (!callId) continue;
+    toolNamesByCallId.set(callId, name);
+    if (name !== askUserToolName) continue;
     const args = parseCodexFunctionArguments(
       payload.arguments ?? record.arguments,
     );
@@ -2120,18 +2124,30 @@ function normalizeCodex(
     const payload = isObject(record.payload) ? record.payload : record;
     const payloadType = asString(payload.type) ?? asString(record.type);
 
-    // function_call_output records are tool mechanics except when they carry
-    // the operator's answer to an ask-user call.
+    // Ask-user answers remain conversation; other outputs require the separate
+    // result opt-in and use a preview without discarding their raw records.
     if (payloadType === 'function_call_output') {
       const callId = asString(payload.call_id) ?? asString(record.call_id);
-      if (!callId || !askUserQuestionsByCallId.has(callId)) return [];
-      const entry = codexAskUserAnswerEntry(
-        payload,
-        recordIndex,
-        askUserLabelById.get(callId) ?? new Map(),
-        askUserAutoResolvableCallIds.has(callId),
-      );
-      return entry ? [entry] : [];
+      if (callId && askUserQuestionsByCallId.has(callId)) {
+        const entry = codexAskUserAnswerEntry(
+          payload,
+          recordIndex,
+          askUserLabelById.get(callId) ?? new Map(),
+          askUserAutoResolvableCallIds.has(callId),
+        );
+        if (entry) return [entry];
+      }
+      if (!includeToolResults) return [];
+      const name = (callId && toolNamesByCallId.get(callId)) || 'tool_result';
+      return [
+        {
+          role: 'user',
+          text: `[${name} → result] ${stringifyArgs(payload.output ?? record.output, TOOL_RESULT_LIMIT)}`,
+          recordIndex,
+          kind: 'tool_result',
+          toolName: name,
+        },
+      ];
     }
 
     // function_call records

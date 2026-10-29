@@ -124,3 +124,28 @@ that build and execute the same output must run serially.
   passes. The receipt names preparation HEAD8a454ba plus the pending M1/M2
   product diff; this is development proof, not publication attestation.
   Earlier archives are historical only. No publication or consumer cutover.
+
+## Review r2 M1: Codex result projection (p02-t08)
+
+- New parsing regression failed before correction because results-only returned
+  no message; `/tmp/session-toolkit-p02-codex-results-red.log`. Independent
+  default/calls/results/both literal expectations and resumed source coordinates
+  now pass. Ask-user behavior remains covered by the retained provider suites.
+- All343 package tests pass; root/package types, toolkit build, scoped
+  lint/format, serialized generated build:check, validate and smoke pass.
+  Controlled public export includes `recorded-output` with results-only and
+  omits the call; separate public parse confirms the existing500-character
+  result preview bound. No duplicated automated provider export matrix.
+- Latest archive supersedes the earlier p02 proof:
+  `/tmp/session-toolkit-p02-accepted-proof-20261029/tkstang-session-toolkit-0.1.0.tgz`,
+  SHA256 `86d0fc3891ca209414e827abf8ef14d0a1298130050ee11dbb7fae26d5f9b741`.
+  All34 files pass archive validation. Exact clean-install fixture API/CLI,
+  import safety/version/help/capabilities and strict declarations pass on
+  actual22.0.0 and24.21.0; npm publish dry run passes. Receipt preparation
+  HEAD700660e includes the pending t08 product diff, development proof only.
+- r2 independently reviewed the full phase through f77c538, confirming all
+  previous fixes with0 Critical/High and1 Medium. Root corrected that Medium
+  afterward; this change has passing regression/phase checks, not a claimed
+  independent clean re-review. Final integrated review remains required.
+- Historical broad-suite baseline limitation is unchanged; no full-suite pass
+  or new unrelated broad-suite rerun. Recovery remains4/10,pendingnull.

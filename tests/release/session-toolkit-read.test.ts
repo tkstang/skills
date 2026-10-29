@@ -94,6 +94,80 @@ describe('bounded public parsing', () => {
         }),
       ).rejects.toMatchObject({ code: 'E_SOURCE_CHANGED' });
     }));
+  it('includes Codex tool results independently and preserves their page coordinates', async () =>
+    fixture(async (path) => {
+      await writeFile(
+        path,
+        [
+          {
+            type: 'response_item',
+            payload: {
+              type: 'function_call',
+              call_id: 'a',
+              name: 'exec_command',
+              arguments: '{"cmd":"echo fixture"}',
+            },
+          },
+          {
+            type: 'response_item',
+            payload: {
+              type: 'function_call_output',
+              call_id: 'a',
+              output: 'recorded-output',
+            },
+          },
+        ]
+          .map((record) => JSON.stringify(record))
+          .join('\n') + '\n',
+      );
+      for (const [flags, expected] of [
+        [{}, []],
+        [{ includeToolCalls: true }, ['[exec_command] {"cmd":"echo fixture"}']],
+        [
+          { includeToolResults: true },
+          ['[exec_command → result] recorded-output'],
+        ],
+        [
+          { includeToolCalls: true, includeToolResults: true },
+          [
+            '[exec_command] {"cmd":"echo fixture"}',
+            '[exec_command → result] recorded-output',
+          ],
+        ],
+      ] as const) {
+        const page = await parseTranscript({
+          runtime: 'codex',
+          path,
+          ...flags,
+        });
+        expect(page.messages.map((message) => message.text)).toEqual(expected);
+      }
+      const first = await parseTranscript({
+        runtime: 'codex',
+        path,
+        includeToolCalls: true,
+        includeToolResults: true,
+        maxMessages: 1,
+      });
+      expect(first.nextOffset).toBe(1);
+      const next = await parseTranscript({
+        runtime: 'codex',
+        path,
+        includeToolCalls: true,
+        includeToolResults: true,
+        cursor: first.nextCursor!,
+      });
+      expect(next.messages).toMatchObject([
+        {
+          kind: 'tool_result',
+          toolName: 'tool_result',
+          recordIndex: 1,
+          sourceOrdinal: 1,
+          physicalLine: 2,
+          text: '[tool_result → result] recorded-output',
+        },
+      ]);
+    }));
   it('uses Cursor frame coordinates, retaining malformed frames and blocking an unclosed valid frame', async () =>
     fixture(async (path) => {
       await writeFile(

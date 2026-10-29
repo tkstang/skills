@@ -69,3 +69,15 @@ to preserve the donor's first boundary, and can still take quadratic CPU within
 the existing byte/record bounds. Tests protect this concrete fallback, atomic
 multi-block records, diagnostics/continuation positions and Cursor pending
 questions before terminal collapse.
+
+## Review r2 M1 correction
+
+The Skills donor silently omitted ordinary Codex function-call outputs even when
+results were opted in. Toolkit now intentionally implements its selected
+independent call/result switches: default omits both; each switch includes its
+own projection; both include both. Ask-user answers remain conversational.
+Result previews use the existing500-character preview cap; raw source/evidence
+retains complete output. Names correlate within the captured page; a continuation
+without the call labels the output `tool_result` without inventing context.
+Source ordinals, message-boundary paging and the shared export sanitizer remain
+unchanged. This fixes a donor gap rather than claiming byte-identical projection.
