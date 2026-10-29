@@ -473,6 +473,24 @@ Execution shape: one phase implementer in the existing worktree, sole reversible
 
 p04 made concrete after p03 acceptance within unchanged approved outcomes and authority. Release preparation and migration share package/distribution/lockfile outputs, so they remain sequential with one phase implementer; root retains independent review and irreversible/account execution. A clean intermediate release-candidate handoff precedes publication, and published-version evidence precedes interactive cutover. This is phase elaboration, not an up-front task plan. Missing npm authentication remains a known prerequisite; reversible preparation and review come first.
 
+### Task p04-t01: Prepare the bound exact-archive release path
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p04-implement-20261029
+**Handle:** /root/session_toolkit_p04
+**Commit:** 22556ca8efc19958abe69ae78b5d75781b8983e4
+**Intent:** Prepare a clean, source-bound 0.1.0 candidate, exact-artifact CI/publication controls, refusal/idempotency proof and accurate bootstrap guidance before root-owned review/publication. No consumer cutover.
+**Files:** scripts/AGENTS.md; scripts/session-toolkit-package.ts; scripts/session-toolkit-release.ts; tests/release/session-toolkit-release.test.ts; tests/repo/package-metadata.test.ts; .github/workflows/session-toolkit.yml; package.json; packages/AGENTS.md; packages/session-toolkit/package.json; packages/session-toolkit/README.md; packages/session-toolkit/CHANGELOG.md; RELEASING.md; CONTRIBUTING.md; CHANGELOG.md.
+**Proof:** scoped release/package/CLI tests; toolkit build, type-check, applicable lint/format/actionlint; exact development archive on Node 22.0.0/24; repository validate/smoke/build:check; clean committed release preparation and bound archive verification before intermediate handoff.
+
+**Verification:** 634 toolkit tests passed. Broad repository command `pnpm run test --exclude src/shared/collaboration/log.test.ts --exclude src/shared/collaboration/messages.test.ts` passed 211 files / 3,476 tests, with 2 files / 3 tests skipped. These two explicit environmental exclusions remain; no unqualified full-suite pass is claimed. Type-check, scoped oxlint/oxfmt, actionlint, validate, smoke and post-broad build:check passed. The development archive passed installed API/declaration/CLI operations on actual Node 22.0.0 and 24.21.0. Clean prepare/verify also passed before commit in an isolated disposable source fixture. Real clean candidate preparation follows this journal closure; root receives its source/hash receipt at the ownership handoff.
+
+**Self-review:** Six focused release-boundary tests protect clean source/commit/tree/version/tag binding, substituted archive/notes, exact-tag requirement and registry mismatch/error/idempotency. They mock only the external npm registry boundary, reuse the real packed manifest checker and introduce no structural source-scan test or test-only runtime hook. The existing root script-inventory assertion mechanically gains the three new commands (`tests/repo/package-metadata.test.ts`, added effective boundary). One release driver reuses packed dependency/inventory/installed proof; no coordinator, runtime dependency, consumer engine/state change or global install is added. Updated package/release/contribution docs plus packages/AGENTS.md and scripts/AGENTS.md describe implemented behavior and separate live receipts. No site visual/content change is made in this prefix; full site coverage remains p05.
+
+**Branch/review strategy:** Retain `feat/session-toolkit-package` and accepted phase heads. Candidate prefix is `7eb4ecb19bcba924ba8350f1480bc4acfe584742..22556ca8efc19958abe69ae78b5d75781b8983e4`; no independent review is claimed. Root integrates current main, independently reviews the actual release candidate range (including complete package content as needed), then performs squash-only merge/publication and merges main back into the retained branch without rewriting phase history. Actual PR, merge, release-tag and publication identities remain root-owned evidence. The real archive manifest binds its own exact clean HEAD; upstream integration or squash merge requires fresh preparation/verification, not metadata relabeling.
+
+**Phase boundary:** Release-preparation prefix only. p04 remains in_progress with no final Head marker. Published-version/integrity and installed acceptance, live bootstrap/trusted-publisher/protected-environment/enable evidence and independent candidate review are still required before interactive Skills cutover. Recovery used 0/10, remaining 10, pending null; all corrections were precommit prevention.
+
 ## Phase p05: Migrate ORC and verify integrated delivery
 
 **Status:** pending
