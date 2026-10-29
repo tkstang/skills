@@ -162,14 +162,14 @@ Root consumed exactly one `Reconnaissance: not-attempted` confirmation; artifact
 
 **Status:** in_progress
 **Base:** 3810f57b6c1205e918ccee133dd287bc65094736
-**Head:** 1ce8ba8de2fb5cb858bb6f4b273dac84bfa261d6
+**Head:** 99132f622f93211c2532b34d93381de4d5329a0d
 **Executor:** phase-implementer:session-toolkit-p02-implement-20261029
 
 Execution shape: one phase implementer in the existing worktree is the sole committing owner for phase product/task records. No parallel group; the provider substrate, shared schemas, CLI, exports and package build outputs overlap and impose sequential dependencies, so root fan-out fails the independence test. Root owns lifecycle state and independent review. Classification: hard-reasoning/high for donor format/coordinate reconciliation, exact identity and safe export boundaries. Recovery default limit10, p02 prior usage0, remaining10, pending null; no phase override.
 
 p02 made concrete from the reviewed p01 package/command contract and consumer inventory. The phase implements the agreed provider core and export, preserves existing consumer state, and records donor parity before migration. This elaborates the approved outcomes and phase boundary; no scope, endpoint or authority change.
 
-Phase verification: final committed product passes333 package tests, root/package type-check, toolkit build, scoped lint/format, generated build:check, validate and smoke. Earlier remaining-suite pass197files/3174tests plus2files/3tests skipped excludes only the two documented baseline collision files; no full-suite pass. Narrow later Cursor frame correction has explicit regression and complete package proof. Exact final34-file archive passes isolated fixture API/CLI/import/type checks on actual Node22.0.0 and24.21.0; reference p02-verification.md records SHA256 and limitations. All five execution records have one implementation plus one journal closure commit. Consumers unchanged. Recovery4/10 remaining6; completed04 pending marker retained for root, volume warning disclosed. Phase remains in_progress for root acceptance and independent review.
+Phase verification after review H1–H3: committed product passes340 package tests (15 files), root/package type-check, toolkit build, scoped lint/format, generated build:check, validate and smoke. Package tests repeated against the code commit pass340/340. Earlier remaining-suite pass197files/3174tests plus2files/3tests skipped excludes only the two documented baseline collision files; no full-suite pass or new broad-suite run. The historical archive predates review corrections and is superseded; root will rebuild/recheck after its M1/M2 fixes. Six execution records each have one implementation plus one journal closure commit. Recovery4/10 used,6 remaining,pendingnull; volume warning disclosed. Phase remains in_progress for root fixes, independent review and acceptance.
 
 Root pre-review validation: all five task commits and separate journal closures are append-only, ordered and bounded to p02. The complete dispatch-base range is `1a4974465ddb66b51a2b0db556fde61abc9c267b..7b6f86664a973c3f33391d1bda359c07950d920c`; the report’s first/last commit shorthand is inclusive. Phase review uses the unchanged full anchors above. Recovery01–03 were already validated and settled by root commits `517108c`, `49cbb22` and `ffea28a`; recovery04 report, canonical event, exact target/axes, immutable original and bounded correction/test/ledger diff now validate. Cleared only its completed marker, preserving usage4/10 and remaining6. Verified the final archive checksum and clean handoff. Relevant package/repository checks pass with the explicit baseline full-suite limitation. Phase remains in_progress pending independent review; no release or consumer migration is claimed.
 
@@ -304,6 +304,21 @@ Proof: focused package/CLI tests, type-check, lint/format, toolkit build, exact 
 **Commit:** 3cfcaef7961954e0a450045dc556615c786820dc
 
 Verification: All333 package tests, toolkit build, root/package type-check, scoped lint/format, validation and smoke passed. Remaining suite passed197files/3174tests (2files/3tests skipped), excluding exactly the two documented unchanged baseline collision files; no full-suite pass is claimed. Generated build:check passed after the broad suite. Narrow later frame-range correction was verified by its failing-before public regression and package suite; unrelated broad tests were not repeated. Final exact archive `/tmp/session-toolkit-p02-final-proof-20261029/tkstang-session-toolkit-0.1.0.tgz`, SHA256 `1156ee8cbe1cc1f77856c4cc2de4ed8265d40fed3462cececeb0ec2bd5da70d0`, clean-installs on actual22.0.0/24.21.0 with fixture API/CLI operations, import safety and strict installed declaration compilation. Packed runtime/README/license bytes equal committed product outputs. Parity and detailed evidence: references/p02-parity.md and p02-verification.md. Consumers unchanged; no publication. Recovery4/10 remaining6, completed04 marker retained; elevated volume warning disclosed. t05 effective commit base4220f41 after append-only recoveries; one implementation commit and one journal-only closure. No scope expansion beyond selected p02 boundaries.
+
+### Task p02-t06: (review) Correct exact selection, parsing cost and Claude cwd parity
+
+**Status:** completed
+**Executor:** phase-implementer:session-toolkit-p02-implement-20261029
+**Handle:** /root/session_toolkit_p02
+**Source review:** reviews/p02-review-2026-10-29T145255Z.md — H1, H2, H3
+
+Intent: filter unrelated valid Codex sessions without weakening conflicting/duplicate carrier refusals; project ordinary pages once and use proportionate message-limit counting while preserving donor context; share current and retained Claude cwd slug variants. Medium M1/M2 remain root-owned.
+Files: package discovery/reader/identity/provider-runtime cwd helper; existing discovery/read/identity tests; changelog and p02 parity/verification references.
+Proof: pre-failing public regressions, all package tests after build, root/package types, scoped lint/format, sequential build:check, validate and smoke. Recovery capacity4/10 used,6 remaining,pendingnull; this review fix round does not reserve recovery usage.
+
+**Commit:** 99132f622f93211c2532b34d93381de4d5329a0d
+
+Verification: pre-fix discovery/identity/read proof failed exactly the three intended H1–H3 assertions; the 5,000-row old parse took22,807ms. Corrected focused64 tests and all340 package tests pass; whole-record limits, malformed-line continuation, Cursor pending questions/terminal origin and exceptional Claude conflicting-ID fallback are protected. Toolkit build completed before tests; root/package type-check, scoped oxlint/oxfmt, build:check after suite, validate and smoke all exit0. Postcommit package rerun passes340/340. Code commit is exactly one append-only commit from fix base36778fc412ff1159ad28cc8b12bd635e282b7b91 with only the ten owned source/test/changelog/evidence files; journal closure is separate. Medium M1/M2 remain root-owned. No consumer edits, archive proof, publication, nested dispatch or recovery reservation. Recovery ledger stays4/10 used,6 remaining,pendingnull.
 
 ## Phase p03: Add search, activity, and CLI update notices
 
