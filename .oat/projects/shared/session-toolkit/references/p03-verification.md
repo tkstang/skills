@@ -94,3 +94,16 @@ coverage. Original task history remains immutable.
 - No nested dispatch, live-provider certification, consumer migration,
   publication, push or credential operation occurred. Root owns independent
   review and phase acceptance.
+
+## Root correction of independent M1/L1
+
+The independent anchored review found 0 Critical, 0 High, 1 Medium and 1 Low. Root corrected cheap-source coverage and restored the original historical changelog sentence. Public regressions failed on the pre-fix malformed/read-failure behavior, then all valid/no-match/malformed/oversized history/index controls and unreadable-index controls passed. The reviewer's separate nine-control public probe now passes on actual Node 22.0.0. All 28 package files / 628 tests, root/package types and scoped lint/format pass. The earlier broad run remains historical evidence; no new full-suite pass is claimed and both baseline exclusions remain explicit.
+
+Fresh exact archive: `/tmp/session-toolkit-p03-root-fixed-proof-20261029/tkstang-session-toolkit-0.1.0.tgz`.
+
+- SHA256: `b6fe342a819d420da78c7ad60fa7e8f550a25dedd403f9d0bfd18d683c560a5f`.
+- 51 allowlisted files; same archive clean-installed on actual Node 22.0.0 and 24.21.0, including installed API/CLI/search/activity and strict transitive declarations. npm publication dry run passes; no publication.
+- Receipt preparation HEAD: `61295c64f34dc94486a993ed1bc4d354210a2124` plus the pending root M1/L1 product diff. This is development proof, not release attestation. The archive above supersedes the earlier 4490775e… archive; the independent review still binds only its actual prior head.
+- Logs: `/tmp/session-toolkit-p03-root-package-tests.log`, `/tmp/session-toolkit-p03-root-archive24.log`, `/tmp/session-toolkit-p03-root-archive22.log`.
+
+No independent clean re-review of the root correction is claimed. The final integrated review remains required.

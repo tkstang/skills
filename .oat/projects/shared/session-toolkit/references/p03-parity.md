@@ -40,3 +40,7 @@ Documentation uses authoring-docs' built-in information-architecture guidance
 Toolkit and CLI entry; internal validation matrices remain project evidence.
 No website restructuring or governance instructions needed in p03. p04/p05
 retain publish-ready canonical docs and consumer migration authority.
+
+## Independent review correction
+
+M1 from `reviews/p03-review-2026-10-29T160106Z.md` identified donor cheap-source omissions that violated the new public coverage contract. Package Codex/Claude history and Codex index readers now summarize malformed/oversized records once per file through source degradation; index I/O failures also degrade coverage. Ordinary valid matches and genuine no-match sources remain complete. A public regression covers all three sources and their valid/no-match/skipped controls; an unreadable-index case covers the distinct I/O path. Global content-scanner counters retain their meaning; cheap-source counts appear in the source note. This is an intentional improvement over the donor, with no new API or changed read limits.

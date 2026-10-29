@@ -624,7 +624,7 @@ export function createCodexAdapter(): CodexAdapter {
   let indexPromise: Promise<
     Map<string, { title: string; updatedAtMs: number | null }>
   > | null = null;
-  let lastRoots: StoreRoots | null = null;
+  let lastContext: EnumerateContext | null = null;
   const headers = new Map<string, Promise<CodexHeader | null>>();
   const infos = new Map<string, Promise<SessionInfo>>();
 
@@ -684,23 +684,36 @@ export function createCodexAdapter(): CodexAdapter {
     return threadsPromise;
   };
 
-  const loadIndex = (roots: StoreRoots) => {
+  const loadIndex = (ctx: EnumerateContext) => {
     if (indexPromise) return indexPromise;
     indexPromise = (async () => {
       const index = new Map<
         string,
         { title: string; updatedAtMs: number | null }
       >();
-      const file = roots.paths.sessionIndex;
+      const file = ctx.roots.paths.sessionIndex;
       if (!file) return index;
+      let oversized = 0;
+      let malformed = 0;
       await readLines(file, { maxLineBytes: LINE_MAX_BYTES }, (event) => {
-        if (event.kind !== 'line') return;
+        if (event.kind !== 'line') {
+          oversized++;
+          return;
+        }
         const record = parseJsonObject(event.text);
+        if (!record) {
+          malformed++;
+          return;
+        }
         const id = nonEmpty(record?.id);
         const title = nonEmpty(record?.thread_name);
-        if (!record || !id || !title) return;
+        if (!id || !title) return;
         index.set(id, { title, updatedAtMs: toEpochMs(record.updated_at) });
-      }).catch(() => {});
+      }).catch(() => ctx.degrade('session_index.jsonl could not be read'));
+      if (oversized || malformed)
+        ctx.degrade(
+          `session_index.jsonl skipped ${oversized} oversized and ${malformed} malformed records`,
+        );
       return index;
     })();
     return indexPromise;
@@ -733,7 +746,7 @@ export function createCodexAdapter(): CodexAdapter {
     },
 
     async enumerate(ctx: EnumerateContext): Promise<SessionFile[]> {
-      lastRoots = ctx.roots;
+      lastContext = ctx;
       if (!ctx.roots.exists) return [];
       const live: string[] = [];
       const archived: string[] = [];
@@ -810,13 +823,22 @@ export function createCodexAdapter(): CodexAdapter {
       const history = ctx.roots.paths.history;
       if (!history) return [];
       const hits: Hit[] = [];
+      let oversized = 0;
+      let malformed = 0;
       try {
         await readLines(history, { maxLineBytes: LINE_MAX_BYTES }, (event) => {
-          if (event.kind !== 'line') return;
+          if (event.kind !== 'line') {
+            oversized++;
+            return;
+          }
           const record = parseJsonObject(event.text);
+          if (!record) {
+            malformed++;
+            return;
+          }
           const text = asString(record?.text);
           const sessionId = nonEmpty(record?.session_id);
-          if (!record || !text || !sessionId) return;
+          if (!text || !sessionId) return;
           const match = matcher.match(text);
           if (!match) return;
           hits.push({
@@ -837,11 +859,15 @@ export function createCodexAdapter(): CodexAdapter {
       } catch {
         ctx.degrade('history.jsonl could not be read');
       }
+      if (oversized || malformed)
+        ctx.degrade(
+          `history.jsonl skipped ${oversized} oversized and ${malformed} malformed records`,
+        );
       return hits;
     },
 
     async metadataHits(ctx: AdapterContext, matcher: Matcher): Promise<Hit[]> {
-      lastRoots = ctx.roots;
+      lastContext = ctx;
       const hits: Hit[] = [];
       const seen = new Set<string>();
       const push = (
@@ -888,7 +914,7 @@ export function createCodexAdapter(): CodexAdapter {
         }
       }
 
-      for (const [id, entry] of await loadIndex(ctx.roots)) {
+      for (const [id, entry] of await loadIndex(ctx)) {
         push({
           runtime: RUNTIME,
           sessionId: id,
@@ -910,7 +936,7 @@ export function createCodexAdapter(): CodexAdapter {
         cached = (async (): Promise<SessionInfo> => {
           const thread = threadById.get(file.sessionId);
           const header = await headerFor(file);
-          const index = lastRoots ? await loadIndex(lastRoots) : null;
+          const index = lastContext ? await loadIndex(lastContext) : null;
           let firstPrompt =
             thread?.firstUserMessage &&
             !isInjectedUserText(thread.firstUserMessage, RUNTIME)

@@ -381,16 +381,25 @@ export function createClaudeCodeAdapter(): ClaudeCodeAdapter {
       const history = ctx.roots.paths.history;
       if (!history) return [];
       const hits: Hit[] = [];
+      let oversized = 0;
+      let malformed = 0;
       try {
         await readLines(
           history,
           { maxLineBytes: HISTORY_MAX_LINE_BYTES },
           (event) => {
-            if (event.kind !== 'line') return;
+            if (event.kind !== 'line') {
+              oversized++;
+              return;
+            }
             const record = parseJsonObject(event.text);
+            if (!record) {
+              malformed++;
+              return;
+            }
             const display = asString(record?.display);
             const sessionId = asString(record?.sessionId);
-            if (!record || !display || !sessionId) return;
+            if (!display || !sessionId) return;
             const match = matcher.match(display);
             if (!match) return;
             const timestamp = record.timestamp;
@@ -416,6 +425,10 @@ export function createClaudeCodeAdapter(): ClaudeCodeAdapter {
       } catch {
         ctx.degrade('history.jsonl could not be read');
       }
+      if (oversized || malformed)
+        ctx.degrade(
+          `history.jsonl skipped ${oversized} oversized and ${malformed} malformed records`,
+        );
       return hits;
     },
 

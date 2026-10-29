@@ -197,7 +197,7 @@ estimated bytes before explicit scan authorization, no deadline. Set
 `--deadline-ms`, `--max-line-bytes`, `--limit` or `--large-scan-bytes` to change
 these bounds. `E_SCAN_CONFIRMATION` (exit 1) reports the estimate and requires
 `--allow-large-scan`; it never prompts. No matches returns an empty result
-(exit 0). `incomplete`, source status and diagnostics expose deadlines, malformed
+(exit 0). Cheap-source notes summarize skipped malformed/oversized history or index records and index read failures; these sources are degraded and `incomplete` is true. `incomplete`, source status and diagnostics expose deadlines, malformed
 records and oversized lines. Results are ranked bounded evidence, not an
 exhaustive index. Snippets redact complete units before windowing. Search reads
 raw classified records, including full tool fields, rather than digest previews.

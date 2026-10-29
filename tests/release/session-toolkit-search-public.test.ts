@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 import { afterEach, beforeEach, expect, it } from 'vitest';
 
@@ -149,3 +150,99 @@ it('validates API queries and CLI regex/literal/estimate nesting', async () => {
   });
   expect(cli(['search', 'estimate', '--help']).status).toBe(0);
 });
+
+it.each([
+  {
+    runtime: 'codex' as const,
+    tier: 'history' as const,
+    name: 'history.jsonl',
+  },
+  {
+    runtime: 'claude-code' as const,
+    tier: 'history' as const,
+    name: 'history.jsonl',
+  },
+  {
+    runtime: 'codex' as const,
+    tier: 'meta' as const,
+    name: 'session_index.jsonl',
+  },
+])(
+  'reports skipped cheap records for $runtime/$tier',
+  async ({ runtime, tier, name }) => {
+    const directory = join(
+      temp.home,
+      runtime === 'codex' ? '.codex' : '.claude',
+    );
+    mkdirSync(directory, { recursive: true });
+    const record = (text: string) =>
+      tier === 'meta'
+        ? { id, thread_name: text }
+        : runtime === 'codex'
+          ? { session_id: id, text, ts: Date.now() / 1000 }
+          : { sessionId: id, display: text, timestamp: Date.now() };
+    for (const example of [
+      {
+        name: 'matching',
+        body: JSON.stringify(record('needle')),
+        hits: 1,
+        incomplete: false,
+      },
+      {
+        name: 'no match',
+        body: JSON.stringify(record('ordinary')),
+        hits: 0,
+        incomplete: false,
+      },
+      { name: 'malformed', body: '{"broken"', hits: 0, incomplete: true },
+      {
+        name: 'oversized',
+        body: JSON.stringify(record('x'.repeat(1024 * 1024) + 'needle')),
+        hits: 0,
+        incomplete: true,
+      },
+    ]) {
+      writeFileSync(join(directory, name), example.body + '\n');
+      const result = await searchSessions({
+        home: temp.home,
+        env: searchEnv(temp),
+        runtime,
+        patterns: ['needle'],
+        tiers: [tier],
+        deep: false,
+      });
+      expect(result.results, example.name).toHaveLength(example.hits);
+      expect(result.incomplete, example.name).toBe(example.incomplete);
+      expect(result.sources[0].status, example.name).toBe(
+        example.incomplete ? 'degraded' : 'ok',
+      );
+      if (example.incomplete) expect(result.sources[0].note).toContain(name);
+    }
+  },
+);
+
+it.skipIf(process.getuid?.() === undefined || process.getuid() === 0)(
+  'reports unreadable Codex metadata index coverage',
+  async () => {
+    const directory = join(temp.home, '.codex');
+    mkdirSync(directory, { recursive: true });
+    const file = join(directory, 'session_index.jsonl');
+    writeFileSync(file, JSON.stringify({ id, thread_name: 'needle' }) + '\n');
+    chmodSync(file, 0);
+    try {
+      const result = await searchSessions({
+        ...options(),
+        patterns: ['needle'],
+        tiers: ['meta'],
+      });
+      expect(result.results).toEqual([]);
+      expect(result.incomplete).toBe(true);
+      expect(result.sources[0]).toMatchObject({
+        status: 'degraded',
+        note: expect.stringContaining('session_index.jsonl could not be read'),
+      });
+    } finally {
+      chmodSync(file, 0o600);
+    }
+  },
+);
