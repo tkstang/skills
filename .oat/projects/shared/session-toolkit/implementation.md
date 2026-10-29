@@ -360,7 +360,7 @@ Verification: public regression fails before and passes after correction; all343
 **Base:** e51f7588588e8fe8f2204059b810f7c52066d471
 **Executor:** phase-implementer:session-toolkit-p03-implement-20261029
 **Head:** c193bf0f6600457bf040e9a1820e2f5eb1fea114
-**Phase verification:** Pass on the completed record set: root/package types;210 files/3466 tests pass,2 files/3 tests skipped, with exactly the2pre-established baseline exclusions; build:check after suite, validate and smoke pass. Final log /tmp/session-toolkit-p03-final-suite.log. Fresh51-file exact archive4490775e57a55e1b659226c60f29fc65e7546e5086a9303b91dc6c9970521c84 passes actual Node22.0.0/24.21.0 installed API/CLI/types plus continuation proof. No full-suite pass claimed. Effective recovery limit10, prior usage0, used1, remaining9; matching completed marker retained for root validation. Independent review and acceptance remain root-owned.
+**Phase verification:** Accepted after independent full-anchor review (0C/0H/1M/1L) and bounded root M1/L1 correction. Latest proof: 28 package files/628 tests; root/package types, scoped lint/format, build:check, validate and smoke pass; fresh archive b6fe342a… passes actual Node 22.0.0/24.21.0 installed API/CLI/types. Earlier broad 210-file/3466-test proof retains exactly two known baseline exclusions; no full-suite pass claimed. Recovery used1/10, pending null. No independent re-review of root correction or publication is claimed.
 
 Execution shape: one phase implementer, sole committing owner in the existing worktree. No parallel group; shared provider/search types, CLI/capabilities, package declarations/archive output and changelog impose sequential dependencies, so root fan-out fails the independence test. Root owns lifecycle and independent reviews. Hard-reasoning/high: reconcile search raw-evidence classifications and rich activity with package contracts plus prove updater isolation. Effective recovery default10, no phase override; prior p03 usage0,remaining10,pendingnull; p01/p02 counters retained.
 
@@ -466,6 +466,8 @@ Root acceptance: review M1 and L1 are fixed by this bounded record, all disposit
 ## Phase p04: Publish the toolkit and migrate Skills consumers
 
 **Status:** pending
+
+p04 made concrete after p03 acceptance within unchanged approved outcomes and authority. Release preparation and migration share package/distribution/lockfile outputs, so they remain sequential with one phase implementer; root retains independent review and irreversible/account execution. A clean intermediate release-candidate handoff precedes publication, and published-version evidence precedes interactive cutover. This is phase elaboration, not an up-front task plan. Missing npm authentication remains a known prerequisite; reversible preparation and review come first.
 
 ## Phase p05: Migrate ORC and verify integrated delivery
 

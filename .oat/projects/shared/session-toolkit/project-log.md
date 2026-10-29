@@ -82,6 +82,14 @@ p03 accepted after independent full-anchor review (0C/0H/1M/1L) and bounded root
 
 Cheap-tier history/index readers retained donor omissions while the new public response promised complete coverage. A public negative control exposed false no-match completeness; per-file degraded notes now preserve bounded reads and disclose skipped records. session-toolkit-p03-cheapcoverage-20261029
 
+### 2026-10-29 · structural · oat-project-implement · p04
+
+p04 concrete: sequential exact-archive release preparation/review/root publication then Skills migration, with clean ownership handoff, scoped instruction/decision amendments and offline bundles; outcomes/authority unchanged. session-toolkit-p04-concrete-20261029
+
+### 2026-10-29 · project · friction · phase boundary validation
+
+The journal checker implement-preflight boundary refused because future p04/p05 phases are pending. The required validate-plan check and scoped accepted-phase journal review check passed; no future phase status was changed to satisfy that all-phase boundary. session-toolkit-p04-checkboundary-20261029
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
