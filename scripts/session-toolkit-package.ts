@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   existsSync,
+  lstatSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
@@ -137,6 +138,14 @@ export function validateArchive(archive: string, node = process.execPath) {
       `Missing packed path: ${required}`,
     );
   }
+  // A path allowlist cannot distinguish a file from a link to another path.
+  // Reject links (including hard links) before extracting any archive member.
+  for (const member of run('tar', ['-tvzf', archive]).trim().split('\n')) {
+    assert.ok(
+      member.startsWith('-'),
+      `Packed member must be a regular file: ${member}`,
+    );
+  }
   const pkg: PackedMetadata = JSON.parse(
     run('tar', ['-xOzf', archive, 'package/package.json']),
   );
@@ -155,7 +164,7 @@ export function validateArchive(archive: string, node = process.execPath) {
     run('tar', ['-xzf', archive, '-C', temporary]);
     for (const path of paths)
       assert.ok(
-        statSync(join(temporary, path)).isFile(),
+        lstatSync(join(temporary, path)).isFile(),
         `Not a regular file: ${path}`,
       );
     const extractedBin = join(temporary, 'package/dist/bin.js');
