@@ -39,19 +39,23 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status  | Units | Accepted |
-| ----- | ------- | ----- | -------- |
-| p01   | pending | 1     | 0/1      |
-| p02   | pending | 1     | 0/1      |
-| p03   | pending | 1     | 0/1      |
-| p04   | pending | 1     | 0/1      |
-| p05   | pending | 1     | 0/1      |
+| Phase | Status      | Units | Accepted |
+| ----- | ----------- | ----- | -------- |
+| p01   | in_progress | 1     | 0/1      |
+| p02   | pending     | 1     | 0/1      |
+| p03   | pending     | 1     | 0/1      |
+| p04   | pending     | 1     | 0/1      |
+| p05   | pending     | 1     | 0/1      |
 
 **Total:** 0/5 phases accepted
 
 ## Phase p01: Establish the package boundary and release contract
 
-**Status:** pending
+**Status:** in_progress
+**Base:** 66b90a7d78f02fc0b5b73e9d24f70a2644743bdc
+**Executor:** phase-implementer:session-toolkit-p01-implement-20261029
+
+Execution shape: one phase implementer, committing owner in the existing project worktree. No parallel group is declared; workspace, lockfile, build, validation and contract changes share files and dependencies, so root fan-out fails the independence test. The phase implementer owns p01 product commits and its separate execution-record bookkeeping; root owns lifecycle state, review and acceptance. Implementation was separately invoked by the user; the approved delivery authority is now active. No publication or production consumer cutover occurs in p01.
 
 ## Phase p02: Consolidate identity, discovery, reads, and safe export
 

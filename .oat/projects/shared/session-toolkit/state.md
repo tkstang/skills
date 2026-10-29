@@ -1,5 +1,5 @@
 ---
-oat_current_task: null
+oat_current_task: p01
 oat_last_commit: null
 oat_blockers: []
 associated_issues: [] # [{type: backlog|project|jira|linear, ref: "identifier"}]
@@ -11,8 +11,8 @@ oat_children: [] # optional coordination-parent child slugs
 oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop lifecycle approval
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
-oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: complete # Status: in_progress | complete | pr_open
+oat_phase: implement # Current phase: discovery | spec | design | plan | implement | decomposition
+oat_phase_status: in_progress # Status: in_progress | complete | pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_dispatch_policy: # optional project dispatch policy; managed keeps OAT selection active, inherit leaves controls to the host
 #   mode: managed # managed | inherit
@@ -73,7 +73,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-10-29T04:13:40.212016Z'
+oat_project_state_updated: '2026-10-29T13:00:44.618245Z'
 oat_brief_gate:
   status: allowed
   disposition: passed
@@ -85,13 +85,13 @@ oat_generated: false
 
 # Project State: session-toolkit
 
-**Status:** Plan
+**Status:** Implementing p01
 **Started:** 2026-10-29
 **Last Updated:** 2026-10-29
 
 ## Current Phase
 
-Plan complete — approved brief ready for implementation
+Implement — p01 package boundary and release contract
 
 ## Artifacts
 
@@ -106,7 +106,7 @@ Plan complete — approved brief ready for implementation
 - ✓ Design choices and delivery authority recorded; artifact review and configured Opus gate completed
 - ✓ User approved the reviewed brief and citation fix; requested visual and final-phase documentation addenda applied
 - ✓ Five-phase journal initialized: p01 concrete, p02–p05 provisional; no parallel groups
-- ⧗ Implementation awaits separate invocation
+- ⧗ p01 implementation started; five phases remain unaccepted
 
 ## Review Setup
 
@@ -122,4 +122,4 @@ None
 
 ## Next Milestone
 
-Run `oat-project-implement` when separately invoked. The brief was approved at `8914e11e839212f394c2cf0ef9c638fd9396f98a`; its editorial citation fix and subsequent user-requested diagrams/command map and documentation acceptance are applied. Native artifact review had no findings; configured Opus gate passed with one Low citation finding now fixed (status `fixes_completed`, no clean re-review claimed). Gate provenance retains its actual reviewed head. No implementation has started.
+Execute and independently review p01. The user separately invoked implementation; the brief’s authorized delivery endpoint is active. No phase is accepted yet.
