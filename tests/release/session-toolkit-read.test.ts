@@ -170,4 +170,61 @@ describe('bounded public parsing', () => {
         'tool_result',
       ]);
     }));
+  it('keeps activity summaries separate from tool opt-ins and reports page usage/coverage', async () =>
+    fixture(async (path) => {
+      await writeFile(
+        path,
+        [
+          {
+            type: 'session_meta',
+            payload: { id: 'fixture-id', cwd: '/fixture' },
+          },
+          {
+            type: 'response_item',
+            payload: {
+              type: 'function_call',
+              call_id: 'a',
+              name: 'exec_command',
+              arguments: '{}',
+            },
+          },
+          {
+            type: 'event_msg',
+            payload: {
+              type: 'token_count',
+              info: {
+                total_token_usage: {
+                  input_tokens: 50,
+                  output_tokens: 7,
+                  total_tokens: 57,
+                },
+              },
+            },
+          },
+        ]
+          .map((r) => JSON.stringify(r))
+          .join('\n') + '\n',
+      );
+      const plain = await parseTranscript({ runtime: 'codex', path });
+      expect(plain.activity).toBeUndefined();
+      const summary = await parseTranscript({
+        runtime: 'codex',
+        path,
+        includeActivity: true,
+      });
+      expect(summary.messages).toEqual([]);
+      expect(summary.activity).toMatchObject({
+        scope: 'captured-page',
+        sourceComplete: true,
+        counts: { capturedSource: { calls: 1 } },
+        sourceMetadata: { usage: { availability: 'recorded' } },
+      });
+      const bounded = await parseTranscript({
+        runtime: 'codex',
+        path,
+        includeActivity: true,
+        maxRecords: 1,
+      });
+      expect(bounded.activity?.sourceComplete).toBe(false);
+    }));
 });

@@ -25,3 +25,5 @@ export type {
   SessionReadOptions,
   StoreContext,
 } from './discovery.js';
+export { readEvidence } from './evidence.js';
+export type { EvidenceOptions } from './evidence.js';

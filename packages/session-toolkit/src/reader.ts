@@ -3,6 +3,8 @@ import { open, realpath } from 'node:fs/promises';
 
 import { ToolkitError, positive, provider } from './domain.js';
 import type { Provider } from './domain.js';
+import { summarizePage } from './page-summary.js';
+import type { PageActivitySummary } from './page-summary.js';
 import {
   normalizeEntries,
   extractMetaFromRecords,
@@ -47,6 +49,7 @@ export interface ReadDiagnostic {
   byteEnd: number;
 }
 export interface TranscriptPage {
+  activity?: PageActivitySummary;
   runtime: Provider;
   path: string;
   coordinate:
@@ -335,7 +338,7 @@ export async function parseTranscript(
             ...p,
           } satisfies Continuation),
         ).toString('base64url');
-    return {
+    const page: TranscriptPage = {
       runtime,
       path,
       coordinate:
@@ -358,6 +361,8 @@ export async function parseTranscript(
       nextCursor,
       coverage: { complete, reasons, fromByte: start, throughByte: p.byte },
     };
+    if (options.includeActivity) page.activity = summarizePage(page);
+    return page;
   } finally {
     await handle.close();
   }
