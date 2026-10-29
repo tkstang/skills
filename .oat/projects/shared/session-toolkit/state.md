@@ -85,16 +85,7 @@ oat_phase_recovery_policy:
   phase_attempt_usage:
     p02:
       used_attempts: 1
-      pending_attempt:
-        attempt: 1
-        event_id: session-toolkit-p02-recovery-01
-        status: completed
-        original_request_id: session-toolkit-p02-implement-20261029
-        original_task_id: p02-t01
-        original_commit: a009dcc8cbc752589ff97ff63bc2feb37065d924
-        discovered_by: pnpm exec oxlint packages/session-toolkit/src tests/release/session-toolkit-runtime.test.ts tests/release/session-toolkit-read.test.ts
-        dispatch_target: oat-phase-implementer-gpt-6-1-sol-high
-        reservation_head: 21ad70b85afaeb58921ea575c699a0a8f5c15c08
+      pending_attempt: null
     p01:
       used_attempts: 2
       pending_attempt: null
