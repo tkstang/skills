@@ -60,6 +60,8 @@ oat_generated: false
 
 Execution shape: one phase implementer, committing owner in the existing project worktree. No parallel group is declared; workspace, lockfile, build, validation and contract changes share files and dependencies, so root fan-out fails the independence test. The phase implementer owns p01 product commits and its separate execution-record bookkeeping; root owns lifecycle state, review and acceptance. Implementation was separately invoked by the user; the approved delivery authority is now active. No publication or production consumer cutover occurs in p01.
 
+Root pre-review validation: all three execution commits and separate record commits reconcile with the accepted request and clean final HEAD `9881dc4cfccc3935e3202a36c000cd915c35bef7`; anchors are ancestors. Recovery event 01 is validated against the immutable original and bounded correction, exact target, committed completed marker, and focused/phase postcommit results. Cleared only the matching marker; durable usage remains 1/10. Relevant p01 checks permit review with the independently reproduced full-suite environmental limitation explicitly retained; no full-suite pass or phase acceptance is claimed.
+
 ### Task p01-t01: Establish the public package and CLI boundary
 
 **Status:** completed
@@ -134,7 +136,7 @@ Execution shape: one phase implementer, committing owner in the existing project
 
 <!-- orchestration-runs-start -->
 
-- run/v1 · request=session-toolkit-p01-implement-20261029 · scope=p01 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-6-1-sol-high · launch=accepted · outcome=running · terminal=no · class=live · continuation=~ · observed=~ · match=~
+- run/v1 · request=session-toolkit-p01-implement-20261029 · scope=p01 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 <!-- orchestration-runs-end -->
 
