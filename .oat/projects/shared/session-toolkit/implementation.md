@@ -503,6 +503,23 @@ Root fetched current main `ecc8b2be5235384641ea6b3d41c73410c125d0a5` and integra
 
 **Phase boundary:** Release-preparation prefix only. p04 remains in_progress with no final Head marker. Published-version/integrity and installed acceptance, live bootstrap/trusted-publisher/protected-environment/enable evidence and independent candidate review are still required before interactive Skills cutover. Recovery used 0/10, remaining 10, pending null; all corrections were precommit prevention.
 
+### Pre-action review receipt and bounded correction
+
+Both fresh reviewers returned exactly one valid `**Reconnaissance:** not-attempted` signal, consumed before artifact validation. Neither artifact contains Review Orchestration; no orchestration project-log entry applies. Root read the entire artifacts and verified exact range/head/base/integration metadata and severity counts against the original invocation.
+
+- Correctness: `reviews/range-review-2026-10-29T164755Z.md`, `ecc8b2be5235384641ea6b3d41c73410c125d0a5..1e231e2de21968aca343fc76d8296b608f821456`, 0 Critical / 0 High / 1 Medium / 0 Low. Independent 634 package tests, Node22.0.0/24.21.0 exact installed archive, rebuilt member comparison, public boundaries and release refusal/idempotency controls passed. M1 is accepted: new sensitive activity files default to 0644 under umask022; preserve exclusive creation while setting0600. Candidate d88b7e... is superseded by the forthcoming correction and cannot be published as final evidence.
+- Audit lenses: `reviews/range-review-audits-2026-10-29T164255Z.md`, same range/head, zero findings. Deliberate-testing gaps/deltas reviewed with prior p02/p03 coverage inherited; complexity and current package/release/instruction documentation passed. No builds/tests were repeated by that reviewer.
+
+Root retains build/write ownership after both explicit clean handoffs. The small M1 correction is handled by root under pr-self-review's small-finding rule, not a replacement phase implementer or recovery attempt. It is a bounded prepublication review fix in current p04; original phase handle and recovery usage0/10 remain unchanged. It does not alter prior phase anchors. A delta-only independent confirmation will follow before merge/publication; package version remains unpublished0.1.0.
+
+### Task p04-t02: Restrict sensitive activity artifact permissions
+
+**Status:** in_progress
+**Executor:** root
+**Intent:** Resolve release review M1 by making newly created sensitive activity files owner-only, retaining exclusive creation and complete evidence.
+**Files:** packages/session-toolkit/src/cli.ts; tests/release/session-toolkit-activity-public.test.ts; packages/session-toolkit/README.md; packages/session-toolkit/CHANGELOG.md; CHANGELOG.md.
+**Proof:** Extend existing public built-CLI artifact fixture with controlled umask022 and literal0600 expectation; observe failure on pre-fix built CLI, then rebuild and pass focused/package checks, types/lint/format and exact fresh candidate installs on actual22.0.0/24. Independent delta confirmation before merge/publication.
+
 ## Phase p05: Migrate ORC and verify integrated delivery
 
 **Status:** pending
@@ -533,9 +550,9 @@ Invocation-evidence clarification: exact native materialized roles select model 
 
 - run/v1 · request=session-toolkit-p04-implement-20261029 · scope=p04 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-6-1-sol-high · launch=accepted · outcome=needs-context · terminal=no · class=live · continuation=~ · observed=~ · match=~
 
-- run/v1 · request=session-toolkit-p04-release-review-20261029-r1 · scope=p04-release · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p04-release action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=running · terminal=no · class=live · continuation=~ · observed=~ · match=~
+- run/v1 · request=session-toolkit-p04-release-review-20261029-r1 · scope=p04-release · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p04-release action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
-- run/v1 · request=session-toolkit-p04-release-audits-20261029-r1 · scope=p04-release-audits · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p04-release-audits action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=running · terminal=no · class=live · continuation=~ · observed=~ · match=~
+- run/v1 · request=session-toolkit-p04-release-audits-20261029-r1 · scope=p04-release-audits · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p04-release-audits action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 <!-- orchestration-runs-end -->
 
