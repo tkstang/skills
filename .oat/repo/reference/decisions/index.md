@@ -9,6 +9,7 @@
 <!-- OAT DECISION-INDEX -->
 | ID | Date | Status | Title | Legacy |
 | --- | --- | --- | --- | --- |
+| DR-261028-session-toolkit-naming | 2026-10-28 | accepted | Session toolkit naming | - |
 | DR-261025-documentation-information | 2026-10-25 | accepted | Documentation information architecture | - |
 | DR-261002-adapter-owned-record | 2026-10-02 | accepted | Adapter-owned record classification | - |
 | DR-261002-local-only-search-with-opt | 2026-10-02 | accepted | Local-only search with opt-in remote hosts | - |

@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+### Added
+
+- Session Toolkit 0.1.0: clean source/tag/notes-bound exact-archive release
+  preparation, supported-runtime installation checks and protected, explicitly
+  enabled trusted publication with integrity-only idempotent retries. Bootstrap
+  publishes the validated tarball; consumer cutover remains separate.
+
+- Session Toolkit 0.1.0: cached stable-release notices on interactive CLI operations only, with quiet machine/library/hook execution and best-effort offline behavior.
+
+- Session Toolkit 0.1.0: sensitive full activity API/CLI capture with raw records, correlations, usage, source coordinates and explicit Cursor capability gaps.
+
+- Session Toolkit 0.1.0: stateless raw-evidence search and estimates with tiered widening, explicit scan authorization, redaction and optional accelerators.
+
+### Fixed
+
+- Session Toolkit 0.1.0 creates sensitive activity JSON artifacts with owner-only
+  permissions while preserving exclusive creation.
+
+- Session Toolkit 0.1.0 reports incomplete search coverage when bounded history or index readers skip malformed/oversized records or cannot read the metadata index.
+
+- Session Toolkit 0.1.0 honors the independent Codex tool-result opt-in for ordinary reads and sanitized Markdown export.
+
+- Session Toolkit 0.1.0 reads generic Cursor transcript carriers returned by listing and accepts canonical Codex cwd aliases while keeping evidence cutoffs bound to their original directory.
+
+- Session Toolkit 0.1.0 filters unrelated Codex sessions during exact selection, recognizes current Claude project slugs containing spaces or underscores, and avoids repeated growing-prefix projection on ordinary bounded reads while preserving whole-record message limits.
+
+### Added
+
+- Session Toolkit 0.1.0 library and built `seshtk` identity/list/read/parse/export CLI, exact-archive fixture checks on Node 22.0.0/24, and sanitized Markdown export with marker/batch selection and confined destinations, redacted Codex cutoff/expansion evidence and opt-in page activity summaries, exact identity, revalidation, bounded historical discovery and session reads, plus provider evidence substrate and bounded stateless parsing, with independent source coordinates and generation-bound continuation.
+
+### Added
+
+- `@tkstang/session-toolkit` 0.1.0 package boundary with the `seshtk` CLI,
+  import-safe ESM capability discovery and typed JSON envelopes. Consumer migration remains separate from package publication.
+
 ### Changed
 
 - `session-export-transcript` 2.0.43 instructs agents to select descriptive

@@ -10,6 +10,7 @@ This directory is the skills repo's durable, append-mostly provenance area. It i
 - `../pjm/backlog/items/*.md` are executable active backlog records. Completed backlog item files move to `../pjm/backlog/archived/*.md`; `../pjm/backlog/index.md` and `../pjm/backlog/completed.md` summarize backlog state. If item files move or change, run `oat backlog regenerate-index`.
 - `project-summaries/*.md` are completion records for shipped projects.
 - `research/` holds evidence inputs (e.g. `research/consensus/` — the consensus design lineage). Research does not become an active commitment until promoted into the roadmap, backlog, or decision record.
+- `brainstorms/` holds exploratory proposals and their review feedback. They are discussion inputs, not accepted decisions or active implementation commitments.
 - Deep project provenance (discovery/spec/design/plan/reviews) is machine-local under `.oat/projects/archived/` (gitignored); the tracked record of a completed project is its project summary plus any decisions promoted into `decisions/`.
 
 ## Update Rules

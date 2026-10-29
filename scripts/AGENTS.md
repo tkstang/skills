@@ -9,6 +9,19 @@ This scope inherits the root `AGENTS.md`. Run commands below from the repository
 - Preserve staged validation and owned-output replacement when editing `build-generated.ts` or `lib/packaging.ts`. Change canonical owners and declarations, then regenerate outputs; do not edit committed `skills/` or `plugins/*/skills/` payloads directly.
 - Add focused tooling tests under `tests/tooling/` or the existing source owner. Verify the changed boundary with the relevant test and `pnpm run build:check` when distribution output is involved.
 
+## Session Toolkit release tooling
+
+- `session-toolkit-package.ts` owns archive inventory/dependency inspection and
+  isolated installed API/declaration/CLI proof. Its development dry run is not
+  a clean release binding.
+- `session-toolkit-release.ts` prepares clean HEAD/tree/version/notes-bound
+  archives, verifies downloaded candidates and publishes only the validated
+  tarball. Keep build/pack in preparation, never in publication; preserve actual
+  tag/source checks and integrity-only registry idempotency.
+- Publication runs on Node 24/npm >=11.5.1 after the source is merged. Live
+  account, protected-environment and enable settings are root-owned; follow
+  RELEASING.md rather than treating local validation as publishing authority.
+
 ## Worktree scripts
 
 - `pnpm run worktree:init` is a mutating bootstrap. It copies local environment files, local OAT config and projects, MCP configuration, and Claude local settings from the main worktree, then runs `pnpm install`. When `oat` is available, it may sync S3 archives (unless `SKIP_S3_ARCHIVE_SYNC=1`), syncs local paths for a separate worktree, and refreshes provider views. Run it only when that setup is needed; it is not a read-only inspection command.

@@ -31,3 +31,6 @@ temp/
 tests/fixtures/*.consensus.md
 plugins/consensus/skills/refine/references/examples/*.consensus.md
 # END Node/runtime outputs
+# Public package build output
+packages/session-toolkit/dist/
+*.tgz

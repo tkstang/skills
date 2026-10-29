@@ -15,7 +15,9 @@ layouts and provider adapters.
 - Treat `skills/` and `plugins/<plugin-name>/skills/` as generated installation
   units. Run `pnpm run build`; never hand-edit generated payloads.
 - Keep plugin manifests plugin-root-relative; do not reference `.oat/` or generated local paths.
-- Keep runtime code dependency-free unless a later plan explicitly changes that.
+- Keep shipped skill/hook runtime code dependency-free. The public
+  `packages/session-toolkit/` library/CLI may declare intentional npm runtime
+  dependencies; this does not change existing skill prerequisites.
 - Bundle shared runtime closure into each installation unit that needs it. A
   declared workflow dependency on another skill is different: check it early,
   give the canonical install link when missing, and never auto-install it.
@@ -44,3 +46,26 @@ pnpm run test
 pnpm run validate
 pnpm run smoke
 ```
+
+## Session Toolkit
+
+The private root workspace includes only `packages/session-toolkit/`;
+`documentation/` is separately locked and excluded. Build the public package
+with `pnpm run build:toolkit`; root `build` and `type-check` include it. Root `test` builds its ignored
+output before running the suite; build first for scoped CLI tests. Read
+[package instructions](packages/AGENTS.md) and the
+[package README](packages/session-toolkit/README.md) before editing it. Its
+Node 22.0.0 consumer floor is separate from Node 24 release tooling.
+
+The `Session Toolkit` workflow builds a clean source-bound candidate on Node 24
+and checks the same downloaded archive on Node 22.0.0 and 24. Its publication
+job is separately gated by a protected `npm` environment and explicit repository
+variable; only that job has OIDC write permission. For local development, use
+`pnpm run release:toolkit:dry-run --out <new-directory>` and
+`pnpm run toolkit:pack:check --archive <tarball> --node <node-executable>`.
+For a release candidate, commit first, then use
+`pnpm run release:toolkit:prepare --out <new-directory-outside-repo>` and
+`pnpm run release:toolkit:verify --directory <candidate-directory>`.
+See [Releasing](RELEASING.md#session-toolkit-package) for exact-archive review,
+bootstrap and trusted-publication prerequisites. Preparation does not publish
+or change consumer dependencies.

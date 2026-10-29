@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsx scripts/build-generated.ts",
+    "build": "tsx scripts/build-generated.ts && pnpm run build:toolkit",
     "build:check": "tsx scripts/build-generated.ts --check",
-    "test": "pnpm run test:vitest",
+    "test": "pnpm run build:toolkit && pnpm run test:vitest",
     "test:vitest": "node scripts/run-vitest.mjs",
     "test:live-e2e": "CONSENSUS_LIVE_SUBMIT_E2E=1 node scripts/run-vitest.mjs src/plugins/consensus/provider-cli/e2e/submit-live.e2e.test.ts",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit && pnpm --filter @tkstang/session-toolkit type-check",
     "premerge": "pnpm run build && pnpm run type-check && pnpm run build:check && pnpm run test && pnpm run validate && pnpm run smoke",
     "validate": "tsx scripts/validate.ts",
     "validate:skill-versions": "tsx scripts/validate-skill-versions.ts",
@@ -25,7 +25,13 @@
     "hooks:status": "node tools/git-hooks/manage-hooks.mjs status",
     "hooks:enable-all": "node tools/git-hooks/manage-hooks.mjs enable-all",
     "hooks:disable-all": "node tools/git-hooks/manage-hooks.mjs disable-all",
-    "prepare": "test \"$GIT_HOOKS\" = \"0\" && exit 0; node tools/git-hooks/manage-hooks.mjs setup 2>/dev/null || true"
+    "prepare": "test \"$GIT_HOOKS\" = \"0\" && exit 0; node tools/git-hooks/manage-hooks.mjs setup 2>/dev/null || true",
+    "build:toolkit": "tsx scripts/build-session-toolkit.ts",
+    "toolkit:pack:check": "tsx scripts/session-toolkit-package.ts",
+    "release:toolkit:dry-run": "pnpm run build:toolkit && tsx scripts/session-toolkit-package.ts",
+    "release:toolkit:prepare": "tsx scripts/session-toolkit-release.ts prepare",
+    "release:toolkit:verify": "tsx scripts/session-toolkit-release.ts verify",
+    "release:toolkit:publish": "tsx scripts/session-toolkit-release.ts publish"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.0",

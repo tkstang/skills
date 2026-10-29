@@ -15,6 +15,7 @@ describe('package-metadata', () => {
       [
         'build',
         'build:check',
+        'build:toolkit',
         'format',
         'format:check',
         'hooks',
@@ -25,10 +26,15 @@ describe('package-metadata', () => {
         'lint:fix',
         'premerge',
         'prepare',
+        'release:toolkit:dry-run',
+        'release:toolkit:prepare',
+        'release:toolkit:publish',
+        'release:toolkit:verify',
         'smoke',
         'test',
         'test:live-e2e',
         'test:vitest',
+        'toolkit:pack:check',
         'type-check',
         'validate',
         'validate:internal-flags',
@@ -37,7 +43,9 @@ describe('package-metadata', () => {
         'worktree:validate',
       ].toSorted(),
     );
-    expect(packageJson.scripts?.test).toBe('pnpm run test:vitest');
+    expect(packageJson.scripts?.test).toBe(
+      'pnpm run build:toolkit && pnpm run test:vitest',
+    );
     expect(packageJson.scripts?.['test:node']).toBeUndefined();
     expect(packageJson.scripts?.['test:vitest']).toBe(
       'node scripts/run-vitest.mjs',
@@ -53,7 +61,9 @@ describe('package-metadata', () => {
         ),
       ),
     ).resolves.toBeUndefined();
-    expect(packageJson.scripts?.['type-check']).toBe('tsc --noEmit');
+    expect(packageJson.scripts?.['type-check']).toBe(
+      'tsc --noEmit && pnpm --filter @tkstang/session-toolkit type-check',
+    );
     expect(packageJson.scripts?.validate).toBe('tsx scripts/validate.ts');
     expect(packageJson.scripts?.['validate:skill-versions']).toBe(
       'tsx scripts/validate-skill-versions.ts',

@@ -89,3 +89,12 @@ pnpm run premerge
 [Development](https://tkstang.github.io/skills/engineering/contributing/development/) ·
 [Architecture](https://tkstang.github.io/skills/engineering/architecture/) ·
 [CI and releases](https://tkstang.github.io/skills/engineering/operations/)
+
+## Session Toolkit package
+
+`packages/session-toolkit/` is the independently versioned
+`@tkstang/session-toolkit` library and `seshtk` CLI, currently establishing its
+package boundary. See its [README](packages/session-toolkit/README.md) for the
+implemented capabilities and development commands. Existing Session skills
+continue to work without it until their migration is verified. The root is a
+private pnpm workspace; the documentation app remains separately locked.

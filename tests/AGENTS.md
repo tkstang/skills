@@ -5,7 +5,7 @@ Scoped guidance for repository, release, and tooling tests under `tests/`. Inher
 ## How tests are written today
 
 - All suites are Vitest `.test.ts` files using `import { describe, it, expect } from 'vitest'`.
-- Run the full suite with `npm test` / `pnpm run test`; this runs the Vitest suite only.
+- Run the full suite with `npm test` / `pnpm run test`; this builds the toolkit before running Vitest. Use `pnpm run test:vitest <paths>` to run a scoped suite directly against existing build output.
 - For migrated TypeScript runtime slices, prefer importing canonical TypeScript source for unit/library behavior and keep shipped `.mjs` entrypoint execution in CLI/integration tests where installed-skill behavior is being protected.
 - Skill, shared-runtime, plugin, and experimental-tool behavior tests stay with their source owners; no `.test.mjs` files should be reintroduced.
 - Import the unit under test by relative path from the source tree or shipped runtime path appropriate to the behavior under test.
