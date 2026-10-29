@@ -443,6 +443,21 @@ p03 made concrete after p02 acceptance, within unchanged approved outcomes and t
 
 Root pre-review validation: the five implementation records and their separate journal commits reconcile with all 13 append-only commits from dispatch base `9f46b0c6cf8ebabf0457a5a83a084cc5b7db9897` to handoff `633ab2234d4b1986dcf9d940d950a721456eeefa`. Anchors exist and the base is an ancestor of the recorded head. Recovery reservation, immutable original task, bounded correction, matching committed completed marker, canonical event and authoritative committed-HEAD evidence reconcile; root cleared only that marker, preserving usage 1/10 and prior p01/p02 counts. The archive hash matches the recorded receipt. All five records are complete; p03 stays in progress pending independent review. Historical marker-retention statements above describe the pre-bookkeeping handoff.
 
+### Review Received: p03
+
+Independent request `session-toolkit-p03-review-20261029-r1` reviewed the full anchors at `2776448d5a023cd34b2c75a7577abc927fb500a5`; artifact `reviews/p03-review-2026-10-29T160106Z.md`. Exactly one valid reconnaissance signal was consumed (`not-attempted`), with no orchestration section, before scope/count validation. Verdict: 0 Critical, 0 High, 1 Medium, 1 Low. Independent package tests, installed archive on both supported runtimes, types, freshness, validate and smoke pass. Root accepts both findings for bounded correction in p03-t06; no independent clean re-review of that future correction is claimed. p03 remains in progress.
+
+- M1 (Medium): malformed/oversized Codex/Claude history and Codex index records plus index I/O failures must produce degraded/incomplete public coverage. Resolve through existing per-source notes; preserve valid no-match outcomes and limits.
+- L1 (Low): restore the historical changelog sentence accidentally split by duplicate release-note insertion; keep toolkit notes in the real Unreleased section.
+
+### Task p03-t06: Correct reviewed cheap-source coverage and changelog history
+
+**Status:** in_progress
+**Executor:** root
+**Intent:** Resolve M1/L1 without expanding public API or changing scan/selection policy.
+**Files:** `packages/session-toolkit/src/search-codex.ts`, `search-claude-code.ts`; `tests/release/session-toolkit-search-public.test.ts`; `CHANGELOG.md`; package/parity/verification references as needed for corrected archive evidence.
+**Proof:** Public valid/no-match/malformed/oversized history/index regression fails before correction and passes afterward; relevant search and package suites, root/package types, scoped lint/format, fresh exact archive on actual Node 22.0.0/24.21.0, build:check/validate/smoke. Existing source-degradation notes bound reporting per file, avoiding one note per skipped record.
+
 ## Phase p04: Publish the toolkit and migrate Skills consumers
 
 **Status:** pending
@@ -452,6 +467,8 @@ Root pre-review validation: the five implementation records and their separate j
 **Status:** pending
 
 ## Orchestration Runs
+
+Invocation-evidence clarification: exact native materialized roles select model and effort. No independent service-tier selector was applied for p03; the host default is inherited, and runtime identity remains unreported. Earlier priority wording in temporary dispatch records was unsupported and is corrected in those records; no target/model/effort or implementation authority changed.
 
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
@@ -469,9 +486,9 @@ Root pre-review validation: the five implementation records and their separate j
 
 - run/v1 · request=session-toolkit-p02-review-20261029-r2 · scope=p02 · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
-- run/v1 · request=session-toolkit-p03-implement-20261029 · scope=p03 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-6-1-sol-high · launch=accepted · outcome=running · terminal=no · class=live · continuation=~ · observed=~ · match=~
+- run/v1 · request=session-toolkit-p03-implement-20261029 · scope=p03 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p03 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
-- run/v1 · request=session-toolkit-p03-review-20261029-r1 · scope=p03 · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=running · terminal=no · class=live · continuation=~ · observed=~ · match=~
+- run/v1 · request=session-toolkit-p03-review-20261029-r1 · scope=p03 · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 <!-- orchestration-runs-end -->
 
