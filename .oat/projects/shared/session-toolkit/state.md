@@ -69,7 +69,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-10-29T00:52:34.352377Z'
+oat_project_state_updated: '2026-10-29T02:46:45.217587Z'
 oat_generated: false
 ---
 
@@ -93,7 +93,7 @@ Plan - Authoring the Project Brief
 
 - ✓ Brief project scaffolded
 - ✓ Brief and implementation artifacts scaffolded
-- ⧗ Alignment interview: package home and hybrid distribution accepted; ORC commands, runtime baseline, and delivery authority pending
+- ⧗ Alignment interview: package home, hybrid distribution, ORC command cutover, and merged/published/migrated endpoint accepted; runtime baseline and full-design alignment pending
 
 ## Blockers
 
