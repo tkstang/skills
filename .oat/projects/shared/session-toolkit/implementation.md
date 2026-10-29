@@ -162,7 +162,7 @@ Root consumed exactly one `Reconnaissance: not-attempted` confirmation; artifact
 
 **Status:** in_progress
 **Base:** 3810f57b6c1205e918ccee133dd287bc65094736
-**Head:** 99132f622f93211c2532b34d93381de4d5329a0d
+**Head:** f77c538084a66d4ad81525795afc48bcf291b5a8
 **Executor:** phase-implementer:session-toolkit-p02-implement-20261029
 
 Execution shape: one phase implementer in the existing worktree is the sole committing owner for phase product/task records. No parallel group; the provider substrate, shared schemas, CLI, exports and package build outputs overlap and impose sequential dependencies, so root fan-out fails the independence test. Root owns lifecycle state and independent review. Classification: hard-reasoning/high for donor format/coordinate reconciliation, exact identity and safe export boundaries. Recovery default limit10, p02 prior usage0, remaining10, pending null; no phase override.
@@ -174,6 +174,8 @@ Phase verification after review H1–H3: committed product passes340 package tes
 Root pre-review validation: all five task commits and separate journal closures are append-only, ordered and bounded to p02. The complete dispatch-base range is `1a4974465ddb66b51a2b0db556fde61abc9c267b..7b6f86664a973c3f33391d1bda359c07950d920c`; the report’s first/last commit shorthand is inclusive. Phase review uses the unchanged full anchors above. Recovery01–03 were already validated and settled by root commits `517108c`, `49cbb22` and `ffea28a`; recovery04 report, canonical event, exact target/axes, immutable original and bounded correction/test/ledger diff now validate. Cleared only its completed marker, preserving usage4/10 and remaining6. Verified the final archive checksum and clean handoff. Relevant package/repository checks pass with the explicit baseline full-suite limitation. Phase remains in_progress pending independent review; no release or consumer migration is claimed.
 
 Independent review r1 `session-toolkit-p02-review-20261029-r1` at `1ce8ba8de2fb5cb858bb6f4b273dac84bfa261d6`: fixes required, 0 Critical / 3 High / 2 Medium / 0 Low, artifact `reviews/p02-review-2026-10-29T145255Z.md`. Exactly one not-attempted reconnaissance signal consumed; no Review Orchestration section. Root validated full anchor/provenance/counts and source evidence and accepts H1–H3/M1–M2. H1–H3 route to the original implementer as bounded fix round1; root will address the two small Medium issues afterward, then request one fresh full-phase review. No phase acceptance or clean re-review is claimed. Deferred terminal outcome logging stays with the phase outcome.
+
+Root validated fix round1: original handle/request/continuation and exact target match, clean final handoff8a454ba, bounded implementation99132f6 plus separate journal closure, unchanged Phase Base and advanced Head, no recovery reservation or event. All five r1 findings are addressed by t06/t07. Seven execution records and corrected archive evidence are current; phase remains in_progress pending fresh full-range independent review. No later phase Base exists.
 
 ### Task p02-t01: Preserve provider evidence and bounded parsing
 
@@ -320,6 +322,20 @@ Proof: pre-failing public regressions, all package tests after build, root/packa
 
 Verification: pre-fix discovery/identity/read proof failed exactly the three intended H1–H3 assertions; the 5,000-row old parse took22,807ms. Corrected focused64 tests and all340 package tests pass; whole-record limits, malformed-line continuation, Cursor pending questions/terminal origin and exceptional Claude conflicting-ID fallback are protected. Toolkit build completed before tests; root/package type-check, scoped oxlint/oxfmt, build:check after suite, validate and smoke all exit0. Postcommit package rerun passes340/340. Code commit is exactly one append-only commit from fix base36778fc412ff1159ad28cc8b12bd635e282b7b91 with only the ten owned source/test/changelog/evidence files; journal closure is separate. Medium M1/M2 remain root-owned. No consumer edits, archive proof, publication, nested dispatch or recovery reservation. Recovery ledger stays4/10 used,6 remaining,pendingnull.
 
+### Task p02-t07: (review) Preserve Cursor carrier selection and canonical evidence cwd
+
+**Status:** completed
+**Executor:** root:gpt-6.1-sol/high
+**Source review:** reviews/p02-review-2026-10-29T145255Z.md — M1, M2
+
+Intent: make exact Cursor selection accept the same generic carriers as historical listing; compare captured Codex cwd metadata by canonical directory identity while preserving raw evidence and cutoff confinement. Root handles these small review corrections after original implementer returned clean ownership at8a454ba; this is bounded review disposition, not a root-inline phase substitution.
+Files: discovery.ts, evidence.ts, existing discovery/evidence tests, changelog and p02 parity/verification references.
+Proof: public regressions fail before correction, then package tests, type/build/lint/format, serialized build:check, validate/smoke and fresh archive checks on actual Node22.0.0/24. Recovery remains4/10 used,pendingnull.
+
+**Commit:** f77c538084a66d4ad81525795afc48bcf291b5a8
+
+Verification: both intended public regressions failed before correction; discovery/evidence12/12 and all342 package tests pass. Type/build/scoped lint/format, serialized build:check, validate/smoke pass. Corrected exact archive148d1980d82cafe30e20d557064b06de38d2da8481a45e394b18257b1d02bd28 clean-installs and passes fixture API/CLI/types on actual22.0.0/24.21.0. No full-suite pass, consumer cutover or publication is claimed; references/p02-verification.md records the retained baseline limitations and archive evidence. Recovery unchanged4/10,pendingnull.
+
 ## Phase p03: Add search, activity, and CLI update notices
 
 **Status:** pending
@@ -346,7 +362,7 @@ Verification: pre-fix discovery/identity/read proof failed exactly the three int
 
 - run/v1 · request=session-toolkit-p02-review-20261029-r1 · scope=p02 · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
-- run/v1 · request=session-toolkit-p02-fix-20261029-r1 · scope=p02 · action=fix · role=oat-phase-implementer · target=oat-phase-implementer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p02 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-6-1-sol-high · launch=accepted · outcome=running · terminal=no · class=live · continuation=cont-session-toolkit-p02-fix-1 · observed=~ · match=~
+run/v1 · request=session-toolkit-p02-fix-20261029-r1 · scope=p02 · action=fix · role=oat-phase-implementer · target=oat-phase-implementer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p02 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=cont-session-toolkit-p02-fix-1 · observed=~ · match=~
 
 <!-- orchestration-runs-end -->
 
