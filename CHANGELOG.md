@@ -4,6 +4,8 @@
 
 ### Added
 
+- Session Toolkit 0.1.0: sensitive full activity API/CLI capture with raw records, correlations, usage, source coordinates and explicit Cursor capability gaps.
+
 - Session Toolkit 0.1.0: stateless raw-evidence search and estimates with tiered widening, explicit scan authorization, redaction and optional accelerators.
 
 ### Fixed

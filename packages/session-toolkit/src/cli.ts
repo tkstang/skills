@@ -1,8 +1,10 @@
+import { writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { resolve, join } from 'node:path';
 
 import { Command, CommanderError, InvalidArgumentError } from 'commander';
 
+import { captureActivity } from './activity.js';
 import { getCapabilities, type Envelope } from './capabilities.js';
 import { listSessions, readTranscript } from './discovery.js';
 import { ToolkitError, provider, selector } from './domain.js';
@@ -294,6 +296,38 @@ function createProgram(output: Output, json: boolean): Command {
           4_000_000,
         ),
     async (o) => exportMarkdown({ ...o, out: o.out as string }),
+  );
+  operation(
+    'activity',
+    'Capture sensitive full structured activity (not sanitized)',
+    (c) =>
+      bounds(
+        c.requiredOption('--session <provider:id>', 'Qualified native session'),
+      ).option(
+        '--out <path>',
+        'Write sensitive JSON artifact to a new file',
+        path,
+      ),
+    async (o) => {
+      const capture = await captureActivity({
+        session: o.session as string,
+        ...readOptions(o),
+      });
+      if (o.out) {
+        await writeFile(
+          o.out as string,
+          JSON.stringify(capture, null, 2) + '\n',
+          { flag: 'wx' },
+        );
+        return {
+          kind: 'sensitive-activity-artifact',
+          out: o.out,
+          source: capture.source,
+          coverage: capture.sourceRead.coverage,
+        };
+      }
+      return capture;
+    },
   );
   function searchFlags(c: Command): Command {
     const collect = (value: string, previous: string[]) => [...previous, value];

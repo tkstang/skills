@@ -13,7 +13,7 @@ export type PageActivitySummary = Pick<
   'counts' | 'coverage' | 'diagnostics' | 'sourceMetadata'
 > & { scope: 'captured-page'; sourceComplete: boolean };
 /** Summaries retain explicit source coverage and usage, independently of conversation filters. */
-export function summarizePage(page: TranscriptPage): PageActivitySummary {
+export function extractPageActivity(page: TranscriptPage) {
   const id =
     page.metadata?.nativeSessionId ??
     page.metadata?.sessionId ??
@@ -72,7 +72,10 @@ export function summarizePage(page: TranscriptPage): PageActivitySummary {
       },
     });
   }
-  const report = projectActivity(correlateActivity(extracted), {
+  return correlateActivity(extracted);
+}
+export function summarizePage(page: TranscriptPage): PageActivitySummary {
+  const report = projectActivity(extractPageActivity(page), {
     mode: 'review',
     renderFormat: 'compact-json',
     deliveryRange: {

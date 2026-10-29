@@ -206,3 +206,35 @@ metadata is reported when applicable. Use `SESHTK_SEARCH_NO_RG=1` or
 `SESHTK_SEARCH_PROBE_TIMEOUT_MS` for probe timeout (default3000,clamped500–60000).
 These controls belong to Session Toolkit; no legacy search environment aliases
 are installed. The library accepts explicit `home` and `env` for isolated stores.
+
+## Sensitive activity
+
+```sh
+seshtk activity --session codex:<native-id> --json
+seshtk activity --session claude-code:<native-id> --out ./activity.json --json
+```
+
+Library: `captureActivity({ session: 'codex:<native-id>' })`. The response is
+sensitive structured evidence, **not sanitized or shareable Markdown**. It
+retains full raw captured records (including instruction carriers), raw tool
+arguments/results, correlations, usage when recorded, provenance and source
+coordinates. The activity events select supported tool/item/metadata facts;
+the raw records preserve other provider detail. No preview caps apply.
+
+All three providers support captured activity. Cursor uses frame extraction:
+recorded calls and turn lifecycle are available; individual call results,
+per-call outcomes and usage are not recorded on this surface. `support` and
+coverage state these gaps explicitly. Raw Cursor records remain available.
+Claude/Codex correlate recorded calls/results and retain usage semantics without
+inventing missing data. External persisted outputs and child trajectories are
+reported as not read; payload paths are never followed.
+
+Read bounds and generation-bound continuations work as for `read`; default source
+budget is4,000,000 bytes. `sourceRead.coverage.fullSource` requires coverage from
+byte zero to the captured end with no diagnostics. A bounded page or continuation
+can omit earlier correlation context; its raw source coordinates remain intact.
+`sourceRead.records` exposes source ordinals, decoded ordinals, physical lines,
+byte ranges and Cursor frame indices independently. Cursor event locators retain
+source and terminal delivery frame coordinates. `--out` creates a new JSON file
+exclusively and refuses existing destinations; without it the capture is returned
+in the CLI response. Consumers own offsets and watch/selection state.

@@ -41,3 +41,10 @@ export type {
   EstimateResult,
   EstimateRuntime,
 } from './search.js';
+
+export { captureActivity } from './activity.js';
+export type {
+  ActivityOptions,
+  ActivityCapture,
+  ActivityEvent,
+} from './activity.js';

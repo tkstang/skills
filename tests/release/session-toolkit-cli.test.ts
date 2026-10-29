@@ -61,6 +61,7 @@ describe('Session Toolkit public CLI boundary', () => {
             'export.markdown.v1',
             'search.v1',
             'search.estimate.v1',
+            'activity.v1',
           ],
           providers: ['claude-code', 'codex', 'cursor'],
         },
