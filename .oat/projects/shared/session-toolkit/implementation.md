@@ -102,7 +102,7 @@ The user explicitly approved all three proposed brief amendments and rerunning b
 - L1 (Low, Minor scope): squash-only merges can break phase ancestry → resolve_in_artifact. Require a documented branch strategy and anchors when p04 becomes concrete.
 - L2 (Low, Negligible scope): update-notice evidence and rationale incomplete → resolve_in_artifact. p03 now requires no notices or network checks in hooks/machine mode; the decision rejects no notice and uncached per-invocation checks with rationale.
 
-**Outcome:** fixes_completed; fresh artifact review and configured gate rerun pending. Final brief approval has not occurred.
+**Outcome:** fixes_completed; fresh structured artifact re-review passed with no findings at `77599b3deb3bf460225e952900ac8676939e960e`, confirming all three amendments. Configured gate rerun pending. Final brief approval has not occurred.
 
 ## Deferred Findings
 

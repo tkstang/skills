@@ -147,7 +147,9 @@ No parallel phase groups are declared (`oat_plan_parallel_groups: []`). Package 
 | final | code     | pending         | -          | -                                                           | -                                        | -          | -                    |
 | plan  | artifact | fixes_completed | 2026-10-29 | reviews/archived/artifact-plan-review-2026-10-29T031602Z.md | 02b1f285928e22357f6a8b66a9ddffecb6f3b43e | gate       | claude-opus-5-5-high |
 
-Initial Codex artifact review passed with no findings. The configured Opus brief gate passed its High threshold with M1 (Medium) and L1/L2 (Low); the user approved all three amendments, now applied. Fresh artifact review and gate reruns precede the single final brief approval.
+| plan | artifact | passed | 2026-10-29 | structured | 77599b3deb3bf460225e952900ac8676939e960e | auto | - |
+
+Initial Codex artifact review passed with no findings. The configured Opus brief gate passed its High threshold with M1 (Medium) and L1/L2 (Low); the user approved all three amendments, now applied. Fresh read-only Codex artifact re-review passed with zero findings at `77599b3deb3bf460225e952900ac8676939e960e`. The configured gate rerun and single final brief approval remain pending.
 
 ## Implementation Complete
 

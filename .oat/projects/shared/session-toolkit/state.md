@@ -73,7 +73,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-10-29T00:02:50.225Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-10-29T03:21:46.256749Z'
+oat_project_state_updated: '2026-10-29T03:23:44.225040Z'
 oat_brief_gate:
   status: allowed
   disposition: passed
@@ -119,4 +119,4 @@ None
 
 ## Next Milestone
 
-User-approved M1/L1/L2 brief amendments applied. Rerun artifact review and configured brief gate, then obtain the single final brief approval.
+User-approved M1/L1/L2 amendments passed fresh artifact review with no findings. Run the configured brief gate again, then obtain the single final brief approval.
