@@ -1,0 +1,2237 @@
+/**
+ * runtimes.test.ts — Unit tests for the canonical transcript runtime source.
+ *
+ * Tests are organized around the five public exports:
+ *   discoverPaths, encodeCwd, extractMeta, readRecords, normalizeEntries
+ */
+
+import { appendFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import type {
+  DetailedTranscriptRead,
+  JsonObject,
+  Runtime,
+} from '../../packages/session-toolkit/src/provider-runtime.js';
+import {
+  claudeUserRecordProvenance,
+  discoverPaths,
+  encodeCwd,
+  encodeCwdVariants,
+  extractClaudeRecordedCwdFromRecords,
+  extractCodexRecordedCwdFromRecords,
+  extractMeta,
+  extractMetaFromRecords,
+  isAutomaticControlAcknowledgement,
+  isNoOpText,
+  normalizeEntries,
+  parseAutomaticControlEnvelope,
+  readMetadataRecordsBounded,
+  readRecords,
+  readRecordsDetailed,
+  readTailRecordsBounded,
+} from '../../packages/session-toolkit/src/provider-runtime.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const FIXTURES_CC = join(
+  __dirname,
+  '../../src/skills/session-observer/src/fixtures/claude-code',
+);
+const FIXTURES_CX = join(
+  __dirname,
+  '../../src/skills/session-observer/src/fixtures/codex',
+);
+const FIXTURES_CURSOR = join(
+  __dirname,
+  '../../src/skills/session-observer/src/fixtures/cursor',
+);
+const SESSION_FIDELITY_FIXTURES = join(
+  __dirname,
+  '../../src/shared/transcript/fixtures/session-fidelity',
+);
+const SESSION_FIDELITY_CODEX_FIXTURES = join(
+  SESSION_FIDELITY_FIXTURES,
+  'codex',
+);
+
+function expectEqual<T>(actual: T, expected: T, message?: string) {
+  expect(actual, message).toBe(expected);
+}
+
+function expectDeepEqual(actual: unknown, expected: unknown, message?: string) {
+  expect(actual, message).toEqual(expected);
+}
+
+function expectOk(actual: unknown, message?: string): asserts actual {
+  expect(actual, message).toBeTruthy();
+}
+
+function expectSourceSnapshot(
+  detailed: DetailedTranscriptRead,
+  source: string,
+): void {
+  expect(detailed.sourceBytes).toBe(Buffer.byteLength(source, 'utf8'));
+  expect(Number.isNaN(Date.parse(detailed.capturedAt))).toBe(false);
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function fixturePath(runtime: Runtime, name: string): string {
+  if (runtime === 'claude-code') return join(FIXTURES_CC, name);
+  if (runtime === 'codex') return join(FIXTURES_CX, name);
+  if (runtime === 'cursor') return join(FIXTURES_CURSOR, name);
+  throw new Error(`Unknown fixture runtime: ${runtime}`);
+}
+
+describe('readRecordsDetailed', () => {
+  let tmpDir: string;
+
+  beforeAll(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'detailed-runtimes-test-'));
+  });
+
+  afterAll(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('bounded detailed reads preserve the parser contract while freezing a byte prefix', async () => {
+    const path = join(tmpDir, 'bounded-prefix.jsonl');
+    const prefix = '{"one":1}\n\n{"two":2}\n';
+    await writeFile(path, prefix);
+    const first = await readRecordsDetailed(path, { maxBytes: 1024 });
+    expect(first.fileGeneration?.prefixSha256).toMatch(/^[a-f0-9]{64}$/);
+    const [repeated] = await Promise.all([
+      readRecordsDetailed(path, {
+        maxBytes: 1024,
+        endBytes: Buffer.byteLength(prefix),
+      }),
+      appendFile(path, '{"later":3}\n'),
+    ]);
+    expect(repeated.records).toEqual(first.records);
+    expect(repeated.fileGeneration).toEqual(first.fileGeneration);
+    expect(repeated.records.map((record) => record.recordIndex)).toEqual([
+      0, 1,
+    ]);
+    expect(repeated.records.map((record) => record.physicalLine)).toEqual([
+      1, 3,
+    ]);
+    expect((await readRecordsDetailed(path)).records).toHaveLength(3);
+    expect((await readRecordsDetailed(path)).fileGeneration).toBeUndefined();
+    await expect(readRecordsDetailed(path, { maxBytes: 8 })).rejects.toThrow(
+      'EVIDENCE_SOURCE_LIMIT',
+    );
+    await expect(
+      readRecordsDetailed(path, { maxBytes: 1024, endBytes: 1024 }),
+    ).rejects.toThrow('EVIDENCE_SOURCE_CHANGED');
+    await expect(readRecordsDetailed(path, { maxBytes: -1 })).rejects.toThrow(
+      'Invalid detailed read boundary',
+    );
+  });
+
+  it('uses LF-only framing and keeps physical lines separate from logical indices', async () => {
+    const transcriptPath = join(tmpDir, 'mixed-framing.jsonl');
+    const unicodeText = 'alpha\u2028beta\u2029gamma';
+    const escapedCarriage = 'escaped\rvalue';
+    const firstCarrier = `\uFEFF${JSON.stringify({ type: 'first', text: unicodeText })}\r`;
+    const secondCarrier = `${JSON.stringify({ type: 'second', text: escapedCarriage })}\r`;
+    const finalCarrier = JSON.stringify({ type: 'final' });
+    const source = [
+      firstCarrier,
+      ' \t\r',
+      '{"broken":',
+      '42',
+      secondCarrier,
+      finalCarrier,
+    ].join('\n');
+    await writeFile(transcriptPath, source);
+
+    const detailed = await readRecordsDetailed(transcriptPath);
+
+    expect(detailed.records).toEqual([
+      {
+        record: { type: 'first', text: unicodeText },
+        sourceCarrier: firstCarrier,
+        recordIndex: 0,
+        physicalLine: 1,
+      },
+      {
+        record: { type: 'second', text: escapedCarriage },
+        sourceCarrier: secondCarrier,
+        recordIndex: 1,
+        physicalLine: 5,
+      },
+      {
+        record: { type: 'final' },
+        sourceCarrier: finalCarrier,
+        recordIndex: 2,
+        physicalLine: 6,
+      },
+    ]);
+    expect(detailed.diagnostics).toEqual([
+      { kind: 'malformed', physicalLine: 3 },
+      { kind: 'not-object', physicalLine: 4 },
+    ]);
+    expectSourceSnapshot(detailed, source);
+    expect(JSON.stringify(detailed.diagnostics)).not.toContain('{"broken":');
+    expect(Object.keys(detailed.records[0]).toSorted()).toEqual([
+      'physicalLine',
+      'record',
+      'recordIndex',
+      'sourceCarrier',
+    ]);
+  });
+
+  it('reports a timestamped zero-byte snapshot for an empty source', async () => {
+    const transcriptPath = join(tmpDir, 'empty-snapshot.jsonl');
+    await writeFile(transcriptPath, '');
+
+    const detailed = await readRecordsDetailed(transcriptPath);
+
+    expect(detailed.records).toEqual([]);
+    expect(detailed.diagnostics).toEqual([]);
+    expectSourceSnapshot(detailed, '');
+  });
+
+  it('distinguishes a malformed terminated line from a partial tail', async () => {
+    const terminatedPath = join(tmpDir, 'malformed-terminated.jsonl');
+    const partialPath = join(tmpDir, 'partial-tail.jsonl');
+    await writeFile(terminatedPath, '{"broken":\n');
+    await writeFile(partialPath, '{"broken":');
+
+    const terminated = await readRecordsDetailed(terminatedPath);
+    const partial = await readRecordsDetailed(partialPath);
+    expect(terminated.records).toEqual([]);
+    expect(terminated.diagnostics).toEqual([
+      { kind: 'malformed', physicalLine: 1 },
+    ]);
+    expectSourceSnapshot(terminated, '{"broken":\n');
+    expect(partial.records).toEqual([]);
+    expect(partial.diagnostics).toEqual([
+      { kind: 'partial-tail', physicalLine: 1 },
+    ]);
+    expectSourceSnapshot(partial, '{"broken":');
+    expect(Object.keys(terminated.diagnostics[0]).toSorted()).toEqual([
+      'kind',
+      'physicalLine',
+    ]);
+    expect(Object.keys(partial.diagnostics[0]).toSorted()).toEqual([
+      'kind',
+      'physicalLine',
+    ]);
+  });
+
+  it('treats a whitespace-only no-newline tail, including a lone CR, as blank', async () => {
+    const transcriptPath = join(tmpDir, 'whitespace-tail.jsonl');
+    await writeFile(transcriptPath, `${JSON.stringify({ ok: true })}\n\r`);
+
+    const source = `${JSON.stringify({ ok: true })}\n\r`;
+    const detailed = await readRecordsDetailed(transcriptPath);
+    expect(detailed.records).toEqual([
+      {
+        record: { ok: true },
+        sourceCarrier: JSON.stringify({ ok: true }),
+        recordIndex: 0,
+        physicalLine: 1,
+      },
+    ]);
+    expect(detailed.diagnostics).toEqual([]);
+    expectSourceSnapshot(detailed, source);
+  });
+
+  it('keeps detailed reads silent and emits each legacy warning exactly once', async () => {
+    const transcriptPath = join(tmpDir, 'compatibility.jsonl');
+    const malformed = '{"broken":';
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ index: 1 })}\n${malformed}\n${JSON.stringify({ index: 2 })}\n`,
+    );
+    let parseReason = '';
+    try {
+      JSON.parse(malformed);
+    } catch (error) {
+      parseReason = error instanceof Error ? error.message : String(error);
+    }
+    const expectedWarning = `[runtimes] Malformed JSONL line 2 in ${transcriptPath} skipped: ${parseReason}`;
+    const warnings: string[] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
+    try {
+      const detailed = await readRecordsDetailed(transcriptPath);
+      expect(detailed.records.map(({ record }) => record)).toEqual([
+        { index: 1 },
+        { index: 2 },
+      ]);
+      expect(detailed.diagnostics).toEqual([
+        { kind: 'malformed', physicalLine: 2 },
+      ]);
+      expect(warnings).toEqual([]);
+
+      await expect(readRecords(transcriptPath)).resolves.toEqual([
+        { index: 1 },
+        { index: 2 },
+      ]);
+      expect(warnings).toEqual([expectedWarning]);
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
+  it('drops a partial tail from legacy reads with one warning', async () => {
+    const transcriptPath = join(tmpDir, 'legacy-partial-tail.jsonl');
+    const partial = '{"broken":';
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ index: 1 })}\n${partial}`,
+    );
+    let parseReason = '';
+    try {
+      JSON.parse(partial);
+    } catch (error) {
+      parseReason = error instanceof Error ? error.message : String(error);
+    }
+    const warnings: string[] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
+    try {
+      await expect(readRecords(transcriptPath)).resolves.toEqual([
+        { index: 1 },
+      ]);
+      expect(warnings).toEqual([
+        `[runtimes] Partial trailing line dropped from ${transcriptPath} (line 2): ${parseReason}`,
+      ]);
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
+  it('reads every obscured capture with stable physical provenance', async () => {
+    const captures = [
+      {
+        runtime: 'claude-code',
+        path: join(
+          SESSION_FIDELITY_FIXTURES,
+          'claude-code/captured-activity.jsonl',
+        ),
+        count: 5,
+      },
+      {
+        runtime: 'codex',
+        path: join(SESSION_FIDELITY_FIXTURES, 'codex/captured-activity.jsonl'),
+        count: 14,
+      },
+      {
+        runtime: 'cursor',
+        path: join(SESSION_FIDELITY_FIXTURES, 'cursor/captured-activity.jsonl'),
+        count: 3,
+      },
+    ];
+
+    for (const capture of captures) {
+      const detailed = await readRecordsDetailed(capture.path);
+      expect(detailed.diagnostics, capture.runtime).toEqual([]);
+      expect(detailed.records, capture.runtime).toHaveLength(capture.count);
+      expect(
+        detailed.records.map(({ recordIndex, physicalLine }) => ({
+          recordIndex,
+          physicalLine,
+        })),
+        capture.runtime,
+      ).toEqual(
+        Array.from({ length: capture.count }, (_, recordIndex) => ({
+          recordIndex,
+          physicalLine: recordIndex + 1,
+        })),
+      );
+    }
+
+    const codex = await readRecordsDetailed(captures[1].path);
+    expect(codex.records[0].record.payload).toMatchObject({
+      id: '88888888-8888-4888-8888-888888888888',
+      session_id: '77777777-7777-4777-8777-777777777777',
+      subagent_history_start_ordinal: 5,
+      cli_version: '0.154.0',
+    });
+    expect(
+      codex.records.slice(1, 4).map(({ record }) => record.ordinal),
+    ).toEqual([1, 2, 3]);
+    expect(codex.records.slice(4).map(({ record }) => record.ordinal)).toEqual([
+      5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    ]);
+  });
+});
+
+describe('bounded transcript readers', () => {
+  let tmpDir: string;
+
+  beforeAll(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'bounded-runtimes-test-'));
+  });
+
+  afterAll(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('reads only complete metadata-prefix records within byte and record caps', async () => {
+    const transcriptPath = join(tmpDir, 'metadata-prefix.jsonl');
+    await writeFile(
+      transcriptPath,
+      ['{"index":1}', '{"index":2}', '{"index":3}', ''].join('\n'),
+    );
+
+    await expect(
+      readMetadataRecordsBounded(transcriptPath, {
+        maxBytes: 24,
+        maxRecords: 1,
+        diagnostic: () => {},
+      }),
+    ).resolves.toEqual({
+      records: [{ index: 1 }],
+      incomplete: true,
+      bytesRead: 24,
+      recordsInspected: 1,
+    });
+  });
+
+  it('surfaces clean record-cap and newline-aligned byte truncation', async () => {
+    const recordCappedPath = join(tmpDir, 'metadata-record-capped.jsonl');
+    await writeFile(
+      recordCappedPath,
+      Array.from({ length: 129 }, (_, index) => JSON.stringify({ index })).join(
+        '\n',
+      ) + '\n',
+    );
+
+    await expect(
+      readMetadataRecordsBounded(recordCappedPath, {
+        maxBytes: 16 * 1024,
+        maxRecords: 128,
+        diagnostic: () => {},
+      }),
+    ).resolves.toMatchObject({
+      incomplete: true,
+      recordsInspected: 128,
+    });
+
+    const firstLine = `${JSON.stringify({ cwd: '/repo/source' })}\n`;
+    const byteCappedPath = join(tmpDir, 'metadata-byte-capped.jsonl');
+    await writeFile(
+      byteCappedPath,
+      `${firstLine}${JSON.stringify({ later: true })}\n`,
+    );
+
+    await expect(
+      readMetadataRecordsBounded(byteCappedPath, {
+        maxBytes: Buffer.byteLength(firstLine),
+        maxRecords: 128,
+        diagnostic: () => {},
+      }),
+    ).resolves.toEqual({
+      records: [{ cwd: '/repo/source' }],
+      incomplete: true,
+      bytesRead: Buffer.byteLength(firstLine),
+      recordsInspected: 1,
+    });
+  });
+
+  it('returns the newest complete tail records within byte and record caps', async () => {
+    const transcriptPath = join(tmpDir, 'records-tail.jsonl');
+    await writeFile(
+      transcriptPath,
+      ['{"index":1}', '{"index":2}', '{"index":3}', ''].join('\n'),
+    );
+
+    await expect(
+      readTailRecordsBounded(transcriptPath, {
+        maxBytes: 128,
+        maxRecords: 2,
+        diagnostic: () => {},
+      }),
+    ).resolves.toEqual({
+      records: [{ index: 2 }, { index: 3 }],
+      truncated: true,
+      bytesRead: Buffer.byteLength(
+        ['{"index":1}', '{"index":2}', '{"index":3}', ''].join('\n'),
+      ),
+      recordsInspected: 3,
+    });
+  });
+
+  it('stops physical parsing before the inspected-record budget overshoots', async () => {
+    const transcriptPath = join(tmpDir, 'records-inspection-capped.jsonl');
+    await writeFile(
+      transcriptPath,
+      Array.from({ length: 10_001 }, (_, index) =>
+        JSON.stringify({ index }),
+      ).join('\n') + '\n',
+    );
+    const result = await readTailRecordsBounded(transcriptPath, {
+      maxBytes: 1024 * 1024,
+      maxRecords: 10_000,
+      maxInspectedRecords: 10_000,
+      diagnostic: () => {},
+    });
+
+    expect(result.recordsInspected).toBe(10_000);
+    expect(result.truncated).toBe(true);
+    expect(result.recordLimitExceeded).toBe(true);
+  });
+
+  it('drops malformed and partial final records with path-free diagnostics', async () => {
+    const transcriptPath = join(tmpDir, 'sensitive-session-name.jsonl');
+    await writeFile(transcriptPath, '{"ok":true}\nnot-json\n{"partial":');
+    const diagnostics: unknown[] = [];
+
+    const result = await readTailRecordsBounded(transcriptPath, {
+      maxBytes: 128,
+      maxRecords: 10,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result.records).toEqual([{ ok: true }]);
+    expect(result.bytesRead).toBe(
+      Buffer.byteLength('{"ok":true}\nnot-json\n{"partial":'),
+    );
+    expect(result.recordsInspected).toBe(3);
+    expect(diagnostics).toEqual([
+      { code: 'malformed-record' },
+      { code: 'malformed-record' },
+    ]);
+    expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
+    expect(JSON.stringify(diagnostics)).not.toContain('sensitive-session-name');
+  });
+
+  it('treats a cut metadata prefix as a bounded window rather than an oversized record', async () => {
+    const transcriptPath = join(tmpDir, 'oversized-prefix.jsonl');
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ content: 'x'.repeat(512) })}\n{"later":true}\n`,
+    );
+    const diagnostics: unknown[] = [];
+
+    const result = await readMetadataRecordsBounded(transcriptPath, {
+      maxBytes: 64,
+      maxRecords: 10,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result).toEqual({
+      records: [],
+      incomplete: true,
+      bytesRead: 64,
+      recordsInspected: 0,
+    });
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('reports an oversized tail record when no complete record fits the byte window', async () => {
+    const transcriptPath = join(tmpDir, 'oversized-tail.jsonl');
+    await writeFile(
+      transcriptPath,
+      `${JSON.stringify({ content: 'x'.repeat(512) })}\n`,
+    );
+    const diagnostics: unknown[] = [];
+
+    const result = await readTailRecordsBounded(transcriptPath, {
+      maxBytes: 64,
+      maxRecords: 10,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result).toEqual({
+      records: [],
+      truncated: true,
+      bytesRead: 64,
+      recordsInspected: 0,
+    });
+    expect(diagnostics).toEqual([{ code: 'oversized-record' }]);
+  });
+
+  it('fails closed at an expired deadline without disclosing the path', async () => {
+    const transcriptPath = join(tmpDir, 'deadline-secret.jsonl');
+    await writeFile(transcriptPath, '{"ok":true}\n');
+    const diagnostics: unknown[] = [];
+
+    const result = await readMetadataRecordsBounded(transcriptPath, {
+      maxBytes: 128,
+      maxRecords: 10,
+      deadlineMs: 0,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result).toEqual({
+      records: [],
+      incomplete: true,
+      bytesRead: 0,
+      recordsInspected: 0,
+    });
+    expect(diagnostics).toEqual([{ code: 'deadline-exceeded' }]);
+    expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
+  });
+
+  it('reports read failures without transcript paths', async () => {
+    const transcriptPath = join(tmpDir, 'missing-secret.jsonl');
+    const diagnostics: unknown[] = [];
+
+    const result = await readTailRecordsBounded(transcriptPath, {
+      maxBytes: 128,
+      maxRecords: 10,
+      diagnostic: (event) => diagnostics.push(event),
+    });
+
+    expect(result).toEqual({
+      records: [],
+      truncated: false,
+      bytesRead: 0,
+      recordsInspected: 0,
+    });
+    expect(diagnostics).toEqual([{ code: 'read-failed' }]);
+    expect(JSON.stringify(diagnostics)).not.toContain(transcriptPath);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// encodeCwd
+// ---------------------------------------------------------------------------
+
+describe('encodeCwd', () => {
+  it.each([
+    [
+      'claude-code',
+      '/Users/jane.doe/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5',
+      '-Users-jane-doe--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
+    ],
+    ['codex', '/Users/x/Code/y', null],
+    ['cursor', '/Users/jane.doe/Code/acme/app', 'Users-jane-doe-Code-acme-app'],
+  ] as const)(
+    '%s: returns the documented preferred directory form',
+    (runtime, cwd, expected) => {
+      expectEqual(encodeCwd(runtime, cwd), expected);
+    },
+  );
+
+  it('claude-code: exposes dot-sanitized and slash-only variants', () => {
+    const variants = encodeCwdVariants(
+      'claude-code',
+      '/Users/jane.doe/.superconductor/worktrees/stoa/sc-levitated-phonon-e8a5',
+    );
+    expectDeepEqual(variants, [
+      '-Users-jane-doe--superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
+      '-Users-jane.doe-.superconductor-worktrees-stoa-sc-levitated-phonon-e8a5',
+    ]);
+  });
+
+  it('cursor: exposes the observed project slug variant', () => {
+    const variants = encodeCwdVariants(
+      'cursor',
+      '/Users/jane.doe/Code/acme/app',
+    );
+    expectDeepEqual(variants, ['Users-jane-doe-Code-acme-app']);
+  });
+});
+
+describe('extractClaudeRecordedCwdFromRecords', () => {
+  it('returns agreeing absolute top-level cwd evidence', () => {
+    expect(
+      extractClaudeRecordedCwdFromRecords([
+        { cwd: '/repo/exact', nested: { cwd: '/ignored' } },
+        { type: 'message' },
+        { cwd: '/repo/exact' },
+      ]),
+    ).toBe('/repo/exact');
+  });
+
+  it.each([
+    ['missing', [{ type: 'message' }]],
+    ['malformed', [{ cwd: 42 }]],
+    ['empty', [{ cwd: '' }]],
+    ['relative', [{ cwd: 'repo/relative' }]],
+    ['conflicting', [{ cwd: '/repo/one' }, { cwd: '/repo/two' }]],
+  ])('rejects %s cwd evidence', (_name, records) => {
+    expect(extractClaudeRecordedCwdFromRecords(records)).toBeNull();
+  });
+});
+
+describe('extractCodexRecordedCwdFromRecords', () => {
+  it('returns one absolute cwd when every top-level and payload value agrees', () => {
+    expect(
+      extractCodexRecordedCwdFromRecords([
+        { cwd: '/repo/exact' },
+        { payload: { cwd: '/repo/exact' } },
+        { cwd: '/repo/exact', payload: { cwd: '/repo/exact' } },
+      ]),
+    ).toBe('/repo/exact');
+  });
+
+  it.each([
+    ['missing', [{ type: 'message' }]],
+    ['late top-level conflict', [{ cwd: '/repo/one' }, { cwd: '/repo/two' }]],
+    [
+      'late payload conflict',
+      [{ cwd: '/repo/one' }, { payload: { cwd: '/repo/two' } }],
+    ],
+    ['empty', [{ cwd: '/repo/one' }, { payload: { cwd: '' } }]],
+    ['relative', [{ cwd: '/repo/one' }, { cwd: 'repo/relative' }]],
+    ['malformed', [{ cwd: '/repo/one' }, { payload: { cwd: 42 } }]],
+  ])('rejects %s cwd evidence', (_name, records) => {
+    expect(extractCodexRecordedCwdFromRecords(records)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractMeta
+// ---------------------------------------------------------------------------
+
+describe('extractMeta (claude-code)', () => {
+  let tmpDir: string;
+
+  beforeAll(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'runtimes-test-'));
+  });
+
+  afterAll(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns recordedCwd decoded from the parent-directory name', async () => {
+    // Claude Code encodes cwd as the dir name: /Users/x/Code/y → -Users-x-Code-y
+    // We create a temp file inside a dir whose name encodes a cwd.
+    // Use a path with no hyphens in segment names to avoid ambiguity in decoding.
+    const encodedCwd = '-Users-testuser-Code-myproject';
+    const sessionDir = join(tmpDir, encodedCwd);
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'session.jsonl');
+    // Write a single record with a sessionId
+    await writeFile(
+      transcriptPath,
+      JSON.stringify({ sessionId: 'cc-test-session', type: 'summary' }) + '\n',
+      'utf8',
+    );
+
+    const meta = await extractMeta('claude-code', transcriptPath);
+    expectOk(meta !== null);
+    expectEqual(meta.sessionId, 'cc-test-session');
+    // Decoded cwd: '-Users-testuser-Code-myproject' → '/Users/testuser/Code/myproject'
+    expectEqual(meta.recordedCwd, '/Users/testuser/Code/myproject');
+  });
+
+  it('returns recordedCwd as null when dir name has no leading dash (not encoded)', async () => {
+    // A file not in an encoded dir (e.g., direct temp dir)
+    const transcriptPath = join(tmpDir, 'plain-session.jsonl');
+    await writeFile(
+      transcriptPath,
+      JSON.stringify({ sessionId: 'cc-plain', type: 'summary' }) + '\n',
+      'utf8',
+    );
+
+    const meta = await extractMeta('claude-code', transcriptPath);
+    // The parent dir name does not start with '-', so cwd is not decodeable
+    // We accept null or an undefined-like value
+    expectOk(meta !== null);
+    expectEqual(meta.sessionId, 'cc-plain');
+    // recordedCwd should be null when the dir name doesn't encode a cwd
+    expectEqual(meta.recordedCwd, null);
+  });
+});
+
+describe('extractMeta (codex)', () => {
+  it('extracts sessionId and cwd from session-meta record (typical)', async () => {
+    const meta = await extractMeta(
+      'codex',
+      fixturePath('codex', 'typical.jsonl'),
+    );
+    expectOk(meta !== null);
+    expectEqual(meta.sessionId, 'codex-session-001');
+    expectEqual(meta.recordedCwd, '/Users/testuser/Code/my-project');
+  });
+
+  it('no-cwd-record: returns sessionId with recordedCwd null', async () => {
+    const meta = await extractMeta(
+      'codex',
+      fixturePath('codex', 'no-cwd-record.jsonl'),
+    );
+    expectOk(meta !== null);
+    expectEqual(meta.sessionId, 'codex-session-003');
+    expectEqual(meta.recordedCwd, null);
+  });
+
+  it('payload-cwd: extracts recordedCwd from payload.cwd when top-level cwd is absent', async () => {
+    const meta = await extractMeta(
+      'codex',
+      fixturePath('codex', 'payload-cwd.jsonl'),
+    );
+    expectOk(meta !== null, 'meta should not be null');
+    expectEqual(meta.sessionId, 'codex-payload-cwd-001');
+    expectEqual(meta.recordedCwd, '/Users/testuser/Code/payload-project');
+  });
+
+  it('uses the first physical session header for a root rollout', async () => {
+    const meta = await extractMeta(
+      'codex',
+      join(
+        SESSION_FIDELITY_CODEX_FIXTURES,
+        'rollout-2026-09-18T10-00-00-11111111-1111-4111-8111-111111111111.jsonl',
+      ),
+    );
+
+    expect(meta).toEqual({
+      sessionId: '11111111-1111-4111-8111-111111111111',
+      recordedCwd: '/workspace/root',
+      nativeSessionId: '11111111-1111-4111-8111-111111111111',
+      rootSessionId: '11111111-1111-4111-8111-111111111111',
+    });
+  });
+
+  it('keeps child, root, and direct parent identity distinct from inherited headers', async () => {
+    const meta = await extractMeta(
+      'codex',
+      join(
+        SESSION_FIDELITY_CODEX_FIXTURES,
+        'rollout-2026-09-18T10-01-00-22222222-2222-4222-8222-222222222222.jsonl',
+      ),
+    );
+
+    expect(meta).toEqual({
+      sessionId: '22222222-2222-4222-8222-222222222222',
+      recordedCwd: '/workspace/child',
+      nativeSessionId: '22222222-2222-4222-8222-222222222222',
+      rootSessionId: '11111111-1111-4111-8111-111111111111',
+      parentSessionId: '33333333-3333-4333-8333-333333333333',
+      subagentHistoryStartOrdinal: 12,
+    });
+  });
+
+  it('keeps fork lineage separate from root and direct-parent lineage', async () => {
+    const meta = await extractMeta(
+      'codex',
+      join(
+        SESSION_FIDELITY_CODEX_FIXTURES,
+        'rollout-2026-09-18T10-02-00-44444444-4444-4444-8444-444444444444.jsonl',
+      ),
+    );
+
+    expect(meta).toEqual({
+      sessionId: '44444444-4444-4444-8444-444444444444',
+      recordedCwd: '/workspace/fork',
+      nativeSessionId: '44444444-4444-4444-8444-444444444444',
+      rootSessionId: '44444444-4444-4444-8444-444444444444',
+      forkedFromSessionId: '33333333-3333-4333-8333-333333333333',
+    });
+  });
+
+  it('rejects a first-header identity that contradicts a recognized rollout filename', async () => {
+    const meta = await extractMeta(
+      'codex',
+      join(
+        SESSION_FIDELITY_CODEX_FIXTURES,
+        'rollout-2026-09-18T10-03-00-66666666-6666-4666-8666-666666666666.jsonl',
+      ),
+    );
+
+    expect(meta).toBeNull();
+  });
+});
+
+describe('exact provider lineage metadata', () => {
+  it('uses the first Codex header identity instead of a legacy caller id', () => {
+    const meta = extractMetaFromRecords(
+      'codex',
+      [
+        {
+          type: 'session_meta',
+          sessionId: 'legacy-caller-id',
+          payload: {
+            id: 'native-child-id',
+            session_id: 'root-id',
+            forked_from_id: 'native-parent-id',
+            cwd: '/repo/target',
+          },
+        },
+        { type: 'response_item', payload: { id: 'message-id' } },
+      ],
+      '/private/transcript-name.jsonl',
+    );
+
+    expect(meta).toEqual({
+      sessionId: 'native-child-id',
+      recordedCwd: '/repo/target',
+      nativeSessionId: 'native-child-id',
+      rootSessionId: 'root-id',
+      forkedFromSessionId: 'native-parent-id',
+    });
+    expect(new Set([meta?.nativeSessionId, meta?.rootSessionId]).size).toBe(2);
+  });
+
+  it.each([
+    ['session_id', null],
+    ['session_id', ''],
+    ['session_id', 42],
+    ['forked_from_id', null],
+    ['forked_from_id', ''],
+    ['forked_from_id', 42],
+    ['subagent_history_start_ordinal', null],
+    ['subagent_history_start_ordinal', -1],
+    ['subagent_history_start_ordinal', 1.5],
+    ['subagent_history_start_ordinal', '1'],
+  ])('rejects a present invalid Codex %s value', (field, value) => {
+    const meta = extractMetaFromRecords(
+      'codex',
+      [
+        {
+          type: 'session_meta',
+          payload: {
+            id: 'native-child-id',
+            cwd: '/repo/target',
+            [field]: value,
+          },
+        },
+      ],
+      '/private/transcript-name.jsonl',
+    );
+
+    expect(meta).toBeNull();
+  });
+
+  it.each([
+    {
+      label: 'omitted',
+      optional: {},
+      expected: {},
+    },
+    {
+      label: 'valid',
+      optional: {
+        session_id: 'root-id',
+        forked_from_id: 'fork-parent-id',
+        subagent_history_start_ordinal: 0,
+      },
+      expected: {
+        rootSessionId: 'root-id',
+        forkedFromSessionId: 'fork-parent-id',
+        subagentHistoryStartOrdinal: 0,
+      },
+    },
+  ])(
+    'preserves $label optional Codex lineage fields',
+    ({ optional, expected }) => {
+      const meta = extractMetaFromRecords(
+        'codex',
+        [
+          {
+            type: 'session_meta',
+            payload: {
+              id: 'native-child-id',
+              cwd: '/repo/target',
+              ...optional,
+            },
+          },
+        ],
+        '/private/transcript-name.jsonl',
+      );
+
+      expect(meta).toEqual({
+        sessionId: 'native-child-id',
+        recordedCwd: '/repo/target',
+        nativeSessionId: 'native-child-id',
+        ...expected,
+      });
+    },
+  );
+
+  it('does not mistake Codex message payload IDs for native session IDs', () => {
+    const meta = extractMetaFromRecords(
+      'codex',
+      [{ type: 'response_item', payload: { id: 'message-id' } }],
+      '/private/legacy-id.jsonl',
+    );
+    expect(meta).toEqual({
+      sessionId: 'legacy-id',
+      recordedCwd: null,
+    });
+  });
+
+  it('exposes ordered Claude uuid/parentUuid lineage and exact cwd', () => {
+    const meta = extractMetaFromRecords(
+      'claude-code',
+      [
+        {
+          sessionId: 'claude-child',
+          uuid: 'record-1',
+          parentUuid: null,
+          cwd: '/repo/target',
+        },
+        {
+          sessionId: 'claude-child',
+          uuid: 'record-2',
+          parentUuid: 'record-1',
+          cwd: '/repo/target',
+        },
+      ],
+      '/private/not-an-encoded-dir/session.jsonl',
+    );
+
+    expect(meta).toEqual({
+      sessionId: 'claude-child',
+      recordedCwd: '/repo/target',
+      nativeSessionId: 'claude-child',
+      recordLineage: [
+        { uuid: 'record-1', parentUuid: null },
+        { uuid: 'record-2', parentUuid: 'record-1' },
+      ],
+    });
+  });
+
+  it('accepts inherited parent headers after the physical Codex identity header', () => {
+    const codex = extractMetaFromRecords(
+      'codex',
+      [
+        { type: 'session_meta', payload: { id: 'one', cwd: '/repo' } },
+        { type: 'session_meta', payload: { id: 'two', cwd: '/repo' } },
+      ],
+      '/private/fallback.jsonl',
+    );
+    expect(codex).toEqual({
+      sessionId: 'one',
+      recordedCwd: '/repo',
+      nativeSessionId: 'one',
+    });
+  });
+
+  it('rejects malformed first Codex headers instead of accepting a later inherited header', () => {
+    const laterId = '77777777-7777-4777-8777-777777777777';
+    const transcriptPath = `/private/rollout-2026-09-18T10-04-00-${laterId}.jsonl`;
+
+    expect(
+      extractMetaFromRecords(
+        'codex',
+        [
+          { type: 'session_meta', payload: 'malformed' },
+          { type: 'session_meta', payload: { id: laterId } },
+        ],
+        transcriptPath,
+      ),
+    ).toBeNull();
+    expect(
+      extractMetaFromRecords(
+        'codex',
+        [
+          { type: 'session_meta', payload: { id: null } },
+          { type: 'session_meta', payload: { id: laterId } },
+        ],
+        transcriptPath,
+      ),
+    ).toBeNull();
+    expect(
+      extractMetaFromRecords(
+        'codex',
+        [
+          { type: 'session_meta', payload: { cwd: '/repo/child' } },
+          {
+            type: 'session_meta',
+            payload: {
+              id: laterId,
+              session_id: laterId,
+              cwd: '/repo/child',
+            },
+          },
+        ],
+        transcriptPath,
+      ),
+    ).toBeNull();
+  });
+
+  it('preserves a documented legacy Codex header with no native id', () => {
+    const meta = extractMetaFromRecords(
+      'codex',
+      [
+        {
+          type: 'session_meta',
+          sessionId: 'legacy-session',
+          payload: { cwd: '/repo/legacy' },
+        },
+      ],
+      '/private/legacy-session.jsonl',
+    );
+
+    expect(meta).toEqual({
+      sessionId: 'legacy-session',
+      recordedCwd: '/repo/legacy',
+    });
+  });
+
+  it('omits contradictory or malformed optional Claude lineage fields', () => {
+    const claude = extractMetaFromRecords(
+      'claude-code',
+      [
+        {
+          sessionId: 'claude-child',
+          uuid: 'record-1',
+          parentUuid: 42,
+          cwd: 'relative',
+        },
+      ],
+      '/private/plain/session.jsonl',
+    );
+    expect(claude).toEqual({
+      sessionId: 'claude-child',
+      recordedCwd: null,
+      nativeSessionId: 'claude-child',
+    });
+  });
+});
+
+describe('extractMeta (cursor)', () => {
+  let tmpDir: string;
+
+  beforeAll(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'runtimes-cursor-test-'));
+  });
+
+  afterAll(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns sessionId from transcript basename', async () => {
+    const meta = await extractMeta(
+      'cursor',
+      fixturePath('cursor', 'typical.jsonl'),
+    );
+    expectOk(meta !== null);
+    expectEqual(meta.sessionId, 'typical');
+    expectEqual(meta.recordedCwd, null);
+  });
+
+  it('returns sessionId from parent transcript directory for generic transcript files', async () => {
+    const sessionDir = join(tmpDir, 'cursor-session-001');
+    await mkdir(sessionDir, { recursive: true });
+    const transcriptPath = join(sessionDir, 'transcript.jsonl');
+    await writeFile(
+      transcriptPath,
+      JSON.stringify({
+        role: 'user',
+        message: { content: [{ type: 'text', text: 'Hello' }] },
+      }) + '\n',
+      'utf8',
+    );
+
+    const meta = await extractMeta('cursor', transcriptPath);
+    expectOk(meta !== null);
+    expectEqual(meta.sessionId, 'cursor-session-001');
+    expectEqual(meta.recordedCwd, null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeEntries (claude-code)
+// ---------------------------------------------------------------------------
+
+describe('normalizeEntries (claude-code)', () => {
+  let records: JsonObject[];
+
+  beforeAll(async () => {
+    records = await readRecords(fixturePath('claude-code', 'typical.jsonl'));
+  });
+
+  it('default (no tools): returns only message-kind entries', () => {
+    const entries = normalizeEntries('claude-code', records, {
+      includeToolCalls: false,
+      includeToolResults: false,
+    });
+    expectOk(entries.length > 0, 'should have entries');
+    // All entries should be message kind
+    for (const e of entries) {
+      expectEqual(e.kind, 'message', `expected kind=message, got ${e.kind}`);
+      expectOk(
+        e.role === 'user' || e.role === 'assistant',
+        `unexpected role: ${e.role}`,
+      );
+      expectOk(typeof e.text === 'string');
+      expectOk(typeof e.recordIndex === 'number');
+    }
+    // Should not include tool_use or tool_result entries
+    const toolEntries = entries.filter((e) => e.kind !== 'message');
+    expectEqual(toolEntries.length, 0);
+  });
+
+  it('includeToolCalls: true — includes [ToolName] args entries (truncated to 200)', () => {
+    const entries = normalizeEntries('claude-code', records, {
+      includeToolCalls: true,
+      includeToolResults: false,
+    });
+    const toolCallEntries = entries.filter((e) => e.kind === 'tool_call');
+    expectOk(
+      toolCallEntries.length > 0,
+      'should have at least one tool_call entry',
+    );
+    for (const e of toolCallEntries) {
+      // Must match spec: [ToolName] args — no "Tool: " prefix
+      expectOk(
+        /^\[[^\]]+\] /.test(e.text),
+        `tool_call text must match [ToolName] args, got: ${e.text}`,
+      );
+      expectOk(
+        !e.text.startsWith('[Tool: '),
+        `tool_call text must not have "Tool: " prefix, got: ${e.text}`,
+      );
+      expectOk(
+        typeof e.toolName === 'string' && e.toolName.length > 0,
+        `toolName must be set on tool_call entry`,
+      );
+      // Args should be truncated at 200 chars
+      expectOk(e.text.length <= 300, 'text should not be excessively long'); // brackets + name + args
+    }
+  });
+
+  it('includeToolCalls: true, includeToolResults: true — includes [ToolName → result] entries with toolName set', () => {
+    const entries = normalizeEntries('claude-code', records, {
+      includeToolCalls: true,
+      includeToolResults: true,
+    });
+    const toolResultEntries = entries.filter((e) => e.kind === 'tool_result');
+    expectOk(
+      toolResultEntries.length > 0,
+      'should have at least one tool_result entry',
+    );
+    for (const e of toolResultEntries) {
+      // Must match spec: [ToolName → result] output — with the tool name, not bare [Tool → result]
+      expectOk(
+        /^\[[^\]]+\s→\s+result\]/.test(e.text),
+        `tool_result text must match [ToolName → result] output, got: ${e.text}`,
+      );
+      expectOk(
+        !e.text.startsWith('[Tool →'),
+        `tool_result text must not use bare "[Tool →", got: ${e.text}`,
+      );
+      // toolName must be set and match the name in the marker
+      expectOk(
+        typeof e.toolName === 'string' && e.toolName.length > 0,
+        `toolName must be set on tool_result entry, got: ${e.toolName}`,
+      );
+      expectOk(
+        e.text.startsWith(`[${e.toolName} →`),
+        `text marker [${e.toolName} →] must match toolName field, got: ${e.text}`,
+      );
+    }
+  });
+
+  it('tool call args are truncated at 200 chars', async () => {
+    // Create a record with a very long tool input
+    const longInput = 'a'.repeat(300);
+    const testRecord = {
+      sessionId: 'cc-test',
+      type: 'assistant',
+      message: {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'long_tool',
+            name: 'EditFile',
+            input: longInput,
+          },
+        ],
+      },
+    };
+    const entries = normalizeEntries('claude-code', [testRecord], {
+      includeToolCalls: true,
+    });
+    expectEqual(entries.length, 1);
+    // The args portion should be truncated: 200 chars + '...' (3) = 203
+    // The full text is `[EditFile] <truncated-args>`, so total can be up to ~220
+    // Verify it ends with '...' when over limit
+    expectOk(
+      entries[0].text.endsWith('...'),
+      `expected truncation, got: ${entries[0].text.slice(-10)}`,
+    );
+    // The args portion should not exceed 203 chars (200 + '...')
+    const argsStart = entries[0].text.indexOf('] ') + 2;
+    const argsStr = entries[0].text.slice(argsStart);
+    expectOk(argsStr.length <= 203, `args too long: ${argsStr.length}`);
+  });
+
+  it('entries have recordIndex set to the record position in the array', () => {
+    const entries = normalizeEntries('claude-code', records, {
+      includeToolCalls: false,
+    });
+    // typical.jsonl: record 0 is a summary and record 5 carries only a
+    // tool_result, so neither yields a default message entry.
+    expectDeepEqual(
+      entries.map((e) => e.recordIndex),
+      [1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12],
+    );
+  });
+
+  it('filters Claude slash-command message payloads by default', () => {
+    const commandRecord = {
+      sessionId: 'cc-command',
+      message: {
+        role: 'user',
+        content:
+          '<command-message>oat-project-open</command-message>\n<command-name>/oat-project-open</command-name>',
+      },
+    };
+    const naturalRecord = {
+      sessionId: 'cc-command',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Natural language response.' }],
+      },
+    };
+
+    const entries = normalizeEntries(
+      'claude-code',
+      [commandRecord, naturalRecord],
+      {},
+    );
+
+    expectEqual(entries.length, 1);
+    expectEqual(entries[0].text, 'Natural language response.');
+  });
+
+  it('can include Claude slash-command message payloads for debugging', () => {
+    const commandRecord = {
+      sessionId: 'cc-command',
+      message: {
+        role: 'user',
+        content:
+          '<command-message>oat-project-open</command-message>\n<command-name>/oat-project-open</command-name>',
+      },
+    };
+
+    const entries = normalizeEntries('claude-code', [commandRecord], {
+      includeCommandMessages: true,
+    });
+
+    expectEqual(entries.length, 1);
+    expectEqual(entries[0].kind, 'command_message');
+    expectOk(entries[0].text.includes('<command-message>'));
+  });
+
+  it('with-tool-burst: multiple tool calls all included', async () => {
+    const burstRecords = await readRecords(
+      fixturePath('claude-code', 'with-tool-burst.jsonl'),
+    );
+    const entries = normalizeEntries('claude-code', burstRecords, {
+      includeToolCalls: true,
+      includeToolResults: true,
+    });
+    const toolCallEntries = entries.filter((e) => e.kind === 'tool_call');
+    // 3 tool_use blocks in the fixture
+    expectOk(toolCallEntries.length >= 3);
+  });
+
+  it('preserves repeated attachment-only queued input after suppressing one matching delivery', async () => {
+    const repeatedQueuedRecords = await readRecords(
+      fixturePath('claude-code', 'queued-repeated-input.jsonl'),
+    );
+
+    const entries = normalizeEntries('claude-code', repeatedQueuedRecords, {});
+    const queuedEntries = entries.filter(
+      (entry) => entry.displayRole === 'queued-user',
+    );
+
+    expect(queuedEntries).toEqual([
+      expect.objectContaining({
+        text: 'Keep the conservative migration path.',
+        recordIndex: 0,
+      }),
+      expect.objectContaining({
+        text: 'Keep the conservative migration path.',
+        recordIndex: 3,
+      }),
+      expect.objectContaining({
+        text: 'Keep the conservative migration path.',
+        recordIndex: 4,
+      }),
+    ]);
+  });
+
+  it('classifies only top-level native Claude provenance and preserves legacy records', () => {
+    expect(claudeUserRecordProvenance({ origin: { kind: 'human' } })).toBe(
+      'human',
+    );
+    expect(
+      claudeUserRecordProvenance({ origin: { kind: 'task-notification' } }),
+    ).toBe('runtime-notification');
+    expect(claudeUserRecordProvenance({})).toBe('legacy-absent');
+    expect(claudeUserRecordProvenance({ origin: { kind: 'peer' } })).toBe(
+      'unmarked',
+    );
+    expect(
+      claudeUserRecordProvenance({ origin: { kind: 'future-kind' } }),
+    ).toBe('unmarked');
+    expect(
+      claudeUserRecordProvenance({
+        attachment: { origin: { kind: 'human' } },
+      }),
+    ).toBe('legacy-absent');
+  });
+
+  it('marks human and task-notification records without upgrading peer or unknown provenance', async () => {
+    const recordsWithProvenance = await readRecords(
+      fixturePath('claude-code', 'native-provenance.jsonl'),
+    );
+    const userEntries = normalizeEntries(
+      'claude-code',
+      recordsWithProvenance,
+      {},
+    ).filter((entry) => entry.role === 'user');
+
+    expect(userEntries).toEqual([
+      expect.objectContaining({
+        kind: 'message',
+        text: 'Human direction.',
+        origin: 'human',
+      }),
+      expect.objectContaining({
+        kind: 'message',
+        text: 'Background task completed.',
+        origin: 'runtime-notification',
+        displayRole: 'runtime-notification',
+      }),
+      expect.not.objectContaining({ origin: expect.anything() }),
+      expect.not.objectContaining({ origin: expect.anything() }),
+      expect.not.objectContaining({ origin: expect.anything() }),
+    ]);
+  });
+
+  it('allows envelope classification only for legacy-absent Claude provenance', () => {
+    const envelope =
+      '<session_observer_wake automatic="true" schema_version="2" runtime="codex" lease_id="lease-claude" peer="claude-code:peer" index_base="zero-based-jsonl-record-index" records="1-2">Review.</session_observer_wake>';
+    const entryFor = (kind?: string) =>
+      normalizeEntries(
+        'claude-code',
+        [
+          {
+            type: 'user',
+            ...(kind ? { origin: { kind } } : {}),
+            message: { role: 'user', content: envelope },
+          },
+        ],
+        {},
+      )[0];
+
+    expect(entryFor()).toMatchObject({
+      origin: 'automatic-control',
+      displayRole: 'automatic-control',
+      automaticControl: { automatic: true, leaseId: 'lease-claude' },
+    });
+    expect(entryFor('human')).toMatchObject({
+      kind: 'message',
+      origin: 'human',
+      text: envelope,
+    });
+    expect(entryFor('human')).not.toHaveProperty('automaticControl');
+    for (const kind of ['peer', 'future-kind']) {
+      expect(entryFor(kind)).toMatchObject({ kind: 'message', text: envelope });
+      expect(entryFor(kind)).not.toHaveProperty('origin');
+      expect(entryFor(kind)).not.toHaveProperty('automaticControl');
+    }
+    expect(entryFor('task-notification')).toMatchObject({
+      kind: 'message',
+      origin: 'runtime-notification',
+      displayRole: 'runtime-notification',
+      text: envelope,
+    });
+    expect(entryFor('task-notification')).not.toHaveProperty(
+      'automaticControl',
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeEntries (codex)
+// ---------------------------------------------------------------------------
+
+describe('normalizeEntries (codex)', () => {
+  let records: JsonObject[];
+  let withFcRecords: JsonObject[];
+
+  beforeAll(async () => {
+    records = await readRecords(fixturePath('codex', 'typical.jsonl'));
+    withFcRecords = await readRecords(
+      fixturePath('codex', 'with-function-calls.jsonl'),
+    );
+  });
+
+  it('default (no tools): returns only message-kind entries, no function_calls', () => {
+    const entries = normalizeEntries('codex', records, {
+      includeToolCalls: false,
+      includeToolResults: false,
+    });
+    expectOk(entries.length > 0, 'should have entries');
+    for (const e of entries) {
+      expectEqual(e.kind, 'message');
+    }
+    // function_calls should be excluded
+    expectEqual(entries.filter((e) => e.kind !== 'message').length, 0);
+  });
+
+  it('includeToolCalls: true — function_call records produce tool_call entries with [ToolName] format', () => {
+    const entries = normalizeEntries('codex', withFcRecords, {
+      includeToolCalls: true,
+      includeToolResults: false,
+    });
+    const toolCallEntries = entries.filter((e) => e.kind === 'tool_call');
+    expectOk(
+      toolCallEntries.length > 0,
+      'should have tool_call entries from function_calls',
+    );
+    for (const e of toolCallEntries) {
+      // Must match spec: [ToolName] args — no "Tool: " prefix
+      expectOk(
+        /^\[[^\]]+\] /.test(e.text),
+        `tool_call text must match [ToolName] args, got: ${e.text}`,
+      );
+      expectOk(
+        !e.text.startsWith('[Tool: '),
+        `tool_call text must not have "Tool: " prefix, got: ${e.text}`,
+      );
+      expectOk(
+        typeof e.toolName === 'string' && e.toolName.length > 0,
+        `toolName must be set on tool_call entry`,
+      );
+    }
+  });
+
+  it('function_call args are truncated at 200 chars', () => {
+    const longArgs = 'b'.repeat(300);
+    const testRecord = {
+      type: 'response_item',
+      sessionId: 'codex-test',
+      payload: {
+        type: 'function_call',
+        name: 'shell',
+        arguments: longArgs,
+      },
+    };
+    const entries = normalizeEntries('codex', [testRecord], {
+      includeToolCalls: true,
+    });
+    expectEqual(entries.length, 1);
+    expectEqual(entries[0].kind, 'tool_call');
+    expectOk(
+      entries[0].text.endsWith('...'),
+      `expected truncation, got: ${entries[0].text.slice(-10)}`,
+    );
+    const argsStart = entries[0].text.indexOf('] ') + 2;
+    const argsStr = entries[0].text.slice(argsStart);
+    expectOk(argsStr.length <= 203, `args too long: ${argsStr.length}`);
+  });
+
+  it('entries have recordIndex set correctly', () => {
+    const entries = normalizeEntries('codex', records, {
+      includeToolCalls: false,
+    });
+    // typical.jsonl: record 0 is session_started and records 4 and 7 are
+    // function_call items, filtered by default.
+    expectDeepEqual(
+      entries.map((e) => e.recordIndex),
+      [1, 2, 3, 5, 6, 8, 9, 10, 11, 12],
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cursor shared control classification
+// ---------------------------------------------------------------------------
+
+describe('Cursor shared control classification', () => {
+  it('parses legacy JSON and XML envelopes as record-index v1 provenance', () => {
+    expect(
+      parseAutomaticControlEnvelope(
+        JSON.stringify({
+          session_observer_wake: {
+            automatic: true,
+            runtime: 'cursor',
+            leaseId: 'synthetic-lease',
+            pinnedPeer: 'cursor:synthetic-peer',
+            range: { fromIndex: 4, toIndex: 7 },
+          },
+        }),
+      ),
+    ).toMatchObject({
+      automatic: true,
+      schemaVersion: 1,
+      runtime: 'cursor',
+      leaseId: 'synthetic-lease',
+      indexBase: 'zero-based-jsonl-record-index',
+      range: { fromIndex: 4, toIndex: 7 },
+    });
+    expect(
+      parseAutomaticControlEnvelope(
+        '<session_observer_wake automatic="true" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" records="4-7">Review the exact range.</session_observer_wake>',
+      ),
+    ).toMatchObject({
+      automatic: true,
+      schemaVersion: 1,
+      runtime: 'cursor',
+      leaseId: 'synthetic-lease',
+      indexBase: 'zero-based-jsonl-record-index',
+      range: { fromIndex: 4, toIndex: 7 },
+      wireFormat: 'xml',
+    });
+  });
+
+  it.each([
+    'zero-based-jsonl-record-index',
+    'zero-based-jsonl-frame-index',
+  ] as const)('parses a complete v2 %s envelope', (indexBase) => {
+    expect(
+      parseAutomaticControlEnvelope(
+        `<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="synthetic-lease" peer="cursor:synthetic-peer" index_base="${indexBase}" records="4-7">Review the exact range.</session_observer_wake>`,
+      ),
+    ).toMatchObject({
+      automatic: true,
+      schemaVersion: 2,
+      runtime: 'cursor',
+      leaseId: 'synthetic-lease',
+      pinnedPeer: 'cursor:synthetic-peer',
+      indexBase,
+      range: { fromIndex: 4, toIndex: 7 },
+      wireFormat: 'xml',
+    });
+  });
+
+  it.each([
+    '{"session_observer_wake":{"automatic":false}}',
+    '<session_observer_wake automatic="false" runtime="cursor" lease_id="x" peer="cursor:y" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" runtime="cursor" lease_id="x" peer="cursor:y" records="2-1">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="x" peer="cursor:y" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" runtime="cursor" lease_id="x" peer="cursor:y" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" schema_version="2" runtime="cursor" lease_id="x" peer="cursor:y" index_base="records" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" schema_version="2.0" runtime="cursor" lease_id="x" peer="cursor:y" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>',
+    '<session_observer_wake automatic="true" schema_version="3" runtime="cursor" lease_id="x" peer="cursor:y" index_base="zero-based-jsonl-frame-index" records="1-2">Review.</session_observer_wake>',
+    'ordinary human input',
+    '{"automatic":true}',
+  ])('rejects invalid or non-automatic envelope text: %s', (text) => {
+    expect(parseAutomaticControlEnvelope(text)).toBeNull();
+  });
+
+  it.each([
+    '[no-op]',
+    ' [NO-OP] nothing substantive changed',
+    '[No-Op]\nwaiting',
+  ])('recognizes no-op prefixes: %s', (text) => {
+    expect(isNoOpText(text)).toBe(true);
+  });
+
+  it.each([
+    'Acknowledged.',
+    'got it',
+    'Status: still waiting for peer',
+    'No new updates.',
+  ])('recognizes automatic acknowledgement/status text: %s', (text) => {
+    expect(isAutomaticControlAcknowledgement(text)).toBe(true);
+  });
+
+  it.each([
+    'Acknowledged, and I implemented the requested change.',
+    'Waiting is one state in the new lifecycle model.',
+    'No new updates were expected, so I fixed the parser.',
+  ])('preserves substantive state-word-leading text: %s', (text) => {
+    expect(isAutomaticControlAcknowledgement(text)).toBe(false);
+    expect(isNoOpText(text)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeEntries (cursor)
+// ---------------------------------------------------------------------------
+
+describe('normalizeEntries (cursor)', () => {
+  let records: JsonObject[];
+  let withToolUseRecords: JsonObject[];
+
+  beforeAll(async () => {
+    records = await readRecords(fixturePath('cursor', 'typical.jsonl'));
+    withToolUseRecords = await readRecords(
+      fixturePath('cursor', 'with-tool-use.jsonl'),
+    );
+  });
+
+  it('default (no tools): returns only message-kind entries', () => {
+    const entries = normalizeEntries('cursor', records, {
+      includeToolCalls: false,
+    });
+    expectEqual(entries.length, 2);
+    for (const e of entries) {
+      expectEqual(e.kind, 'message');
+      expectOk(e.role === 'user' || e.role === 'assistant');
+      expectOk(typeof e.text === 'string');
+      expectOk(typeof e.recordIndex === 'number');
+    }
+  });
+
+  it('default (no tools): excludes tool_use blocks', () => {
+    const entries = normalizeEntries('cursor', withToolUseRecords, {
+      includeToolCalls: false,
+    });
+    expectEqual(entries.filter((e) => e.kind === 'tool_call').length, 0);
+    expectDeepEqual(
+      entries.map((e) => e.text),
+      ['Please read the runtime adapter.', 'I will open the file.'],
+    );
+  });
+
+  it('includeToolCalls: true — tool_use blocks produce compact tool_call entries', () => {
+    const entries = normalizeEntries('cursor', withToolUseRecords, {
+      includeToolCalls: true,
+    });
+    const toolCallEntries = entries.filter((e) => e.kind === 'tool_call');
+    expectEqual(toolCallEntries.length, 1);
+    expectEqual(toolCallEntries[0].toolName, 'read_file');
+    expectOk(
+      toolCallEntries[0].text.startsWith('[read_file] '),
+      `tool_call text must match [ToolName] args, got: ${toolCallEntries[0].text}`,
+    );
+    expectOk(toolCallEntries[0].text.includes('runtimes.mjs'));
+  });
+
+  it('buffers provisional activity and emits one final response on success', async () => {
+    const terminalRecords = await readRecords(
+      fixturePath('cursor', 'terminal-success.jsonl'),
+    );
+    const entries = normalizeEntries('cursor', terminalRecords, {
+      includeToolCalls: false,
+    });
+
+    expectDeepEqual(
+      entries.map((entry) => [
+        entry.role,
+        entry.text,
+        entry.recordIndex,
+        entry.sourceRecordIndex,
+      ]),
+      [
+        ['user', 'Implement the Cursor lifecycle.', 5, 0],
+        ['assistant', 'The completed implementation is ready.', 5, 4],
+      ],
+    );
+  });
+
+  it('keeps completed tool activity available only when requested', async () => {
+    const terminalRecords = await readRecords(
+      fixturePath('cursor', 'terminal-success.jsonl'),
+    );
+    const entries = normalizeEntries('cursor', terminalRecords, {
+      includeToolCalls: true,
+    });
+
+    expectDeepEqual(
+      entries.map((entry) => [
+        entry.kind,
+        entry.recordIndex,
+        entry.sourceRecordIndex,
+      ]),
+      [
+        ['message', 5, 0],
+        ['tool_call', 5, 2],
+        ['message', 5, 4],
+      ],
+    );
+  });
+
+  for (const status of ['aborted', 'error', 'cancelled']) {
+    it(`emits a diagnostic without provisional content for ${status}`, async () => {
+      const terminalRecords = await readRecords(
+        fixturePath('cursor', `terminal-${status}.jsonl`),
+      );
+      const entries = normalizeEntries('cursor', terminalRecords, {
+        includeToolCalls: true,
+      });
+
+      expectEqual(entries.length, 2);
+      expectEqual(entries[0].role, 'user');
+      expectEqual(entries[0].recordIndex, 2);
+      expectEqual(entries[0].sourceRecordIndex, 0);
+      expectEqual(entries[1].origin, 'runtime-diagnostic');
+      expectOk(entries[1].text.includes(status));
+      expectOk(entries.every((entry) => !entry.text.includes('provisional')));
+      expectEqual(
+        entries.filter((entry) => entry.kind === 'tool_call').length,
+        0,
+      );
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// discoverPaths
+// ---------------------------------------------------------------------------
+
+describe('discoverPaths', () => {
+  it('claude-code: returns array containing ~/.claude/projects/ path', () => {
+    const paths = discoverPaths('claude-code');
+    expectOk(Array.isArray(paths));
+    expectOk(paths.length > 0);
+    expectOk(
+      paths[0].includes('.claude/projects'),
+      `expected .claude/projects in path, got: ${paths[0]}`,
+    );
+  });
+
+  it('codex: returns array containing ~/.codex/sessions/ path', () => {
+    const paths = discoverPaths('codex');
+    expectOk(Array.isArray(paths));
+    expectOk(paths.length > 0);
+    expectOk(
+      paths[0].includes('.codex/sessions'),
+      `expected .codex/sessions in path, got: ${paths[0]}`,
+    );
+  });
+
+  it('cursor: returns array containing ~/.cursor/projects/ path', () => {
+    const paths = discoverPaths('cursor');
+    expectOk(Array.isArray(paths));
+    expectOk(paths.length > 0);
+    expectOk(
+      paths[0].includes('.cursor/projects'),
+      `expected .cursor/projects in path, got: ${paths[0]}`,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeEntries — ask-user exchanges
+//
+// Every runtime routes operator questions through a tool call. Those calls
+// carry human decision content, so they must survive the default tool filters
+// that drop ordinary tool traffic.
+// ---------------------------------------------------------------------------
+
+describe('normalizeEntries — ask-user exchanges', () => {
+  it('claude-code: renders questions and answers with tools filtered', async () => {
+    const records = await readRecords(
+      fixturePath('claude-code', 'ask-user-question.jsonl'),
+    );
+    const entries = normalizeEntries('claude-code', records, {
+      includeToolCalls: false,
+      includeToolResults: false,
+    });
+    const askEntries = entries.filter((e) => e.kind === 'ask_user');
+
+    expectEqual(askEntries.length, 4, 'two question/answer pairs');
+    expectOk(
+      askEntries.every((e) => e.toolName === 'AskUserQuestion'),
+      'toolName must be set on ask_user entries',
+    );
+
+    const [question, answer] = askEntries;
+    expectEqual(question.role, 'assistant');
+    expectOk(
+      question.text.startsWith('[AskUserQuestion] 2 questions:'),
+      `expected numbered question header, got: ${question.text}`,
+    );
+    expectOk(
+      question.text.includes('1. Pkg boundary — Where should the parser live?'),
+      `expected header-prefixed question, got: ${question.text}`,
+    );
+    expectOk(
+      question.text.includes(
+        '   options: New package (Recommended) | Inside core',
+      ),
+      `expected option labels, got: ${question.text}`,
+    );
+
+    expectEqual(answer.role, 'user');
+    expectOk(
+      answer.text.includes('1. Pkg boundary: "New package (Recommended)"'),
+      `expected labeled answer, got: ${answer.text}`,
+    );
+    // Free-text answers are the whole point: an operator who types instead of
+    // picking is invisible unless the structured payload is read.
+    expectOk(
+      answer.text.includes(
+        '2. Design depth: "Actually, show me the tradeoffs first."',
+      ),
+      `expected free-text answer, got: ${answer.text}`,
+    );
+    expectOk(
+      answer.text.includes('note: Assuming we can still re-export from core.'),
+      `expected operator annotation, got: ${answer.text}`,
+    );
+
+    // Ordinary tool traffic in the same fixture stays filtered.
+    expectEqual(
+      entries.filter((e) => e.kind === 'tool_call' || e.kind === 'tool_result')
+        .length,
+      0,
+      'ordinary tool entries must remain filtered',
+    );
+  });
+
+  it('claude-code: falls back to the recorded summary when toolUseResult is absent', async () => {
+    const records = await readRecords(
+      fixturePath('claude-code', 'ask-user-question.jsonl'),
+    );
+    const entries = normalizeEntries('claude-code', records, {});
+    const answer = entries.filter((e) => e.kind === 'ask_user')[3];
+
+    expectEqual(answer.role, 'user');
+    expectOk(
+      answer.text.startsWith(
+        '[AskUserQuestion → answered] Your questions have been answered:',
+      ),
+      `expected prose fallback, got: ${answer.text}`,
+    );
+    expectOk(
+      answer.text.includes('"Ship it?"="Ship"'),
+      `fallback must preserve the answer, got: ${answer.text}`,
+    );
+  });
+
+  it('claude-code: attributes ask-user answers only to native human or legacy records', async () => {
+    const records = await readRecords(
+      fixturePath('claude-code', 'ask-user-question.jsonl'),
+    );
+    const withOrigin = (kind: string) =>
+      records.map((record) => {
+        const message = record.message as JsonObject | undefined;
+        return message?.role === 'user'
+          ? { ...record, origin: { kind } }
+          : record;
+      });
+    const answersFor = (input: JsonObject[]) =>
+      normalizeEntries('claude-code', input, {}).filter(
+        (entry) => entry.role === 'user' && entry.kind === 'ask_user',
+      );
+
+    expect(answersFor(records).every((entry) => entry.origin === 'human')).toBe(
+      true,
+    );
+    expect(
+      answersFor(withOrigin('human')).every(
+        (entry) => entry.origin === 'human',
+      ),
+    ).toBe(true);
+    expect(
+      answersFor(withOrigin('peer')).every(
+        (entry) => entry.origin === undefined,
+      ),
+    ).toBe(true);
+    expect(answersFor(withOrigin('task-notification'))).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          origin: 'runtime-notification',
+          displayRole: 'runtime-notification',
+        }),
+      ]),
+    );
+  });
+
+  it('claude-code: includeToolCalls adds option descriptions', async () => {
+    const records = await readRecords(
+      fixturePath('claude-code', 'ask-user-question.jsonl'),
+    );
+    const entries = normalizeEntries('claude-code', records, {
+      includeToolCalls: true,
+    });
+    const question = entries.find((e) => e.kind === 'ask_user');
+
+    expectOk(question, 'expected an ask_user question entry');
+    expectOk(
+      question.text.includes(
+        '   - New package (Recommended) — Keeps the core untouched.',
+      ),
+      `expected option descriptions, got: ${question.text}`,
+    );
+    // The ask-user branch must not also emit a duplicate tool_call entry.
+    expectEqual(
+      entries.filter(
+        (e) => e.kind === 'tool_call' && e.toolName === 'AskUserQuestion',
+      ).length,
+      0,
+      'ask-user calls must not double-render as tool_call entries',
+    );
+  });
+
+  it('codex: correlates answers back to their question by call id', async () => {
+    const records = await readRecords(
+      fixturePath('codex', 'request-user-input.jsonl'),
+    );
+    const entries = normalizeEntries('codex', records, {});
+    const askEntries = entries.filter((e) => e.kind === 'ask_user');
+
+    expectEqual(askEntries.length, 4, 'two question/answer pairs');
+
+    const [question, answer] = askEntries;
+    expectEqual(question.role, 'assistant');
+    expectOk(
+      question.text.startsWith(
+        '[request_user_input] Keepers — Will the auction use keepers?',
+      ),
+      `expected header-prefixed question, got: ${question.text}`,
+    );
+
+    expectEqual(answer.role, 'user');
+    expectOk(
+      // The raw payload keys this answer as `keeper_use`; the header must win.
+      answer.text.includes('Keepers: "No keepers (Recommended)"'),
+      `expected answer labeled by header, got: ${answer.text}`,
+    );
+
+    // Non-ask function calls and their outputs stay filtered.
+    expectEqual(
+      entries.filter((e) => e.kind === 'tool_call' || e.kind === 'tool_result')
+        .length,
+      0,
+      'ordinary function calls must remain filtered',
+    );
+  });
+
+  it('codex: flags auto-resolving questions so answers are not over-attributed', async () => {
+    const records = await readRecords(
+      fixturePath('codex', 'request-user-input.jsonl'),
+    );
+    const entries = normalizeEntries('codex', records, {});
+    const question = entries.filter((e) => e.kind === 'ask_user')[2];
+
+    expectOk(
+      question.text.includes(
+        '(auto-resolves after 120s; a recorded answer may be the default rather than an operator choice)',
+      ),
+      `expected auto-resolution caveat, got: ${question.text}`,
+    );
+  });
+
+  it('cursor: renders the question and states that the answer is unrecorded', async () => {
+    const records = await readRecords(
+      fixturePath('cursor', 'ask-question.jsonl'),
+    );
+    const entries = normalizeEntries('cursor', records, {});
+    const askEntries = entries.filter((e) => e.kind === 'ask_user');
+
+    expectEqual(askEntries.length, 1, 'one question, no recorded answer');
+    const [question] = askEntries;
+    expectEqual(question.role, 'assistant');
+    expectEqual(question.toolName, 'AskQuestion');
+    expectOk(
+      question.text.startsWith(
+        '[AskQuestion] Discovery convergence — 2 questions:',
+      ),
+      `expected the call title to label the group, got: ${question.text}`,
+    );
+    expectOk(
+      question.text.includes('1. Proceed as one cohesive project?'),
+      `expected the question prompt, got: ${question.text}`,
+    );
+    // Cursor writes no tool-result records at all, so an observer must be able
+    // to tell "not recorded" apart from "not answered".
+    expectOk(
+      question.text.includes(
+        '(selected option not recorded in Cursor transcripts)',
+      ),
+      `expected the unrecorded-answer note, got: ${question.text}`,
+    );
+    expectEqual(
+      entries.filter((e) => e.kind === 'tool_call').length,
+      0,
+      'the Shell call in the same turn must remain filtered',
+    );
+  });
+});
+
+describe('normalizeEntries — Cursor ask-user turn boundaries', () => {
+  const askQuestionText =
+    '[AskQuestion] Pending gate — Proceed with the migration?';
+
+  for (const status of ['aborted', 'error', 'cancelled'] as const) {
+    it(`cursor: preserves the question when a turn ends ${status}`, async () => {
+      const records = await readRecords(
+        fixturePath('cursor', 'ask-question.jsonl'),
+      );
+      // Swap the terminal status; the rest of the turn is unchanged.
+      const terminal = records.map((record) =>
+        record.type === 'turn_ended' ? { ...record, status } : record,
+      );
+      const entries = normalizeEntries('cursor', terminal, {});
+      const askEntries = entries.filter((e) => e.kind === 'ask_user');
+
+      expectEqual(
+        askEntries.length,
+        1,
+        `ask-user question must survive a ${status} turn`,
+      );
+      // The turn's ordinary assistant content is still withheld, and the
+      // runtime diagnostic still reports the terminal status.
+      expectOk(
+        entries.some(
+          (e) => e.origin === 'runtime-diagnostic' && e.text.includes(status),
+        ),
+        `expected the ${status} diagnostic entry`,
+      );
+      expectOk(
+        !entries.some((e) => e.text === 'Discovery is complete and committed.'),
+        'non-success turns must still withhold ordinary assistant content',
+      );
+    });
+  }
+
+  it("cursor: flushes a trailing question and the operator's typed reply", async () => {
+    const records = await readRecords(
+      fixturePath('cursor', 'ask-question-unterminated.jsonl'),
+    );
+    const entries = normalizeEntries('cursor', records, {});
+
+    const askEntries = entries.filter((e) => e.kind === 'ask_user');
+    expectEqual(askEntries.length, 1, 'trailing question must be preserved');
+    expectOk(
+      askEntries[0].text.startsWith(askQuestionText),
+      `expected the pending question, got: ${askEntries[0].text}`,
+    );
+    // Cursor records a typed answer as an ordinary user message. Dropping it
+    // would lose the answer the question was asking for.
+    expectOk(
+      entries.some((e) => e.text === 'Use the safer option instead.'),
+      "the operator's typed reply must survive",
+    );
+    // Unfinished assistant progress stays hidden either way.
+    for (const hidden of [
+      'One decision before I continue.',
+      'Half-finished follow-up work.',
+    ]) {
+      expectOk(
+        !entries.some((e) => e.text === hidden),
+        `unfinished assistant progress leaked: ${hidden}`,
+      );
+    }
+  });
+
+  it('cursor: the trailing flush excludes automatic-control envelopes', () => {
+    // The gate opening for a question must not let machine coordination ride
+    // along: wake envelopes carry lease and pinned-peer identity.
+    const wake = JSON.stringify({
+      session_observer_wake: {
+        automatic: true,
+        runtime: 'cursor',
+        leaseId: 'secret-lease',
+        pinnedPeer: {
+          runtime: 'claude-code',
+          sessionId: 'SECRET-PEER-SESSION',
+        },
+        range: { fromIndex: 0, toIndex: 3 },
+      },
+    });
+    const records = [
+      { role: 'user', message: { content: [{ type: 'text', text: 'go' }] } },
+      { type: 'turn_ended', status: 'success' },
+      { role: 'user', message: { content: [{ type: 'text', text: wake }] } },
+      {
+        role: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              name: 'AskQuestion',
+              input: {
+                title: 'Gate',
+                questions: [
+                  {
+                    id: 'q',
+                    prompt: 'Proceed?',
+                    options: [{ id: 'y', label: 'Yes' }],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      {
+        role: 'user',
+        message: {
+          content: [{ type: 'text', text: 'Use the safer option.' }],
+        },
+      },
+    ] as JsonObject[];
+
+    const entries = normalizeEntries('cursor', records, {});
+    const joined = entries.map((e) => e.text).join('\n');
+
+    expectOk(
+      entries.some((e) => e.kind === 'ask_user'),
+      'the question must survive',
+    );
+    expectOk(
+      entries.some((e) => e.text === 'Use the safer option.'),
+      "the operator's typed reply must survive",
+    );
+    expectOk(
+      !entries.some((e) => e.origin === 'automatic-control'),
+      'automatic-control entry leaked into the trailing flush',
+    );
+    expectOk(!joined.includes('secret-lease'), 'lease id leaked');
+    expectOk(!joined.includes('SECRET-PEER-SESSION'), 'peer session leaked');
+  });
+
+  it('cursor: a user-role AskQuestion block does not open the tail', () => {
+    // Only the assistant asks. A malformed or synthesized user-role block must
+    // not become `ask_user`, or it would release a provisional tail the
+    // question-free contract keeps hidden.
+    const records = [
+      { role: 'user', message: { content: [{ type: 'text', text: 'go' }] } },
+      { type: 'turn_ended', status: 'success' },
+      {
+        role: 'user',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              name: 'AskQuestion',
+              input: {
+                title: 'Spoofed',
+                questions: [
+                  {
+                    id: 'q',
+                    prompt: 'Proceed?',
+                    options: [{ id: 'y', label: 'Yes' }],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      {
+        role: 'assistant',
+        message: { content: [{ type: 'text', text: 'HIDDEN_ASSISTANT_WORK' }] },
+      },
+      {
+        role: 'user',
+        message: { content: [{ type: 'text', text: 'TAIL_USER_TEXT' }] },
+      },
+    ] as JsonObject[];
+
+    const entries = normalizeEntries('cursor', records, {});
+
+    expectOk(
+      !entries.some((e) => e.kind === 'ask_user'),
+      'a user-role block must not become an ask_user entry',
+    );
+    expectOk(
+      !entries.some((e) => e.text === 'TAIL_USER_TEXT'),
+      'the provisional tail must stay hidden',
+    );
+    expectOk(
+      !entries.some((e) => e.text === 'HIDDEN_ASSISTANT_WORK'),
+      'unfinished assistant work must stay hidden',
+    );
+  });
+
+  it('cursor: a provisional tail with no question stays hidden', async () => {
+    // The flush is scoped to the ask-user exchange that justifies it; an
+    // ordinary unterminated tail keeps the existing hide-it-all guarantee.
+    const records = await readRecords(
+      fixturePath('cursor', 'unterminated.jsonl'),
+    );
+    const entries = normalizeEntries('cursor', records, {});
+
+    expectEqual(entries.length, 0, 'provisional tail must stay hidden');
+  });
+});

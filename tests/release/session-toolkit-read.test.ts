@@ -1,0 +1,173 @@
+import { mkdtemp, writeFile, appendFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { describe, it, expect } from 'vitest';
+
+import { parseTranscript } from '../../packages/session-toolkit/src/index.js';
+
+async function fixture(run: (path: string) => Promise<void>) {
+  const dir = await mkdtemp(join(tmpdir(), 'seshtk-read-'));
+  try {
+    await run(join(dir, 'session.jsonl'));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+describe('bounded public parsing', () => {
+  it('keeps malformed nonblank ordinals separate from decoded objects, physical lines and source bytes', async () =>
+    fixture(async (path) => {
+      await writeFile(
+        path,
+        '\n{"type":"user","message":{"content":"hello"}}\nBROKEN\n{"type":"assistant","message":{"content":"answer"}}\n{"partial":',
+      );
+      const page = await parseTranscript({ runtime: 'claude-code', path });
+      expect(
+        page.records.map((r) => [
+          r.recordIndex,
+          r.sourceOrdinal,
+          r.physicalLine,
+        ]),
+      ).toEqual([
+        [0, 0, 2],
+        [1, 2, 4],
+      ]);
+      expect(page.records[0].byteStart).toBe(1);
+      expect(page.records[0].sourceCarrier).toBe(
+        '{"type":"user","message":{"content":"hello"}}',
+      );
+      expect(
+        page.diagnostics.map((d) => [d.kind, d.sourceOrdinal, d.physicalLine]),
+      ).toEqual([
+        ['malformed', 1, 3],
+        ['partial-tail', 3, 5],
+      ]);
+      expect(page.coverage.reasons).toEqual(['incomplete-tail']);
+      expect(page.nextOffset).toBe(3);
+      expect(page.messages.map((m) => m.text)).toEqual(['hello', 'answer']);
+    }));
+  it('bounds source bytes, resumes records, and rejects generation/projection mismatches', async () =>
+    fixture(async (path) => {
+      const line = '{"type":"user","message":{"content":"hello"}}\n';
+      await writeFile(path, line.repeat(3));
+      const first = await parseTranscript({
+        runtime: 'claude-code',
+        path,
+        maxBytes: Buffer.byteLength(line) + 3,
+      });
+      expect(first.bytesRead).toBe(Buffer.byteLength(line) + 3);
+      expect(first.records).toHaveLength(1);
+      expect(first.nextOffset).toBe(1);
+      const second = await parseTranscript({
+        runtime: 'claude-code',
+        path,
+        cursor: first.nextCursor!,
+        maxRecords: 1,
+      });
+      expect(second.records[0]).toMatchObject({
+        recordIndex: 1,
+        sourceOrdinal: 1,
+        physicalLine: 2,
+      });
+      await expect(
+        parseTranscript({
+          runtime: 'claude-code',
+          path,
+          cursor: first.nextCursor!,
+          includeToolCalls: true,
+        }),
+      ).rejects.toMatchObject({ code: 'E_CURSOR_INVALID' });
+      await expect(
+        parseTranscript({
+          runtime: 'claude-code',
+          path,
+          cursor: first.nextCursor!,
+          fromOffset: 0,
+        }),
+      ).rejects.toMatchObject({ code: 'E_USAGE' });
+      await appendFile(path, line);
+      await expect(
+        parseTranscript({
+          runtime: 'claude-code',
+          path,
+          cursor: first.nextCursor!,
+        }),
+      ).rejects.toMatchObject({ code: 'E_SOURCE_CHANGED' });
+    }));
+  it('uses Cursor frame coordinates, retaining malformed frames and blocking an unclosed valid frame', async () =>
+    fixture(async (path) => {
+      await writeFile(
+        path,
+        '\nINVALID\n{"role":"user","message":{"content":[{"type":"text","text":"question"}]}}\n{"role":"assistant","message":{"content":[{"type":"text","text":"pending"}]}}',
+      );
+      const page = await parseTranscript({ runtime: 'cursor', path });
+      expect(page.coordinate).toBe('zero-based-jsonl-frame-index');
+      expect(page.records[0]).toMatchObject({
+        frameIndex: 2,
+        recordIndex: 0,
+        sourceOrdinal: 2,
+        physicalLine: 3,
+      });
+      expect(page.nextOffset).toBe(3);
+      expect(page.coverage.reasons).toEqual(['incomplete-tail']);
+      expect(page.diagnostics.map((d) => d.kind)).toEqual([
+        'malformed',
+        'partial-tail',
+      ]);
+    }));
+  it('keeps tools opt-in and raw fields intact under message limits', async () =>
+    fixture(async (path) => {
+      await writeFile(
+        path,
+        [
+          { type: 'user', message: { content: 'hello' } },
+          {
+            type: 'assistant',
+            message: {
+              content: [
+                {
+                  type: 'tool_use',
+                  id: 'call',
+                  name: 'Bash',
+                  input: { command: 'echo hi' },
+                },
+              ],
+            },
+          },
+          {
+            type: 'user',
+            message: {
+              content: [
+                { type: 'tool_result', tool_use_id: 'call', content: 'hi' },
+              ],
+            },
+          },
+        ]
+          .map((v) => JSON.stringify(v))
+          .join('\n') + '\n',
+      );
+      const plain = await parseTranscript({ runtime: 'claude-code', path });
+      expect(plain.messages.map((m) => m.kind)).toEqual(['message']);
+      expect(plain.records[1].record.message).toMatchObject({
+        content: [{ input: { command: 'echo hi' } }],
+      });
+      const calls = await parseTranscript({
+        runtime: 'claude-code',
+        path,
+        includeToolCalls: true,
+      });
+      expect(calls.messages.map((m) => m.kind)).toEqual([
+        'message',
+        'tool_call',
+      ]);
+      const results = await parseTranscript({
+        runtime: 'claude-code',
+        path,
+        includeToolResults: true,
+      });
+      expect(results.messages.map((m) => m.kind)).toEqual([
+        'message',
+        'tool_result',
+      ]);
+    }));
+});

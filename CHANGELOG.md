@@ -4,6 +4,10 @@
 
 ### Added
 
+- Session Toolkit 0.1.0 provider evidence substrate and bounded stateless parsing, with independent source coordinates and generation-bound continuation.
+
+### Added
+
 - `@tkstang/session-toolkit` 0.1.0 package boundary with the `seshtk` CLI,
   import-safe ESM capability discovery and typed JSON envelopes. Provider
   operations and consumer migration remain under construction.
