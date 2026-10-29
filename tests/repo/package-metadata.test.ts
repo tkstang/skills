@@ -26,10 +26,12 @@ describe('package-metadata', () => {
         'lint:fix',
         'premerge',
         'prepare',
+        'release:toolkit:dry-run',
         'smoke',
         'test',
         'test:live-e2e',
         'test:vitest',
+        'toolkit:pack:check',
         'type-check',
         'validate',
         'validate:internal-flags',
@@ -38,7 +40,9 @@ describe('package-metadata', () => {
         'worktree:validate',
       ].toSorted(),
     );
-    expect(packageJson.scripts?.test).toBe('pnpm run test:vitest');
+    expect(packageJson.scripts?.test).toBe(
+      'pnpm run build:toolkit && pnpm run test:vitest',
+    );
     expect(packageJson.scripts?.['test:node']).toBeUndefined();
     expect(packageJson.scripts?.['test:vitest']).toBe(
       'node scripts/run-vitest.mjs',

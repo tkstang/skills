@@ -51,7 +51,14 @@ pnpm run smoke
 
 The private root workspace includes only `packages/session-toolkit/`;
 `documentation/` is separately locked and excluded. Build the public package
-with `pnpm run build:toolkit`; root `build` and `type-check` include it. Read
+with `pnpm run build:toolkit`; root `build` and `type-check` include it. Root `test` builds its ignored
+output before running the suite; build first for scoped CLI tests. Read
 [package instructions](packages/AGENTS.md) and the
 [package README](packages/session-toolkit/README.md) before editing it. Its
 Node 22.0.0 consumer floor is separate from Node 24 release tooling.
+
+The validation-only `Session Toolkit` workflow builds on Node 24 and installs
+one validated archive on Node 22.0.0 and 24. To reproduce locally, run
+`pnpm run release:toolkit:dry-run --out <new-directory>` on Node 24 and
+`pnpm run toolkit:pack:check --archive <tarball> --node <node-executable>`.
+These checks do not publish or change consumer dependencies.

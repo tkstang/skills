@@ -64,3 +64,12 @@ placeholder commands that appear usable.
 From the repository root: `pnpm run build:toolkit`, `pnpm run type-check`, and
 `pnpm run test:vitest tests/release/session-toolkit-cli.test.ts`. The public
 package has independent SemVer and `session-toolkit-vX.Y.Z` release tags.
+
+On Node 24, run `pnpm run release:toolkit:dry-run --out <new-directory>` from
+the repository root to build and validate an exact npm tarball. The validator
+rejects unexpected files, local/workspace specs, private workspace package
+names and install scripts, then performs a clean install and public API/CLI
+smoke. Recheck its bytes with `pnpm run toolkit:pack:check --archive
+<tarball> --node <absolute-node-executable>` for another supported runtime.
+The dry run writes checksums and metadata and never publishes. See the
+repository's `RELEASING.md` for first-publication prerequisites.

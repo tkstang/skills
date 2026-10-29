@@ -12,7 +12,8 @@ The only workspace package is `session-toolkit/`. The root remains private;
 - Keep library imports free of I/O, CLI execution, process exits and store scans.
   Command factories and the bin boundary are separate from the library root.
 - Build: `pnpm run build:toolkit`. Type-check: `pnpm --filter
-  @tkstang/session-toolkit type-check`. Root type-check includes this package.
+  @tkstang/session-toolkit type-check`. Root type-check includes this package. Root `test` builds the package before
+  running Vitest; scoped package CLI tests require `build:toolkit` first.
 - Package-boundary tests live in `tests/release/session-toolkit-*.test.ts`;
   read `tests/AGENTS.md` and use deliberate-testing before changing them.
 - Node consumers support 22.0.0 and 24. Release tooling runs on 24 independently.
@@ -21,3 +22,11 @@ The only workspace package is `session-toolkit/`. The root remains private;
   public exports, wire fields and capability meanings require intentional review.
 - Toolkit versions and `session-toolkit-vX.Y.Z` tags are independent of skill,
   plugin and standalone payload release versions. Update the root changelog.
+
+Archive checks: on Node 24, `pnpm run release:toolkit:dry-run --out
+<new-directory>` builds, packs, inspects, installs and runs npm's publication dry
+run on the exact archive. `pnpm run toolkit:pack:check --archive <tarball>
+[--node <absolute-node-executable>]` rechecks the same bytes against a consumer
+runtime. Release/bootstrap authority and prerequisites live in `RELEASING.md`.
+The Session Toolkit workflow prepares on 24 and verifies the same artifact on
+22.0.0 and 24; it has no publication job or OIDC permission yet.

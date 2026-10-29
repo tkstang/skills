@@ -210,3 +210,90 @@ distribution entries to consume this public source. Do not merge that private
 PR, replace active user installations, uninstall old copies, or run a global
 sync merely to prove packaging. Record the transitional owner until the
 separate PR is merged.
+
+## Session Toolkit package (publication pending)
+
+`@tkstang/session-toolkit` has independent SemVer in
+`packages/session-toolkit/package.json` and curated entries in the root
+`CHANGELOG.md`. Reserve `session-toolkit-vX.Y.Z` tags: `vX.Y.Z` is the existing
+standalone-payload tag stream, while `session-v*` and `consensus-v*` belong to
+plugins. The current package boundary is not a complete session engine or a
+publication receipt. No production consumer requires its unpublished version.
+
+### Validate exact archives
+
+Use Node 24 for release tooling while testing the consumer floor separately.
+Keep the root pnpm 10.13.1 pin. From the repository root:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm run build:check
+pnpm run type-check
+pnpm run build:toolkit
+pnpm run test:vitest tests/release/session-toolkit-cli.test.ts tests/release/session-toolkit-package.test.ts
+pnpm run release:toolkit:dry-run --out /absolute/path/to/new-release-directory
+pnpm run toolkit:pack:check --archive /absolute/path/to/new-release-directory/tkstang-session-toolkit-0.1.0.tgz --node /absolute/path/to/node-22.0.0
+```
+
+Select the actual package version in the archive filename. The output directory
+must not exist. Preparation runs `pnpm pack` once, inspects the packed manifest
+and file inventory, rejects private workspace names even after protocol
+rewriting, rejects local/unresolved dependency specs and install scripts, and
+installs outside the checkout with an isolated HOME/STATE_DIR. It checks the
+public API import and installed `seshtk` version/help/capabilities. No donor
+repository sources are used. Source coordinates, provider parsing and other
+controlled-fixture operations join this proof as those capabilities ship.
+
+The dry run passes the same archive to `npm publish --dry-run --ignore-scripts
+--access public --registry https://registry.npmjs.org/` and writes
+`release.json` plus `SHA256SUMS`. Metadata includes the source HEAD, intended
+tag, SHA-256, npm SHA-512 integrity and verified runtime. It explicitly sets
+`publication_authorized: false`: a development dry run can include uncommitted
+changes and does not establish a clean reviewed release binding. The
+validation-only workflow prepares on Node 24 and checks the same uploaded
+archive on 22.0.0 and 24. It has read-only permissions and cannot publish.
+
+### First publication and subsequent trusted publishing
+
+Before p04 publication, the root must complete these prerequisites:
+
+1. Finish the operations and consumers selected by the approved brief for the
+   publish-ready package. Review that candidate on its explicit commit range
+   and record its archive identity before any publication or consumer cutover.
+2. Verify npm ownership/access for the `@tkstang` scope and authenticate the
+   publishing maintainer through the host secret mechanism. On 2026-10-29 this
+   host's `npm whoami` returned `ENEEDAUTH`, anonymous package lookup returned
+   `E404`, repository Actions secrets were empty and the only environment was
+   `github-pages`. These observations do not prove npm scope rights. GitHub
+   ADMIN access was verified for Skills and ORC. No credentials were changed.
+3. Make a clean release checkout on `main` at the independently reviewed
+   candidate, verify ancestry, match package version to
+   `session-toolkit-vX.Y.Z`, and bind checksums/notes to the commit and archive.
+   Complete the supported-runtime matrix and repository gates.
+4. Bootstrap the first public version from **that validated tarball** using
+   the authenticated maintainer's currently supported npm authentication and
+   2FA flow. Trusted publishing must not be assumed to bootstrap an uncreated
+   package. Recheck npm's current bootstrap requirements at execution time.
+5. Configure the package's GitHub trusted publisher specifically for
+   `tkstang/skills`, its selected package-release workflow filename and its
+   protected `npm` environment. Donor trust does not carry over. Verify account
+   permission, environment approvals, provenance and npm >=11.5.1 support.
+6. Add the publication job in p04: prepare/upload once, download the archive
+   without rebuilding, verify its manifest/hash/tag/commit/notes, then grant
+   only that job `id-token: write` behind the protected environment and an
+   explicit release-enable setting. Publish the validated archive, never a
+   rebuilt directory. A retry encountering an existing version succeeds only
+   when registry `dist.integrity` equals the validated archive; a mismatch or
+   registry error stops publication.
+7. Verify the registry's published integrity, fresh API/CLI install and
+   provenance, then register receipts before Skills or ORC requires that
+   published version. Preserve ORC's 24-hour minimum-release-age hold unless
+   the user authorizes a narrow exception.
+
+Skills allows squash merges only. Keep the project branch and earlier phase
+heads intact; after a reviewed squash merge, merge `main` back into the project
+branch rather than rebasing or recreating accepted phase history. Record
+release/migration ranges and branch handling when p04 becomes concrete. ORC
+allows squash/rebase, but its separate changes still require explicit-range
+review before merge. No package publishing, tags, npm settings or production
+consumer dependencies change during p01.
