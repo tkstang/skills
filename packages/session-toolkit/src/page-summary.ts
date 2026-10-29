@@ -80,8 +80,14 @@ export function summarizePage(page: TranscriptPage): PageActivitySummary {
         page.runtime === 'cursor'
           ? 'zero-based-jsonl-frame-index'
           : 'zero-based-decoded-record-index',
-      start: page.records[0]?.recordIndex ?? 0,
-      end: (page.records.at(-1)?.recordIndex ?? -1) + 1,
+      start:
+        (page.runtime === 'cursor'
+          ? page.records[0]?.frameIndex
+          : page.records[0]?.recordIndex) ?? 0,
+      end:
+        ((page.runtime === 'cursor'
+          ? page.records.at(-1)?.frameIndex
+          : page.records.at(-1)?.recordIndex) ?? -1) + 1,
     },
   });
   return {

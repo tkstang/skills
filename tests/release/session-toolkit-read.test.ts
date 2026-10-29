@@ -154,6 +154,39 @@ describe('bounded public parsing', () => {
         [3, 2],
       ]);
     }));
+  it('counts Cursor delivered activity in frame coordinates across malformed frames', async () =>
+    fixture(async (path) => {
+      await writeFile(
+        path,
+        'BAD\nBAD\n' +
+          [
+            {
+              role: 'assistant',
+              message: {
+                content: [
+                  {
+                    type: 'tool_use',
+                    name: 'Shell',
+                    input: { command: 'echo hi' },
+                  },
+                ],
+              },
+            },
+            { type: 'turn_ended', status: 'success' },
+          ]
+            .map((record) => JSON.stringify(record))
+            .join('\n') +
+          '\n',
+      );
+      const page = await parseTranscript({
+        runtime: 'cursor',
+        path,
+        includeActivity: true,
+      });
+      expect(page.activity?.counts.capturedSource.calls).toBe(1);
+      expect(page.activity?.counts.deliveredRange.calls).toBe(1);
+      expect(page.activity?.counts.displayed.calls).toBe(1);
+    }));
   it('keeps tools opt-in and raw fields intact under message limits', async () =>
     fixture(async (path) => {
       await writeFile(

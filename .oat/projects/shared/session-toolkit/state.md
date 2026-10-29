@@ -84,8 +84,18 @@ oat_phase_recovery_policy:
   default_attempt_limit: 10
   phase_attempt_usage:
     p02:
-      used_attempts: 3
-      pending_attempt: null
+      used_attempts: 4
+      pending_attempt:
+        attempt: 4
+        event_id: session-toolkit-p02-recovery-04
+        status: completed
+        original_request_id: session-toolkit-p02-implement-20261029
+        original_task_id: p02-t03
+        original_commit: 4ea21f5a8d021a1bc21ee9ba012e5a2ef24caecf
+        discovered_by: public Cursor page activity frame-range parity check
+        dispatch_target: oat-phase-implementer-gpt-6-1-sol-high
+        reservation_head: ffea28a2a491f0819020ac7a2f36253ee22de9b5
+        eligibility: mechanical use of Cursor frameIndex endpoints for the already declared frame delivery range; no architecture or public requirement change
     p01:
       used_attempts: 2
       pending_attempt: null
