@@ -177,6 +177,8 @@ Independent review r1 `session-toolkit-p02-review-20261029-r1` at `1ce8ba8de2fb5
 
 Root validated fix round1: original handle/request/continuation and exact target match, clean final handoff8a454ba, bounded implementation99132f6 plus separate journal closure, unchanged Phase Base and advanced Head, no recovery reservation or event. All five r1 findings are addressed by t06/t07. Seven execution records and corrected archive evidence are current; phase remains in_progress pending fresh full-range independent review. No later phase Base exists.
 
+Independent review r2 receipt: reviews/p02-review-2026-10-29T152302Z.md, headf77c538084a66d4ad81525795afc48bcf291b5a8, full unchanged Phase Base..Head, 0 Critical / 0 High / 1 Medium / 0 Low. Root consumed exactly one not-attempted reconnaissance signal; no Review Orchestration section; UTC/provenance/counts/scope validate. All prior five findings are confirmed fixed;4,320 bounded donor-prefix comparisons pass. Root accepts new M1 (Codex tool results) after source validation, will correct it inline as t08, and does not claim that correction has independent re-review. No phase acceptance yet; recovery unchanged4/10,pendingnull. No review-orchestration log is created.
+
 ### Task p02-t01: Preserve provider evidence and bounded parsing
 
 **Status:** completed
@@ -336,6 +338,16 @@ Proof: public regressions fail before correction, then package tests, type/build
 
 Verification: both intended public regressions failed before correction; discovery/evidence12/12 and all342 package tests pass. Type/build/scoped lint/format, serialized build:check, validate/smoke pass. Corrected exact archive148d1980d82cafe30e20d557064b06de38d2da8481a45e394b18257b1d02bd28 clean-installs and passes fixture API/CLI/types on actual22.0.0/24.21.0. No full-suite pass, consumer cutover or publication is claimed; references/p02-verification.md records the retained baseline limitations and archive evidence. Recovery unchanged4/10,pendingnull.
 
+### Task p02-t08: (review) Honor Codex tool-result opt-in
+
+**Status:** in_progress
+**Executor:** root:gpt-6.1-sol/high
+**Source review:** reviews/p02-review-2026-10-29T152302Z.md — M1
+
+Intent: implement the selected independent tool-result opt-in for ordinary Codex read/export projection while preserving natural ask-user answers, preview bounds, coordinates, message limits and sanitizer behavior. Root handles this small Medium finding; no new High fix round or phase-inline substitution.
+Files: provider-runtime.ts, existing read test, changelog and p02 parity/verification references.
+Proof: one pre-failing public parsing regression with literal independent default/calls/results/both expectations and continuation; full package/type/build/lint/freshness/validate/smoke and corrected archive checks on actual22.0.0/24.
+
 ## Phase p03: Add search, activity, and CLI update notices
 
 **Status:** pending
@@ -364,7 +376,7 @@ Verification: both intended public regressions failed before correction; discove
 
 - run/v1 · request=session-toolkit-p02-fix-20261029-r1 · scope=p02 · action=fix · role=oat-phase-implementer · target=oat-phase-implementer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p02 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=cont-session-toolkit-p02-fix-1 · observed=~ · match=~
 
-- run/v1 · request=session-toolkit-p02-review-20261029-r2 · scope=p02 · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=running · terminal=no · class=live · continuation=~ · observed=~ · match=~
+- run/v1 · request=session-toolkit-p02-review-20261029-r2 · scope=p02 · action=review · role=oat-reviewer · target=oat-reviewer-gpt-6-1-sol-high · model=gpt-6.1-sol · effort=high · stamp=Dispatch: scope=p02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:gpt-6.1-sol effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-gpt-6-1-sol-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 <!-- orchestration-runs-end -->
 
