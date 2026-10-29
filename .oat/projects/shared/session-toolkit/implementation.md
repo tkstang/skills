@@ -514,11 +514,16 @@ Root retains build/write ownership after both explicit clean handoffs. The small
 
 ### Task p04-t02: Restrict sensitive activity artifact permissions
 
-**Status:** in_progress
+**Status:** completed
 **Executor:** root
+**Commit:** 3323435a09d2d6a727c3476890c7d713f653db26
 **Intent:** Resolve release review M1 by making newly created sensitive activity files owner-only, retaining exclusive creation and complete evidence.
 **Files:** packages/session-toolkit/src/cli.ts; tests/release/session-toolkit-activity-public.test.ts; packages/session-toolkit/README.md; packages/session-toolkit/CHANGELOG.md; CHANGELOG.md.
 **Proof:** Extend existing public built-CLI artifact fixture with controlled umask022 and literal0600 expectation; observe failure on pre-fix built CLI, then rebuild and pass focused/package checks, types/lint/format and exact fresh candidate installs on actual22.0.0/24. Independent delta confirmation before merge/publication.
+
+**Verification:** Existing built-CLI artifact regression failed on pre-fix output at the literal0600 assertion (observed0644 under controlled umask022); the inherited raw-evidence and existing-file refusal controls remain. After the one-line mode correction and rebuild, all29 toolkit files/634 tests pass, plus root/package types, scoped lint/format and diff whitespace. Test restores the caller umask in finally. No fixture infrastructure, runtime test hook or expanded consumer behavior was introduced. Fresh source-bound candidate/actual Node22.0.0/24 installed proof and independent delta confirmation remain next.
+
+**Review disposition:** M1 fixed in code; no clean re-review claimed yet. Root handles this small release-review correction per pr-self-review, retaining original phase agent/target and monotonic recovery usage0/10. Only the five declared package/test/documentation paths changed; no skill version or generated payload changes are due before consumer bundling. No instruction changes needed for this bounded file-creation guarantee.
 
 ## Phase p05: Migrate ORC and verify integrated delivery
 
