@@ -130,11 +130,16 @@ Root consumed exactly one `Reconnaissance: not-attempted` confirmation; artifact
 
 ### Task p01-t04: Correct packed-file validation and test guidance (review)
 
-**Status:** in_progress
+**Status:** completed
 **Executor:** root
+**Request:** session-toolkit-p01-review-correction-root-t04
+**Execution target:** root:gpt-6.1-sol-high
 **Intent:** Resolve M1 and L1 without changing public toolkit behavior or expanding release authority.
 **Files:** scripts/session-toolkit-package.ts, tests/release/session-toolkit-package.test.ts, tests/AGENTS.md.
 **Proof command:** Failure-before/pass-after malformed-archive regression, focused package tests, type-check, scoped lint/format, and unchanged exact-archive validation on Node 22.0.0/24.21.0. No full-suite repeat for this bounded guard/instruction fix; existing environment limitation retained.
+
+**Commit:** b23418aa7320c8d4af241ce878259669f482df6f
+**Verification:** Symlink regression failed before correction by reaching the blocked npm boundary and passed afterward; all eight focused tests and exact archive checks on Node 22.0.0/24.21.0 pass, as does type-check. Scoped lint reported a useless array spread in the new fixture; root mistakenly committed before handling that failed result. The original commit is preserved and a bounded mechanical recovery is reserved below. No full-suite pass is claimed.
 
 ## Phase p02: Consolidate identity, discovery, reads, and safe export
 

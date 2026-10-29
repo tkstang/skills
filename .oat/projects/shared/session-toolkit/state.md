@@ -84,8 +84,21 @@ oat_phase_recovery_policy:
   default_attempt_limit: 10
   phase_attempt_usage:
     p01:
-      used_attempts: 1
-      pending_attempt: null
+      used_attempts: 2
+      pending_attempt:
+        attempt: 2
+        event_id: session-toolkit-p01-recovery-02
+        original_request_id: session-toolkit-p01-review-correction-root-t04
+        original_task_id: p01-t04
+        original_commit: b23418aa7320c8d4af241ce878259669f482df6f
+        defect_class: lint
+        discovered_by: pnpm exec oxlint scripts/session-toolkit-package.ts tests/release/session-toolkit-package.test.ts
+        dispatch_target: root:gpt-6.1-sol-high
+        reservation_head: b23418aa7320c8d4af241ce878259669f482df6f
+        status: active
+        bounded_files: [tests/release/session-toolkit-package.test.ts]
+        authorization: phase-standing
+        eligibility: Mechanical removal of useless spread in root-owned bounded review correction; same root execution target retained per host small-fix guidance.
 oat_generated: false
 ---
 
