@@ -83,6 +83,9 @@ oat_brief_gate:
 oat_phase_recovery_policy:
   default_attempt_limit: 10
   phase_attempt_usage:
+    p03:
+      used_attempts: 0
+      pending_attempt: null
     p02:
       used_attempts: 4
       pending_attempt: null

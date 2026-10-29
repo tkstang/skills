@@ -356,7 +356,11 @@ Verification: public regression fails before and passes after correction; all343
 
 ## Phase p03: Add search, activity, and CLI update notices
 
-**Status:** pending
+**Status:** in_progress
+**Base:** e51f7588588e8fe8f2204059b810f7c52066d471
+**Executor:** phase-implementer:session-toolkit-p03-implement-20261029
+
+Execution shape: one phase implementer, sole committing owner in the existing worktree. No parallel group; shared provider/search types, CLI/capabilities, package declarations/archive output and changelog impose sequential dependencies, so root fan-out fails the independence test. Root owns lifecycle and independent reviews. Hard-reasoning/high: reconcile search raw-evidence classifications and rich activity with package contracts plus prove updater isolation. Effective recovery default10, no phase override; prior p03 usage0,remaining10,pendingnull; p01/p02 counters retained.
 
 p03 made concrete after p02 acceptance, within unchanged approved outcomes and the p01 command/package contract. Search/estimate, full structured activity and interactive-only cached notices share CLI/capabilities/schema/archive outputs; no parallel group or independent fan-out slices qualify. No consumer cutover, package publication or state-policy redesign. Public boundary proof, deliberate exports, donor parity, zero machine/hook update I/O and exact tarball runtime checks are explicit exit evidence. This elaborates the phase, not a new task plan or changed authority.
 
