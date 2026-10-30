@@ -100,11 +100,11 @@ lookup.
 A successful exit means the result can be interpreted; inspect its coverage to
 learn whether it is complete.
 
-| Exit | Meaning                                                                          |
-| ---- | -------------------------------------------------------------------------------- |
-| 0    | Successful result, including no search matches or partial source coverage.       |
-| 1    | Invalid usage, a selection problem, or a scan that needs explicit authorization. |
-| 2    | I/O or unexpected failure.                                                       |
+| Exit | Meaning                                                                    |
+| ---- | -------------------------------------------------------------------------- |
+| 0    | Successful result, including no search matches or partial source coverage. |
+| 1    | Any reported error except `E_IO` and `E_INTERNAL`.                         |
+| 2    | `E_IO` or `E_INTERNAL`.                                                    |
 
 | Error code            | What to inspect                                                                 |
 | --------------------- | ------------------------------------------------------------------------------- |

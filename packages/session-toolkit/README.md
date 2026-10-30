@@ -41,8 +41,9 @@ time window:
 seshtk search -p 'deployment failed' --literal --cwd ~/Code/project --since 7d
 ```
 
-Choose a result's provider and native session ID, then read or export it.
-Replace `SESSION_ID` below with that ID:
+Choose a search result and combine its `runtime` and `sessionId` as
+`runtime:sessionId`. These examples use a Codex result; replace `SESSION_ID`
+with its native session ID (and use the matching runtime for other providers):
 
 ```sh
 seshtk read --session 'codex:SESSION_ID' --max-records 100
