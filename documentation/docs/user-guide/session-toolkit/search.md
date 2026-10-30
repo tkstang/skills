@@ -89,8 +89,10 @@ result:
 | `sources`     | Each source's availability, degraded status, and explanatory notes. |
 | `diagnostics` | Scan counts, parse errors, oversized lines, and elapsed time.       |
 
-History and index read failures, malformed records, and oversized records appear
-in source notes. Affected sources are marked degraded and `incomplete` is true.
+History and index read failures appear in source notes and mark affected sources
+degraded. Malformed or oversized transcript records appear in content-scan
+`diagnostics` and set `incomplete`; they may leave source notes and source status
+unchanged.
 An empty search returns exit 0; it does not prove a session never existed or that
 all sources were readable.
 

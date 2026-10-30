@@ -136,6 +136,12 @@ partial document and exit 0. Check both forms of coverage:
   callers inspect `result.written[].coverage`; `discovery` separately describes
   historical candidate coverage.
 
+Coverage describes the captured source range, not whether every record decoded
+successfully. A newline-terminated malformed record can be skipped while coverage
+still says `complete`. Export does not return read diagnostics. Before treating
+an export as complete, run `read --json` with the same selection and byte budget
+and inspect `data.diagnostics` as well as coverage.
+
 Export has no continuation option. If a byte limit truncated the source,
 increase `--max-bytes` (library option `maxBytes`) and export again to a **new
 file**. The original destination cannot be overwritten:
@@ -149,9 +155,11 @@ malformed data or other source gaps.
 
 ### Review before sharing
 
-Sanitization removes hidden instructions and control payloads; it does not audit
-visible text for credentials. Conversation text and optional tool previews can
-still contain sensitive data. Review Markdown before sharing it.
+Sanitization removes recognized hidden instruction and control payloads. It does
+not guarantee removal of every hidden instruction, including those embedded in
+tool results, or audit visible text for credentials. Conversation text and
+optional tool previews can still contain sensitive data. Review Markdown before
+sharing it.
 
 Tool call and result opt-ins remain independent. Exported activity is rendered
 as counts, without raw activity payloads. Raw records and structured evidence
