@@ -216,7 +216,10 @@ separate PR is merged.
 `@tkstang/session-toolkit` has independent SemVer in
 `packages/session-toolkit/package.json` and curated package notes in
 `packages/session-toolkit/CHANGELOG.md`. Keep the root `CHANGELOG.md` current
-as well. Use `session-toolkit-vX.Y.Z`; the existing standalone `vX.Y.Z`,
+as well. When selecting a new package release, update the explicit package
+version in install and npx examples in the root README, package README, and
+`documentation/docs/user-guide/session-toolkit/` together. Use
+`session-toolkit-vX.Y.Z`; the existing standalone `vX.Y.Z`,
 `session-v*` and `consensus-v*` streams retain their meanings.
 
 Publication and consumer migration are separate acceptance boundaries. A local

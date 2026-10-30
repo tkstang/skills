@@ -34,11 +34,11 @@
     - [Collaborative Observer](docs/user-guide/skills/session-observer-collab.md) — Coordinate two mutually observing agent sessions with exact pins, bounded wake tiers, explicit authority, and deterministic closeout.
   - Session Toolkit
     - [Session Toolkit](docs/user-guide/session-toolkit/index.md) — Find, read, search, and export local coding-agent sessions with the seshtk CLI or typed JavaScript APIs.
-    - [CLI Reference](docs/user-guide/session-toolkit/cli.md) — Use seshtk commands, JSON envelopes, exit codes, capability discovery, and update controls.
-    - [Historical Search](docs/user-guide/session-toolkit/search.md) — Search local raw session evidence with patterns, finite bounds, and explicit large-scan authorization.
-    - [Transcripts and Export](docs/user-guide/session-toolkit/transcripts.md) — Understand exact identity, historical discovery, source coordinates, bounded reads, Codex evidence, and Markdown exports.
-    - [Sensitive Activity](docs/user-guide/session-toolkit/activity.md) — Capture full recorded session activity with explicit sensitivity, provenance, bounds, and provider gaps.
-    - [Library Reference](docs/user-guide/session-toolkit/library.md) — Use public typed ESM APIs for identity, discovery, reading, evidence, export, search, and activity.
+    - [CLI Reference](docs/user-guide/session-toolkit/cli.md) — Choose a seshtk command, inspect supported operations, and handle JSON output, errors, and update notices.
+    - [Historical Search](docs/user-guide/session-toolkit/search.md) — Find local sessions by remembered text, control scan size, and understand widening, redaction, and incomplete results.
+    - [Transcripts and Export](docs/user-guide/session-toolkit/transcripts.md) — Select a session, interpret source coordinates and read coverage, continue a page, and export Markdown safely.
+    - [Sensitive Activity](docs/user-guide/session-toolkit/activity.md) — Capture recorded tools, usage, and raw session records while preserving privacy boundaries, source locations, and provider gaps.
+    - [Library Reference](docs/user-guide/session-toolkit/library.md) — Use the public ESM APIs to discover, read, search, export, and inspect sessions with explicit stores and identity handling.
   - [Installation](docs/user-guide/installation.md) — Install the consensus or session plugin, choose optional standalone skill forms, and check prerequisites and release evidence.
   - Consensus
     - [Consensus](docs/user-guide/consensus/index.md) — How the consensus plugin uses provider-backed AI peers for converging artifacts, bounded review, panels, and advisory takes.

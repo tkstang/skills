@@ -11,7 +11,7 @@ read a bounded transcript, or save a sanitized Markdown copy.
 
 ## Install and try it
 
-Requires Node.js 22 or later. The package supports Node 22.0.0 and 24.
+Requires Node.js 22 or later. Release checks run on Node 22.0.0 and 24.
 
 ```sh
 npm install --global @tkstang/session-toolkit@0.1.0
@@ -19,20 +19,28 @@ seshtk --version
 seshtk search -p 'deployment failed' --literal --since 7d
 ```
 
-Copy a result's provider-qualified native ID to read it or export a new file.
-Replace `SESSION_ID` with the selected session ID:
+Search returns separate `runtime` and `sessionId` fields. Combine them as
+`runtime:sessionId` to select a result; `list` already provides that value in its
+`session` field. For a Codex result, replace `SESSION_ID` below with its native ID:
 
 ```sh
 seshtk read --session 'codex:SESSION_ID' --max-records 100 --json
-seshtk export --session 'codex:SESSION_ID' --out ./conversation.md
+seshtk export --session 'codex:SESSION_ID' --out ./conversation.md --json
 ```
+
+Reads and exports default to 4,000,000 source bytes. Export can exit 0 with a
+partial conversation: check the Markdown `Source coverage` line or JSON
+`data.written[].coverage`. If the byte budget is the limit, increase `--max-bytes`
+and export to a new file. Export has no continuation.
 
 Add `--cwd /path/to/repo` to start a search in a repository. Search widens if the
 hint finds no matches. `list --cwd /path/to/repo` browses historical candidates;
 `self-identify` separately checks exact current-session evidence.
 
 For application integration, install the same package locally and use the
-[library](library.md).
+[library](library.md). The [Session plugin](../plugins/session/index.md) supplies
+agent-guided workflows; use `seshtk` directly for terminal commands or application
+integration.
 
 ## Choose a starting point
 
@@ -57,6 +65,14 @@ flowchart TB
 ```
 
 _Mermaid updated 2026-10-30_
+
+| I want to…                    | Command                                             |
+| ----------------------------- | --------------------------------------------------- |
+| Identify this exact session   | `self-identify` — requires authoritative evidence   |
+| Find a past conversation      | `search` or `list`, then select a candidate         |
+| Read a selected conversation  | `read`                                              |
+| Save conversational Markdown  | `export` — check coverage and review before sharing |
+| Inspect raw recorded activity | `activity` — sensitive JSON                         |
 
 If exact current identity is unavailable, historical candidates remain useful,
 but choosing one does not establish that it is the current session.

@@ -5,6 +5,18 @@ copy from your terminal or JavaScript. Session Toolkit works with local Claude
 Code, Codex, and Cursor transcripts through the `seshtk` CLI and a typed ESM
 library.
 
+## What you can do
+
+- **Find context you remember.** Search across local providers using content,
+  repository hints, and time windows, then select a specific session.
+- **Understand what happened.** Read conversations with optional tool calls and
+  results, or inspect full recorded activity and usage where the provider stores it.
+- **Keep useful conversations.** Export Markdown for a handoff, review, or archive,
+  with hidden instructions removed and coverage stated explicitly.
+- **Build tools around sessions.** Use the typed library or JSON CLI responses for
+  session browsers, analysis, and integrations. Capability discovery lets callers
+  check which operations and providers the installed version supports.
+
 ## Install
 
 Requires **Node.js 22 or later**.
@@ -37,10 +49,14 @@ seshtk read --session 'codex:SESSION_ID' --max-records 100
 seshtk export --session 'codex:SESSION_ID' --out ./conversation.md
 ```
 
-Reads are bounded; `--json` includes coverage and continuation details. Exports
-create new files and refuse to overwrite existing destinations. Review exported
-text before sharing: sanitization removes hidden instructions and control
-payloads, but visible text can still contain secrets.
+Reads and exports default to **4,000,000 source bytes**. An export can succeed
+with exit 0 and still be partial: check its `Source coverage` line or
+`data.written[].coverage` in `--json` output. Export has no continuation; increase
+`--max-bytes` and export again to a new file if the byte limit cut it short.
+
+Exports refuse to overwrite existing destinations. Review text before sharing:
+sanitization removes hidden instructions and control payloads, but visible text
+can still contain secrets.
 
 ## Commands
 
@@ -56,8 +72,23 @@ payloads, but visible text can still contain secrets.
 | `capabilities`               | Inspect the installed version, providers, and supported operations.         |
 
 Run `seshtk <command> --help` for options. Add `--json` for a single machine-readable
-response. Full usage and output contracts are in the
+response. Command examples and output contracts are in the
 [CLI reference](https://tkstang.github.io/skills/user-guide/session-toolkit/cli/).
+
+## Inspect tool activity
+
+Include tool previews while reading a conversation, or capture full recorded
+activity as a private JSON artifact:
+
+```sh
+seshtk read --session 'codex:SESSION_ID' --include-tool-calls --include-tool-results
+seshtk activity --session 'codex:SESSION_ID' --out ./activity.json --json
+seshtk read --session 'codex:SESSION_ID' --evidence --json
+```
+
+For Codex investigations, `read --evidence` returns a stable cutoff and references
+for bounded expansion of recorded tool evidence. Activity and evidence can contain sensitive raw data; use Markdown
+export for a conversational document to review before sharing.
 
 ## Use the library
 
