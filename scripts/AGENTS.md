@@ -18,6 +18,10 @@ This scope inherits the root `AGENTS.md`. Run commands below from the repository
   archives, verifies downloaded candidates and publishes only the validated
   tarball. Keep build/pack in preparation, never in publication; preserve actual
   tag/source checks and integrity-only registry idempotency.
+- PR/main CI packs and validates the current archive without release preparation:
+  an already published version and its existing tag must not block development.
+  Package-tag/manual-release runs retain clean source/tag binding and publication
+  dry runs; do not weaken those release gates to repair ordinary CI.
 - Publication runs on Node 24/npm >=11.5.1 after the source is merged. Live
   account, protected-environment and enable settings are root-owned; follow
   RELEASING.md rather than treating local validation as publishing authority.

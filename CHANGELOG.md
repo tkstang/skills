@@ -21,6 +21,8 @@
 
 ### Fixed
 
+- Session Toolkit CI validates PR/main archives after a package version is published; release-tag runs retain source binding and publication gates.
+
 - Session Toolkit 0.1.0 creates sensitive activity JSON artifacts with owner-only
   permissions while preserving exclusive creation.
 

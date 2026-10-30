@@ -19,6 +19,15 @@ deployment and opt-in live-provider verification.
 | [Release](https://github.com/tkstang/skills/blob/main/.github/workflows/release.yml)            | `consensus-v*` or `session-v*` tags       | Rebuilds, checks committed generated output, runs deterministic gates, and checks the selected plugin's version. It does not itself publish a GitHub Release.                                                  |
 | [Tag Main](https://github.com/tkstang/skills/blob/main/.github/workflows/tag-main.yml)          | Validate succeeding on a `main` push      | Tags the validated commit with the next patch release (`v0.1.2` → `v0.1.3`) so standalone installs can pin current `main`. Skips commits already tagged, not on `main`, or older than the newest release tag.  |
 
+The [Session Toolkit workflow](https://github.com/tkstang/skills/blob/main/.github/workflows/session-toolkit.yml)
+also runs on PRs and `main` pushes. It packs current source once and tests the
+same archive on Node 22.0.0 and 24, without requiring an unpublished version or
+a matching release tag. Package-tag pushes and manual release retries instead
+prepare and verify a clean source-bound release candidate; publication also
+requires the release-enable setting and protected `npm` environment. See
+[RELEASING.md](https://github.com/tkstang/skills/blob/main/RELEASING.md#session-toolkit-package)
+for the release gates.
+
 ## Reproduce deterministic checks
 
 From the repository root, with the documented Node and pnpm prerequisites:
