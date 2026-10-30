@@ -336,6 +336,7 @@ describe('release-versioning', () => {
       'src/skills/next-steps/SKILL.md',
       'src/skills/phone-a-friend/SKILL.md',
       'src/skills/reorient/SKILL.md',
+      'src/skills/seshtk-cli/SKILL.md',
       'src/skills/session-export-transcript/SKILL.md',
       'src/skills/session-fork-to-destination/SKILL.md',
       'src/skills/session-handoff/SKILL.md',

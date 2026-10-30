@@ -64,6 +64,7 @@ describe('repo-layout', () => {
       'next-steps',
       'phone-a-friend',
       'reorient',
+      'seshtk-cli',
       'session-export-transcript',
       'session-fork-to-destination',
       'session-handoff',

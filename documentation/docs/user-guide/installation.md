@@ -12,7 +12,7 @@ independently versioned plugins:
 - `consensus` — peer workflows plus plugin-local `observer` and
   `observer-collab`.
 - `session` — plugin-local `messaging`, `retro`, `handoff`,
-  `export-transcript`, `search`, `reorient`, and `fork-to-destination`.
+  `export-transcript`, `search`, `reorient`, `fork-to-destination`, and `seshtk-cli`.
 
 Run the commands below from the repository root. Choose a plugin or a declared
 standalone form; installing both forms of the same skill may expose duplicate
@@ -94,6 +94,12 @@ availability claim.
 ## Prerequisites
 
 - Node.js 22 or newer.
+- `seshtk-cli` (standalone or Session member): the external
+  `@tkstang/session-toolkit` CLI for execution, with verified baseline 0.1.0.
+  Installing the skill/plugin does not install this package. The skill checks
+  version, schema, and required capabilities; it never downloads, installs, or
+  upgrades without authorization. Explanations need no CLI installation. See the
+  [Seshtk CLI guide](skills/seshtk-cli.md#prerequisites) for the pinned npm command.
 - Consensus plugin workflows: the generated consensus CLI from the plugin,
   used for provider inventory, preflight, and peer invocation. Standalone
   `phone-a-friend` bundles its own helper; standalone `consensus-review` carries
@@ -286,6 +292,7 @@ under `skills/`:
 | `session-handoff`                 | session `handoff`             | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-handoff)             |
 | `session-export-transcript`       | session `export-transcript`   | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-export-transcript)   |
 | `session-fork-to-destination`     | session `fork-to-destination` | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-fork-to-destination) |
+| `seshtk-cli`                      | session `seshtk-cli`          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/seshtk-cli)                  |
 | `session-search`                  | session `search`              | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-search)              |
 | `complexity-review`               | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/complexity-review)           |
 | `phone-a-friend`                  | consensus `phone-a-friend`    | [standalone source](https://github.com/tkstang/skills/tree/main/skills/phone-a-friend)              |

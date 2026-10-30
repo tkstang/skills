@@ -13,6 +13,7 @@ installation and available capabilities vary by host.
 | I want to…                                                                   | Start with                                                                                                                                                                                |
 | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Create, refine, evaluate, review, or decide with independent AI peers        | [Consensus plugin](https://tkstang.github.io/skills/user-guide/consensus/)                                                                                                                |
+| Ask an agent to explain or run Session Toolkit commands                      | [Seshtk CLI skill](https://tkstang.github.io/skills/user-guide/skills/seshtk-cli/)                                                                                                        |
 | Search, read, or export local sessions from a terminal or application        | [Session Toolkit](https://tkstang.github.io/skills/user-guide/session-toolkit/)                                                                                                           |
 | Exchange addressed work across local coding-agent sessions                   | [Agent Messaging](https://tkstang.github.io/skills/user-guide/skills/agent-messaging/)                                                                                                    |
 | Hand off work, export a transcript, find a past session, or review a session | [Session plugin](https://tkstang.github.io/skills/user-guide/plugins/session/)                                                                                                            |
@@ -66,13 +67,14 @@ It also includes Observer and Collaborative Observer.
 
 **Session** offers addressed messaging, portable handoffs, sanitized transcript
 exports, past-session search, long-thread reorientation, and evidence-backed
-retrospectives. Its **alpha** Fork to Destination
+retrospectives. Its `seshtk-cli` member explains or runs Session Toolkit commands
+using the separately installed CLI. Its **alpha** Fork to Destination
 skill discovers and previews sessions and prepares same-provider fork
 instructions; it does not run the provider or create the fork. Provider coverage
 and end-to-end verification are incomplete.
 
 Provider-backed workflows need the local provider CLIs they invoke. Executable
-skills require Node.js 22+ but no runtime dependency installation. See each
+skills with bundled runtime require Node.js 22+ but no runtime dependency installation. See each
 guide for supported behavior and verification limits.
 
 ## Development
@@ -102,6 +104,10 @@ activity, or export Markdown for a selected session.
 npm install --global @tkstang/session-toolkit@0.1.0
 seshtk search -p 'deployment failed' --literal
 ```
+
+For agent-guided use, install [Seshtk CLI](https://tkstang.github.io/skills/user-guide/skills/seshtk-cli/)
+standalone or through Session. The skill checks the external CLI and does not
+automatically download it.
 
 Requires Node.js 22 or later. See the [package README](packages/session-toolkit/README.md)
 for a quick start and the [full documentation](https://tkstang.github.io/skills/user-guide/session-toolkit/)

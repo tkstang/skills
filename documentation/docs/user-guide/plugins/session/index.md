@@ -1,6 +1,6 @@
 ---
 title: 'Session'
-description: 'Exchange messages, preserve context, export a transcript, find a past session, reorient on a long thread, prepare an alpha native fork, or review a session.'
+description: 'Exchange messages, preserve context, export a transcript, find a past session, reorient on a long thread, prepare an alpha native fork, review a session, or use the Session Toolkit CLI.'
 ---
 
 # Session
@@ -9,6 +9,11 @@ The Session plugin helps local coding-agent sessions exchange messages,
 preserve context, find past sessions, regain the thread of long work, and learn
 from completed work. Choose the capability you
 need; these skills are not a required sequence.
+
+[Seshtk CLI](../../skills/seshtk-cli.md) is a broad entrypoint for explaining or
+running Session Toolkit commands across identity, discovery, search, transcript
+reads, export, sensitive activity, and Codex evidence. It uses the external
+`seshtk` CLI rather than requiring the focused Search or Export Transcript skills.
 
 ```mermaid
 flowchart LR
@@ -36,15 +41,16 @@ flowchart LR
 
 _Mermaid updated 2026-10-27_
 
-| What you need                                        | Skill                                                              | What it produces                                                                                                  |
-| ---------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| Let another agent or person continue the work        | [Handoff](../../skills/session-handoff.md)                         | A portable packet of goals, state, decisions, evidence, remaining work, and approval boundaries.                  |
-| Keep a readable conversation archive                 | [Export Transcript](../../skills/session-export-transcript.md)     | A sanitized Markdown transcript, not a continuation packet or native session transfer.                            |
-| Continue native history in another existing worktree | [Fork to Destination](../../skills/session-fork-to-destination.md) | Alpha, same-provider, destination-safe guidance; preparation does not create a fork or transfer worktree changes. |
-| Find a past Claude Code, Codex, or Cursor session    | [Search](../../skills/session-search.md)                           | A ranked, redacted candidate list with resume hints; local stores only, never written to.                         |
-| Learn from an invocation or bounded episode          | [Retro](../../skills/session-retro.md)                             | Evidence-backed findings and improvement proposals, without applying them.                                        |
-| Regain the big picture of a long or compacted thread | [Reorient](../../skills/reorient.md)                               | The thread's arc, current state with drift checked, and a recommendation; it does not act on it.                  |
-| Exchange addressed work across local sessions        | [Messaging](../../skills/agent-messaging.md)                       | A durable inbox and shared log, with manual fallback and separately verified finite delivery.                     |
+| What you need                                        | Skill                                                              | What it produces                                                                                                                |
+| ---------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Let another agent or person continue the work        | [Handoff](../../skills/session-handoff.md)                         | A portable packet of goals, state, decisions, evidence, remaining work, and approval boundaries.                                |
+| Keep a readable conversation archive                 | [Export Transcript](../../skills/session-export-transcript.md)     | A sanitized Markdown transcript, not a continuation packet or native session transfer.                                          |
+| Continue native history in another existing worktree | [Fork to Destination](../../skills/session-fork-to-destination.md) | Alpha, same-provider, destination-safe guidance; preparation does not create a fork or transfer worktree changes.               |
+| Find a past Claude Code, Codex, or Cursor session    | [Search](../../skills/session-search.md)                           | A ranked, redacted candidate list with resume hints; local stores only, never written to.                                       |
+| Learn from an invocation or bounded episode          | [Retro](../../skills/session-retro.md)                             | Evidence-backed findings and improvement proposals, without applying them.                                                      |
+| Regain the big picture of a long or compacted thread | [Reorient](../../skills/reorient.md)                               | The thread's arc, current state with drift checked, and a recommendation; it does not act on it.                                |
+| Use or understand Session Toolkit commands           | [Seshtk CLI](../../skills/seshtk-cli.md)                           | A verified command workflow with explicit session selection, coverage, and artifact paths; execution requires the external CLI. |
+| Exchange addressed work across local sessions        | [Messaging](../../skills/agent-messaging.md)                       | A durable inbox and shared log, with manual fallback and separately verified finite delivery.                                   |
 
 ## Installation and names
 
@@ -56,10 +62,16 @@ Each member also has a standalone form:
 | `handoff`             | `session-handoff`             |
 | `export-transcript`   | `session-export-transcript`   |
 | `fork-to-destination` | `session-fork-to-destination` |
+| `seshtk-cli`          | `seshtk-cli`                  |
 | `search`              | `session-search`              |
 | `retro`               | `session-retro`               |
 | `reorient`            | `reorient`                    |
 | `messaging`           | `agent-messaging`             |
+
+The `seshtk-cli` member requires Node.js 22+ and the external
+`@tkstang/session-toolkit` package for execution (verified baseline 0.1.0).
+Installing the plugin does not install that CLI; the skill checks prerequisites
+and does not automatically download them. Explanations need no CLI installation.
 
 The linked guides cover both forms. Invocation syntax depends on the host; do
 not assume every provider exposes the same qualified command name.
@@ -81,6 +93,7 @@ are incomplete. Static packaging is not proof of live provider discovery or perm
 - [Handoff](../../skills/session-handoff.md) — Prepare portable continuation context.
 - [Export Transcript](../../skills/session-export-transcript.md) — Save a sanitized conversation archive.
 - [Fork to Destination](../../skills/session-fork-to-destination.md) — Prepare alpha same-provider native fork guidance.
+- [Seshtk CLI](../../skills/seshtk-cli.md) — Explain or run Session Toolkit commands using the external CLI.
 - [Search](../../skills/session-search.md) — Find a past local session from a fuzzy description.
 - [Retro](../../skills/session-retro.md) — Review a bounded episode and propose improvements.
 - [Reorient](../../skills/reorient.md) — Rebuild the arc of a long or compacted thread and get a recommendation.

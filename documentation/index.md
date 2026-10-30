@@ -10,7 +10,7 @@
   - Plugins
     - [Plugins](docs/user-guide/plugins/index.md) — Choose Consensus for peer perspectives or Session for messaging, continuity, past-session search, and retrospective review.
     - Session
-      - [Session](docs/user-guide/plugins/session/index.md) — Exchange messages, preserve context, export a transcript, find a past session, reorient on a long thread, prepare an alpha native fork, or review a session.
+      - [Session](docs/user-guide/plugins/session/index.md) — Exchange messages, preserve context, export a transcript, find a past session, reorient on a long thread, prepare an alpha native fork, review a session, or use the Session Toolkit CLI.
   - Standalone Skills
     - [Standalone Skills](docs/user-guide/skills/index.md) — Find independently installable skills by capability, including members also available through Consensus or Session.
     - [Align](docs/user-guide/skills/align.md) — Check that the agent understands your goal, underlying problem, and success criteria before or during work.
@@ -28,6 +28,7 @@
     - [Session Handoff](docs/user-guide/skills/session-handoff.md) — Prepare concise evidence-grounded continuation context, with optional observer review and sanitized transcript export.
     - [Session Export Transcript](docs/user-guide/skills/session-export-transcript.md) — Export the current coding-agent session to a sanitized, branch-named Markdown transcript.
     - [Session Fork to Destination](docs/user-guide/skills/session-fork-to-destination.md) — Discover a session, optionally import supported Claude/Codex history, and prepare a native fork in an existing destination worktree.
+    - [Seshtk CLI](docs/user-guide/skills/seshtk-cli.md) — Ask an agent to explain or run Session Toolkit commands for local session identity, search, reads, export, activity, and evidence.
     - [Session Search](docs/user-guide/skills/session-search.md) — Find a past Claude Code, Codex, or Cursor session on this machine from a fuzzy description, with ranked, redacted candidates and resume hints.
     - [Agent Messaging](docs/user-guide/skills/agent-messaging.md) — Exchange durable addressed messages among local coding-agent sessions without sharing transcripts.
     - [Session Observer](docs/user-guide/skills/session-observer.md) — Review peer sessions or exact own-session Codex evidence, with truthful coverage and bounded tool expansion.

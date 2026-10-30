@@ -1,5 +1,12 @@
 {
   "title": "Session Toolkit",
   "pagesIndex": "[Overview](/user-guide/session-toolkit)",
-  "pages": ["cli", "search", "transcripts", "activity", "library"]
+  "pages": [
+    "[Seshtk CLI Skill](/user-guide/skills/seshtk-cli)",
+    "cli",
+    "search",
+    "transcripts",
+    "activity",
+    "library"
+  ]
 }
