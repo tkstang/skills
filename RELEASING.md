@@ -216,7 +216,10 @@ separate PR is merged.
 `@tkstang/session-toolkit` has independent SemVer in
 `packages/session-toolkit/package.json` and curated package notes in
 `packages/session-toolkit/CHANGELOG.md`. Keep the root `CHANGELOG.md` current
-as well. Use `session-toolkit-vX.Y.Z`; the existing standalone `vX.Y.Z`,
+as well. When selecting a new package release, update the explicit package
+version in install and npx examples in the root README, package README, and
+`documentation/docs/user-guide/session-toolkit/` together. Use
+`session-toolkit-vX.Y.Z`; the existing standalone `vX.Y.Z`,
 `session-v*` and `consensus-v*` streams retain their meanings.
 
 Publication and consumer migration are separate acceptance boundaries. A local
@@ -319,9 +322,14 @@ The workflow declaration alone does not establish those live settings. Check
 trusted publisher currently requires its first successful publication within
 two days, and saving the configuration does not verify it.
 
-The Session Toolkit workflow prepares/uploads one clean candidate, verifies the
-same downloaded archive on Node 22.0.0/24, then publishes only on
-`session-toolkit-v*` pushes or a manual retry naming an existing package tag.
+On PRs and ordinary `main` pushes, the Session Toolkit workflow packs the current
+source and validates the same downloaded archive on Node 22.0.0/24. These checks
+run without npm publication dry runs or release-tag binding, so an already
+published package version does not block continued development.
+
+On `session-toolkit-v*` pushes or a manual retry naming an existing package tag,
+the workflow prepares one clean source-bound release candidate, verifies the
+same downloaded archive on both runtimes, and may publish it.
 Publication needs both validation jobs, the explicit enable variable and the
 `npm` environment. Only the publication job has `id-token: write`; other jobs
 have read-only permissions. The job uses Node 24/npm 11.20.0 (the tool requires

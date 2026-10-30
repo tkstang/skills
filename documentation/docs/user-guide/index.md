@@ -1,11 +1,11 @@
 ---
 title: 'User Guide'
-description: 'Install and use the consensus and session plugins or their declared standalone skill forms.'
+description: 'Install and use the plugins, standalone skills, and Session Toolkit CLI and library.'
 ---
 
 # User Guide
 
-Install, use, and configure the skills in this collection. New here? Start with
+Install, use, and configure the skills and tools in this collection. New here? Start with
 [Getting Started](getting-started/index.md). For implementation details and
 contribution guidance, see [Engineering](../engineering/index.md).
 
@@ -21,6 +21,8 @@ What ships today:
   `search`, `reorient`, and `fork-to-destination` cover addressed coordination,
   bounded review, continuation, sanitized export, past-session search,
   long-thread reorientation, and alpha destination-side fork guidance.
+- **Session Toolkit** — the `seshtk` terminal command and typed ESM library
+  find, read, search, and export local Claude Code, Codex, and Cursor sessions.
 - **Optional standalone skills** — the session capabilities retain descriptive
   `session-*` names except for `agent-messaging` and `reorient`; `align`, `author-skill`,
   `debrief`, `sitrep`, `next-steps`, `explain-options`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` remain standalone only.
@@ -38,5 +40,6 @@ installation names for the form you have installed.
 - [Getting Started](getting-started/index.md) — Choose an installation form and try a bounded request.
 - [Plugins](plugins/index.md) — Compare Consensus and Session, then explore their members.
 - [Standalone Skills](skills/index.md) — Find every independently installable skill by capability.
+- [Session Toolkit](session-toolkit/index.md) — Use the `seshtk` CLI and typed session APIs.
 - [Installation](installation.md) — Provider setup, standalone installation, prerequisites, and updates.
 - [Consensus](consensus/index.md) — Peer workflows, observation, collaboration, and configuration.

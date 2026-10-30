@@ -1,5 +1,5 @@
 {
   "title": "User Guide",
   "pagesIndex": "[Overview](/user-guide)",
-  "pages": ["getting-started", "plugins", "skills"]
+  "pages": ["getting-started", "plugins", "skills", "session-toolkit"]
 }

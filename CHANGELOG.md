@@ -4,6 +4,10 @@
 
 ### Added
 
+- Session Toolkit documentation now includes a short package quick start, an
+  accessible workflow diagram, and dedicated CLI, search, transcript/export,
+  activity, and library reference pages.
+
 - Session Toolkit 0.1.0: clean source/tag/notes-bound exact-archive release
   preparation, supported-runtime installation checks and protected, explicitly
   enabled trusted publication with integrity-only idempotent retries. Bootstrap
@@ -16,6 +20,8 @@
 - Session Toolkit 0.1.0: stateless raw-evidence search and estimates with tiered widening, explicit scan authorization, redaction and optional accelerators.
 
 ### Fixed
+
+- Session Toolkit CI validates PR/main archives after a package version is published; release-tag runs retain source binding and publication gates.
 
 - Session Toolkit 0.1.0 creates sensitive activity JSON artifacts with owner-only
   permissions while preserving exclusive creation.

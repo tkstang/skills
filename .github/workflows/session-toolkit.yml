@@ -40,7 +40,14 @@ jobs:
       - run: pnpm run build:check
       - run: pnpm run build:toolkit
       - run: pnpm run test:vitest tests/release/session-toolkit-*.test.ts
-      - name: Prepare one clean source-bound archive without publishing
+      - name: Pack current source for pull requests and main
+        if: ${{ !startsWith(github.ref, 'refs/tags/session-toolkit-v') && github.event_name != 'workflow_dispatch' }}
+        run: |
+          mkdir "$RUNNER_TEMP/session-toolkit"
+          pnpm --dir packages/session-toolkit pack --pack-destination "$RUNNER_TEMP/session-toolkit"
+          pnpm run toolkit:pack:check --archive "$RUNNER_TEMP"/session-toolkit/*.tgz
+      - name: Prepare one clean source-bound release archive without publishing
+        if: startsWith(github.ref, 'refs/tags/session-toolkit-v') || github.event_name == 'workflow_dispatch'
         run: pnpm run release:toolkit:prepare --out "$RUNNER_TEMP/session-toolkit"
       - name: Bind release invocations to the actual requested tag
         if: startsWith(github.ref, 'refs/tags/session-toolkit-v') || github.event_name == 'workflow_dispatch'
@@ -75,6 +82,10 @@ jobs:
           name: session-toolkit-archive
           path: ${{ runner.temp }}/session-toolkit/
       - name: Validate and install the same downloaded archive on the consumer runtime
+        if: ${{ !startsWith(github.ref, 'refs/tags/session-toolkit-v') && github.event_name != 'workflow_dispatch' }}
+        run: pnpm run toolkit:pack:check --archive "$RUNNER_TEMP"/session-toolkit/*.tgz
+      - name: Verify the source-bound release on the consumer runtime
+        if: startsWith(github.ref, 'refs/tags/session-toolkit-v') || github.event_name == 'workflow_dispatch'
         run: pnpm run release:toolkit:verify --directory "$RUNNER_TEMP/session-toolkit"
 
   publish:

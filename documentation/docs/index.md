@@ -16,6 +16,7 @@ job you want help with:
 | Repair a pull request until green, optionally merging it                                 | [Babysit PR](user-guide/skills/babysit-pr.md) or [Land PR](user-guide/skills/land-pr.md)           |
 | Create, improve, or assess an artifact with independent peers                            | [Consensus](user-guide/consensus/index.md)                                                         |
 | Hear another perspective without running a convergence loop                              | [Phone-a-Friend](user-guide/consensus/phone-a-friend.md) or [Panel](user-guide/consensus/panel.md) |
+| Search, read, or export local sessions from a terminal or application                    | [Session Toolkit](user-guide/session-toolkit/index.md)                                             |
 | Exchange addressed work across local coding-agent sessions                               | [Agent Messaging](user-guide/skills/agent-messaging.md)                                            |
 | Hand work to another session, keep an archive, find a past session, or review an episode | [Session](user-guide/plugins/session/index.md)                                                     |
 | Check that we agree on the goal and problem before or during work                        | [Align](user-guide/skills/align.md)                                                                |
