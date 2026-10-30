@@ -3,7 +3,7 @@
 
 - [skills](docs/index.md) — Agent skills for independent perspectives, session continuity, and clearer decisions about what to do next.
 - User Guide
-  - [User Guide](docs/user-guide/index.md) — Install and use the consensus and session plugins or their declared standalone skill forms.
+  - [User Guide](docs/user-guide/index.md) — Install and use the plugins, standalone skills, and Session Toolkit CLI and library.
   - Getting Started
     - [Getting Started](docs/user-guide/getting-started/index.md) — Choose an installation form, try a small request, and recognize a useful skill response.
     - [Amp Hosted Skills](docs/user-guide/getting-started/amp-hosted-skills.md) — Select generated standalone skills, publish a reviewed copy to Amp personal or workspace storage, and preserve upstream provenance when updating.
@@ -32,6 +32,13 @@
     - [Agent Messaging](docs/user-guide/skills/agent-messaging.md) — Exchange durable addressed messages among local coding-agent sessions without sharing transcripts.
     - [Session Observer](docs/user-guide/skills/session-observer.md) — Review peer sessions or exact own-session Codex evidence, with truthful coverage and bounded tool expansion.
     - [Collaborative Observer](docs/user-guide/skills/session-observer-collab.md) — Coordinate two mutually observing agent sessions with exact pins, bounded wake tiers, explicit authority, and deterministic closeout.
+  - Session Toolkit
+    - [Session Toolkit](docs/user-guide/session-toolkit/index.md) — Find, read, search, and export local coding-agent sessions with the seshtk CLI or typed JavaScript APIs.
+    - [CLI Reference](docs/user-guide/session-toolkit/cli.md) — Use seshtk commands, JSON envelopes, exit codes, capability discovery, and update controls.
+    - [Historical Search](docs/user-guide/session-toolkit/search.md) — Search local raw session evidence with patterns, finite bounds, and explicit large-scan authorization.
+    - [Transcripts and Export](docs/user-guide/session-toolkit/transcripts.md) — Understand exact identity, historical discovery, source coordinates, bounded reads, Codex evidence, and Markdown exports.
+    - [Sensitive Activity](docs/user-guide/session-toolkit/activity.md) — Capture full recorded session activity with explicit sensitivity, provenance, bounds, and provider gaps.
+    - [Library Reference](docs/user-guide/session-toolkit/library.md) — Use public typed ESM APIs for identity, discovery, reading, evidence, export, search, and activity.
   - [Installation](docs/user-guide/installation.md) — Install the consensus or session plugin, choose optional standalone skill forms, and check prerequisites and release evidence.
   - Consensus
     - [Consensus](docs/user-guide/consensus/index.md) — How the consensus plugin uses provider-backed AI peers for converging artifacts, bounded review, panels, and advisory takes.

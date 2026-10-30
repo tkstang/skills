@@ -1,0 +1,5 @@
+{
+  "title": "Session Toolkit",
+  "pagesIndex": "[Overview](/user-guide/session-toolkit)",
+  "pages": ["cli", "search", "transcripts", "activity", "library"]
+}

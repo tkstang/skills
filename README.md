@@ -13,6 +13,7 @@ installation and available capabilities vary by host.
 | I want to…                                                                   | Start with                                                                                                                                                                                |
 | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Create, refine, evaluate, review, or decide with independent AI peers        | [Consensus plugin](https://tkstang.github.io/skills/user-guide/consensus/)                                                                                                                |
+| Search, read, or export local sessions from a terminal or application        | [Session Toolkit](https://tkstang.github.io/skills/user-guide/session-toolkit/)                                                                                                           |
 | Exchange addressed work across local coding-agent sessions                   | [Agent Messaging](https://tkstang.github.io/skills/user-guide/skills/agent-messaging/)                                                                                                    |
 | Hand off work, export a transcript, find a past session, or review a session | [Session plugin](https://tkstang.github.io/skills/user-guide/plugins/session/)                                                                                                            |
 | Get a justified next step, question unnecessary work, or review complexity   | [Standalone skills](https://tkstang.github.io/skills/user-guide/skills/)                                                                                                                  |
@@ -90,11 +91,18 @@ pnpm run premerge
 [Architecture](https://tkstang.github.io/skills/engineering/architecture/) ·
 [CI and releases](https://tkstang.github.io/skills/engineering/operations/)
 
-## Session Toolkit package
+## Session Toolkit
 
-`packages/session-toolkit/` is the independently versioned
-`@tkstang/session-toolkit` library and `seshtk` CLI, currently establishing its
-package boundary. See its [README](packages/session-toolkit/README.md) for the
-implemented capabilities and development commands. Existing Session skills
-continue to work without it until their migration is verified. The root is a
-private pnpm workspace; the documentation app remains separately locked.
+[Session Toolkit](https://tkstang.github.io/skills/user-guide/session-toolkit/)
+provides the `seshtk` CLI and a typed JavaScript library for local Claude Code,
+Codex, and Cursor sessions. Search past conversations, read transcripts and tool
+activity, or export Markdown for a selected session.
+
+```bash
+npm install --global @tkstang/session-toolkit@0.1.0
+seshtk search -p 'deployment failed' --literal
+```
+
+Requires Node.js 22 or later. See the [package README](packages/session-toolkit/README.md)
+for a quick start and the [full documentation](https://tkstang.github.io/skills/user-guide/session-toolkit/)
+for command and API reference.
