@@ -111,9 +111,10 @@ or permissions.
 
 Align, Debrief, Sitrep, Next Steps, Explain Options, and Must We are
 instruction-only and have no runtime or package dependencies. The `seshtk-cli`
-member requires Node.js 22+ and the external `@tkstang/session-toolkit` package for execution (verified baseline
-0.1.0). Installing the plugin does not install that CLI; explanations need no
-CLI installation, and the skill does not automatically download it.
+member requires Node.js 22+ and the external `@tkstang/session-toolkit` package
+for execution (verified baseline 0.1.0). Installing the plugin does not install
+that CLI; explanations need no CLI installation, and the skill does not
+automatically download it.
 
 Session does not require Consensus. [Observer](../../skills/session-observer.md)
 and [Collaborative Observer](../../skills/session-observer-collab.md) are available

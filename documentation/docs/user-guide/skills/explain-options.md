@@ -7,9 +7,9 @@ description: 'Understand choices an agent already offered, with background, trad
 
 `explain-options` helps when an agent has offered a choice and you need context
 to decide. It is instruction-only, available standalone or as Session
-`explain-options`. It explains the background that creates the choice, what each option means and
-costs, what actually separates them, and which one it would pick. Then it asks
-you to decide. It does not choose for you or act on the choice.
+`explain-options`. It explains the background that creates the choice, what
+each option means and costs, what separates them, and which one it recommends.
+Then it asks you to decide. It does not choose for you or act on the choice.
 
 ## When to use it
 
@@ -65,8 +65,8 @@ with comparison, design-history, or re-explanation skills installed can tell
 them apart.
 
 [Must We?](must-we.md) instead evaluates whether a claimed requirement, blocker,
-or proposed addition is necessary. All three skills can be used standalone or
-through Session; none executes its recommendation.
+or proposed addition is necessary. Explain Options, Next Steps, and Must We are
+available standalone or through Session; none executes its recommendation.
 
 ## Examples
 
@@ -90,8 +90,8 @@ Static packaging proves that the metadata and payload are valid. For a behavior
 check, try a two-option choice whose answer depends on a future condition, three
 options with one clearly weak, two open decisions at once, no options at all,
 an option that rests on an unverified claim, and a host that does not render
-diagrams. Fresh provider discovery and a
-useful live answer remain separate evidence.
+diagrams. Fresh provider discovery and a useful live answer remain separate
+evidence.
 
 ## Limitations
 

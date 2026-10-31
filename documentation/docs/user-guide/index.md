@@ -21,15 +21,15 @@ What ships today:
   intent, recent history, current progress, and the whole thread; `next-steps`
   recommends an action, `explain-options` makes offered choices understandable,
   and `must-we` evaluates disputed requirements. `messaging`, `handoff`,
-  `export-transcript`, `search`,
-  `fork-to-destination`, `seshtk-cli`, and `retro` support coordination,
-  continuity, session evidence, and lessons.
+  `export-transcript`, `search`, `fork-to-destination`, `seshtk-cli`, and `retro`
+  support coordination, continuity, session evidence, and lessons.
 - **Session Toolkit** — the `seshtk` terminal command and typed ESM library
   find, read, search, and export local Claude Code, Codex, and Cursor sessions.
 - **Optional standalone skills** — every Session member is also available
   individually; its guide gives both names. Observer and Collaborative Observer
-  remain standalone and Consensus members only. `author-skill`,
-  `complexity-review`, `babysit-pr`, and `land-pr` remain standalone only.
+  are available standalone or through Consensus; neither is a Session member.
+  `author-skill`, `complexity-review`, `babysit-pr`, and `land-pr` remain
+  standalone only.
   The PR skills repair CI/review findings until green; only `land-pr` merges.
   Consensus `phone-a-friend` and `review` are also available as the standalone
   skills `phone-a-friend` and `consensus-review`; its six other peer workflows

@@ -173,9 +173,10 @@ bundled templates or references. Their canonical standalone names stay
 `seshtk-cli` member keeps that same name in standalone and plugin forms and
 requires the external toolkit CLI only when executing a session operation.
 `align`, `debrief`, `sitrep`, `next-steps`, `explain-options`, and `must-we` are
-instruction-only members with the same standalone and plugin-local names. Debrief and Sitrep declare Next Steps
-as an optional workflow reference: standalone payloads name `next-steps`, while
-Session payloads resolve the plugin-local `next-steps` member. Neither workflow
+instruction-only members with the same standalone and plugin-local names.
+Debrief and Sitrep declare Next Steps as an optional workflow reference:
+standalone payloads name `next-steps`, while Session payloads resolve the
+plugin-local `next-steps` member. Neither workflow
 invokes it automatically. Must We retains `complexity-review` as optional
 analysis; Complexity Review remains standalone and is not included in Session.
 
