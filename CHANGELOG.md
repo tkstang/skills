@@ -36,6 +36,9 @@
 
 ### Fixed
 
+- Session 0.8.0 Codex starter prompts now fit the provider's three-entry,
+  128-character-per-entry limits so Codex retains them.
+
 - Session Toolkit CI validates PR/main archives after a package version is published; release-tag runs retain source binding and publication gates.
 
 - Session Toolkit 0.1.0 creates sensitive activity JSON artifacts with owner-only

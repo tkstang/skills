@@ -61,6 +61,13 @@ different. `session-observer-collab` requires the `session-observer` workflow,
 recognizes its standalone and consensus plugin-local identities, and stops with
 an install link instead of installing it automatically.
 
+Codex provider manifests can offer up to three `interface.defaultPrompt` starter
+prompts. Each must be nonempty and at most 128 characters after whitespace
+normalization; Codex ignores longer entries. Keep longer capability summaries
+in `longDescription` and the user guides. See the
+[Codex manifest parser](https://github.com/openai/codex/blob/main/codex-rs/core-plugins/src/manifest.rs)
+for the provider limits.
+
 ## Consensus plugin package layout
 
 Inside `plugins/consensus/`:
