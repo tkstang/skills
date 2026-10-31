@@ -4,6 +4,11 @@
 
 ### Added
 
+- The `session` plugin 0.8.0 adds `explain-options` 1.0.1 and `must-we` 1.0.2
+  alongside their standalone forms. Both include standalone and Session
+  invocation examples. Explain Options helps with offered choices; Must We
+  evaluates disputed requirements and proposed extra work.
+
 - The `session` plugin 0.7.0 adds `align` 1.0.2, `sitrep` 1.0.1,
   `debrief` 1.0.1, and `next-steps` 1.0.2 alongside their standalone forms.
   Session documentation distinguishes intent alignment, current status,
@@ -30,6 +35,9 @@
 - Session Toolkit 0.1.0: stateless raw-evidence search and estimates with tiered widening, explicit scan authorization, redaction and optional accelerators.
 
 ### Fixed
+
+- Session 0.8.0 Codex starter prompts now fit the provider's three-entry,
+  128-character-per-entry limits so Codex retains them.
 
 - Session Toolkit CI validates PR/main archives after a package version is published; release-tag runs retain source binding and publication gates.
 

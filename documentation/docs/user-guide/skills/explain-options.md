@@ -1,15 +1,15 @@
 ---
 title: 'Explain Options'
-description: 'Explain the choices an agent just offered well enough to decide, with trade-offs and a recommendation, without acting on it.'
+description: 'Understand choices an agent already offered, with background, trade-offs, and a recommendation, without choosing or acting for you.'
 ---
 
 # Explain Options
 
-`explain-options` is a standalone, instruction-only skill for the moment an
-agent offers you a choice and you don't have enough context to make it. It
-explains the background that creates the choice, what each option means and
-costs, what actually separates them, and which one it would pick. Then it asks
-you to decide. It does not choose for you or act on the choice.
+`explain-options` helps when an agent has offered a choice and you need context
+to decide. It is instruction-only, available standalone or as Session
+`explain-options`. It explains the background that creates the choice, what
+each option means and costs, what separates them, and which one it recommends.
+Then it asks you to decide. It does not choose for you or act on the choice.
 
 ## When to use it
 
@@ -60,15 +60,19 @@ Explain Options covers one pending decision the agent already offered.
 questions need a different kind of answer: a from-scratch comparison of tools or
 approaches nobody has offered yet, why a system is built the way it is, or a
 re-pitch of a concept or explanation that did not land, even while a choice is
-pending. The
-skill names these boundaries in its own instructions so an agent with
-comparison, design-history, or re-explanation skills installed can tell them
-apart.
+pending. The skill names these boundaries in its own instructions so an agent
+with comparison, design-history, or re-explanation skills installed can tell
+them apart.
+
+[Must We?](must-we.md) instead evaluates whether a claimed requirement, blocker,
+or proposed addition is necessary. Explain Options, Next Steps, and Must We are
+available standalone or through Session; none executes its recommendation.
 
 ## Examples
 
-Invoke `$explain-options` in Codex or `/explain-options` in Claude Code. Natural
-language works too:
+For a standalone install, invoke `$explain-options` in Codex or
+`/explain-options` in Claude Code. The Claude Code Session member is
+`/session:explain-options`. Natural language works too:
 
 > I don't have enough context to choose. Explain the options.
 
@@ -76,7 +80,9 @@ language works too:
 
 ## Installation and validation
 
-The generated standalone payload is
+Choose standalone `explain-options` or the Session member `explain-options`
+through the [installation guide](../installation.md). Both forms share one
+canonical owner and version. The generated standalone payload is
 [`skills/explain-options`](https://github.com/tkstang/skills/tree/main/skills/explain-options).
 It has no runtime or package dependencies.
 
@@ -84,8 +90,8 @@ Static packaging proves that the metadata and payload are valid. For a behavior
 check, try a two-option choice whose answer depends on a future condition, three
 options with one clearly weak, two open decisions at once, no options at all,
 an option that rests on an unverified claim, and a host that does not render
-diagrams. Fresh provider discovery and a
-useful live answer remain separate evidence.
+diagrams. Fresh provider discovery and a useful live answer remain separate
+evidence.
 
 ## Limitations
 

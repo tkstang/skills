@@ -29,8 +29,8 @@ infrastructure.
   bundled provider helper and schema; the Consensus plugin also contains it.
 - `plugins/session/` — generated complete session installation unit with local
   `messaging`, `retro`, `handoff`, `export-transcript`, `search`, `reorient`,
-  `fork-to-destination`, `seshtk-cli`, `align`, `debrief`, `sitrep`, and
-  `next-steps` skills.
+  `fork-to-destination`, `seshtk-cli`, `align`, `debrief`, `sitrep`,
+  `next-steps`, `explain-options`, and `must-we` skills.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` — repo-root marketplace entries.
 - `.oat/` and `.agents/` — project-management infrastructure, not required by plugin consumers.
 
@@ -60,6 +60,13 @@ the checkout, or developer dependencies. A declared workflow prerequisite is
 different. `session-observer-collab` requires the `session-observer` workflow,
 recognizes its standalone and consensus plugin-local identities, and stops with
 an install link instead of installing it automatically.
+
+Codex provider manifests can offer up to three `interface.defaultPrompt` starter
+prompts. Each must be nonempty and at most 128 characters after whitespace
+normalization; Codex ignores longer entries. Keep longer capability summaries
+in `longDescription` and the user guides. See the
+[Codex manifest parser](https://github.com/openai/codex/blob/main/codex-rs/core-plugins/src/manifest.rs)
+for the provider limits.
 
 ## Consensus plugin package layout
 
@@ -99,6 +106,9 @@ Inside `plugins/session/`:
 - `skills/align/`, `skills/debrief/`, `skills/sitrep/`, `skills/next-steps/` —
   instruction-only forms retaining their standalone names. Debrief and Sitrep
   optionally point to the local Next Steps member without invoking it.
+- `skills/explain-options/` and `skills/must-we/` — instruction-only forms
+  retaining their standalone names. Complexity Review remains optional to Must We
+  and standalone; it is not installed with Session.
 - `skills/handoff/` — plugin-local form of `session-handoff`.
 - `skills/retro/` — plugin-local form of `session-retro`.
 - `skills/reorient/` — plugin-local form of `reorient`.

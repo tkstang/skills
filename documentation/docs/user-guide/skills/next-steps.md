@@ -48,7 +48,9 @@ Session, answer the neighboring questions; neither is required:
 Both end by pointing here when work remains open; neither recommends an action
 itself. When the agent has already offered specific choices and you need help
 picking one, [Explain Options](explain-options.md) explains that single
-decision.
+decision. [Must We?](must-we.md) checks whether a claimed requirement or proposed
+extra work is necessary. These skills are available standalone or through
+Session and do not execute their recommendations.
 
 ## Examples
 
