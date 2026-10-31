@@ -1,6 +1,6 @@
 ---
 title: 'Plugins'
-description: 'Choose Consensus for peer perspectives or Session for messaging, continuity, past-session search, and retrospective review.'
+description: 'Choose Consensus for independent perspectives or Session for understanding work, next actions, continuity, coordination, and session evidence.'
 ---
 
 # Plugins
@@ -8,10 +8,10 @@ description: 'Choose Consensus for peer perspectives or Session for messaging, c
 Plugins bundle related skills into one installation. This repository has two
 independently versioned plugins; installing one does not require the other.
 
-| Plugin                             | Use it for                                                                                                                                           | Included capabilities                                                                                        |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [Consensus](../consensus/index.md) | Bring independent agent perspectives to an artifact, question, or decision.                                                                          | Create, plan, decide, refine, evaluate, consult a peer or panel, observe sessions, and collaborate.          |
-| [Session](session/index.md)        | Exchange addressed work, preserve useful context, continue work, find a past session, regain a long thread, or learn from a bounded session episode. | Messaging, handoff, transcript export, session search, reorient, alpha destination-fork guidance, and retro. |
+| Plugin                             | Use it for                                                                                                                    | Included capabilities                                                                                                                                      |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Consensus](../consensus/index.md) | Bring independent agent perspectives to an artifact, question, or decision.                                                   | Create, plan, decide, refine, evaluate, consult a peer or panel, observe sessions, and collaborate.                                                        |
+| [Session](session/index.md)        | Understand goals and progress, choose a next action, continue or coordinate work, and inspect or learn from session evidence. | Align, debrief, sitrep, reorient, next steps, handoff, messaging, transcript export, search, toolkit guidance, alpha destination-fork guidance, and retro. |
 
 Use [Installation](../installation.md) for provider-specific setup and current
 verification limits. Some members are also available as
@@ -21,4 +21,4 @@ guide, which explains the plugin-local and standalone names.
 ## Contents
 
 - [Consensus](../consensus/index.md) — Peer workflows, observation, collaboration, and shared configuration.
-- [Session](session/index.md) — Addressed messaging, portable handoffs, sanitized archives, past-session search, long-thread reorientation, alpha fork guidance, and retrospective review.
+- [Session](session/index.md) — Goals, progress, next actions, continuity, coordination, session evidence, and lessons.

@@ -6,7 +6,7 @@ compatibility: Agent Skills baseline; instruction-only, with no runtime or packa
 user-invocable: true
 metadata:
   author: Thomas Stang
-  version: '1.0.0'
+  version: '1.0.1'
 ---
 
 # Report where the work stands
@@ -112,7 +112,8 @@ is still running.
 ## Examples
 
 - Codex: `$sitrep`
-- Claude Code: `/sitrep`
+- Claude Code standalone: `/sitrep`
+- Claude Code Session plugin: `/session:sitrep`
 - Natural language: "Where are we on this? What's done and what's left?"
 - Natural language: "Give me a status on the migration work only."
 

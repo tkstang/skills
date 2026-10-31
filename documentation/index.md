@@ -8,9 +8,9 @@
     - [Getting Started](docs/user-guide/getting-started/index.md) — Choose an installation form, try a small request, and recognize a useful skill response.
     - [Amp Hosted Skills](docs/user-guide/getting-started/amp-hosted-skills.md) — Select generated standalone skills, publish a reviewed copy to Amp personal or workspace storage, and preserve upstream provenance when updating.
   - Plugins
-    - [Plugins](docs/user-guide/plugins/index.md) — Choose Consensus for peer perspectives or Session for messaging, continuity, past-session search, and retrospective review.
+    - [Plugins](docs/user-guide/plugins/index.md) — Choose Consensus for independent perspectives or Session for understanding work, next actions, continuity, coordination, and session evidence.
     - Session
-      - [Session](docs/user-guide/plugins/session/index.md) — Exchange messages, preserve context, export a transcript, find a past session, reorient on a long thread, prepare an alpha native fork, review a session, or use the Session Toolkit CLI.
+      - [Session](docs/user-guide/plugins/session/index.md) — Understand the work, choose a next action, continue or coordinate sessions, and inspect or learn from session evidence.
   - Standalone Skills
     - [Standalone Skills](docs/user-guide/skills/index.md) — Find independently installable skills by capability, including members also available through Consensus or Session.
     - [Align](docs/user-guide/skills/align.md) — Check that the agent understands your goal, underlying problem, and success criteria before or during work.

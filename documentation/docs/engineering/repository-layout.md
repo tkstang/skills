@@ -29,7 +29,8 @@ infrastructure.
   bundled provider helper and schema; the Consensus plugin also contains it.
 - `plugins/session/` — generated complete session installation unit with local
   `messaging`, `retro`, `handoff`, `export-transcript`, `search`, `reorient`,
-  `fork-to-destination`, and `seshtk-cli` skills.
+  `fork-to-destination`, `seshtk-cli`, `align`, `debrief`, `sitrep`, and
+  `next-steps` skills.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` — repo-root marketplace entries.
 - `.oat/` and `.agents/` — project-management infrastructure, not required by plugin consumers.
 
@@ -95,6 +96,9 @@ Inside `plugins/session/`:
 
 - `.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/` — independently
   versioned provider manifests.
+- `skills/align/`, `skills/debrief/`, `skills/sitrep/`, `skills/next-steps/` —
+  instruction-only forms retaining their standalone names. Debrief and Sitrep
+  optionally point to the local Next Steps member without invoking it.
 - `skills/handoff/` — plugin-local form of `session-handoff`.
 - `skills/retro/` — plugin-local form of `session-retro`.
 - `skills/reorient/` — plugin-local form of `reorient`.

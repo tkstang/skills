@@ -6,7 +6,7 @@ compatibility: Agent Skills baseline; instruction-only, with no runtime or packa
 user-invocable: true
 metadata:
   author: Thomas Stang
-  version: '1.0.1'
+  version: '1.0.2'
 ---
 
 # Explain what comes next
@@ -62,7 +62,8 @@ modify files, change workflow state, or automatically resume work.
 ## Examples
 
 - Codex: `$next-steps`
-- Claude Code: `/next-steps`
+- Claude Code standalone: `/next-steps`
+- Claude Code Session plugin: `/session:next-steps`
 - Natural language: "Given all that, what do you recommend we do next and why?"
 
 For a hypothetical review finding:

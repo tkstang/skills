@@ -2,13 +2,21 @@
   "title": "Session",
   "pagesIndex": "[Overview](/user-guide/plugins/session)",
   "pages": [
-    "[Messaging](/user-guide/skills/agent-messaging)",
+    "---Understand the Work---",
+    "[Align](/user-guide/skills/align)",
+    "[Debrief](/user-guide/skills/debrief)",
+    "[Sitrep](/user-guide/skills/sitrep)",
+    "[Reorient](/user-guide/skills/reorient)",
+    "---Choose a Next Action---",
+    "[Next Steps](/user-guide/skills/next-steps)",
+    "---Continue or Coordinate---",
     "[Handoff](/user-guide/skills/session-handoff)",
-    "[Export Transcript](/user-guide/skills/session-export-transcript)",
+    "[Messaging](/user-guide/skills/agent-messaging)",
     "[Fork to Destination (alpha)](/user-guide/skills/session-fork-to-destination)",
-    "[Seshtk CLI](/user-guide/skills/seshtk-cli)",
+    "---Inspect or Learn---",
+    "[Export Transcript](/user-guide/skills/session-export-transcript)",
     "[Search](/user-guide/skills/session-search)",
-    "[Retro](/user-guide/skills/session-retro)",
-    "[Reorient](/user-guide/skills/reorient)"
+    "[Seshtk CLI](/user-guide/skills/seshtk-cli)",
+    "[Retro](/user-guide/skills/session-retro)"
   ]
 }

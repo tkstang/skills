@@ -17,7 +17,8 @@ installation and available capabilities vary by host.
 | Search, read, or export local sessions from a terminal or application        | [Session Toolkit](https://tkstang.github.io/skills/user-guide/session-toolkit/)                                                                                                           |
 | Exchange addressed work across local coding-agent sessions                   | [Agent Messaging](https://tkstang.github.io/skills/user-guide/skills/agent-messaging/)                                                                                                    |
 | Hand off work, export a transcript, find a past session, or review a session | [Session plugin](https://tkstang.github.io/skills/user-guide/plugins/session/)                                                                                                            |
-| Get a justified next step, question unnecessary work, or review complexity   | [Standalone skills](https://tkstang.github.io/skills/user-guide/skills/)                                                                                                                  |
+| Check goals or progress and get a justified next action                      | [Session plugin](https://tkstang.github.io/skills/user-guide/plugins/session/)                                                                                                            |
+| Question unnecessary work or review complexity                               | [Standalone skills](https://tkstang.github.io/skills/user-guide/skills/)                                                                                                                  |
 | Observe another session or collaborate across two sessions                   | [Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer/) or [Collaborative Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer-collab/) |
 
 Plugins group related capabilities; standalone skills let you install one
@@ -65,13 +66,13 @@ planning, decisions, refinement, evaluation, one bounded independent review,
 panels without synthesis, and advice from one peer (one-shot, or bounded follow-up rounds). Disagreement is preserved, and an impasse is a valid outcome.
 It also includes Observer and Collaborative Observer.
 
-**Session** offers addressed messaging, portable handoffs, sanitized transcript
-exports, past-session search, long-thread reorientation, and evidence-backed
-retrospectives. Its `seshtk-cli` member explains or runs Session Toolkit commands
-using the separately installed CLI. Its **alpha** Fork to Destination
-skill discovers and previews sessions and prepares same-provider fork
-instructions; it does not run the provider or create the fork. Provider coverage
-and end-to-end verification are incomplete.
+**Session** helps you check shared goals, catch up on what happened, report
+current progress, regain a long thread, and choose a justified next action.
+It also offers addressed messaging, handoffs, transcript export, past-session
+search, toolkit CLI guidance, and evidence-backed retrospectives. All members
+also have standalone forms. Its **alpha** Fork to Destination skill prepares
+native-fork guidance with optional supported history import; it does not create
+the native fork. Provider coverage and end-to-end verification remain incomplete.
 
 Provider-backed workflows need the local provider CLIs they invoke. Executable
 skills with bundled runtime require Node.js 22+ but no runtime dependency installation. See each

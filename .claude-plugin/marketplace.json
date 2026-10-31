@@ -17,8 +17,8 @@
     },
     {
       "name": "session",
-      "version": "0.6.0",
-      "description": "Session messaging, retrospective, handoff, transcript export, session search, reorientation, destination-fork guidance, and Session Toolkit CLI workflows for coding-agent conversations.",
+      "version": "0.7.0",
+      "description": "Session alignment, status, debriefs, next steps, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.",
       "author": {
         "name": "Thomas Stang"
       },

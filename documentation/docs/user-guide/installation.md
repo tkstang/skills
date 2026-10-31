@@ -12,7 +12,8 @@ independently versioned plugins:
 - `consensus` — peer workflows plus plugin-local `observer` and
   `observer-collab`.
 - `session` — plugin-local `messaging`, `retro`, `handoff`,
-  `export-transcript`, `search`, `reorient`, `fork-to-destination`, and `seshtk-cli`.
+  `export-transcript`, `search`, `reorient`, `fork-to-destination`, `seshtk-cli`,
+  `align`, `debrief`, `sitrep`, and `next-steps`.
 
 Run the commands below from the repository root. Choose a plugin or a declared
 standalone form; installing both forms of the same skill may expose duplicate
@@ -277,13 +278,13 @@ under `skills/`:
 | --------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- |
 | `babysit-pr`                      | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/babysit-pr)                  |
 | `land-pr` (requires `babysit-pr`) | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/land-pr)                     |
-| `align`                           | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/align)                       |
+| `align`                           | session `align`               | [standalone source](https://github.com/tkstang/skills/tree/main/skills/align)                       |
 | `agent-messaging`                 | session `messaging`           | [standalone source](https://github.com/tkstang/skills/tree/main/skills/agent-messaging)             |
 | `author-skill`                    | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/author-skill)                |
-| `debrief`                         | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/debrief)                     |
-| `sitrep`                          | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/sitrep)                      |
+| `debrief`                         | session `debrief`             | [standalone source](https://github.com/tkstang/skills/tree/main/skills/debrief)                     |
+| `sitrep`                          | session `sitrep`              | [standalone source](https://github.com/tkstang/skills/tree/main/skills/sitrep)                      |
 | `reorient`                        | session `reorient`            | [standalone source](https://github.com/tkstang/skills/tree/main/skills/reorient)                    |
-| `next-steps`                      | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/next-steps)                  |
+| `next-steps`                      | session `next-steps`          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/next-steps)                  |
 | `explain-options`                 | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/explain-options)             |
 | `must-we`                         | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/must-we)                     |
 | `session-retro`                   | session `retro`               | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-retro)               |

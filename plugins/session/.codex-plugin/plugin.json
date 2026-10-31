@@ -1,7 +1,7 @@
 {
   "name": "session",
-  "version": "0.6.0",
-  "description": "Session messaging, retrospective, handoff, transcript export, session search, reorientation, destination-fork guidance, and Session Toolkit CLI workflows for coding-agent conversations.",
+  "version": "0.7.0",
+  "description": "Session alignment, status, debriefs, next steps, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.",
   "author": {
     "name": "Thomas Stang"
   },
@@ -9,13 +9,13 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Session",
-    "shortDescription": "Preserve, search, review, and continue sessions; use the Session Toolkit CLI.",
-    "longDescription": "Session skills for reviewing bounded episodes, transferring coding context, exporting sanitized conversations, finding past sessions across local Claude Code, Codex, and Cursor stores, rebuilding the arc of a long or compacted thread, and preparing read-only destination-tab fork instructions. Session Toolkit CLI guidance covers capability checks, identity, discovery, search, bounded reads, Markdown export, activity, and Codex evidence through the separately installed seshtk executable.",
+    "shortDescription": "Align on goals, understand progress, choose next steps, and preserve or inspect sessions.",
+    "longDescription": "Session skills for aligning on goals, reporting current progress, explaining what happened, recommending next actions, rebuilding long-thread context, transferring work, exchanging addressed messages, inspecting and exporting supported local conversations, and reviewing bounded episodes. Fork to Destination prepares alpha native-fork instructions; seshtk-cli uses the separately installed Session Toolkit CLI.",
     "developerName": "Thomas Stang",
     "category": "Coding",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
-      "Use Session Retro to review a bounded episode, Session Export Transcript to save a sanitized conversation, Session Search to find a past session, Reorient to rebuild a long thread, or Session Fork to Destination to prepare destination-tab instructions. Use seshtk-cli for Session Toolkit command workflows and troubleshooting."
+      "Use Align to confirm goals, Sitrep for current progress, Debrief for what happened, Next Steps for a recommendation, or Reorient for the arc of a long thread. Use the other Session skills to coordinate, preserve, inspect, continue, or review session work."
     ]
   },
   "metadata": {

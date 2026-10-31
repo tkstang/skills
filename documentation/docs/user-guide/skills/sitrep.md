@@ -5,14 +5,15 @@ description: 'Get a snapshot of where the current work stands against its goal: 
 
 # Sitrep
 
-`sitrep` is a standalone, instruction-only skill for the moment when you look in
-on a long-running session and want to know where everything stands. It measures
-the current work against its goal and reports what is complete, what is in
-progress, what remains, and what is at risk or waiting on you.
+`sitrep` reports where the established work stands against its goal: complete,
+in progress, remaining, at risk, or waiting on you. It is instruction-only and
+available standalone or as Session `sitrep`.
 
 It describes the present. [Debrief](debrief.md) covers what happened over an
 interval, and [Next Steps](next-steps.md) recommends what to do. Neither is
-required, and `sitrep` never invokes them.
+required, and `sitrep` never invokes them. When work remains, its optional
+Next Steps pointer names the local `next-steps` member in Session or the
+standalone skill for a standalone install.
 
 ## What it covers
 
@@ -73,8 +74,9 @@ restarts paused or completed work.
 
 ## Examples
 
-Invoke `$sitrep` in Codex or `/sitrep` in Claude Code, optionally naming a
-topic. Natural language works too:
+For a standalone install, invoke `$sitrep` in Codex or `/sitrep` in Claude Code, optionally naming a
+topic. The Claude Code Session member is `/session:sitrep`. Natural language
+works too:
 
 > Where are we on this? What's done and what's left?
 
@@ -86,7 +88,9 @@ earlier is still waiting on you.
 
 ## Installation and validation
 
-The generated standalone payload is
+Choose standalone `sitrep` or the Session member `sitrep` through the
+[installation guide](../installation.md). Both forms share one canonical owner
+and version. The generated standalone payload is
 [`skills/sitrep`](https://github.com/tkstang/skills/tree/main/skills/sitrep).
 It has no runtime or package dependencies.
 

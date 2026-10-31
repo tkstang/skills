@@ -86,10 +86,10 @@ plugin by itself.
 | `src/skills/author-skill`                                                                                                        | `skills/author-skill/` only                                                             |
 | `src/skills/babysit-pr`                                                                                                          | `skills/babysit-pr/` only                                                               |
 | `src/skills/land-pr`                                                                                                             | `skills/land-pr/` only; requires the babysit-pr workflow                                |
-| `src/skills/align`                                                                                                               | `skills/align/` only                                                                    |
-| `src/skills/debrief`                                                                                                             | `skills/debrief/` only                                                                  |
-| `src/skills/sitrep`                                                                                                              | `skills/sitrep/` only                                                                   |
-| `src/skills/next-steps`                                                                                                          | `skills/next-steps/` only                                                               |
+| `src/skills/align`                                                                                                               | `skills/align/` and `plugins/session/skills/align/`                                     |
+| `src/skills/debrief`                                                                                                             | `skills/debrief/` and `plugins/session/skills/debrief/`                                 |
+| `src/skills/sitrep`                                                                                                              | `skills/sitrep/` and `plugins/session/skills/sitrep/`                                   |
+| `src/skills/next-steps`                                                                                                          | `skills/next-steps/` and `plugins/session/skills/next-steps/`                           |
 | `src/skills/explain-options`                                                                                                     | `skills/explain-options/` only                                                          |
 | `src/skills/must-we`                                                                                                             | `skills/must-we/` only                                                                  |
 
@@ -172,6 +172,11 @@ bundled templates or references. Their canonical standalone names stay
 `session-handoff`, `session-retro`, and `reorient`. The instruction-only
 `seshtk-cli` member keeps that same name in standalone and plugin forms and
 requires the external toolkit CLI only when executing a session operation.
+`align`, `debrief`, `sitrep`, and `next-steps` are instruction-only members with
+the same standalone and plugin-local names. Debrief and Sitrep declare Next Steps
+as an optional workflow reference: standalone payloads name `next-steps`, while
+Session payloads resolve the plugin-local `next-steps` member. Neither workflow
+invokes it automatically.
 
 ## Import rewriting
 

@@ -17,16 +17,17 @@ What ships today:
   asks one peer for an advisory take, one-shot by default with bounded
   follow-up rounds on request;
   `observer` and `observer-collab` provide plugin-local session observation.
-- **Session plugin** — `messaging`, `retro`, `handoff`, `export-transcript`,
-  `search`, `reorient`, `fork-to-destination`, and `seshtk-cli` cover addressed coordination,
-  bounded review, continuation, sanitized export, past-session search,
-  long-thread reorientation, alpha destination-side fork guidance, and verified
-  use of the external Session Toolkit CLI.
+- **Session plugin** — `align`, `debrief`, `sitrep`, and `reorient` clarify
+  intent, recent history, current progress, and the whole thread; `next-steps`
+  recommends an action. `messaging`, `handoff`, `export-transcript`, `search`,
+  `fork-to-destination`, `seshtk-cli`, and `retro` support coordination,
+  continuity, session evidence, and lessons.
 - **Session Toolkit** — the `seshtk` terminal command and typed ESM library
   find, read, search, and export local Claude Code, Codex, and Cursor sessions.
-- **Optional standalone skills** — the session capabilities retain descriptive
-  `session-*` names except for `agent-messaging`, `reorient`, and `seshtk-cli`; `align`, `author-skill`,
-  `debrief`, `sitrep`, `next-steps`, `explain-options`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` remain standalone only.
+- **Optional standalone skills** — every Session member is also available
+  individually; its guide gives both names. Observer and Collaborative Observer
+  remain standalone and Consensus members only. `author-skill`, `explain-options`,
+  `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` remain standalone only.
   The PR skills repair CI/review findings until green; only `land-pr` merges.
   Consensus `phone-a-friend` and `review` are also available as the standalone
   skills `phone-a-friend` and `consensus-review`; its six other peer workflows
