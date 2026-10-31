@@ -28,9 +28,9 @@ const plugins = [
   },
   {
     name: 'session',
-    version: '0.5.0',
+    version: '0.6.0',
     description:
-      'Session messaging, retrospective, handoff, transcript export, session search, reorientation, and destination-fork guidance for coding-agent conversations.',
+      'Session messaging, retrospective, handoff, transcript export, session search, reorientation, destination-fork guidance, and Session Toolkit CLI workflows for coding-agent conversations.',
     skills: [
       'export-transcript',
       'fork-to-destination',
@@ -39,6 +39,7 @@ const plugins = [
       'reorient',
       'retro',
       'search',
+      'seshtk-cli',
     ],
     permissionDeclaration: 'unverified',
     permissionEvidence: /isolated export execution.*live provider.*unverified/i,

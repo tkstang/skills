@@ -18,13 +18,14 @@ What ships today:
   follow-up rounds on request;
   `observer` and `observer-collab` provide plugin-local session observation.
 - **Session plugin** — `messaging`, `retro`, `handoff`, `export-transcript`,
-  `search`, `reorient`, and `fork-to-destination` cover addressed coordination,
+  `search`, `reorient`, `fork-to-destination`, and `seshtk-cli` cover addressed coordination,
   bounded review, continuation, sanitized export, past-session search,
-  long-thread reorientation, and alpha destination-side fork guidance.
+  long-thread reorientation, alpha destination-side fork guidance, and verified
+  use of the external Session Toolkit CLI.
 - **Session Toolkit** — the `seshtk` terminal command and typed ESM library
   find, read, search, and export local Claude Code, Codex, and Cursor sessions.
 - **Optional standalone skills** — the session capabilities retain descriptive
-  `session-*` names except for `agent-messaging` and `reorient`; `align`, `author-skill`,
+  `session-*` names except for `agent-messaging`, `reorient`, and `seshtk-cli`; `align`, `author-skill`,
   `debrief`, `sitrep`, `next-steps`, `explain-options`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` remain standalone only.
   The PR skills repair CI/review findings until green; only `land-pr` merges.
   Consensus `phone-a-friend` and `review` are also available as the standalone

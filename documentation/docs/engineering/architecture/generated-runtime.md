@@ -22,7 +22,10 @@ source, never a generated payload.
   `pnpm test`.
 
 TypeScript, Vitest, and esbuild are developer tooling only. Installed skills
-still run committed Node ESM with no dependency installation step.
+with bundled runtime still run committed Node ESM with no dependency installation
+step. The instruction-only `seshtk-cli` skill instead uses the external
+`@tkstang/session-toolkit` CLI (verified baseline 0.1.0); that execution
+prerequisite is installed separately and is not part of its generated payload.
 
 ### Build and shipping topology
 
@@ -76,6 +79,7 @@ plugin by itself.
 | `src/skills/session-retro`                                                                                                       | `skills/session-retro/` and `plugins/session/skills/retro/`                             |
 | `src/skills/session-export-transcript`                                                                                           | `skills/session-export-transcript/` and `plugins/session/skills/export-transcript/`     |
 | `src/skills/session-fork-to-destination`                                                                                         | `skills/session-fork-to-destination/` and `plugins/session/skills/fork-to-destination/` |
+| `src/skills/seshtk-cli`                                                                                                          | `skills/seshtk-cli/` and `plugins/session/skills/seshtk-cli/`                           |
 | `src/skills/session-search`                                                                                                      | `skills/session-search/` and `plugins/session/skills/search/`                           |
 | `src/skills/reorient`                                                                                                            | `skills/reorient/` and `plugins/session/skills/reorient/`                               |
 | `src/skills/complexity-review`                                                                                                   | `skills/complexity-review/` only                                                        |
@@ -165,7 +169,9 @@ The session plugin is a separate complete package. `export-transcript`,
 inside their skill directory; `handoff`, `retro`, and `reorient` are instruction-only with
 bundled templates or references. Their canonical standalone names stay
 `session-export-transcript`, `session-fork-to-destination`, `session-search`,
-`session-handoff`, `session-retro`, and `reorient`.
+`session-handoff`, `session-retro`, and `reorient`. The instruction-only
+`seshtk-cli` member keeps that same name in standalone and plugin forms and
+requires the external toolkit CLI only when executing a session operation.
 
 ## Import rewriting
 

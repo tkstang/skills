@@ -234,6 +234,23 @@ export const distributions: readonly DistributionDeclaration[] = [
     ],
   },
   {
+    owner: 'seshtk-cli',
+    source: 'src/skills/seshtk-cli',
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'seshtk-cli',
+        output: 'skills/seshtk-cli',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'seshtk-cli',
+        output: 'plugins/session/skills/seshtk-cli',
+      },
+    ],
+  },
+  {
     owner: 'session-handoff',
     source: 'src/skills/session-handoff',
     optionalSkills: [

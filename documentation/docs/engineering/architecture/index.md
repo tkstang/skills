@@ -5,11 +5,15 @@ description: 'The single-owner and generated-installation-unit architecture behi
 
 # Architecture
 
-This repo's architecture follows one defining constraint: **shipped skills run
-with no install step**. The runtime files that provider manifests, docs, and
+This repo's architecture keeps **bundled runtime free of dependency install
+steps**. The runtime files that provider manifests, docs, and
 users execute are committed, dependency-free Node ESM that use only the standard
 library. Provider-backed workflows invoke configured peers through the owned
 provider CLI; they still require those external provider tools.
+
+The instruction-only `seshtk-cli` skill uses the external
+`@tkstang/session-toolkit` CLI for execution. That prerequisite is installed
+separately and checked before use; the skill does not automatically install it.
 
 To keep those committed runtime files maintainable, every skill has one
 **canonical authored owner under `src/skills/`**. Shared and plugin code lives

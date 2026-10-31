@@ -4,6 +4,10 @@
 
 ### Added
 
+- `seshtk-cli` 1.0.0 guides Session Toolkit command workflows, compatibility
+  checks, bounded reads and exports, and sensitive activity handling. It ships
+  standalone and in the `session` plugin 0.6.0; the CLI remains a separate npm package.
+
 - Session Toolkit documentation now includes a short package quick start, an
   accessible workflow diagram, and dedicated CLI, search, transcript/export,
   activity, and library reference pages.

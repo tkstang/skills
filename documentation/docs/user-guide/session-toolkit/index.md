@@ -37,10 +37,11 @@ Add `--cwd /path/to/repo` to start a search in a repository. Search widens if th
 hint finds no matches. `list --cwd /path/to/repo` browses historical candidates;
 `self-identify` separately checks exact current-session evidence.
 
-For application integration, install the same package locally and use the
-[library](library.md). The [Session plugin](../plugins/session/index.md) supplies
-agent-guided workflows; use `seshtk` directly for terminal commands or application
-integration.
+For agent-guided CLI use, choose [Seshtk CLI](../skills/seshtk-cli.md), available
+standalone or as Session `seshtk-cli`. It checks the external executable and
+capabilities before running commands; explanation-only requests need no install.
+Use `seshtk` directly for terminal commands. For application integration, install
+the package locally and use the [library](library.md).
 
 ## Choose a starting point
 
@@ -97,6 +98,7 @@ interactive checks too. See [update notices](cli.md#update-notices).
 
 ## Contents
 
+- [Seshtk CLI Skill](../skills/seshtk-cli.md) — Ask an agent to explain or run a verified toolkit command workflow.
 - [CLI Reference](cli.md) — Commands, machine output, errors, capabilities, and update configuration.
 - [Historical Search](search.md) — Patterns, widening, scan authorization, diagnostics, and accelerators.
 - [Transcripts and Export](transcripts.md) — Identity, discovery, source coordinates, bounds, evidence, and safe export.

@@ -29,7 +29,7 @@ infrastructure.
   bundled provider helper and schema; the Consensus plugin also contains it.
 - `plugins/session/` — generated complete session installation unit with local
   `messaging`, `retro`, `handoff`, `export-transcript`, `search`, `reorient`,
-  and `fork-to-destination` skills.
+  `fork-to-destination`, and `seshtk-cli` skills.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` — repo-root marketplace entries.
 - `.oat/` and `.agents/` — project-management infrastructure, not required by plugin consumers.
 
@@ -98,6 +98,8 @@ Inside `plugins/session/`:
 - `skills/handoff/` — plugin-local form of `session-handoff`.
 - `skills/retro/` — plugin-local form of `session-retro`.
 - `skills/reorient/` — plugin-local form of `reorient`.
+- `skills/seshtk-cli/` — instruction-only CLI guidance using the separately
+  installed `@tkstang/session-toolkit` package for execution.
 - `skills/export-transcript/` — plugin-local form of
   `session-export-transcript`, including its generated dependency-free CLI.
 - `skills/fork-to-destination/` — plugin-local form of the alpha

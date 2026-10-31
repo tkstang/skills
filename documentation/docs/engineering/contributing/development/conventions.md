@@ -5,12 +5,15 @@ description: 'Repository conventions: canonical skill owners, generated distribu
 
 # Conventions
 
-## Shipped skills run with no install step
+## Bundled runtime needs no dependency install
 
-Keep runtime plugin code dependency-free and use Node standard library APIs unless
-a future project explicitly changes that contract. This applies to **shipped**
-skills/plugins, which must run with no install step; provider CLI subprocesses are
-the only external execution boundary.
+Keep shipped runtime plugin code dependency-free and use Node standard library
+APIs. Bundled skills/plugins run with no dependency install step; provider CLI
+subprocesses are their external execution boundary.
+
+The instruction-only `seshtk-cli` skill uses the separately installed
+`@tkstang/session-toolkit` CLI for execution. It checks that prerequisite before
+use and does not bundle or automatically install it. Explanations need no CLI.
 
 ## Dev tooling may take dependencies
 
