@@ -78,6 +78,12 @@ export const distributions: readonly DistributionDeclaration[] = [
         name: 'align',
         output: 'skills/align',
       },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'align',
+        output: 'plugins/session/skills/align',
+      },
     ],
   },
   {
@@ -191,6 +197,12 @@ export const distributions: readonly DistributionDeclaration[] = [
         name: 'debrief',
         output: 'skills/debrief',
       },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'debrief',
+        output: 'plugins/session/skills/debrief',
+      },
     ],
   },
   {
@@ -201,6 +213,12 @@ export const distributions: readonly DistributionDeclaration[] = [
         kind: 'standalone',
         name: 'next-steps',
         output: 'skills/next-steps',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'next-steps',
+        output: 'plugins/session/skills/next-steps',
       },
     ],
   },
@@ -230,6 +248,12 @@ export const distributions: readonly DistributionDeclaration[] = [
         kind: 'standalone',
         name: 'sitrep',
         output: 'skills/sitrep',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'sitrep',
+        output: 'plugins/session/skills/sitrep',
       },
     ],
   },

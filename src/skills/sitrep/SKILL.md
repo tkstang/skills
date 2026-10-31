@@ -6,7 +6,7 @@ compatibility: Agent Skills baseline; instruction-only, with no runtime or packa
 user-invocable: true
 metadata:
   author: Thomas Stang
-  version: '1.0.0'
+  version: '1.0.1'
 ---
 
 # Report where the work stands

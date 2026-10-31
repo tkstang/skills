@@ -5,11 +5,10 @@ description: 'Get a concise account of what happened in a session while you were
 
 # Debrief
 
-`debrief` is a standalone, instruction-only skill for the moment when you return
-to a session and face a long stretch of output you did not watch. It reports
-what the work produced and what it left open, instead of replaying the
-transcript in order. It looks back; it does not recommend or carry out what
-comes next.
+`debrief` explains what happened while you were away, using only the session
+history already visible. It reports outcomes and open questions without
+replaying every event or recommending what comes next. The instruction-only
+skill is available standalone or as Session `debrief`.
 
 ## What it covers
 
@@ -37,7 +36,8 @@ answer is reported as a decision made without you.
 
 The account ends with one line on what is waiting on you. When work remains
 open it also points to [Next Steps](next-steps.md) for a recommendation. That
-skill is optional and is never invoked for you.
+skill is optional and is never invoked for you. The pointer names the local
+`next-steps` member in Session or the standalone skill for a standalone install.
 
 Debrief covers an interval. For a snapshot of where the whole effort stands
 against its goal, including what remains, use [Sitrep](sitrep.md).
@@ -55,7 +55,8 @@ output. The agent's own closing summary is treated as a report.
 
 ## Examples
 
-Invoke `$debrief` in Codex or `/debrief` in Claude Code. Natural language works
+For a standalone install, invoke `$debrief` in Codex or `/debrief` in Claude Code.
+The Claude Code Session member is `/session:debrief`. Natural language works
 too:
 
 > I stepped away. What happened while I was gone?
@@ -68,7 +69,9 @@ still waiting on you.
 
 ## Installation and validation
 
-The generated standalone payload is
+Choose standalone `debrief` or the Session member `debrief` through the
+[installation guide](../installation.md). Both forms share one canonical owner
+and version. The generated standalone payload is
 [`skills/debrief`](https://github.com/tkstang/skills/tree/main/skills/debrief).
 It has no runtime or package dependencies.
 

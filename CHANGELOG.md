@@ -4,6 +4,11 @@
 
 ### Added
 
+- The `session` plugin 0.7.0 adds `align` 1.0.2, `sitrep` 1.0.1,
+  `debrief` 1.0.1, and `next-steps` 1.0.2 alongside their standalone forms.
+  Session documentation distinguishes intent alignment, current status,
+  interval recap, long-thread reorientation, and next-action recommendations.
+
 - `seshtk-cli` 1.0.0 guides Session Toolkit command workflows, compatibility
   checks, bounded reads and exports, and sensitive activity handling. It ships
   standalone and in the `session` plugin 0.6.0; the CLI remains a separate npm package.

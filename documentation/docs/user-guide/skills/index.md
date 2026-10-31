@@ -5,12 +5,12 @@ description: 'Find independently installable skills by capability, including mem
 
 # Standalone Skills
 
-Session skills have canonical descriptive names and may be installed as
-standalone Agent Skills or through a plugin-local short name. Observation and
-collaboration live in the consensus plugin; retro, handoff, export, session search,
-reorient, destination fork guidance, and the `seshtk-cli` toolkit guide live in
-the session plugin. `align`, `author-skill`,
-`debrief`, `sitrep`, `next-steps`, `explain-options`, `must-we`, `complexity-review`, `babysit-pr`, and `land-pr` are standalone only.
+Session skills can be installed individually or through Session. Align,
+Debrief, Sitrep, Reorient, Next Steps, and Seshtk CLI keep the same names in
+both forms; other Session members use the canonical names listed in their
+guides. Observer and Collaborative Observer are standalone skills and Consensus
+members only. `author-skill`, `explain-options`, `must-we`, `complexity-review`,
+`babysit-pr`, and `land-pr` are standalone only.
 
 Choose by what the next session needs:
 
@@ -38,7 +38,7 @@ Choose by what the next session needs:
 
 Debrief, Sitrep, and Next Steps answer three adjacent questions about work in
 progress: what happened, where it stands, and what to do. Each can be installed
-and used alone. Reorient covers all three for a whole thread you have lost track
+and used alone or selected through the Session plugin. Reorient covers all three for a whole thread you have lost track
 of, reading the full transcript so it can see past compaction.
 
 These skills are grouped by user-facing behavior. The grouping does not mean
@@ -48,16 +48,16 @@ and standalone choices.
 
 - **babysit-pr** — fix CI and valid review findings, validate, push, and repeat until green; report without merging.
 - **land-pr** — run the shared babysitting loop, optionally add cross-provider Consensus Review for "review and land it", then merge the verified head and confirm the result; requires **babysit-pr**.
-- **align** — check shared understanding at the start of work or when its
+- **align** (session-local `align`) — check shared understanding at the start of work or when its
   direction feels off, through a focused exchange you can correct or end.
-- **debrief** — report what happened in a session while you were away,
+- **debrief** (session-local `debrief`) — report what happened in a session while you were away,
   from its visible history, without recommending what comes next.
-- **sitrep** — report where the current work stands against its goal,
+- **sitrep** (session-local `sitrep`) — report where the current work stands against its goal,
   without recapping an interval or recommending what comes next.
 - **reorient** (session-local `reorient`) — rebuild a long or compacted thread
   from its full transcript: the original goal, side quests, current state, and
   a recommendation; requires **session-export-transcript** to see past compaction.
-- **next-steps** — explain the current situation and recommend justified
+- **next-steps** (session-local `next-steps`) — explain the current situation and recommend justified
   actions without executing them.
 - **explain-options** — explain the choices the agent just offered, with
   background, trade-offs, and a recommendation, then ask which to take.
@@ -75,8 +75,9 @@ and standalone choices.
   sanitized Markdown transcript, named after the current git branch and written
   by default to `~/Downloads`.
 - **session-fork-to-destination** (session-local `fork-to-destination`, alpha) — discover and preview an explicit
-  source session, then prepare destination-safe same-provider fork guidance
-  without invoking a provider or creating a fork. Provider coverage and
+  source session, then prepare destination-safe native fork guidance without
+  invoking a provider or creating a fork; supported cross-provider import can
+  write a seed after a reviewed plan. Provider coverage and
   end-to-end verification are incomplete.
 - **seshtk-cli** (session-local `seshtk-cli`) — explain or run Session Toolkit
   commands after checking the external CLI; covers identity, discovery, search,
@@ -109,11 +110,11 @@ and standalone choices.
 
 ### Decide what to do
 
-- [Align](align.md) — Check shared understanding of the goal, problem, and success criteria before or during work.
-- [Debrief](debrief.md) — Report what happened in a session while you were away, from its visible history only.
-- [Sitrep](sitrep.md) — Report where the current work stands against its goal: complete, in progress, remaining, and at risk.
+- [Align](align.md) — Check shared understanding of the goal, problem, and success criteria before or during work. Available standalone or as Session `align`.
+- [Debrief](debrief.md) — Report what happened in a session while you were away, from its visible history only. Available standalone or as Session `debrief`.
+- [Sitrep](sitrep.md) — Report where the current work stands against its goal: complete, in progress, remaining, and at risk. Available standalone or as Session `sitrep`.
 - [Reorient](reorient.md) — Rebuild the arc of a long or compacted thread, check what changed since, and recommend what comes next; available standalone or as Session `reorient`.
-- [Next Steps](next-steps.md) — Explain the current state and recommend justified actions without executing them.
+- [Next Steps](next-steps.md) — Explain the current state and recommend justified actions without executing them. Available standalone or as Session `next-steps`.
 - [Explain Options](explain-options.md) — Explain the choices an agent just offered well enough to decide, with a recommendation, without acting on it.
 - [Must We?](must-we.md) — Decide whether a blocker or proposal is necessary and find the smallest sufficient path.
 

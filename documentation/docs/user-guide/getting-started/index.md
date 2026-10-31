@@ -11,11 +11,11 @@ need both plugins or every standalone skill.
 ## Choose a starting point
 
 - **Unsure what to do next?** Try [Next Steps](../skills/next-steps.md), a
-  standalone, instruction-only skill that recommends an action without doing it.
+  skill available standalone or through Session that recommends an action without doing it.
 - **Returning to a long-running session?** Try [Debrief](../skills/debrief.md)
   for what happened while you were away, or [Sitrep](../skills/sitrep.md) for
-  where the work stands against its goal. Both are standalone and
-  instruction-only.
+  where the work stands against its goal. Both are instruction-only and available
+  standalone or through Session.
 - **Continuing work in another session?** Start with
   [Session Handoff](../skills/session-handoff.md), available in the
   [Session plugin](../plugins/session/index.md) or on its own.
@@ -28,10 +28,10 @@ need both plugins or every standalone skill.
 
 ## Install the form you chose
 
-For Next Steps, follow [Install one standalone skill](../installation.md#install-one-standalone-skill)
+For Next Steps on its own, follow [Install one standalone skill](../installation.md#install-one-standalone-skill)
 for copyable commands and host-specific discovery guidance. For a plugin,
 use the [installation matrix](../installation.md#install-matrix).
-Plugin-local names and standalone names differ; each skill guide identifies
+Some plugin-local names differ from standalone names; each skill guide identifies
 the available forms. Avoid installing both forms of the same skill unless you
 intend to manage duplicate host entries.
 
@@ -41,7 +41,8 @@ for selective personal/workspace onboarding and upstream update provenance.
 ## Try a bounded request
 
 Once Next Steps is available in your agent, invoke `$next-steps` in Codex or
-`/next-steps` in Claude Code. In Cursor, select the installed skill in the host's
+`/next-steps` in Claude Code for a standalone install. The Claude Code Session
+member is `/session:next-steps`. In Cursor, select the installed skill in the host's
 skill interface or ask it to use Next Steps; check that it loads the skill
 before relying on the response. Use a small example:
 

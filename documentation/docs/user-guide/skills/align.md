@@ -5,12 +5,14 @@ description: 'Check that the agent understands your goal, underlying problem, an
 
 # Align
 
-`align` is a standalone, instruction-only skill for checking whether the agent
-understands what you are trying to achieve. Invoke it explicitly at the start
-of a task or after work is underway and its direction feels uncertain. The
-agent does not activate it merely because it suspects drift.
+`align` checks whether the agent understands your goals, underlying problem,
+and success criteria. It is instruction-only and available standalone or as
+Session `align`. Invoke it explicitly at the start of a task or after work is
+underway and its direction feels uncertain. Suspected drift alone does not
+activate it.
 
-Invoke `$align` in Codex or `/align` in Claude Code, optionally with a topic:
+For a standalone install, invoke `$align` in Codex or `/align` in Claude Code.
+The Claude Code Session member is `/session:align`. Supply a topic when helpful:
 
 > We have done a lot, but this direction feels wrong. Align with me on the
 > problem we are actually solving.
@@ -41,3 +43,13 @@ and any unknowns that can remain open. Alignment does not endorse a proposed
 solution or itself change files, project state, or the direction of work.
 Existing authorization remains in force where it covers the corrected scope;
 new actions still need their own authorization.
+
+## Installation and related skills
+
+Use the [installation guide](../installation.md) to choose standalone `align` or
+the Session plugin. Both forms share the same authored behavior and require no
+runtime or package installation. Host discovery and invocation remain separate
+live checks.
+
+Align establishes intent through an explicit exchange. For current progress,
+use [Sitrep](sitrep.md); for a recommendation, use [Next Steps](next-steps.md).

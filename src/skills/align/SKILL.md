@@ -7,7 +7,7 @@ disable-model-invocation: true
 user-invocable: true
 metadata:
   author: Thomas Stang
-  version: '1.0.1'
+  version: '1.0.2'
 ---
 
 # Align

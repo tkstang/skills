@@ -5,10 +5,10 @@ description: 'Turn the current situation into a justified recommendation without
 
 # Next Steps
 
-`next-steps` is a standalone, instruction-only skill for the moment when the
-state of the work is known but the path forward is not. It explains the goal and
-current state, recommends the immediate action, and says what that action
-resolves or enables. It answers the question without carrying out the work.
+`next-steps` explains the goal and current state, recommends an immediate
+action, and says what that action resolves or enables. It answers without
+carrying out the work. The instruction-only skill is available standalone or as
+Session `next-steps`.
 
 The skill is workflow-agnostic. It does not detect a project framework, run
 lifecycle commands, or route the user to another skill. Existing plans, review
@@ -38,8 +38,8 @@ that resolves it.
 
 ## Related skills
 
-Next Steps looks forward. Two standalone skills answer the neighboring
-questions and neither is required:
+Next Steps looks forward. Two skills, also available standalone or through Session, answer the neighboring
+questions; neither is required:
 
 - [Debrief](debrief.md) reports what happened in the session while you were
   away.
@@ -52,8 +52,9 @@ decision.
 
 ## Examples
 
-Invoke `$next-steps` in Codex or `/next-steps` in Claude Code, optionally
-naming the topic. Natural language works too:
+For a standalone install, invoke `$next-steps` in Codex or `/next-steps` in Claude Code, optionally
+naming the topic. The Claude Code Session member is `/session:next-steps`. Natural language
+works too:
 
 > Given the review feedback, what do you recommend we do next and why?
 
@@ -65,7 +66,9 @@ risk; tests are not a default recommendation for every task.
 
 ## Installation and validation
 
-The generated standalone payload is
+Choose standalone `next-steps` or the Session member `next-steps` through the
+[installation guide](../installation.md). Both forms share one canonical owner
+and version. The generated standalone payload is
 [`skills/next-steps`](https://github.com/tkstang/skills/tree/main/skills/next-steps).
 It has no runtime or package dependencies.
 
