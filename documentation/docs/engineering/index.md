@@ -9,13 +9,17 @@ Internals and contribution guidance for people working **on** this repo rather
 than consuming it. If you just want to install and use the skills, see the
 [User Guide](../user-guide/index.md).
 
-The repo's defining engineering constraint: shipped skills need no dependency
-installation step. Some skills are instruction-only; executable runtime uses
+The repo's defining engineering constraint: bundled runtime needs no dependency
+installation step. Some skills are instruction-only; bundled executable runtime uses
 dependency-free Node ESM and the standard library, with provider CLI subprocesses
 as the external execution boundary where needed. Canonical skill owners live
 under `src/skills/`; TypeScript, Vitest, and bundling are developer tooling that
 produce committed standalone and plugin installation units under `skills/` and
 `plugins/`.
+
+The instruction-only `seshtk-cli` skill uses the external
+`@tkstang/session-toolkit` CLI for execution. It checks this separately installed
+prerequisite before use and does not automatically install it.
 
 ## Contents
 
