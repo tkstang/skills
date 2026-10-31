@@ -6,7 +6,7 @@ compatibility: Agent Skills baseline; instruction-only, with no runtime or packa
 user-invocable: true
 metadata:
   author: Thomas Stang
-  version: '1.0.1'
+  version: '1.0.2'
 ---
 
 # Must we do this?
@@ -100,7 +100,8 @@ this evaluation with the recommendation rather than automatically resuming work.
 ## Examples
 
 - Codex: `$must-we`
-- Claude Code: `/must-we add these regression cases?`
+- Claude Code standalone: `/must-we add these regression cases?`
+- Claude Code Session plugin: `/session:must-we add these regression cases?`
 - Natural language: “Do we need to do this, or is there a smaller path?”
 
 For a hypothetical excessive proposal:

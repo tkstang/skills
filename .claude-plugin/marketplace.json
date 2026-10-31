@@ -17,8 +17,8 @@
     },
     {
       "name": "session",
-      "version": "0.7.0",
-      "description": "Session alignment, status, debriefs, next steps, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.",
+      "version": "0.8.0",
+      "description": "Session alignment, status, debriefs, option explanations, necessity checks, next steps, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.",
       "author": {
         "name": "Thomas Stang"
       },

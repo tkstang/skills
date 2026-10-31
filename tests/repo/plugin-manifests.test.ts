@@ -28,16 +28,18 @@ const plugins = [
   },
   {
     name: 'session',
-    version: '0.7.0',
+    version: '0.8.0',
     description:
-      'Session alignment, status, debriefs, next steps, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.',
+      'Session alignment, status, debriefs, option explanations, necessity checks, next steps, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.',
     skills: [
       'align',
       'debrief',
+      'explain-options',
       'export-transcript',
       'fork-to-destination',
       'handoff',
       'messaging',
+      'must-we',
       'next-steps',
       'reorient',
       'retro',

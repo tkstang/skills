@@ -179,6 +179,12 @@ export const distributions: readonly DistributionDeclaration[] = [
         name: 'must-we',
         output: 'skills/must-we',
       },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'must-we',
+        output: 'plugins/session/skills/must-we',
+      },
     ],
   },
   {
@@ -230,6 +236,12 @@ export const distributions: readonly DistributionDeclaration[] = [
         kind: 'standalone',
         name: 'explain-options',
         output: 'skills/explain-options',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'explain-options',
+        output: 'plugins/session/skills/explain-options',
       },
     ],
   },

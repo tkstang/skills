@@ -6,7 +6,7 @@ compatibility: Agent Skills baseline; instruction-only, with no runtime or packa
 user-invocable: true
 metadata:
   author: Thomas Stang
-  version: '1.0.0'
+  version: '1.0.1'
 ---
 
 # Explain the options
@@ -155,7 +155,8 @@ say.
 ## Examples
 
 - Codex: `$explain-options`
-- Claude Code: `/explain-options`
+- Claude Code standalone: `/explain-options`
+- Claude Code Session plugin: `/session:explain-options`
 - Natural language: "I don't have enough context to choose. Explain the options."
 - Natural language: "What are the trade-offs between the two approaches you just
   gave me?"

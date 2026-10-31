@@ -1,7 +1,7 @@
 {
   "name": "session",
-  "version": "0.7.0",
-  "description": "Session alignment, status, debriefs, next steps, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.",
+  "version": "0.8.0",
+  "description": "Session alignment, status, debriefs, option explanations, necessity checks, next steps, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.",
   "author": {
     "name": "Thomas Stang"
   },
@@ -9,13 +9,13 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Session",
-    "shortDescription": "Align on goals, understand progress, choose next steps, and preserve or inspect sessions.",
-    "longDescription": "Session skills for aligning on goals, reporting current progress, explaining what happened, recommending next actions, rebuilding long-thread context, transferring work, exchanging addressed messages, inspecting and exporting supported local conversations, and reviewing bounded episodes. Fork to Destination prepares alpha native-fork instructions; seshtk-cli uses the separately installed Session Toolkit CLI.",
+    "shortDescription": "Align on goals, understand choices and progress, choose next steps, and preserve sessions.",
+    "longDescription": "Session skills for aligning on goals, reporting current progress, explaining what happened and offered options, evaluating disputed requirements, recommending next actions, rebuilding long-thread context, transferring work, exchanging addressed messages, inspecting and exporting supported local conversations, and reviewing bounded episodes. Fork to Destination prepares alpha native-fork instructions; seshtk-cli uses the separately installed Session Toolkit CLI.",
     "developerName": "Thomas Stang",
     "category": "Coding",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
-      "Use Align to confirm goals, Sitrep for current progress, Debrief for what happened, Next Steps for a recommendation, or Reorient for the arc of a long thread. Use the other Session skills to coordinate, preserve, inspect, continue, or review session work."
+      "Use Align to confirm goals, Sitrep for current progress, Debrief for what happened, Explain Options for offered choices, Must We for a disputed requirement, Next Steps for a recommendation, or Reorient for the arc of a long thread. Use the other Session skills to coordinate, preserve, inspect, continue, or review session work."
     ]
   },
   "metadata": {

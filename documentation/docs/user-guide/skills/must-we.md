@@ -5,10 +5,11 @@ description: 'Decide whether a blocker, requirement, or proposed action is neces
 
 # Must We?
 
-`must-we` is a standalone, instruction-only skill for testing whether a
-claimed blocker, requested approval, review requirement, or proposed addition
-is actually necessary. It is as willing to answer “yes, and here is why” as it
-is to reject excess work and recommend a smaller path.
+`must-we` tests whether a claimed blocker, requested approval, review
+requirement, or proposed addition is actually necessary. It is instruction-only,
+available standalone or as Session `must-we`. It is as willing to answer
+“yes, and here is why” as it is to reject excess work and recommend a smaller
+path.
 
 “Do we need to do this?” is a natural-language invocation cue. There is no
 `do-we-need-to` installed skill, alias, or compatibility wrapper.
@@ -41,11 +42,24 @@ An available skeptical claim-review skill can help verify a disputed fact.
 artifact with several interacting additions. Both are optional. The skill
 checks actual availability and host invocation rules, continues its own direct
 evaluation when either is unavailable or manual-only, and never treats optional
-analysis as a prerequisite.
+analysis as a prerequisite. Complexity Review remains standalone; installing
+Session does not include it.
+
+The evaluation ends with a recommendation. It preserves existing authority when
+explaining who can act, without asking again for approval already granted for
+that scope. It does not execute the recommendation or bypass a real gate.
+
+## Related decisions
+
+[Next Steps](next-steps.md) recommends what should happen next overall.
+[Explain Options](explain-options.md) explains choices the agent already offered.
+Must We investigates whether the proposed work or reason for stopping is
+justified. None automatically carries out its recommendation.
 
 ## Examples
 
-Invoke `$must-we` in Codex or `/must-we` in Claude Code:
+For a standalone install, invoke `$must-we` in Codex or `/must-we` in Claude Code.
+The Claude Code Session member is `/session:must-we`:
 
 > Do we need this test framework to address the review finding?
 
@@ -57,7 +71,9 @@ publishing for the user.
 
 ## Installation and validation
 
-The generated standalone payload is
+Choose standalone `must-we` or the Session member `must-we` through the
+[installation guide](../installation.md). Both forms share one canonical owner
+and version. The generated standalone payload is
 [`skills/must-we`](https://github.com/tkstang/skills/tree/main/skills/must-we).
 It has no runtime or package dependencies.
 

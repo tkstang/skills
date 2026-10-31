@@ -6,11 +6,11 @@ description: 'Find independently installable skills by capability, including mem
 # Standalone Skills
 
 Session skills can be installed individually or through Session. Align,
-Debrief, Sitrep, Reorient, Next Steps, and Seshtk CLI keep the same names in
-both forms; other Session members use the canonical names listed in their
+Debrief, Sitrep, Reorient, Next Steps, Explain Options, Must We, and Seshtk CLI
+keep the same names in both forms; other Session members use the canonical names listed in their
 guides. Observer and Collaborative Observer are standalone skills and Consensus
-members only. `author-skill`, `explain-options`, `must-we`, `complexity-review`,
-`babysit-pr`, and `land-pr` are standalone only.
+members only. `author-skill`, `complexity-review`, `babysit-pr`, and `land-pr`
+are standalone only.
 
 Choose by what the next session needs:
 
@@ -59,9 +59,9 @@ and standalone choices.
   a recommendation; requires **session-export-transcript** to see past compaction.
 - **next-steps** (session-local `next-steps`) — explain the current situation and recommend justified
   actions without executing them.
-- **explain-options** — explain the choices the agent just offered, with
+- **explain-options** (session-local `explain-options`) — explain the choices the agent just offered, with
   background, trade-offs, and a recommendation, then ask which to take.
-- **must-we** — evaluate whether a blocker, requirement, or proposed action is
+- **must-we** (session-local `must-we`) — evaluate whether a blocker, requirement, or proposed action is
   necessary and identify a smaller path when warranted.
 - **author-skill** — create, revise, migrate, or review a skill using the target
   repository’s source, distribution, version, and verification conventions.
@@ -115,8 +115,8 @@ and standalone choices.
 - [Sitrep](sitrep.md) — Report where the current work stands against its goal: complete, in progress, remaining, and at risk. Available standalone or as Session `sitrep`.
 - [Reorient](reorient.md) — Rebuild the arc of a long or compacted thread, check what changed since, and recommend what comes next; available standalone or as Session `reorient`.
 - [Next Steps](next-steps.md) — Explain the current state and recommend justified actions without executing them. Available standalone or as Session `next-steps`.
-- [Explain Options](explain-options.md) — Explain the choices an agent just offered well enough to decide, with a recommendation, without acting on it.
-- [Must We?](must-we.md) — Decide whether a blocker or proposal is necessary and find the smallest sufficient path.
+- [Explain Options](explain-options.md) — Explain the choices an agent just offered well enough to decide, with a recommendation, without acting on it. Available standalone or as Session `explain-options`.
+- [Must We?](must-we.md) — Decide whether a blocker or proposal is necessary and find the smallest sufficient path. Available standalone or as Session `must-we`.
 
 ### Review and improve
 

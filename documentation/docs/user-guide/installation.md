@@ -13,7 +13,7 @@ independently versioned plugins:
   `observer-collab`.
 - `session` — plugin-local `messaging`, `retro`, `handoff`,
   `export-transcript`, `search`, `reorient`, `fork-to-destination`, `seshtk-cli`,
-  `align`, `debrief`, `sitrep`, and `next-steps`.
+  `align`, `debrief`, `sitrep`, `next-steps`, `explain-options`, and `must-we`.
 
 Run the commands below from the repository root. Choose a plugin or a declared
 standalone form; installing both forms of the same skill may expose duplicate
@@ -285,8 +285,8 @@ under `skills/`:
 | `sitrep`                          | session `sitrep`              | [standalone source](https://github.com/tkstang/skills/tree/main/skills/sitrep)                      |
 | `reorient`                        | session `reorient`            | [standalone source](https://github.com/tkstang/skills/tree/main/skills/reorient)                    |
 | `next-steps`                      | session `next-steps`          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/next-steps)                  |
-| `explain-options`                 | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/explain-options)             |
-| `must-we`                         | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/must-we)                     |
+| `explain-options`                 | session `explain-options`     | [standalone source](https://github.com/tkstang/skills/tree/main/skills/explain-options)             |
+| `must-we`                         | session `must-we`             | [standalone source](https://github.com/tkstang/skills/tree/main/skills/must-we)                     |
 | `session-retro`                   | session `retro`               | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-retro)               |
 | `session-observer`                | consensus `observer`          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-observer)            |
 | `session-observer-collab`         | consensus `observer-collab`   | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-observer-collab)     |
