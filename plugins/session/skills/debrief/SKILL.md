@@ -92,7 +92,8 @@ report that question instead.
 ## Examples
 
 - Codex: `$debrief`
-- Claude Code: `/debrief`
+- Claude Code standalone: `/debrief`
+- Claude Code Session plugin: `/session:debrief`
 - Natural language: "I stepped away. What happened while I was gone?"
 - Natural language: "Debrief me on the whole session, not just the last stretch."
 

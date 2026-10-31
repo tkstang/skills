@@ -71,7 +71,8 @@ choices with their own bundled runtimes.
 ## Installation and names
 
 Install the Session plugin using the [Installation guide](../../installation.md).
-Every member also has a standalone form. Align, Debrief, Sitrep, and Next Steps keep the same names in both forms:
+Every member also has a standalone form. Align, Debrief, Sitrep, and Next Steps
+keep the same names in both forms:
 
 | Plugin-local name     | Standalone name               |
 | --------------------- | ----------------------------- |
@@ -101,7 +102,7 @@ CLI installation, and the skill does not automatically download it.
 
 Session does not require Consensus. [Observer](../../skills/session-observer.md)
 and [Collaborative Observer](../../skills/session-observer-collab.md) are available
-standalone and as **Consensus members only**, with no Session membership.
+standalone or through Consensus; neither is a Session member.
 Messaging can integrate with an exact active Collaborative Observer owner when
 the installed adapter proves that capability; neither observer is a Session
 dependency.

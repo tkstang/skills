@@ -72,8 +72,7 @@ It also offers addressed messaging, handoffs, transcript export, past-session
 search, toolkit CLI guidance, and evidence-backed retrospectives. All members
 also have standalone forms. Its **alpha** Fork to Destination skill prepares
 native-fork guidance with optional supported history import; it does not create
-the native fork. Provider coverage
-and end-to-end verification remain incomplete.
+the native fork. Provider coverage and end-to-end verification remain incomplete.
 
 Provider-backed workflows need the local provider CLIs they invoke. Executable
 skills with bundled runtime require Node.js 22+ but no runtime dependency installation. See each

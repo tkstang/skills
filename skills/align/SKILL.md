@@ -115,7 +115,8 @@ scope after the alignment exchange ends.
 ## Examples
 
 - Codex: `$align`
-- Claude Code: `/align`
+- Claude Code standalone: `/align`
+- Claude Code Session plugin: `/session:align`
 - Initial topic, supplied with `$align` or `/align`: “Before we start, restate what
   you think I’m trying to achieve.”
 - Mid-session topic, supplied with `$align` or `/align`: “We’ve done a lot, but this

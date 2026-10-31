@@ -38,8 +38,8 @@ that resolves it.
 
 ## Related skills
 
-Next Steps looks forward. Two skills, also available standalone or through Session, answer the neighboring
-questions; neither is required:
+Next Steps looks forward. Two skills, also available standalone or through
+Session, answer the neighboring questions; neither is required:
 
 - [Debrief](debrief.md) reports what happened in the session while you were
   away.
