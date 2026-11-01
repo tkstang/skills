@@ -48,7 +48,7 @@ run `pnpm run build`, inspect the generated diff, then repeat the checks. See
 
 Draft PRs skip both Validate jobs, Docs CI and Session Toolkit archive/consumer jobs before runner allocation. All three normal PR workflows preserve their existing base-branch coverage and include `ready_for_review`. Opening, reopening,
 synchronizing or marking a PR ready runs the checks.
-Changing the base branch of a ready PR also runs them; title and body edits do not. Ignored edits use separate concurrency groups and `Ignored PR edit` check names, so they cannot cancel pending checks or replace failed verification with a skipped check.
+Changing the base branch of a ready PR also runs them; title and body edits do not. Ignored edits use separate concurrency groups and distinct job-name expressions, so they cannot cancel pending checks or replace failed verification with a skipped check. GitHub can display the raw name expression for a skipped job; the normal verification names apply when those jobs run.
 The `validate` job still runs on every push to `main`.
 
 PR-only policies are additional gates, not implied by the command set above.
