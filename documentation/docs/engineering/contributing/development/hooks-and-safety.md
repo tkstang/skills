@@ -45,15 +45,9 @@ flowchart TB
   subgraph pr["pull_request"]
     direction TB
     V["validate job"]
-    J1["skill-versions"]
-    J2["internal-flags"]
-    J3["commitlint"]
-    J4["lint: changed files only"]
+    J1["static job: skill versions, internal flags,<br/>commitlint, changed-file lint and format"]
     J5["Docs CI, documentation paths"]
     V --- J1
-    V --- J2
-    V --- J3
-    V --- J4
     V --- J5
   end
   subgraph main["push to main"]
@@ -82,11 +76,11 @@ flowchart TB
   J5 ~~~ T1
 ```
 
-_Mermaid updated 2026-09-16_
+_Mermaid updated 2026-11-01_
 
 Scope of each trigger:
 
-- These are independent triggers, not a pipeline. No job declares `needs:` in the [Validate workflow](https://github.com/tkstang/skills/blob/main/.github/workflows/validate.yml), so its four PR-only jobs run in parallel with `validate`, not downstream of it.
+- These are independent triggers, not a pipeline. No job declares `needs:` in the [Validate workflow](https://github.com/tkstang/skills/blob/main/.github/workflows/validate.yml), so its PR-only `static` job runs in parallel with `validate`. The static checks share one checkout, toolchain setup and dependency install; named steps report each failure and continue independent checks.
 - The `validate` job itself runs on both `pull_request` and pushes to `main`.
 - The pre-push hook runs validate, build:check, type-check and the two gates, and deliberately skips the test suite and smoke to stay fast.
 - `oat status --scope project --hook` in pre-commit is non-blocking.
@@ -122,7 +116,7 @@ directory (`src/skills/<name>/`) requires that skill's quoted
 pnpm run validate:skill-versions -- --base-ref <ref>
 ```
 
-It is wired into the PR-only `skill-versions` CI job and the local `pre-push`
+It is wired into the PR-only `static` CI job and the local `pre-push`
 hook. Shared roots, generated outputs, plugin-shared areas, and rename history
 can affect more than the directly edited path; see the
 [version-impact table](conventions.md#skill-version-bump-on-edit).
@@ -154,7 +148,7 @@ guarded by a gate rather than hand-edited:
   pnpm run validate:internal-flags
   ```
 
-  is wired into the PR-only `internal-flags` CI job and the local `pre-push` hook,
+  is wired into the PR-only `static` CI job and the local `pre-push` hook,
   so a missing flag cannot merge to `main`. If it fails, run the apply script and
   re-commit the stamped files.
 
