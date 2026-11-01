@@ -2,6 +2,8 @@ name: Session Toolkit
 
 on:
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
   push:
     branches: [main]
     tags: [session-toolkit-v*]
@@ -21,6 +23,7 @@ concurrency:
 
 jobs:
   archive:
+    if: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref)) }}
     runs-on: ubuntu-latest
     env:
       GIT_HOOKS: "0"
@@ -59,6 +62,7 @@ jobs:
           if-no-files-found: error
 
   consumer:
+    if: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref)) }}
     needs: archive
     runs-on: ubuntu-latest
     strategy:

@@ -8,6 +8,8 @@ name: Docs CI
 
 on:
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
     paths:
       - 'documentation/**'
       - '.oat/config.json'
@@ -22,6 +24,7 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ !github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref) }}
     name: Check, build, and format-check docs
     runs-on: ubuntu-latest
     steps:

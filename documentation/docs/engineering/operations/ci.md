@@ -46,7 +46,7 @@ change intentionally affects installation units, edit canonical source and
 run `pnpm run build`, inspect the generated diff, then repeat the checks. See
 [Generated installation units](../architecture/generated-runtime.md).
 
-Draft PRs skip both Validate jobs before runner allocation. Opening, reopening,
+Draft PRs skip both Validate jobs, Docs CI and Session Toolkit archive/consumer jobs before runner allocation. All three normal PR workflows target `main` and include `ready_for_review`. Opening, reopening,
 synchronizing or marking a PR ready runs the checks when it targets `main`.
 Retargeting a ready PR to `main` also runs them; title and body edits do not.
 The `validate` job still runs on every push to `main`.
