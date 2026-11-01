@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: "${{ github.workflow }}-${{ github.ref }}"
+  group: "${{ github.workflow }}-${{ github.ref }}${{ github.event.action == 'edited' && !github.event.changes.base.ref && '-metadata' || '' }}"
   cancel-in-progress: ${{ github.event.action != 'edited' || github.event.changes.base.ref != null }}
 
 jobs:

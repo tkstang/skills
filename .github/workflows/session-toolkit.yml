@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: session-toolkit-${{ inputs.release_tag || github.ref }}
+  group: session-toolkit-${{ inputs.release_tag || github.ref }}${{ github.event.action == 'edited' && !github.event.changes.base.ref && '-metadata' || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' && (github.event.action != 'edited' || github.event.changes.base.ref != null) }}
 
 jobs:
