@@ -15,7 +15,7 @@ permissions:
 # instead of queueing duplicates.
 concurrency:
   group: "${{ github.workflow }}-${{ github.ref }}"
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event.action != 'edited' || github.event.changes.base.ref != null }}
 
 jobs:
   validate:
