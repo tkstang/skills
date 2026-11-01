@@ -81,7 +81,7 @@ _Mermaid updated 2026-11-01_
 Scope of each trigger:
 
 - These are independent triggers, not a pipeline. No job declares `needs:` in the [Validate workflow](https://github.com/tkstang/skills/blob/main/.github/workflows/validate.yml), so its PR-only `static` job runs in parallel with `validate`. The static checks share one checkout, toolchain setup and dependency install; named steps report each failure and continue independent checks.
-- The `validate` job itself runs on both `pull_request` and pushes to `main`.
+- The `validate` job runs for ready PRs targeting `main` and pushes to `main`. Draft PRs skip both Validate jobs; marking ready or retargeting to `main` schedules them without needing another commit. Title/body-only edits skip them.
 - The pre-push hook runs validate, build:check, type-check and the two gates, and deliberately skips the test suite and smoke to stay fast.
 - `oat status --scope project --hook` in pre-commit is non-blocking.
 - Docs CI is PR-only and path-scoped.

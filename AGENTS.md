@@ -120,6 +120,7 @@ symlinked product entry automatically.
 
 ## Verification
 
+- Validate CI runs for ready PRs targeting `main`, including `ready_for_review` and base retargeting, and for pushes to `main`. Draft PRs and title/body-only edits skip its jobs. The PR-only `static` job shares setup across named policy checks.
 - Agent instructions are still true: update or create covering instructions in the same PR when changing commands, directories, conventions, workflows, version pins, or known footguns; follow **Keeping instructions current**.
 - Update relevant human docs describing changed behavior in the same PR: `README.md`, `CONTRIBUTING.md`, `RELEASING.md`, and the relevant pages under `documentation/docs/` as applicable.
 
