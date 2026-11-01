@@ -19,6 +19,7 @@ concurrency:
 
 jobs:
   validate:
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (validate)' || 'validate' }}
     if: >-
       github.event_name == 'push' ||
       (!github.event.pull_request.draft &&
@@ -46,6 +47,7 @@ jobs:
       - run: pnpm run smoke
 
   static:
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (static)' || 'static' }}
     # PR policies share setup; keep individual checks visible after a failure.
     runs-on: ubuntu-latest
     if: >-

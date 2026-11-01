@@ -23,6 +23,7 @@ concurrency:
 
 jobs:
   archive:
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (archive)' || 'archive' }}
     if: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref)) }}
     runs-on: ubuntu-latest
     env:
@@ -62,6 +63,7 @@ jobs:
           if-no-files-found: error
 
   consumer:
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (consumer)' || 'consumer' }} (${{ matrix.node }})
     if: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref)) }}
     needs: archive
     runs-on: ubuntu-latest

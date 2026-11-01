@@ -25,7 +25,7 @@ concurrency:
 jobs:
   build:
     if: ${{ !github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref) }}
-    name: Check, build, and format-check docs
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (docs)' || 'Check, build, and format-check docs' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

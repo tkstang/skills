@@ -48,7 +48,7 @@ run `pnpm run build`, inspect the generated diff, then repeat the checks. See
 
 Draft PRs skip both Validate jobs, Docs CI and Session Toolkit archive/consumer jobs before runner allocation. All three normal PR workflows target `main` and include `ready_for_review`. Opening, reopening,
 synchronizing or marking a PR ready runs the checks when it targets `main`.
-Retargeting a ready PR to `main` also runs them; title and body edits do not.
+Retargeting a ready PR to `main` also runs them; title and body edits do not. Ignored edits use separate concurrency groups and `Ignored PR edit` check names, so they cannot cancel pending checks or replace failed verification with a skipped check.
 The `validate` job still runs on every push to `main`.
 
 PR-only policies are additional gates, not implied by the command set above.
