@@ -322,6 +322,14 @@ The workflow declaration alone does not establish those live settings. Check
 trusted publisher currently requires its first successful publication within
 two days, and saving the configuration does not verify it.
 
+PR archive selection skips only root `README.md`, `CONTRIBUTING.md` and
+`AGENTS.md`, the separate `documentation/` app, and Markdown notes under
+`.oat/repo/`. Every other path runs the full archive and installed-consumer
+checks, including package source, build/release tooling, tests, package metadata,
+shared config, runtime, lockfile and workflow inputs. The selector uses the actual
+PR base/head and fails when comparison is unavailable; renamed files contribute
+both paths. Main pushes, package tags and manual release retries always run full.
+
 On PRs and ordinary `main` pushes, the Session Toolkit workflow packs the current
 source and validates the same downloaded archive on Node 22.0.0/24. These checks
 run without npm publication dry runs or release-tag binding, so an already

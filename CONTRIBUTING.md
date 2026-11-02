@@ -57,6 +57,14 @@ output before running the suite; build first for scoped CLI tests. Read
 [package README](packages/session-toolkit/README.md) before editing it. Its
 Node 22.0.0 consumer floor is separate from Node 24 release tooling.
 
+PR archive selection skips only root `README.md`, `CONTRIBUTING.md` and
+`AGENTS.md`, the separate `documentation/` app, and Markdown notes under
+`.oat/repo/`. Every other path runs the full archive and installed-consumer
+checks, including package source, build/release tooling, tests, package metadata,
+shared config, runtime, lockfile and workflow inputs. The selector uses the actual
+PR base/head and fails when comparison is unavailable; renamed files contribute
+both paths. Main pushes, package tags and manual release retries always run full.
+
 On PRs and ordinary `main` pushes, the `Session Toolkit` workflow packs current
 source and checks the same downloaded archive on Node 22.0.0 and 24. Package-tag
 pushes and manual release retries instead prepare a clean source-bound candidate

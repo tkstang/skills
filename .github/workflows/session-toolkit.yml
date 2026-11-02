@@ -25,6 +25,8 @@ jobs:
     name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (archive)' || 'archive' }}
     if: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref)) }}
     runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.changes.outputs.relevant }}
     env:
       GIT_HOOKS: "0"
       RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
@@ -33,18 +35,56 @@ jobs:
         with:
           ref: ${{ inputs.release_tag || github.sha }}
           fetch-depth: 0
+      - name: Select PR archive verification from the exact comparison
+        id: changes
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Main, package tags and manual release retries always run everything.
+          if [[ "$GITHUB_EVENT_NAME" != pull_request ]]; then
+            echo 'relevant=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          for revision in "$PR_BASE_SHA" "$PR_HEAD_SHA"; do
+            [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid PR revision' >&2; exit 1; }
+            git cat-file -e "$revision^{commit}"
+          done
+          comparison="$(git merge-base "$PR_BASE_SHA" "$PR_HEAD_SHA")"
+          changed="$(mktemp)"
+          trap 'rm -f "$changed"' EXIT
+          # Disable rename detection so both old and new paths are classified.
+          git diff --name-only --no-renames -z "$comparison" "$PR_HEAD_SHA" > "$changed"
+          relevant=false
+          while IFS= read -r -d '' path; do
+            case "$path" in
+              README.md|CONTRIBUTING.md|AGENTS.md|documentation/*|.oat/repo/*.md) ;;
+              *) relevant=true ;;
+            esac
+          done < "$changed"
+          # Source, tests, package metadata, runtime/toolchain/lock/workflow and
+          # any unknown input run the full archive and installed-consumer proof.
+          echo "relevant=$relevant" >> "$GITHUB_OUTPUT"
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        if: steps.changes.outputs.relevant == 'true'
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.changes.outputs.relevant == 'true'
         with:
           node-version: "24"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+        if: steps.changes.outputs.relevant == 'true'
       - run: pnpm run type-check
+        if: steps.changes.outputs.relevant == 'true'
       - run: pnpm run build:check
+        if: steps.changes.outputs.relevant == 'true'
       - run: pnpm run build:toolkit
+        if: steps.changes.outputs.relevant == 'true'
       - run: pnpm run test:vitest tests/release/session-toolkit-*.test.ts
+        if: steps.changes.outputs.relevant == 'true'
       - name: Pack current source for pull requests and main
-        if: ${{ !startsWith(github.ref, 'refs/tags/session-toolkit-v') && github.event_name != 'workflow_dispatch' }}
+        if: ${{ steps.changes.outputs.relevant == 'true' && !startsWith(github.ref, 'refs/tags/session-toolkit-v') && github.event_name != 'workflow_dispatch' }}
         run: |
           mkdir "$RUNNER_TEMP/session-toolkit"
           pnpm --dir packages/session-toolkit pack --pack-destination "$RUNNER_TEMP/session-toolkit"
@@ -56,6 +96,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/session-toolkit-v') || github.event_name == 'workflow_dispatch'
         run: pnpm run release:toolkit:verify --directory "$RUNNER_TEMP/session-toolkit" --tag "$RELEASE_TAG"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.changes.outputs.relevant == 'true'
         with:
           name: session-toolkit-archive
           path: ${{ runner.temp }}/session-toolkit/
@@ -63,7 +104,7 @@ jobs:
 
   consumer:
     name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (consumer)' || 'consumer' }} (${{ matrix.node }})
-    if: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref)) }}
+    if: ${{ needs.archive.outputs.relevant == 'true' && (github.event_name != 'pull_request' || (!github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref))) }}
     needs: archive
     runs-on: ubuntu-latest
     strategy:
