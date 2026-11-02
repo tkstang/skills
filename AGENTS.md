@@ -120,7 +120,7 @@ symlinked product entry automatically.
 
 ## Verification
 
-- Validate CI runs for ready PRs across the existing base branches, including `ready_for_review` and base retargeting, and for pushes to `main`. Draft PRs and title/body-only edits skip its jobs. Docs CI and Session Toolkit archive/consumer jobs use the same ready-PR policy, while Toolkit tag and manual release gates remain separate. The PR-only `static` job shares setup across named policy checks. Session
+- Validate CI runs for ready PRs across the existing base branches, including `ready_for_review` and base retargeting, and for pushes to `main`. Draft PRs and title/body-only edits skip its jobs and use unique non-cancelling PR run groups so they cannot replace active verification. Docs CI and Session Toolkit archive/consumer jobs use the same ready-PR policy, while Toolkit tag and manual release gates remain separate. The PR-only `static` job shares setup across named policy checks. Session
   Toolkit PR archives and installed consumers skip only known unrelated root
   guidance, the separate documentation app and Markdown PJM notes. The selector
   validates the exact PR base/head and classifies both sides of renames; unknown

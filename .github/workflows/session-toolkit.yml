@@ -17,8 +17,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: session-toolkit-${{ inputs.release_tag || github.ref }}${{ github.event.action == 'edited' && !github.event.changes.base.ref && '-metadata' || '' }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' && (github.event.action != 'edited' || github.event.changes.base.ref != null) }}
+  group: session-toolkit-${{ inputs.release_tag || github.ref }}${{ github.event_name == 'pull_request' && (github.event.pull_request.draft || (github.event.action == 'edited' && !github.event.changes.base.ref)) && format('-ignored-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref != null) }}
 
 jobs:
   archive:

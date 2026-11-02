@@ -13,8 +13,8 @@ permissions:
 # Rapid successive pushes/PR updates should cancel the stale workflow run
 # instead of queueing duplicates.
 concurrency:
-  group: "${{ github.workflow }}-${{ github.ref }}${{ github.event.action == 'edited' && !github.event.changes.base.ref && '-metadata' || '' }}"
-  cancel-in-progress: ${{ github.event.action != 'edited' || github.event.changes.base.ref != null }}
+  group: "${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'pull_request' && (github.event.pull_request.draft || (github.event.action == 'edited' && !github.event.changes.base.ref)) && format('-ignored-{0}', github.run_id) || '' }}"
+  cancel-in-progress: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref != null)) }}
 
 jobs:
   validate:
