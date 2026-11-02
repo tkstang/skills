@@ -36,6 +36,11 @@
 
 ### Fixed
 
+- `session-observer` 1.1.2 keeps its duplicate-watcher test fixture alive through
+  the competing claim, preserving real ownership assertions under slow test runs.
+  `session-fork-to-destination` 0.3.7 and `session-observer-collab` 1.0.80 receive
+  required metadata-only version bumps for their declared observer source closure.
+
 - Session 0.8.0 Codex starter prompts now fit the provider's three-entry,
   128-character-per-entry limits so Codex retains them.
 
