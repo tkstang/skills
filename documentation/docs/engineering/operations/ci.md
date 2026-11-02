@@ -22,7 +22,10 @@ deployment and opt-in live-provider verification.
 The [Session Toolkit workflow](https://github.com/tkstang/skills/blob/main/.github/workflows/session-toolkit.yml)
 also runs on PRs and `main` pushes. It packs current source once and tests the
 same archive on Node 22.0.0 and 24, without requiring an unpublished version or
-a matching release tag. Package-tag pushes and manual release retries instead
+a matching release tag. PR archive and consumer checks skip only unrelated root
+README/contributor/instruction files, the separate documentation app and Markdown
+PJM notes; the [contributor input map](https://github.com/tkstang/skills/blob/main/CONTRIBUTING.md#session-toolkit)
+names the exact paths. All other changes run full. Package-tag pushes and manual release retries instead
 prepare and verify a clean source-bound release candidate; publication also
 requires the release-enable setting and protected `npm` environment. See
 [RELEASING.md](https://github.com/tkstang/skills/blob/main/RELEASING.md#session-toolkit-package)
@@ -47,7 +50,8 @@ run `pnpm run build`, inspect the generated diff, then repeat the checks. See
 [Generated installation units](../architecture/generated-runtime.md).
 
 Draft PRs skip both Validate jobs, Docs CI and Session Toolkit archive/consumer jobs before runner allocation. All three normal PR workflows preserve their existing base-branch coverage and include `ready_for_review`. Opening, reopening,
-synchronizing or marking a PR ready runs the checks.
+synchronizing or marking a PR ready runs the eligible checks, with the Toolkit
+input selection above still applied.
 Changing the base branch of a ready PR also runs them; title and body edits do not. Ignored edits use separate concurrency groups and distinct job-name expressions, so they cannot cancel pending checks or replace failed verification with a skipped check. GitHub can display the raw name expression for a skipped job; the normal verification names apply when those jobs run.
 The `validate` job still runs on every push to `main`.
 
