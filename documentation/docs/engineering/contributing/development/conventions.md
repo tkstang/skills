@@ -54,7 +54,7 @@ references/assets, or build declaration — requires that skill's
 `metadata.version` to increase. This is enforced by
 `scripts/validate-skill-versions.ts`
 (run `pnpm run validate:skill-versions -- --base-ref <ref>`), wired into the
-PR-only `skill-versions` CI job and the local `pre-push` hook. Only
+PR-only `static` CI job and the local `pre-push` hook. Only
 `skills/`, `plugins/*/skills/`, `.agents/skills/`, `.claude/skills/`, and
 `.cursor/skills/` are generated payloads or mirrors; never treat them as
 canonical sources.

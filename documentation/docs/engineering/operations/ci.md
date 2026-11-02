@@ -10,19 +10,22 @@ deployment and opt-in live-provider verification.
 
 ## What runs when
 
-| Workflow                                                                                        | Trigger                                   | What it establishes                                                                                                                                                                                            |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Validate](https://github.com/tkstang/skills/blob/main/.github/workflows/validate.yml)          | Pull requests and pushes to `main`        | Generated-output freshness, type checks, tests, structure validation, and mocked smoke behavior. Separate PR-only jobs check skill versions, internal flags, commit conventions, and changed-file lint/format. |
-| [Docs CI](https://github.com/tkstang/skills/blob/main/.github/workflows/docs-ci.yml)            | PRs changing `documentation/**`           | The docs app builds at the `/skills` base path and passes its formatting check. It does not publish.                                                                                                           |
-| [Deploy Docs](https://github.com/tkstang/skills/blob/main/.github/workflows/deploy-docs.yml)    | Manual dispatch or relevant `main` pushes | Builds a static export and publishes `documentation/out/` to GitHub Pages.                                                                                                                                     |
-| [Live Provider E2E](https://github.com/tkstang/skills/blob/main/.github/workflows/live-e2e.yml) | Manual dispatch only                      | Exercises the provider submit boundary against a real authenticated provider, spending real quota.                                                                                                             |
-| [Release](https://github.com/tkstang/skills/blob/main/.github/workflows/release.yml)            | `consensus-v*` or `session-v*` tags       | Rebuilds, checks committed generated output, runs deterministic gates, and checks the selected plugin's version. It does not itself publish a GitHub Release.                                                  |
-| [Tag Main](https://github.com/tkstang/skills/blob/main/.github/workflows/tag-main.yml)          | Validate succeeding on a `main` push      | Tags the validated commit with the next patch release (`v0.1.2` → `v0.1.3`) so standalone installs can pin current `main`. Skips commits already tagged, not on `main`, or older than the newest release tag.  |
+| Workflow                                                                                        | Trigger                                   | What it establishes                                                                                                                                                                                                                                  |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Validate](https://github.com/tkstang/skills/blob/main/.github/workflows/validate.yml)          | Ready PRs and pushes to `main`            | Generated-output freshness, type checks, tests, structure validation, and mocked smoke behavior. One PR-only `static` job checks skill versions, internal flags, commit conventions, and changed-file lint/format with named steps and shared setup. |
+| [Docs CI](https://github.com/tkstang/skills/blob/main/.github/workflows/docs-ci.yml)            | PRs changing `documentation/**`           | The docs app builds at the `/skills` base path and passes its formatting check. It does not publish.                                                                                                                                                 |
+| [Deploy Docs](https://github.com/tkstang/skills/blob/main/.github/workflows/deploy-docs.yml)    | Manual dispatch or relevant `main` pushes | Builds a static export and publishes `documentation/out/` to GitHub Pages.                                                                                                                                                                           |
+| [Live Provider E2E](https://github.com/tkstang/skills/blob/main/.github/workflows/live-e2e.yml) | Manual dispatch only                      | Exercises the provider submit boundary against a real authenticated provider, spending real quota.                                                                                                                                                   |
+| [Release](https://github.com/tkstang/skills/blob/main/.github/workflows/release.yml)            | `consensus-v*` or `session-v*` tags       | Rebuilds, checks committed generated output, runs deterministic gates, and checks the selected plugin's version. It does not itself publish a GitHub Release.                                                                                        |
+| [Tag Main](https://github.com/tkstang/skills/blob/main/.github/workflows/tag-main.yml)          | Validate succeeding on a `main` push      | Tags the validated commit with the next patch release (`v0.1.2` → `v0.1.3`) so standalone installs can pin current `main`. Skips commits already tagged, not on `main`, or older than the newest release tag.                                        |
 
 The [Session Toolkit workflow](https://github.com/tkstang/skills/blob/main/.github/workflows/session-toolkit.yml)
 also runs on PRs and `main` pushes. It packs current source once and tests the
 same archive on Node 22.0.0 and 24, without requiring an unpublished version or
-a matching release tag. Package-tag pushes and manual release retries instead
+a matching release tag. PR archive and consumer checks skip only unrelated root
+README/contributor/instruction files, the separate documentation app and Markdown
+PJM notes; the [contributor input map](https://github.com/tkstang/skills/blob/main/CONTRIBUTING.md#session-toolkit)
+names the exact paths. All other changes run full. Package-tag pushes and manual release retries instead
 prepare and verify a clean source-bound release candidate; publication also
 requires the release-enable setting and protected `npm` environment. See
 [RELEASING.md](https://github.com/tkstang/skills/blob/main/RELEASING.md#session-toolkit-package)
@@ -45,6 +48,12 @@ Run `build:check` before repairing generated output so drift is visible. If the
 change intentionally affects installation units, edit canonical source and
 run `pnpm run build`, inspect the generated diff, then repeat the checks. See
 [Generated installation units](../architecture/generated-runtime.md).
+
+Draft PRs skip both Validate jobs, Docs CI and Session Toolkit archive/consumer jobs before runner allocation. All three normal PR workflows preserve their existing base-branch coverage and include `ready_for_review`. Opening, reopening,
+synchronizing or marking a PR ready runs the eligible checks, with the Toolkit
+input selection above still applied.
+Changing the base branch of a ready PR also runs them; title and body edits do not. Ignored edits use separate concurrency groups and distinct job-name expressions, so they cannot cancel pending checks or replace failed verification with a skipped check. GitHub can display the raw name expression for a skipped job; the normal verification names apply when those jobs run.
+The `validate` job still runs on every push to `main`.
 
 PR-only policies are additional gates, not implied by the command set above.
 The local pre-push hook runs validate, build freshness, type checking, skill

@@ -4114,6 +4114,11 @@ describe('runWatchLoop', () => {
         return true;
       });
 
+      let nowA = Date.now();
+      let releaseA!: () => void;
+      const holdA = new Promise<void>((resolve) => {
+        releaseA = resolve;
+      });
       const stdoutA: string[] = [];
       const watcherA = runWatchLoop(
         {
@@ -4125,40 +4130,56 @@ describe('runWatchLoop', () => {
         },
         {
           pid: 111,
+          now: () => nowA,
+          sleep: async () => {
+            await holdA;
+          },
           handleSignals: false,
           writeStdout: (chunk: string) => stdoutA.push(chunk),
         },
       );
 
-      await waitFor(async () => {
-        const state = await readJsonIfExists(join(stateDir, 'watch.json'));
-        return state?.watchers?.[0]?.targets?.length === 1 ? state : null;
-      });
+      try {
+        await waitFor(async () => {
+          const state = await readJsonIfExists(join(stateDir, 'watch.json'));
+          return state?.watchers?.[0]?.targets?.length === 1 ? state : null;
+        });
 
-      const stdoutB: string[] = [];
-      await expect(() =>
-        runWatchLoop(
-          {
-            runtime: 'claude-code',
-            cwd,
-            pollSec: 0.03,
-            debounceSec: 0.04,
-            maxRuntimeMin: 0.02,
-          },
-          {
-            pid: 222,
-            handleSignals: false,
-            writeStdout: (chunk: string) => stdoutB.push(chunk),
-          },
-        ),
-      ).rejects.toThrow(/already watching claude-code:duplicate-target/);
-      expect(stdoutB.join('').includes('already watching')).toBeTruthy();
+        let nowB = nowA;
+        const stdoutB: string[] = [];
+        await expect(() =>
+          runWatchLoop(
+            {
+              runtime: 'claude-code',
+              cwd,
+              pollSec: 0.03,
+              debounceSec: 0.04,
+              maxRuntimeMin: 0.02,
+            },
+            {
+              pid: 222,
+              now: () => nowB,
+              sleep: async (ms: number) => {
+                nowB += ms;
+              },
+              handleSignals: false,
+              writeStdout: (chunk: string) => stdoutB.push(chunk),
+            },
+          ),
+        ).rejects.toThrow(/already watching claude-code:duplicate-target/);
+        expect(stdoutB.join('').includes('already watching')).toBeTruthy();
 
-      const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
-      expect(watchJson.watchers.map((watcher: any) => watcher.pid)).toEqual([
-        111,
-      ]);
-
+        const watchJson = await readJsonIfExists(join(stateDir, 'watch.json'));
+        expect(watchJson.watchers.map((watcher: any) => watcher.pid)).toEqual([
+          111,
+        ]);
+      } finally {
+        // Keep A alive until B's ownership assertion, then finish it before
+        // temporary state is removed, including when an assertion fails.
+        nowA += 2_000;
+        releaseA();
+        await watcherA;
+      }
       const result = await watcherA;
       expect(result.reason).toBe('max-runtime');
     });

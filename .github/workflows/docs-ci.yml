@@ -8,6 +8,7 @@ name: Docs CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
     paths:
       - 'documentation/**'
       - '.oat/config.json'
@@ -17,12 +18,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: "${{ github.workflow }}-${{ github.ref }}"
-  cancel-in-progress: true
+  group: "${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'pull_request' && (github.event.pull_request.draft || (github.event.action == 'edited' && !github.event.changes.base.ref)) && format('-ignored-{0}', github.run_id) || '' }}"
+  cancel-in-progress: ${{ !github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref != null) }}
 
 jobs:
   build:
-    name: Check, build, and format-check docs
+    if: ${{ !github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref) }}
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (docs)' || 'Check, build, and format-check docs' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

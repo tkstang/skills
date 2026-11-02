@@ -10,14 +10,19 @@ on:
 permissions:
   contents: read
 
-# Rapid successive pushes/PR updates should cancel the stale six-job matrix
+# Rapid successive pushes/PR updates should cancel the stale workflow run
 # instead of queueing duplicates.
 concurrency:
-  group: "${{ github.workflow }}-${{ github.ref }}"
-  cancel-in-progress: true
+  group: "${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'pull_request' && (github.event.pull_request.draft || (github.event.action == 'edited' && !github.event.changes.base.ref)) && format('-ignored-{0}', github.run_id) || '' }}"
+  cancel-in-progress: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref != null)) }}
 
 jobs:
   validate:
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (validate)' || 'validate' }}
+    if: >-
+      github.event_name == 'push' ||
+      (!github.event.pull_request.draft &&
+       (github.event.action != 'edited' || github.event.changes.base.ref))
     runs-on: ubuntu-latest
     env:
       GIT_HOOKS: "0" # skip git-hook setup in CI
@@ -40,94 +45,13 @@ jobs:
       - run: pnpm run validate
       - run: pnpm run smoke
 
-  skill-versions:
-    # Require a version bump for any skill whose directory changed in the PR.
-    # Needs full history (fetch-depth: 0) to diff against the PR base.
+  static:
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (static)' || 'static' }}
+    # PR policies share setup; keep individual checks visible after a failure.
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    env:
-      GIT_HOOKS: "0"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "22"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Resolve PR comparison range
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          git cat-file -e "$BASE_SHA^{commit}"
-          git cat-file -e "$HEAD_SHA^{commit}"
-          merge_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
-          test -n "$merge_base"
-          echo "MERGE_BASE=$merge_base" >> "$GITHUB_ENV"
-      - name: Validate changed skill version bumps
-        run: pnpm tsx scripts/validate-skill-versions.ts --base-ref "$MERGE_BASE"
-
-  internal-flags:
-    # Block merge if any .agents/skills/**/SKILL.md is missing
-    # metadata.internal: true — the flag that hides OAT tooling skills from
-    # `npx skills` discovery. Modeled on the skill-versions gate; PR-scoped. The
-    # detector scans the synced skills tree, so no base diff / full history is
-    # needed.
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    env:
-      GIT_HOOKS: "0"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "22"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Validate .agents/skills internal flags
-        run: pnpm run validate:internal-flags
-
-  commitlint:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    env:
-      GIT_HOOKS: "0"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "22"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Resolve PR comparison range
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          git cat-file -e "$BASE_SHA^{commit}"
-          git cat-file -e "$HEAD_SHA^{commit}"
-          merge_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
-          test -n "$merge_base"
-          echo "MERGE_BASE=$merge_base" >> "$GITHUB_ENV"
-      - name: Lint PR commits (Conventional Commits)
-        run: >-
-          pnpm exec commitlint
-          --from "$MERGE_BASE"
-          --to "${{ github.event.pull_request.head.sha }}"
-          --verbose
-
-  lint:
-    # Lint/format only the files changed by the PR. The repo is being formatted
-    # incrementally, so a whole-repo check would fail on the un-migrated backlog.
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: >-
+      github.event_name == 'pull_request' && !github.event.pull_request.draft &&
+      (github.event.action != 'edited' || github.event.changes.base.ref)
     env:
       GIT_HOOKS: "0"
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -135,48 +59,81 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Resolve PR comparison range and generated roots
+      - name: Install dependencies
+        id: install
+        run: pnpm install --frozen-lockfile
+      - name: Resolve PR comparison range
+        id: range
         run: |
           git cat-file -e "$BASE_SHA^{commit}"
           git cat-file -e "$HEAD_SHA^{commit}"
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
           merge_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
           test -n "$merge_base"
+          git merge-base --is-ancestor "$merge_base" "$BASE_SHA"
+          git merge-base --is-ancestor "$merge_base" "$HEAD_SHA"
           echo "MERGE_BASE=$merge_base" >> "$GITHUB_ENV"
-          pnpm tsx scripts/build-generated.ts --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"
+      - name: Validate changed skill version bumps
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.range.outcome == 'success' }}
+        run: pnpm tsx scripts/validate-skill-versions.ts --base-ref "$MERGE_BASE"
+      - name: Validate .agents/skills internal flags
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm run validate:internal-flags
+      - name: Lint PR commits (Conventional Commits)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.range.outcome == 'success' }}
+        run: >-
+          pnpm exec commitlint
+          --from "$MERGE_BASE"
+          --to "$HEAD_SHA"
+          --verbose
+      - name: Capture generated output paths
+        id: generated
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm tsx scripts/build-generated.ts --list-outputs > "$RUNNER_TEMP/generated-output-paths.txt"
       - name: oxlint (changed authored source)
+        if: ${{ !cancelled() && steps.range.outcome == 'success' && steps.generated.outcome == 'success' }}
         run: |
-          exclude='^(node_modules|\.oat|\.agents)/'
+          # Write the diff first so a git failure cannot disappear in a read loop.
+          git diff --name-only -z --diff-filter=ACMR "$MERGE_BASE" "$HEAD_SHA" -- '*.ts' '*.mts' '*.mjs' '*.js' > "$RUNNER_TEMP/lint-files"
           files=()
-          while IFS= read -r file; do
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              node_modules/*|.oat/*|.agents/*|.claude/skills/*|.cursor/skills/*|.claude/rules/*|.cursor/rules/*|AGENTS.md|*/AGENTS.md) continue ;;
+            esac
             generated=false
             while IFS= read -r root; do
               if [[ "$file" == "$root" || "$file" == "$root/"* ]]; then generated=true; break; fi
             done < "$RUNNER_TEMP/generated-output-paths.txt"
             $generated && continue
             files+=("$file")
-          done < <(git diff --name-only --diff-filter=ACMR "$MERGE_BASE" "$HEAD_SHA" -- '*.ts' '*.mts' '*.mjs' '*.js' | grep -vE "$exclude" || true)
+          done < "$RUNNER_TEMP/lint-files"
           if [ ${#files[@]} -eq 0 ]; then echo "no authored source changed"; exit 0; fi
-          printf 'linting:\n%s\n' "${files[*]}"
-          pnpm exec oxlint "${files[@]}"
+          printf 'linting: %q\n' "${files[@]}"
+          pnpm exec oxlint -- "${files[@]}"
       - name: oxfmt --check (changed files)
+        if: ${{ !cancelled() && steps.range.outcome == 'success' && steps.generated.outcome == 'success' }}
         run: |
-          exclude='^(node_modules|\.oat|\.agents)/|\.(claude|cursor)/rules/|(^|/)AGENTS\.md$'
+          # Keep filenames NUL-delimited, including spaces, newlines and glob characters.
+          git diff --name-only -z --diff-filter=ACMR "$MERGE_BASE" "$HEAD_SHA" -- '*.ts' '*.mts' '*.mjs' '*.js' '*.json' '*.md' > "$RUNNER_TEMP/format-files"
           files=()
-          while IFS= read -r file; do
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              node_modules/*|.oat/*|.agents/*|.claude/skills/*|.cursor/skills/*|.claude/rules/*|.cursor/rules/*|AGENTS.md|*/AGENTS.md) continue ;;
+            esac
             generated=false
             while IFS= read -r root; do
               if [[ "$file" == "$root" || "$file" == "$root/"* ]]; then generated=true; break; fi
             done < "$RUNNER_TEMP/generated-output-paths.txt"
             $generated && continue
             files+=("$file")
-          done < <(git diff --name-only --diff-filter=ACMR "$MERGE_BASE" "$HEAD_SHA" -- '*.ts' '*.mts' '*.mjs' '*.js' '*.json' '*.md' | grep -vE "$exclude" || true)
+          done < "$RUNNER_TEMP/format-files"
           if [ ${#files[@]} -eq 0 ]; then echo "no formattable files changed"; exit 0; fi
-          printf 'checking format:\n%s\n' "${files[*]}"
-          pnpm exec oxfmt --check "${files[@]}"
+          printf 'checking format: %q\n' "${files[@]}"
+          pnpm exec oxfmt --check -- "${files[@]}"
