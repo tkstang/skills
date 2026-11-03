@@ -57,7 +57,9 @@ output before running the suite; build first for scoped CLI tests. Read
 [package README](packages/session-toolkit/README.md) before editing it. Its
 Node 22.0.0 consumer floor is separate from Node 24 release tooling.
 
-PR archive selection skips only root `README.md`, `CONTRIBUTING.md` and
+The workflow step "Select archive and installed-consumer checks from PR inputs"
+sets `relevant=true|false` before toolchain setup. That output gates archive
+verification and the installed-consumer jobs. PR archive selection skips only root `README.md`, `CONTRIBUTING.md` and
 `AGENTS.md`, the separate `documentation/` app, and Markdown notes under
 `.oat/repo/`. Every other path runs the full archive and installed-consumer
 checks, including package source, build/release tooling, tests, package metadata,

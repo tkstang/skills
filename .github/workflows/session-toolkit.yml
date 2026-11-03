@@ -16,16 +16,42 @@ on:
 permissions:
   contents: read
 
+# Ready PR replacements share a group. Drafts and ignored edits stay isolated
+# from pending checks; ignored edits also use separate check names.
 concurrency:
-  group: session-toolkit-${{ inputs.release_tag || github.ref }}${{ github.event_name == 'pull_request' && (github.event.pull_request.draft || (github.event.action == 'edited' && !github.event.changes.base.ref)) && format('-ignored-{0}', github.run_id) || '' }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref != null) }}
+  group: >-
+    session-toolkit-${{ inputs.release_tag || github.ref }}${{
+    github.event_name == 'pull_request' &&
+    (github.event.pull_request.draft ||
+    (github.event.action == 'edited' && !github.event.changes.base.ref)) &&
+    format('-ignored-{0}', github.run_id) ||
+    ''
+    }}
+  cancel-in-progress: >-
+    ${{
+    github.event_name == 'pull_request' &&
+    !github.event.pull_request.draft &&
+    (github.event.action != 'edited' || github.event.changes.base.ref != null)
+    }}
 
 jobs:
   archive:
-    name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (archive)' || 'archive' }}
-    if: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref)) }}
+    name: >-
+      ${{
+      github.event.action == 'edited' &&
+      !github.event.changes.base.ref &&
+      'Ignored PR edit (archive)' ||
+      'archive'
+      }}
+    if: >-
+      ${{
+      github.event_name != 'pull_request' ||
+      (!github.event.pull_request.draft &&
+      (github.event.action != 'edited' || github.event.changes.base.ref))
+      }}
     runs-on: ubuntu-latest
     outputs:
+      # The selector gates archive checks here and installed-consumer checks below.
       relevant: ${{ steps.changes.outputs.relevant }}
     env:
       GIT_HOOKS: "0"
@@ -35,20 +61,24 @@ jobs:
         with:
           ref: ${{ inputs.release_tag || github.sha }}
           fetch-depth: 0
-      - name: Select PR archive verification from the exact comparison
+      - name: Select archive and installed-consumer checks from PR inputs
         id: changes
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
+          # relevant=true runs archive and installed-consumer checks; false skips them.
           # Main, package tags and manual release retries always run everything.
           if [[ "$GITHUB_EVENT_NAME" != pull_request ]]; then
             echo 'relevant=true' >> "$GITHUB_OUTPUT"
             exit 0
           fi
           for revision in "$PR_BASE_SHA" "$PR_HEAD_SHA"; do
-            [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid PR revision' >&2; exit 1; }
+            if [[ ! "$revision" =~ ^[0-9a-f]{40}$ ]]; then
+              echo 'Invalid PR revision' >&2
+              exit 1
+            fi
             git cat-file -e "$revision^{commit}"
           done
           comparison="$(git merge-base "$PR_BASE_SHA" "$PR_HEAD_SHA")"
@@ -60,7 +90,9 @@ jobs:
           while IFS= read -r -d '' path; do
             case "$path" in
               README.md|CONTRIBUTING.md|AGENTS.md|documentation/*|.oat/repo/*.md) ;;
-              *) relevant=true ;;
+              *)
+                relevant=true
+                ;;
             esac
           done < "$changed"
           # Source, tests, package metadata, runtime/toolchain/lock/workflow and
@@ -73,18 +105,28 @@ jobs:
         with:
           node-version: "24"
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - name: Install archive verification dependencies
+        run: pnpm install --frozen-lockfile
         if: steps.changes.outputs.relevant == 'true'
-      - run: pnpm run type-check
+      - name: Type check repository and Session Toolkit
+        run: pnpm run type-check
         if: steps.changes.outputs.relevant == 'true'
-      - run: pnpm run build:check
+      - name: Verify committed generated outputs
+        run: pnpm run build:check
         if: steps.changes.outputs.relevant == 'true'
-      - run: pnpm run build:toolkit
+      - name: Build Session Toolkit
+        run: pnpm run build:toolkit
         if: steps.changes.outputs.relevant == 'true'
-      - run: pnpm run test:vitest tests/release/session-toolkit-*.test.ts
+      - name: Test Session Toolkit archive contracts
+        run: pnpm run test:vitest tests/release/session-toolkit-*.test.ts
         if: steps.changes.outputs.relevant == 'true'
       - name: Pack current source for pull requests and main
-        if: ${{ steps.changes.outputs.relevant == 'true' && !startsWith(github.ref, 'refs/tags/session-toolkit-v') && github.event_name != 'workflow_dispatch' }}
+        if: >-
+          ${{
+          steps.changes.outputs.relevant == 'true' &&
+          !startsWith(github.ref, 'refs/tags/session-toolkit-v') &&
+          github.event_name != 'workflow_dispatch'
+          }}
         run: |
           mkdir "$RUNNER_TEMP/session-toolkit"
           pnpm --dir packages/session-toolkit pack --pack-destination "$RUNNER_TEMP/session-toolkit"
@@ -103,8 +145,20 @@ jobs:
           if-no-files-found: error
 
   consumer:
-    name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (consumer)' || 'consumer' }} (${{ matrix.node }})
-    if: ${{ needs.archive.outputs.relevant == 'true' && (github.event_name != 'pull_request' || (!github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref))) }}
+    name: >-
+      ${{
+      github.event.action == 'edited' &&
+      !github.event.changes.base.ref &&
+      'Ignored PR edit (consumer)' ||
+      'consumer'
+      }} (${{ matrix.node }})
+    if: >-
+      ${{
+      needs.archive.outputs.relevant == 'true' &&
+      (github.event_name != 'pull_request' ||
+      (!github.event.pull_request.draft &&
+      (github.event.action != 'edited' || github.event.changes.base.ref)))
+      }}
     needs: archive
     runs-on: ubuntu-latest
     strategy:
@@ -128,7 +182,11 @@ jobs:
           name: session-toolkit-archive
           path: ${{ runner.temp }}/session-toolkit/
       - name: Validate and install the same downloaded archive on the consumer runtime
-        if: ${{ !startsWith(github.ref, 'refs/tags/session-toolkit-v') && github.event_name != 'workflow_dispatch' }}
+        if: >-
+          ${{
+          !startsWith(github.ref, 'refs/tags/session-toolkit-v') &&
+          github.event_name != 'workflow_dispatch'
+          }}
         run: pnpm run toolkit:pack:check --archive "$RUNNER_TEMP"/session-toolkit/*.tgz
       - name: Verify the source-bound release on the consumer runtime
         if: startsWith(github.ref, 'refs/tags/session-toolkit-v') || github.event_name == 'workflow_dispatch'
