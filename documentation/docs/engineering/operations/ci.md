@@ -22,7 +22,9 @@ deployment and opt-in live-provider verification.
 The [Session Toolkit workflow](https://github.com/tkstang/skills/blob/main/.github/workflows/session-toolkit.yml)
 also runs on PRs and `main` pushes. It packs current source once and tests the
 same archive on Node 22.0.0 and 24, without requiring an unpublished version or
-a matching release tag. PR archive and consumer checks skip only unrelated root
+a matching release tag. The named input-selection step sets `relevant=true|false`
+before toolchain setup; that output gates archive and installed-consumer checks.
+PR archive and consumer checks skip only unrelated root
 README/contributor/instruction files, the separate documentation app and Markdown
 PJM notes; the [contributor input map](https://github.com/tkstang/skills/blob/main/CONTRIBUTING.md#session-toolkit)
 names the exact paths. All other changes run full. Package-tag pushes and manual release retries instead

@@ -10,15 +10,33 @@ on:
 permissions:
   contents: read
 
-# Rapid successive pushes/PR updates should cancel the stale workflow run
-# instead of queueing duplicates.
+# Ready PR replacements share a group. Drafts and ignored edits stay isolated
+# from pending checks; ignored edits also use separate check names.
 concurrency:
-  group: "${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'pull_request' && (github.event.pull_request.draft || (github.event.action == 'edited' && !github.event.changes.base.ref)) && format('-ignored-{0}', github.run_id) || '' }}"
-  cancel-in-progress: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && (github.event.action != 'edited' || github.event.changes.base.ref != null)) }}
+  group: >-
+    ${{ github.workflow }}-${{ github.ref }}${{
+    github.event_name == 'pull_request' &&
+    (github.event.pull_request.draft ||
+    (github.event.action == 'edited' && !github.event.changes.base.ref)) &&
+    format('-ignored-{0}', github.run_id) ||
+    ''
+    }}
+  cancel-in-progress: >-
+    ${{
+    github.event_name != 'pull_request' ||
+    (!github.event.pull_request.draft &&
+    (github.event.action != 'edited' || github.event.changes.base.ref != null))
+    }}
 
 jobs:
   validate:
-    name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (validate)' || 'validate' }}
+    name: >-
+      ${{
+      github.event.action == 'edited' &&
+      !github.event.changes.base.ref &&
+      'Ignored PR edit (validate)' ||
+      'validate'
+      }}
     if: >-
       github.event_name == 'push' ||
       (!github.event.pull_request.draft &&
@@ -46,7 +64,13 @@ jobs:
       - run: pnpm run smoke
 
   static:
-    name: ${{ github.event.action == 'edited' && !github.event.changes.base.ref && 'Ignored PR edit (static)' || 'static' }}
+    name: >-
+      ${{
+      github.event.action == 'edited' &&
+      !github.event.changes.base.ref &&
+      'Ignored PR edit (static)' ||
+      'static'
+      }}
     # PR policies share setup; keep individual checks visible after a failure.
     runs-on: ubuntu-latest
     if: >-
@@ -105,16 +129,29 @@ jobs:
           files=()
           while IFS= read -r -d '' file; do
             case "$file" in
-              node_modules/*|.oat/*|.agents/*|.claude/skills/*|.cursor/skills/*|.claude/rules/*|.cursor/rules/*|AGENTS.md|*/AGENTS.md) continue ;;
+              node_modules/*|.oat/*|.agents/*|\
+              .claude/skills/*|.cursor/skills/*|\
+              .claude/rules/*|.cursor/rules/*|\
+              AGENTS.md|*/AGENTS.md)
+                continue
+                ;;
             esac
             generated=false
             while IFS= read -r root; do
-              if [[ "$file" == "$root" || "$file" == "$root/"* ]]; then generated=true; break; fi
+              if [[ "$file" == "$root" || "$file" == "$root/"* ]]; then
+                generated=true
+                break
+              fi
             done < "$RUNNER_TEMP/generated-output-paths.txt"
-            $generated && continue
+            if $generated; then
+              continue
+            fi
             files+=("$file")
           done < "$RUNNER_TEMP/lint-files"
-          if [ ${#files[@]} -eq 0 ]; then echo "no authored source changed"; exit 0; fi
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no authored source changed"
+            exit 0
+          fi
           printf 'linting: %q\n' "${files[@]}"
           pnpm exec oxlint -- "${files[@]}"
       - name: oxfmt --check (changed files)
@@ -125,15 +162,28 @@ jobs:
           files=()
           while IFS= read -r -d '' file; do
             case "$file" in
-              node_modules/*|.oat/*|.agents/*|.claude/skills/*|.cursor/skills/*|.claude/rules/*|.cursor/rules/*|AGENTS.md|*/AGENTS.md) continue ;;
+              node_modules/*|.oat/*|.agents/*|\
+              .claude/skills/*|.cursor/skills/*|\
+              .claude/rules/*|.cursor/rules/*|\
+              AGENTS.md|*/AGENTS.md)
+                continue
+                ;;
             esac
             generated=false
             while IFS= read -r root; do
-              if [[ "$file" == "$root" || "$file" == "$root/"* ]]; then generated=true; break; fi
+              if [[ "$file" == "$root" || "$file" == "$root/"* ]]; then
+                generated=true
+                break
+              fi
             done < "$RUNNER_TEMP/generated-output-paths.txt"
-            $generated && continue
+            if $generated; then
+              continue
+            fi
             files+=("$file")
           done < "$RUNNER_TEMP/format-files"
-          if [ ${#files[@]} -eq 0 ]; then echo "no formattable files changed"; exit 0; fi
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no formattable files changed"
+            exit 0
+          fi
           printf 'checking format: %q\n' "${files[@]}"
           pnpm exec oxfmt --check -- "${files[@]}"
