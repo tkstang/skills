@@ -108,10 +108,10 @@ jobs:
       - name: Install archive verification dependencies
         run: pnpm install --frozen-lockfile
         if: steps.changes.outputs.relevant == 'true'
-      - name: Type check archive inputs
+      - name: Type check repository and Session Toolkit
         run: pnpm run type-check
         if: steps.changes.outputs.relevant == 'true'
-      - name: Verify generated archive inputs
+      - name: Verify committed generated outputs
         run: pnpm run build:check
         if: steps.changes.outputs.relevant == 'true'
       - name: Build Session Toolkit
