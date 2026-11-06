@@ -213,10 +213,12 @@ describe('provider readiness probes', () => {
 
   it('probes the CONSENSUS_<PROVIDER>_EXECUTABLE program instead of the default command', async () => {
     const wrapper = '/opt/keyed/cursor-agent-keyed';
+    const calls: string[] = [];
     const entry = await probeProviderReadiness(adapter('cursor'), {
       requiredCapabilities: ['run'],
       runner: fakeRunner({
         env: { CONSENSUS_CURSOR_EXECUTABLE: wrapper },
+        calls,
         // A cursor-agent on PATH must not be probed once the override is set.
         executables: {
           'cursor-agent': '/usr/local/bin/cursor-agent',
@@ -242,6 +244,7 @@ describe('provider readiness probes', () => {
       status: 'ready',
       executable: wrapper,
     });
+    expect(calls).toEqual([`${wrapper} --version`, `${wrapper} --help`]);
   });
 
   it('probes CONSENSUS_CURSOR_EXECUTABLE through the default node runner', async () => {
@@ -432,6 +435,7 @@ async function writeExecutableFixture(
 
 function fakeRunner(options: {
   env?: Record<string, string>;
+  calls?: string[];
   executables: Record<string, string>;
   results?: Record<
     string,
@@ -445,6 +449,7 @@ function fakeRunner(options: {
     },
     async run(command, args) {
       const key = [command, ...args].join(' ');
+      options.calls?.push(key);
       const result = options.results?.[key];
       if (!result) {
         return { code: 127, signal: null, stdout: '', stderr: 'not found' };
