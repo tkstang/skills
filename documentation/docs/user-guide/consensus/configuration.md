@@ -505,10 +505,9 @@ If the CLI already works from your agent shells, leave the variable unset.
   with `--version`. `preflight --capability run` also runs it with `--help`
   (`exec --help` for Codex). Both apply the same version and capability checks
   as for the default CLI, so a wrapper must pass these arguments through to the
-  real CLI unchanged. A
-  wrapper that skips its credential for probes, as above, can report `ready`
-  while a run still fails, for example when the keychain is locked. Confirm
-  with a real run.
+  real CLI unchanged. A wrapper that skips its credential for probes, as above,
+  can report `ready` while a run still fails, for example when the keychain is
+  locked. Confirm with a real run.
 - **It gets the same reduced environment.** The program receives exactly what
   the default CLI would, and the `CONSENSUS_<PROVIDER>_EXECUTABLE` variable
   itself is not passed on. A keychain read needs the login keychain unlocked,
