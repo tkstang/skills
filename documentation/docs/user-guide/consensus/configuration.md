@@ -473,9 +473,11 @@ and shell history:
 security add-generic-password -a "$USER" -s cursor-api-key -w
 ```
 
-The first time another program reads the item, macOS may show a keychain
-"Allow" dialog. Choose "Always Allow" from a desktop session first; an
-unanswered dialog stalls a non-interactive run.
+An item created this way trusts the `security` tool, so the wrapper reads it
+without a dialog. That also means any process running as you can read the key
+with `security` while the login keychain is unlocked. The wrapper keeps the key
+out of every shell's environment, so tools an agent runs do not receive it by
+default, but it does not restrict who can read the keychain item.
 
 Then export the path from a file that non-interactive shells also read, since
 agents usually run commands in one (for zsh, `~/.zshenv`):
