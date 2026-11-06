@@ -1,6 +1,6 @@
 ---
 title: 'Configuration'
-description: 'Consensus config JSON examples, field types, model and effort support, workflow defaults, precedence, and provider diagnostics.'
+description: 'Consensus config JSON examples, field types, model and effort support, workflow defaults, precedence, provider diagnostics, and provider program overrides.'
 ---
 
 # Configuration
@@ -421,13 +421,100 @@ peer disagreement is surfaced to the user rather than silently decided; this is
 the default for `evaluate`. Escalations are routed by `--agency` to the user or
 the host (see [Refine → Escalation](refine.md#escalation)).
 
+## Provider programs
+
+Consensus runs each provider's CLI by name, found on `PATH`: `claude`, `codex`
+and `cursor-agent`. To run a different program for one provider, set that
+provider's variable to the program's absolute path in the environment that
+starts consensus:
+
+| Provider | Variable                      | Default command |
+| -------- | ----------------------------- | --------------- |
+| `claude` | `CONSENSUS_CLAUDE_EXECUTABLE` | `claude`        |
+| `codex`  | `CONSENSUS_CODEX_EXECUTABLE`  | `codex`         |
+| `cursor` | `CONSENSUS_CURSOR_EXECUTABLE` | `cursor-agent`  |
+
+Unset or empty keeps the default command. Most setups never need these.
+
+### When to use one
+
+Use a provider program when the CLI cannot sign in from the environment
+consensus gives it, and a wrapper can supply the credential instead.
+
+The usual case is Cursor. Consensus starts each peer with a reduced
+environment: a few base variables (`PATH`, `HOME`, `USER`, `TMPDIR` and similar),
+that provider's credential variables (`CURSOR_API_KEY` for Cursor), names the
+run explicitly allows, and its own host metadata. An agent's shell often cannot
+read the Cursor CLI's own sign-in, so without `CURSOR_API_KEY` Cursor reports
+`auth_required` or fails its first turn. Exporting `CURSOR_API_KEY` from every
+shell fixes that, but then every process started from those shells, including
+every tool an agent runs, can read the key. A wrapper keeps the key out of the
+shell and loads it only when consensus starts Cursor.
+
+A minimal macOS wrapper that reads the key from the login keychain:
+
+```sh
+#!/bin/sh
+# ~/bin/cursor-agent-keyed: run cursor-agent with CURSOR_API_KEY from the keychain.
+real="$HOME/.local/bin/cursor-agent"
+case "$*" in
+  --version | --help) exec "$real" "$@" ;; # readiness probes need no key
+esac
+CURSOR_API_KEY=$(security find-generic-password -a "$USER" -s cursor-api-key -w) || exit 1
+export CURSOR_API_KEY
+exec "$real" "$@"
+```
+
+Then export the path from a file that non-interactive shells also read, since
+agents usually run commands in one (for zsh, `~/.zshenv`):
+
+```sh
+export CONSENSUS_CURSOR_EXECUTABLE="$HOME/bin/cursor-agent-keyed"
+```
+
+Keep the wrapper outside the CLI's own install directory. Cursor's updater
+rewrites `~/.local/bin/cursor-agent` on each update and would replace a wrapper
+installed there.
+
+Other uses follow the same shape: pinning a specific CLI build that is not first
+on `PATH`, or setting provider-specific configuration that only consensus runs
+should get. If the CLI already works from your agent shells, leave the variable
+unset.
+
+### How a provider program is run
+
+- **Only the parent environment sets it.** Consensus reads the variable from
+  the environment of the process that runs it, normally the host agent's shell.
+  Run requests, config files and briefs cannot set it, so a repository cannot
+  choose which program runs.
+- **It must be an absolute path.** A relative path would resolve against each
+  run's working directory, often the repository under review. A relative value
+  makes `provider ls` and `preflight` report the provider as `missing`, and
+  `consensus run` fails with `PROVIDER_MISSING` before starting any process.
+- **Readiness probes run it.** `provider ls` and `preflight` run the program
+  with `--version` (and `--help`, or `exec --help` for Codex, for the `run`
+  capability) and apply the same version and capability checks as for the
+  default CLI. A wrapper must pass these through to the real CLI unchanged. A
+  wrapper that skips its credential for probes, as above, can report `ready`
+  while a run still fails, for example when the keychain is locked. Confirm
+  with a real run.
+- **It gets the same reduced environment.** The program receives exactly what
+  the default CLI would, and the `CONSENSUS_<PROVIDER>_EXECUTABLE` variable
+  itself is not passed on. A keychain read needs the login keychain unlocked,
+  so it fails over a plain SSH session.
+- **Diagnostics show the path.** Inventory `executable` and run
+  `redacted_command` name the program that ran.
+
 ## Cursor auth
 
 Cursor is included in the provider floor, but local auth state is still
 operator-owned. If inventory or preflight reports Cursor as `auth_required`,
 unlock the OS keychain or authenticate the Cursor CLI in the current user session
-before retrying. Cursor submit-tool support is reserved for a later acceptance
-path and is not selected by default.
+before retrying. When agent shells cannot read the Cursor sign-in, either export
+`CURSOR_API_KEY`, which consensus forwards to Cursor, or set
+`CONSENSUS_CURSOR_EXECUTABLE` to a wrapper that loads it (see
+[Provider programs](#provider-programs)). Cursor submit-tool support is reserved
+for a later acceptance path and is not selected by default.
 
 ## Permissions
 

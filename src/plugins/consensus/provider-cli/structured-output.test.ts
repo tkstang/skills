@@ -128,6 +128,41 @@ describe('structured provider output coordinator', () => {
     expect(envelope.attempts.cli_attempts).toBe(2);
   });
 
+  it('runs the CONSENSUS_<PROVIDER>_EXECUTABLE program in place of the default command', async () => {
+    const wrapper = '/opt/keyed/cursor-agent-keyed';
+    const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
+
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+      parentEnv: { PATH: '/usr/bin', CONSENSUS_CURSOR_EXECUTABLE: wrapper },
+    });
+
+    expect(envelope.ok).toBe(true);
+    expect(subprocess.invocations[0]?.executable).toBe(wrapper);
+    expect(subprocess.invocations[0]?.redacted_command[0]).toBe(wrapper);
+    expect(subprocess.envs[0]).not.toHaveProperty(
+      'CONSENSUS_CURSOR_EXECUTABLE',
+    );
+  });
+
+  it('refuses a relative CONSENSUS_<PROVIDER>_EXECUTABLE before starting a process', async () => {
+    const subprocess = fakeSubprocess([]);
+
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+      parentEnv: { CONSENSUS_CURSOR_EXECUTABLE: './cursor-agent' },
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_MISSING',
+      attempts: { cli_attempts: 0 },
+    });
+    expect(subprocess.invocations).toHaveLength(0);
+  });
+
   it('retries a transient provider exit without mutating the prompt', async () => {
     const subprocess = fakeSubprocess([
       processFailure('PROVIDER_EXIT', true, {

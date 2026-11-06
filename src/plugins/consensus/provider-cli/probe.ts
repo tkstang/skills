@@ -3,6 +3,7 @@ import { access } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
+import { resolveProviderExecutable } from './executable.js';
 import { buildProviderProbeEnvironment } from './runtime-policy.js';
 import { runProviderSubprocess } from './subprocess.js';
 import type { RunProviderSubprocessOptions } from './subprocess.js';
@@ -42,6 +43,8 @@ export interface ProbeCommandResult {
 }
 
 export interface ProbeCommandRunner {
+  // The parent environment, read for CONSENSUS_<PROVIDER>_EXECUTABLE overrides.
+  readonly env?: Record<string, string | undefined>;
   findExecutable(command: string): Promise<string | undefined>;
   run(
     command: string,
@@ -92,17 +95,24 @@ export async function probeProviderReadiness(
   adapter: ProviderAdapter,
   options: ProviderProbeOptions,
 ): Promise<ProviderInventoryEntry> {
-  const executable = await options.runner.findExecutable(adapter.executable);
+  const resolved = resolveProviderExecutable(adapter, options.runner.env ?? {});
+  if (!resolved.ok) {
+    return providerEntry(adapter, 'missing', {
+      warnings: [`PROVIDER_MISSING: ${resolved.message}`],
+    });
+  }
+  const command = resolved.executable;
+  const executable = await options.runner.findExecutable(command);
   if (!executable) {
     return providerEntry(adapter, 'missing', {
       warnings: [
-        `PROVIDER_MISSING: executable not found for ${adapter.id} (${adapter.executable})`,
+        `PROVIDER_MISSING: executable not found for ${adapter.id} (${command})`,
       ],
     });
   }
 
   const result = await options.runner.run(
-    adapter.executable,
+    command,
     adapter.probe.version_args,
     adapter.id,
   );
@@ -152,7 +162,7 @@ export async function probeProviderReadiness(
   for (const capability of options.requiredCapabilities ?? []) {
     const definition = adapter.probe.capabilities[capability];
     const capabilityResult = await options.runner.run(
-      adapter.executable,
+      command,
       definition.args,
       adapter.id,
     );
@@ -190,6 +200,7 @@ export function nodeProbeCommandRunner(
   options: NodeProbeCommandRunnerOptions = {},
 ): ProbeCommandRunner {
   return {
+    env,
     findExecutable(command) {
       return findExecutable(command, env);
     },

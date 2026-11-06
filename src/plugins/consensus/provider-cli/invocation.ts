@@ -30,6 +30,8 @@ export interface BuildProviderInvocationOptions {
   // Continue this exact provider session. Callers validate the id and the
   // adapter's verified continuation capability before building.
   resumeSessionId?: string;
+  // Replaces the adapter's command (see resolveProviderExecutable).
+  executable?: string;
 }
 
 export type ProviderInvocationBuilder = (
@@ -42,13 +44,19 @@ export function buildProviderInvocation(
   request: ConsensusCliRunRequest,
   options: BuildProviderInvocationOptions = {},
 ): ProviderInvocation {
-  return adapter.buildInvocation(request, {
+  const built = adapter.buildInvocation(request, {
     strategy: options.strategy ?? defaultStrategy(adapter),
     inlineJsonSchema: options.inlineJsonSchema,
     lastMessageFile: options.lastMessageFile,
     preserveLastMessageFile: options.preserveLastMessageFile,
     resumeSessionId: options.resumeSessionId,
   });
+  if (!options.executable) return built;
+  return {
+    ...built,
+    executable: options.executable,
+    redacted_command: [options.executable, ...built.redacted_command.slice(1)],
+  };
 }
 
 export const buildClaudeInvocation: ProviderInvocationBuilder = (
