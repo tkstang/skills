@@ -228,6 +228,30 @@ describe('provider runtime policy validation', () => {
     expect(env).not.toHaveProperty('SECRET_TOKEN');
   });
 
+  it('never forwards CONSENSUS_<PROVIDER>_EXECUTABLE, even when a request allowlists it', () => {
+    const env = buildChildEnvironment({
+      parentEnv: {
+        PATH: '/usr/bin',
+        CONSENSUS_CLAUDE_EXECUTABLE: '/opt/bin/claude-wrapper',
+        CONSENSUS_CODEX_EXECUTABLE: '/opt/bin/codex-wrapper',
+        CONSENSUS_CURSOR_EXECUTABLE: '/opt/bin/cursor-wrapper',
+      },
+      request: request({
+        provider: 'cursor',
+        runtime_policy: {
+          env_allowlist: [
+            'CONSENSUS_CLAUDE_EXECUTABLE',
+            'CONSENSUS_CODEX_EXECUTABLE',
+            'CONSENSUS_CURSOR_EXECUTABLE',
+          ],
+        },
+      }),
+      hostEnv: {},
+    });
+
+    expect(env).toEqual({ PATH: '/usr/bin' });
+  });
+
   it('merges submit capture variables from host env without requiring allowlist', () => {
     const env = buildChildEnvironment({
       parentEnv: {

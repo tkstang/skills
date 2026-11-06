@@ -9,7 +9,7 @@
   parent environment. Each replaces that provider's CLI with an absolute-path
   program, such as a wrapper that loads `CURSOR_API_KEY` from the OS keychain,
   for readiness probes and runs. A relative value reports the provider as
-  missing. The configuration guide explains when to use one. The shared
+  missing, and a run request cannot forward the variables to a peer. The configuration guide explains when to use one. The shared
   provider CLI bundle requires version-only bumps; their workflows are
   unchanged:
   - `consensus-create` 0.1.22

@@ -44,19 +44,14 @@ export function buildProviderInvocation(
   request: ConsensusCliRunRequest,
   options: BuildProviderInvocationOptions = {},
 ): ProviderInvocation {
-  const built = adapter.buildInvocation(request, {
+  return adapter.buildInvocation(request, {
     strategy: options.strategy ?? defaultStrategy(adapter),
     inlineJsonSchema: options.inlineJsonSchema,
     lastMessageFile: options.lastMessageFile,
     preserveLastMessageFile: options.preserveLastMessageFile,
     resumeSessionId: options.resumeSessionId,
-  });
-  if (!options.executable) return built;
-  return {
-    ...built,
     executable: options.executable,
-    redacted_command: [options.executable, ...built.redacted_command.slice(1)],
-  };
+  });
 }
 
 export const buildClaudeInvocation: ProviderInvocationBuilder = (
@@ -141,7 +136,7 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
   redactedArgv.push('<prompt>');
 
   return invocation({
-    executable: 'claude',
+    executable: options.executable ?? 'claude',
     argv,
     redactedArgv,
     request,
@@ -199,7 +194,7 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
   if (resumeSessionId) argv.push(resumeSessionId, '-');
 
   return invocation({
-    executable: 'codex',
+    executable: options.executable ?? 'codex',
     argv,
     request,
     strategy,
@@ -242,7 +237,7 @@ export const buildCursorInvocation: ProviderInvocationBuilder = (
       : ['--print', '--output-format', 'json', '--force'];
 
   return invocation({
-    executable: 'cursor-agent',
+    executable: options.executable ?? 'cursor-agent',
     argv,
     request,
     strategy,

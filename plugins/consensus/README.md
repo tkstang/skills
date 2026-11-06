@@ -325,7 +325,7 @@ Verdict submission is enabled through an injected submit command and environment
 
 Cursor is included in the provider floor, but local auth state is still operator-owned. If inventory or preflight reports Cursor as `auth_required`, unlock the OS keychain or authenticate the Cursor CLI in the current user session before retrying. When agent shells cannot read the Cursor sign-in, export `CURSOR_API_KEY` or point `CONSENSUS_CURSOR_EXECUTABLE` at a wrapper that loads it.
 
-`CONSENSUS_CLAUDE_EXECUTABLE`, `CONSENSUS_CODEX_EXECUTABLE`, and `CONSENSUS_CURSOR_EXECUTABLE` replace a provider's CLI with another program, given as an absolute path, such as a wrapper that loads the provider's credential from the OS keychain. Only the parent environment sets them. See [Provider programs](../../documentation/docs/user-guide/consensus/configuration.md#provider-programs) for when to use one and how probes and runs call it.
+`CONSENSUS_CLAUDE_EXECUTABLE`, `CONSENSUS_CODEX_EXECUTABLE`, and `CONSENSUS_CURSOR_EXECUTABLE` replace a provider's CLI with another program, given as an absolute path, such as a wrapper that loads the provider's credential from the OS keychain. Only the parent environment sets them. See [Provider programs](https://github.com/tkstang/skills/blob/main/documentation/docs/user-guide/consensus/configuration.md#provider-programs) for when to use one and how probes and runs call it.
 
 Native Cursor submit-tool support is reserved for a later acceptance path; the provider-neutral submit CLI path is used instead.
 

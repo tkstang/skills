@@ -18,19 +18,14 @@ import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 function buildProviderInvocation(adapter, request, options = {}) {
-  const built = adapter.buildInvocation(request, {
+  return adapter.buildInvocation(request, {
     strategy: options.strategy ?? defaultStrategy(adapter),
     inlineJsonSchema: options.inlineJsonSchema,
     lastMessageFile: options.lastMessageFile,
     preserveLastMessageFile: options.preserveLastMessageFile,
-    resumeSessionId: options.resumeSessionId
+    resumeSessionId: options.resumeSessionId,
+    executable: options.executable
   });
-  if (!options.executable) return built;
-  return {
-    ...built,
-    executable: options.executable,
-    redacted_command: [options.executable, ...built.redacted_command.slice(1)]
-  };
 }
 var buildClaudeInvocation = (request, options = {}) => {
   const strategy = options.strategy ?? "prompt_only";
@@ -106,7 +101,7 @@ var buildClaudeInvocation = (request, options = {}) => {
   argv.push(request.prompt);
   redactedArgv.push("<prompt>");
   return invocation({
-    executable: "claude",
+    executable: options.executable ?? "claude",
     argv,
     redactedArgv,
     request,
@@ -152,7 +147,7 @@ var buildCodexInvocation = (request, options = {}) => {
   }
   if (resumeSessionId) argv.push(resumeSessionId, "-");
   return invocation({
-    executable: "codex",
+    executable: options.executable ?? "codex",
     argv,
     request,
     strategy,
@@ -179,7 +174,7 @@ var buildCursorInvocation = (request, options = {}) => {
     "enabled"
   ] : ["--print", "--output-format", "json", "--force"];
   return invocation({
-    executable: "cursor-agent",
+    executable: options.executable ?? "cursor-agent",
     argv,
     request,
     strategy,
@@ -1262,6 +1257,9 @@ function buildChildEnvironment({
     ...providerEnvAllowlist(request.provider),
     ...request.runtime_policy?.env_allowlist ?? []
   ]);
+  for (const name of Object.values(PROVIDER_EXECUTABLE_ENV)) {
+    allowedNames.delete(name);
+  }
   const childEnv = {};
   for (const name of allowedNames) {
     const value = parentEnv[name];

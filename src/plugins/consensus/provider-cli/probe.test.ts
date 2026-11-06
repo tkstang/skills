@@ -244,6 +244,34 @@ describe('provider readiness probes', () => {
     });
   });
 
+  it('probes CONSENSUS_CURSOR_EXECUTABLE through the default node runner', async () => {
+    const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-probe-'));
+    const wrapper = await writeExecutableFixture(
+      binDir,
+      'cursor-agent-keyed',
+      '#!/bin/sh\ncase "$1" in\n  --version) echo 2026.11.05-test ;;\n  --help) echo "--output-format --force" ;;\nesac\n',
+    );
+
+    try {
+      const entry = await probeProviderReadiness(adapter('cursor'), {
+        requiredCapabilities: ['run'],
+        runner: nodeProbeCommandRunner({
+          PATH: '/usr/bin:/bin',
+          CONSENSUS_CURSOR_EXECUTABLE: wrapper,
+        }),
+      });
+
+      expect(entry).toMatchObject({
+        id: 'cursor',
+        status: 'ready',
+        executable: wrapper,
+        version: '2026.11.05-test',
+      });
+    } finally {
+      await rm(binDir, { recursive: true, force: true });
+    }
+  });
+
   it('reports a relative CONSENSUS_<PROVIDER>_EXECUTABLE as missing without probing it', async () => {
     const entry = await probeProviderReadiness(adapter('cursor'), {
       runner: fakeRunner({

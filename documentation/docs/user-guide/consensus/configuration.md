@@ -465,6 +465,18 @@ export CURSOR_API_KEY
 exec "$real" "$@"
 ```
 
+Store the key once under that service name. Run this in a terminal; with `-w`
+last, `security` prompts for the value, so the key stays out of the command line
+and shell history:
+
+```sh
+security add-generic-password -a "$USER" -s cursor-api-key -w
+```
+
+The first time another program reads the item, macOS may show a keychain
+"Allow" dialog. Choose "Always Allow" from a desktop session first; an
+unanswered dialog stalls a non-interactive run.
+
 Then export the path from a file that non-interactive shells also read, since
 agents usually run commands in one (for zsh, `~/.zshenv`):
 
@@ -476,10 +488,8 @@ Keep the wrapper outside the CLI's own install directory. Cursor's updater
 rewrites `~/.local/bin/cursor-agent` on each update and would replace a wrapper
 installed there.
 
-Other uses follow the same shape: pinning a specific CLI build that is not first
-on `PATH`, or setting provider-specific configuration that only consensus runs
-should get. If the CLI already works from your agent shells, leave the variable
-unset.
+The same setting can also pin a specific CLI build that is not first on `PATH`.
+If the CLI already works from your agent shells, leave the variable unset.
 
 ### How a provider program is run
 
@@ -492,9 +502,10 @@ unset.
   makes `provider ls` and `preflight` report the provider as `missing`, and
   `consensus run` fails with `PROVIDER_MISSING` before starting any process.
 - **Readiness probes run it.** `provider ls` and `preflight` run the program
-  with `--version` (and `--help`, or `exec --help` for Codex, for the `run`
-  capability) and apply the same version and capability checks as for the
-  default CLI. A wrapper must pass these through to the real CLI unchanged. A
+  with `--version`. `preflight --capability run` also runs it with `--help`
+  (`exec --help` for Codex). Both apply the same version and capability checks
+  as for the default CLI, so a wrapper must pass these arguments through to the
+  real CLI unchanged. A
   wrapper that skips its credential for probes, as above, can report `ready`
   while a run still fails, for example when the keychain is locked. Confirm
   with a real run.
