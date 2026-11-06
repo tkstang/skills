@@ -13,6 +13,7 @@ import {
 } from './continuation.js';
 import type { ProviderTurnTrace } from './continuation.js';
 import { failureEnvelope, successEnvelope } from './envelope.js';
+import { resolveProviderExecutable } from './executable.js';
 import { evaluateHostGuard } from './host-guard.js';
 import { buildProviderInvocation } from './invocation.js';
 import type { ProviderInvocation } from './invocation.js';
@@ -349,6 +350,15 @@ async function runStructuredTurn(
   }
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
+  const resolvedExecutable = resolveProviderExecutable(adapter, parentEnv);
+  if (!resolvedExecutable.ok) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: 'PROVIDER_MISSING',
+      message: resolvedExecutable.message,
+      terminalReason: 'provider_executable_invalid',
+    });
+  }
   const submitCapturePath = submitCaptureEnabled
     ? submitCaptureFilePath(effectiveRequest.cwd ?? process.cwd())
     : undefined;
@@ -398,6 +408,7 @@ async function runStructuredTurn(
         preserveLastMessageFile:
           dependencies.transport?.preserveLastMessageFile,
         resumeSessionId: turnOptions.resumeSessionId,
+        executable: resolvedExecutable.executable,
       });
       lastInvocation = invocation;
       const processResult = await runSubprocess(invocation, {

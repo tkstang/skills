@@ -356,7 +356,7 @@ describe('validate-script', () => {
     );
 
     expect(manifest.name).toBe('consensus');
-    expect(manifest.version).toBe('0.2.7');
+    expect(manifest.version).toBe('0.2.8');
   });
 
   it('individual validators reject escaping paths and missing install docs', async () => {

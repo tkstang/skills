@@ -323,7 +323,11 @@ Provider exits are classified conservatively. Unknown exits are terminal by defa
 
 Verdict submission is enabled through an injected submit command and environment: `CONSENSUS_SUBMIT_COMMAND`, `CONSENSUS_SUBMIT_SCHEMA`, `CONSENSUS_SUBMIT_FILE`, and `CONSENSUS_SUBMIT_MAX_BYTES`. Peers submit schema-valid verdict JSON with the injected command. Successful submit sidecars are preferred and reported with `verdict_source: "submit"`; when no valid sidecar exists, wrappers fall back to final-message parsing and report `verdict_source: "final_message"`. Submit-enabled Codex turns avoid native `--output-schema`, so strict-output rejection does not block the peer before it can run the submit command. Submit capture paths are generated under the provider turn's `.consensus/submit/` workspace directory rather than the process tmpdir, so Codex `--sandbox read-only` no longer depends on tmpdir writes for the sidecar path.
 
-Cursor is included in the provider floor, but local auth state is still operator-owned. If inventory or preflight reports Cursor as `auth_required`, unlock the OS keychain or authenticate the Cursor CLI in the current user session before retrying. Native Cursor submit-tool support is reserved for a later acceptance path; the provider-neutral submit CLI path is used instead.
+Cursor is included in the provider floor, but local auth state is still operator-owned. If inventory or preflight reports Cursor as `auth_required`, unlock the OS keychain or authenticate the Cursor CLI in the current user session before retrying. When agent shells cannot read the Cursor sign-in, export `CURSOR_API_KEY` or point `CONSENSUS_CURSOR_EXECUTABLE` at a wrapper that loads it.
+
+`CONSENSUS_CLAUDE_EXECUTABLE`, `CONSENSUS_CODEX_EXECUTABLE`, and `CONSENSUS_CURSOR_EXECUTABLE` replace a provider's CLI with another program, given as an absolute path, such as a wrapper that loads the provider's credential from the OS keychain. Only the parent environment sets them. See [Provider programs](https://github.com/tkstang/skills/blob/main/documentation/docs/user-guide/consensus/configuration.md#provider-programs) for when to use one and how probes and runs call it.
+
+Native Cursor submit-tool support is reserved for a later acceptance path; the provider-neutral submit CLI path is used instead.
 
 ## Limitations
 

@@ -4,6 +4,26 @@
 
 ### Added
 
+- `consensus` plugin 0.2.8 reads `CONSENSUS_CLAUDE_EXECUTABLE`,
+  `CONSENSUS_CODEX_EXECUTABLE`, and `CONSENSUS_CURSOR_EXECUTABLE` from the
+  parent environment. Each replaces that provider's CLI with an absolute-path
+  program, such as a wrapper that loads `CURSOR_API_KEY` from the OS keychain,
+  for readiness probes and runs. A relative value reports the provider as
+  missing, and a run request cannot forward the variables to a peer. The
+  configuration guide explains when to use one. The shared provider CLI bundle
+  requires version-only bumps; their workflows are unchanged:
+  - `consensus-create` 0.1.22
+  - `consensus-decide` 0.1.22
+  - `consensus-evaluate` 0.1.26
+  - `consensus-panel` 0.1.19
+  - `consensus-plan` 0.1.22
+  - `consensus-refine` 0.1.25
+  - `consensus-review` 0.1.24
+  - `phone-a-friend` 0.3.1
+  - `session-observer` 1.1.3
+  - `session-observer-collab` 1.0.81
+  - `session-fork-to-destination` 0.3.8 (`session` plugin 0.8.1)
+
 - The `session` plugin 0.8.0 adds `explain-options` 1.0.1 and `must-we` 1.0.2
   alongside their standalone forms. Both include standalone and Session
   invocation examples. Explain Options helps with offered choices; Must We

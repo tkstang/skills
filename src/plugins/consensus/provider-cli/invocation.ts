@@ -30,6 +30,8 @@ export interface BuildProviderInvocationOptions {
   // Continue this exact provider session. Callers validate the id and the
   // adapter's verified continuation capability before building.
   resumeSessionId?: string;
+  // Replaces the adapter's command (see resolveProviderExecutable).
+  executable?: string;
 }
 
 export type ProviderInvocationBuilder = (
@@ -48,6 +50,7 @@ export function buildProviderInvocation(
     lastMessageFile: options.lastMessageFile,
     preserveLastMessageFile: options.preserveLastMessageFile,
     resumeSessionId: options.resumeSessionId,
+    executable: options.executable,
   });
 }
 
@@ -133,7 +136,7 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
   redactedArgv.push('<prompt>');
 
   return invocation({
-    executable: 'claude',
+    executable: options.executable ?? 'claude',
     argv,
     redactedArgv,
     request,
@@ -191,7 +194,7 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
   if (resumeSessionId) argv.push(resumeSessionId, '-');
 
   return invocation({
-    executable: 'codex',
+    executable: options.executable ?? 'codex',
     argv,
     request,
     strategy,
@@ -234,7 +237,7 @@ export const buildCursorInvocation: ProviderInvocationBuilder = (
       : ['--print', '--output-format', 'json', '--force'];
 
   return invocation({
-    executable: 'cursor-agent',
+    executable: options.executable ?? 'cursor-agent',
     argv,
     request,
     strategy,

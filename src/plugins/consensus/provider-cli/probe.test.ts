@@ -211,6 +211,91 @@ describe('provider readiness probes', () => {
     });
   });
 
+  it('probes the CONSENSUS_<PROVIDER>_EXECUTABLE program instead of the default command', async () => {
+    const wrapper = '/opt/keyed/cursor-agent-keyed';
+    const calls: string[] = [];
+    const entry = await probeProviderReadiness(adapter('cursor'), {
+      requiredCapabilities: ['run'],
+      runner: fakeRunner({
+        env: { CONSENSUS_CURSOR_EXECUTABLE: wrapper },
+        calls,
+        // A cursor-agent on PATH must not be probed once the override is set.
+        executables: {
+          'cursor-agent': '/usr/local/bin/cursor-agent',
+          [wrapper]: wrapper,
+        },
+        results: {
+          [`${wrapper} --version`]: {
+            code: 0,
+            stdout: '2026.11.05-86047df\n',
+            stderr: '',
+          },
+          [`${wrapper} --help`]: {
+            code: 0,
+            stdout: '--output-format --force\n',
+            stderr: '',
+          },
+        },
+      }),
+    });
+
+    expect(entry).toMatchObject({
+      id: 'cursor',
+      status: 'ready',
+      executable: wrapper,
+    });
+    expect(calls).toEqual([`${wrapper} --version`, `${wrapper} --help`]);
+  });
+
+  it('probes CONSENSUS_CURSOR_EXECUTABLE through the default node runner', async () => {
+    const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-probe-'));
+    const wrapper = await writeExecutableFixture(
+      binDir,
+      'cursor-agent-keyed',
+      '#!/bin/sh\ncase "$1" in\n  --version) echo 2026.11.05-test ;;\n  --help) echo "--output-format --force" ;;\nesac\n',
+    );
+
+    try {
+      const entry = await probeProviderReadiness(adapter('cursor'), {
+        requiredCapabilities: ['run'],
+        runner: nodeProbeCommandRunner({
+          PATH: '/usr/bin:/bin',
+          CONSENSUS_CURSOR_EXECUTABLE: wrapper,
+        }),
+      });
+
+      expect(entry).toMatchObject({
+        id: 'cursor',
+        status: 'ready',
+        executable: wrapper,
+        version: '2026.11.05-test',
+      });
+    } finally {
+      await rm(binDir, { recursive: true, force: true });
+    }
+  });
+
+  it('reports a relative CONSENSUS_<PROVIDER>_EXECUTABLE as missing without probing it', async () => {
+    const entry = await probeProviderReadiness(adapter('cursor'), {
+      runner: fakeRunner({
+        env: { CONSENSUS_CURSOR_EXECUTABLE: 'bin/cursor-agent-keyed' },
+        executables: { 'bin/cursor-agent-keyed': 'bin/cursor-agent-keyed' },
+      }),
+    });
+
+    expect(entry).toMatchObject({
+      id: 'cursor',
+      status: 'missing',
+      diagnostics: {
+        warnings: [
+          expect.stringContaining(
+            'CONSENSUS_CURSOR_EXECUTABLE must be an absolute path',
+          ),
+        ],
+      },
+    });
+  });
+
   it('rejects a compatible version missing a required local run capability', async () => {
     const entry = await probeProviderReadiness(adapter('codex'), {
       requiredCapabilities: ['run'],
@@ -349,6 +434,8 @@ async function writeExecutableFixture(
 }
 
 function fakeRunner(options: {
+  env?: Record<string, string>;
+  calls?: string[];
   executables: Record<string, string>;
   results?: Record<
     string,
@@ -356,11 +443,13 @@ function fakeRunner(options: {
   >;
 }): ProbeCommandRunner {
   return {
+    env: options.env,
     async findExecutable(command) {
       return options.executables[command];
     },
     async run(command, args) {
       const key = [command, ...args].join(' ');
+      options.calls?.push(key);
       const result = options.results?.[key];
       if (!result) {
         return { code: 127, signal: null, stdout: '', stderr: 'not found' };

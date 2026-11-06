@@ -8,7 +8,7 @@ const repoRoot = new URL('../..', import.meta.url);
 const plugins = [
   {
     name: 'consensus',
-    version: '0.2.7',
+    version: '0.2.8',
     description:
       'Consensus create, decide, plan, refine, evaluate, review, panel, phone-a-friend, observer, and observer-collab skills for deliberation, bounded review, consultation, and observation.',
     skills: [
@@ -28,7 +28,7 @@ const plugins = [
   },
   {
     name: 'session',
-    version: '0.8.0',
+    version: '0.8.1',
     description:
       'Session alignment, status, debriefs, option explanations, necessity checks, next steps, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.',
     skills: [

@@ -1,6 +1,7 @@
 import { realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+import { PROVIDER_EXECUTABLE_ENV } from './executable.js';
 import type {
   ConsensusCliRunRequest,
   ProviderCapabilities,
@@ -225,6 +226,11 @@ export function buildChildEnvironment({
     ...providerEnvAllowlist(request.provider),
     ...(request.runtime_policy?.env_allowlist ?? []),
   ]);
+  // Parent-owned program overrides stay with consensus, even when a request
+  // names them in env_allowlist.
+  for (const name of Object.values(PROVIDER_EXECUTABLE_ENV)) {
+    allowedNames.delete(name);
+  }
   const childEnv: Record<string, string> = {};
 
   for (const name of allowedNames) {

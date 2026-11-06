@@ -58,6 +58,10 @@ child host metadata to allowed calls. Unknown or absent host context cannot
 provide that recursion check. The runtime policy defaults calls to
 non-interactive mode and builds a child environment from base variables,
 provider credential variables, explicitly allowed additions, and host metadata.
+Each provider's program defaults to its CLI name on `PATH`; a
+`CONSENSUS_<PROVIDER>_EXECUTABLE` absolute path in the parent environment
+replaces it for both readiness probes and runs
+([`executable.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/executable.ts)).
 
 These are process and configuration safeguards, not a security sandbox. Actual
 sandbox and approval behavior depends on the selected provider and requested

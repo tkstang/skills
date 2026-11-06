@@ -486,7 +486,8 @@ function buildProviderInvocation(adapter, request, options = {}) {
     inlineJsonSchema: options.inlineJsonSchema,
     lastMessageFile: options.lastMessageFile,
     preserveLastMessageFile: options.preserveLastMessageFile,
-    resumeSessionId: options.resumeSessionId
+    resumeSessionId: options.resumeSessionId,
+    executable: options.executable
   });
 }
 var buildClaudeInvocation = (request, options = {}) => {
@@ -563,7 +564,7 @@ var buildClaudeInvocation = (request, options = {}) => {
   argv.push(request.prompt);
   redactedArgv.push("<prompt>");
   return invocation({
-    executable: "claude",
+    executable: options.executable ?? "claude",
     argv,
     redactedArgv,
     request,
@@ -609,7 +610,7 @@ var buildCodexInvocation = (request, options = {}) => {
   }
   if (resumeSessionId) argv.push(resumeSessionId, "-");
   return invocation({
-    executable: "codex",
+    executable: options.executable ?? "codex",
     argv,
     request,
     strategy,
@@ -636,7 +637,7 @@ var buildCursorInvocation = (request, options = {}) => {
     "enabled"
   ] : ["--print", "--output-format", "json", "--force"];
   return invocation({
-    executable: "cursor-agent",
+    executable: options.executable ?? "cursor-agent",
     argv,
     request,
     strategy,
@@ -2455,11 +2456,33 @@ function buildAttemptSummary(attempts, retryable) {
 // src/plugins/consensus/provider-cli/probe.ts
 import { constants } from "node:fs";
 import { access as access2 } from "node:fs/promises";
-import path4 from "node:path";
+import path5 from "node:path";
+
+// src/plugins/consensus/provider-cli/executable.ts
+import path3 from "node:path";
+var PROVIDER_EXECUTABLE_ENV = {
+  claude: "CONSENSUS_CLAUDE_EXECUTABLE",
+  codex: "CONSENSUS_CODEX_EXECUTABLE",
+  cursor: "CONSENSUS_CURSOR_EXECUTABLE"
+};
+function resolveProviderExecutable(adapter, env) {
+  const variable = PROVIDER_EXECUTABLE_ENV[adapter.id];
+  const value = env[variable];
+  if (value === void 0 || value === "") {
+    return { ok: true, executable: adapter.executable };
+  }
+  if (!path3.isAbsolute(value)) {
+    return {
+      ok: false,
+      message: `${variable} must be an absolute path to an executable, not ${JSON.stringify(value)}.`
+    };
+  }
+  return { ok: true, executable: value };
+}
 
 // src/plugins/consensus/provider-cli/runtime-policy.ts
 import { realpathSync, statSync } from "node:fs";
-import path3 from "node:path";
+import path4 from "node:path";
 var DEFAULT_RUNTIME_POLICY = {
   permission_mode: "non-interactive"
 };
@@ -2530,7 +2553,7 @@ function validateProviderOptions(request, capabilities) {
     ["edit_paths", policy.edit_paths]
   ]) {
     for (const filePath of paths ?? []) {
-      if (!path3.isAbsolute(filePath) || path3.normalize(filePath) !== filePath || filePath.split(path3.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
+      if (!path4.isAbsolute(filePath) || path4.normalize(filePath) !== filePath || filePath.split(path4.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
         return unsupported(
           `runtime_policy.${field}`,
           `${field} requires exact absolute paths without parent traversal or glob characters.`
@@ -2545,7 +2568,7 @@ function validateProviderOptions(request, capabilities) {
               `${field} requires canonical regular-file targets, not directories or symlinks.`
             );
           }
-        } else if (field === "read_paths" || realpathSync(path3.dirname(filePath)) !== path3.dirname(filePath)) {
+        } else if (field === "read_paths" || realpathSync(path4.dirname(filePath)) !== path4.dirname(filePath)) {
           return unsupported(
             `runtime_policy.${field}`,
             `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
@@ -2598,6 +2621,9 @@ function buildChildEnvironment({
     ...providerEnvAllowlist(request.provider),
     ...request.runtime_policy?.env_allowlist ?? []
   ]);
+  for (const name of Object.values(PROVIDER_EXECUTABLE_ENV)) {
+    allowedNames.delete(name);
+  }
   const childEnv = {};
   for (const name of allowedNames) {
     const value = parentEnv[name];
@@ -2671,16 +2697,23 @@ async function probeProviderRegistry({
   );
 }
 async function probeProviderReadiness(adapter, options) {
-  const executable = await options.runner.findExecutable(adapter.executable);
+  const resolved = resolveProviderExecutable(adapter, options.runner.env ?? {});
+  if (!resolved.ok) {
+    return providerEntry(adapter, "missing", {
+      warnings: [`PROVIDER_MISSING: ${resolved.message}`]
+    });
+  }
+  const command = resolved.executable;
+  const executable = await options.runner.findExecutable(command);
   if (!executable) {
     return providerEntry(adapter, "missing", {
       warnings: [
-        `PROVIDER_MISSING: executable not found for ${adapter.id} (${adapter.executable})`
+        `PROVIDER_MISSING: executable not found for ${adapter.id} (${command})`
       ]
     });
   }
   const result = await options.runner.run(
-    adapter.executable,
+    command,
     adapter.probe.version_args,
     adapter.id
   );
@@ -2723,7 +2756,7 @@ ${result.stderr}`;
   for (const capability of options.requiredCapabilities ?? []) {
     const definition = adapter.probe.capabilities[capability];
     const capabilityResult = await options.runner.run(
-      adapter.executable,
+      command,
       definition.args,
       adapter.id
     );
@@ -2754,6 +2787,7 @@ ${capabilityResult.stderr}`;
 }
 function nodeProbeCommandRunner(env = process.env, options = {}) {
   return {
+    env,
     findExecutable(command) {
       return findExecutable(command, env);
     },
@@ -2768,13 +2802,13 @@ function nodeProbeCommandRunner(env = process.env, options = {}) {
   };
 }
 async function findExecutable(command, env) {
-  if (command.includes(path4.sep)) {
+  if (command.includes(path5.sep)) {
     return canExecute(command).then((ok) => ok ? command : void 0);
   }
   const pathValue = env.PATH ?? "";
-  for (const searchPath of pathValue.split(path4.delimiter)) {
+  for (const searchPath of pathValue.split(path5.delimiter)) {
     if (!searchPath) continue;
-    const candidate = path4.join(searchPath, command);
+    const candidate = path5.join(searchPath, command);
     if (await canExecute(candidate)) return candidate;
   }
   return void 0;
@@ -2942,12 +2976,12 @@ function matchesJsonType(value, type) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 import { readFile as readFile2, rm as rm3 } from "node:fs/promises";
-import path7 from "node:path";
+import path8 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/plugins/consensus/provider-cli/continuation.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
-import path5 from "node:path";
+import path6 from "node:path";
 var UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 var NOT_STARTED_FAILURE_CODES = [
   "PROVIDER_MISSING",
@@ -3055,7 +3089,7 @@ function continuationReceipt(input) {
     ...mode === "reconstructed" && previousSessionId(request) ? { previous_session_id: previousSessionId(request) } : {},
     consultation_id: input.consultationId,
     ...round !== void 0 ? { round } : {},
-    cwd: path5.resolve(request.cwd ?? process.cwd()),
+    cwd: path6.resolve(request.cwd ?? process.cwd()),
     ...request.model ? { requested_model: request.model } : {},
     ...request.effort ? { requested_effort: request.effort } : {},
     ...observation.observed_models ? { observed_models: observation.observed_models } : {},
@@ -3076,7 +3110,7 @@ function previousSessionId(request) {
 
 // src/plugins/consensus/provider-cli/submit-capture.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
-import path6 from "node:path";
+import path7 from "node:path";
 var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
 var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
 var CONSENSUS_SUBMIT_CAPTURE_DIR = ".consensus/submit";
@@ -3115,10 +3149,10 @@ function submitCaptureLimitMessage(bytes, maxBytes) {
   return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
 }
 function submitCaptureDirectory(cwd) {
-  return path6.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
+  return path7.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
 }
 function submitCaptureFilePath(cwd, id = randomUUID4()) {
-  return path6.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
+  return path7.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts
@@ -3332,6 +3366,15 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
   }
   const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
+  const resolvedExecutable = resolveProviderExecutable(adapter, parentEnv);
+  if (!resolvedExecutable.ok) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_MISSING",
+      message: resolvedExecutable.message,
+      terminalReason: "provider_executable_invalid"
+    });
+  }
   const submitCapturePath = submitCaptureEnabled ? submitCaptureFilePath(effectiveRequest.cwd ?? process.cwd()) : void 0;
   const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
   const submitCommand = submitCaptureEnabled ? dependencies.submitCommand ?? buildConsensusSubmitCommand() : void 0;
@@ -3344,7 +3387,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         CONSENSUS_SUBMIT_COMMAND: submitCommand,
         CONSENSUS_SUBMIT_FILE: submitCapturePath,
         [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path7.resolve(request.schema_path)
+        CONSENSUS_SUBMIT_SCHEMA: path8.resolve(request.schema_path)
       } : {}
     }
   });
@@ -3372,7 +3415,8 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         inlineJsonSchema,
         lastMessageFile: dependencies.transport?.lastMessageFile,
         preserveLastMessageFile: dependencies.transport?.preserveLastMessageFile,
-        resumeSessionId: turnOptions.resumeSessionId
+        resumeSessionId: turnOptions.resumeSessionId,
+        executable: resolvedExecutable.executable
       });
       lastInvocation = invocation2;
       const processResult = await runSubprocess(invocation2, {
@@ -3731,7 +3775,7 @@ function buildConsensusSubmitCommand(input = {}) {
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
 }
 function currentConsensusCliPath() {
-  if (process.argv[1]) return path7.resolve(process.argv[1]);
+  if (process.argv[1]) return path8.resolve(process.argv[1]);
   return fileURLToPath(import.meta.url);
 }
 function shellQuote(value) {
