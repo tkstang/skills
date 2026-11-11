@@ -6,7 +6,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { KnownHostRuntime } from '../../../plugins/consensus/provider-cli/host-guard.js';
-import { executeBoundedReview } from './run.js';
+import {
+  executeBoundedReview,
+  REVIEW_DEFAULT_MAX_OUTPUT_BYTES,
+} from './run.js';
 import type {
   ExecuteReviewInput,
   ExecuteReviewResult,
@@ -32,15 +35,54 @@ Options:
   --model <id>            Model for an explicitly pinned reviewer
   --effort <value>        Effort for an explicitly pinned reviewer
   --timeout-sec <seconds> Provider wall-clock limit, integer 1..3600 (default: 900)
+  --max-output-bytes <n>  Provider stdout+stderr cap, integer 65536..67108864
+                          (default: 10485760); the run stops when exceeded
   --allow-same-provider   Confirm user consent for a pinned same-provider reviewer
   --output <path>         Export completed Markdown after drift checking; refuses overwrite
   --json                  Emit one JSON result
   --help                  Show this usage
 
+Limits (checked before dispatch unless noted):
+  100 changed files; a rename counts once, but both paths are kept.
+  8 MiB of textual evidence, charged per path as the larger of its live and
+    base versions; evidence.json can therefore hold up to 16 MiB. One file
+    or base blob over 8 MiB is rejected.
+  Binary files are skipped, listed under limitations, and drift-checked by
+    hash; a scope with no textual version is rejected.
+  64 KiB assembled prompt. The prompt lists at most 20 paths; evidence.json
+    holds the full manifest. Requests over 32 KiB are passed by file.
+  Provider output: see --max-output-bytes (enforced during the run).
+  Reply caps: 100 findings, 100 checks, 50 questions, 50 limitations. The
+    host validates the whole reply, derives the verdict from every finding
+    and check, then truncates the stored report and records what it omitted.
+Workarounds: narrow with --files, use a closer base, or pass
+  base_branch=<sha>: an ancestor commit of HEAD selects exactly the changes
+  from that commit through the current worktree.
+
 Exit 0: completed review or empty-scope no-op. Exit 1: incomplete, defective,
 or output failure. Exit 2: usage or pre-dispatch argument error.`;
 
 const REQUEST_FILE_MAX_BYTES = 256 * 1024;
+const MAX_OUTPUT_BYTES_RANGE = { min: 64 * 1024, max: 64 * 1024 * 1024 };
+
+function boundedInteger(
+  value: string,
+  range: { min: number; max: number },
+  reason: string,
+  flag: string,
+): number {
+  const message = `${flag} must be an integer between ${range.min} and ${range.max}`;
+  if (!/^\d+$/u.test(value)) throw new UsageError(reason, message);
+  const parsed = Number(value);
+  if (
+    !Number.isSafeInteger(parsed) ||
+    parsed < range.min ||
+    parsed > range.max
+  ) {
+    throw new UsageError(reason, message);
+  }
+  return parsed;
+}
 
 export interface ReviewCliDependencies {
   cwd?: string;
@@ -73,6 +115,7 @@ interface ParsedReviewArgs {
   model?: string;
   effort?: string;
   timeoutSec: number;
+  maxOutputBytes: number;
   allowSameProvider?: boolean;
   output?: string;
   json: boolean;
@@ -146,6 +189,7 @@ export async function runReviewCli(
     ...(parsed.model ? { model: parsed.model } : {}),
     ...(parsed.effort ? { effort: parsed.effort } : {}),
     maxRuntimeSec: parsed.timeoutSec,
+    maxOutputBytes: parsed.maxOutputBytes,
     ...(parsed.allowSameProvider
       ? { allowSameProvider: parsed.allowSameProvider }
       : {}),
@@ -219,6 +263,11 @@ export async function runReviewCli(
     ok: true,
     status: 'completed',
     verdict: result.aggregate.reply.verdict,
+    claimed_verdict: result.aggregate.claimed_verdict,
+    ...(result.aggregate.warnings.length > 0
+      ? { warnings: result.aggregate.warnings }
+      : {}),
+    truncated: result.aggregate.truncation.truncated,
     invocation_count: result.invocation_count,
     artifacts: {
       markdown: canonicalMarkdown,
@@ -228,6 +277,7 @@ export async function runReviewCli(
   };
   const human = [
     `Review completed: ${result.aggregate.reply.verdict}.`,
+    ...result.aggregate.warnings.map((warning) => `Warning: ${warning}`),
     `Markdown artifact: ${canonicalMarkdown}`,
     `JSON artifact: ${result.artifactPath}`,
     ...(exportedMarkdown ? [`Exported Markdown: ${exportedMarkdown}`] : []),
@@ -248,12 +298,20 @@ export function renderReviewMarkdown(aggregate: ReviewAggregate): string {
     '',
     '# Consensus Review',
     '',
-    `**Verdict:** ${escapeMarkdown(aggregate.reply.verdict)}`,
+    `**Verdict:** ${escapeMarkdown(aggregate.reply.verdict)}${aggregate.claimed_verdict === aggregate.reply.verdict ? '' : ` (reviewer claimed ${escapeMarkdown(aggregate.claimed_verdict)})`}`,
     `**Worktree:** ${inlineCode(aggregate.worktree_root)}`,
     `**Scope token:** ${inlineCode(aggregate.scope.token)}`,
     `**Reviewer:** ${escapeMarkdown(aggregate.reviewer.observed.provider)} (model ${escapeMarkdown(aggregate.reviewer.observed.model ?? 'unobserved')}, effort ${escapeMarkdown(aggregate.reviewer.observed.effort ?? 'unobserved')})`,
-    `**Findings:** ${findings.critical.length} critical, ${findings.high.length} high, ${findings.medium.length} medium, ${findings.low.length} low`,
+    `**Findings:** ${findings.critical.length} critical, ${findings.high.length} high, ${findings.medium.length} medium, ${findings.low.length} low${aggregate.truncation.omitted.findings > 0 ? ` shown; ${aggregate.truncation.omitted.findings} lower-severity finding(s) omitted` : ''}`,
     '',
+    ...(aggregate.warnings.length > 0
+      ? [
+          '## Warnings',
+          '',
+          ...aggregate.warnings.map((entry) => `- ${escapeMarkdown(entry)}`),
+          '',
+        ]
+      : []),
     '## Request',
     '',
     escapeMarkdown(aggregate.request),
@@ -304,6 +362,7 @@ export function renderReviewMarkdown(aggregate: ReviewAggregate): string {
     '',
     ...renderStringList([
       ...aggregate.reply.limitations,
+      ...aggregate.host_limitations,
       aggregate.drift.limitation,
       'Provider read-only controls are not universal filesystem or network isolation.',
       'Retention is operator-managed; the external run directory has no automatic cleanup or replay policy.',
@@ -327,6 +386,16 @@ export function renderReviewMarkdown(aggregate: ReviewAggregate): string {
     `- Captured request: ${inlineCode(aggregate.paths.request)}`,
     `- Captured evidence: ${inlineCode(aggregate.paths.evidence)}`,
     `- Host result JSON: ${inlineCode(aggregate.paths.result)}`,
+    ...(aggregate.paths.provider_evidence
+      ? [
+          `- Provider evidence: ${inlineCode(aggregate.paths.provider_evidence)}`,
+        ]
+      : []),
+    ...(aggregate.paths.codex_last_message
+      ? [
+          `- Codex last message: ${inlineCode(aggregate.paths.codex_last_message)}`,
+        ]
+      : []),
     '',
   ];
   return lines.join('\n');
@@ -348,6 +417,8 @@ async function parseReviewArgs(
   let effort: string | undefined;
   let timeoutSec = 900;
   let timeoutSeen = false;
+  let maxOutputBytes = REVIEW_DEFAULT_MAX_OUTPUT_BYTES;
+  let maxOutputSeen = false;
   let output: string | undefined;
   let allowSameProvider = false;
   let json = false;
@@ -434,6 +505,20 @@ async function parseReviewArgs(
             '--timeout-sec must be an integer between 1 and 3600',
           );
         }
+      } else if (argument === '--max-output-bytes') {
+        if (maxOutputSeen) {
+          throw new UsageError(
+            'argument_duplicate',
+            '--max-output-bytes was repeated',
+          );
+        }
+        maxOutputSeen = true;
+        maxOutputBytes = boundedInteger(
+          option,
+          MAX_OUTPUT_BYTES_RANGE,
+          'max_output_bytes_invalid',
+          '--max-output-bytes',
+        );
       } else if (argument === '--output') output = option;
       continue;
     }
@@ -492,6 +577,7 @@ async function parseReviewArgs(
     ...(model ? { model } : {}),
     ...(effort ? { effort } : {}),
     timeoutSec,
+    maxOutputBytes,
     ...(allowSameProvider ? { allowSameProvider } : {}),
     ...(output ? { output } : {}),
     json,
@@ -512,6 +598,7 @@ function optionValue(
     '--model',
     '--effort',
     '--timeout-sec',
+    '--max-output-bytes',
     '--output',
   ]);
   if (!valued.has(argument)) return null;
@@ -605,8 +692,17 @@ function diagnosticOutcome(
     reason: result.reason,
     message: result.message,
     invocation_count: result.invocation_count,
-    ...(result.diagnosticPath
-      ? { artifacts: { diagnostic: path.resolve(result.diagnosticPath) } }
+    ...(result.diagnosticPath || result.providerEvidencePath
+      ? {
+          artifacts: {
+            ...(result.diagnosticPath
+              ? { diagnostic: path.resolve(result.diagnosticPath) }
+              : {}),
+            ...(result.providerEvidencePath
+              ? { provider_evidence: path.resolve(result.providerEvidencePath) }
+              : {}),
+          },
+        }
       : {}),
   };
   return {
@@ -618,6 +714,9 @@ function diagnosticOutcome(
       result.message,
       ...(result.diagnosticPath
         ? [`Diagnostic artifact: ${path.resolve(result.diagnosticPath)}`]
+        : []),
+      ...(result.providerEvidencePath
+        ? [`Provider evidence: ${path.resolve(result.providerEvidencePath)}`]
         : []),
       `Provider invocations: ${result.invocation_count}.`,
     ].join('\n'),

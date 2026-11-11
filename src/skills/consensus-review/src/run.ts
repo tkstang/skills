@@ -19,6 +19,7 @@ import type {
   ProviderTurnTransportOptions,
   RunProviderTurnDependencies,
 } from '../../../plugins/consensus/provider-cli/structured-output.js';
+import { readBoundedRegularFile } from '../../../plugins/consensus/provider-cli/subprocess.js';
 import type {
   ConsensusCliRunEnvelope,
   ConsensusCliRunRequest,
@@ -42,6 +43,22 @@ import type {
   ResolvedReviewer,
   ReviewSelectionDependencies,
 } from './selection.js';
+
+// Matches the provider transport default; review.ts exposes it as
+// --max-output-bytes.
+export const REVIEW_DEFAULT_MAX_OUTPUT_BYTES = 10 * 1024 * 1024;
+// Per-stream bound for provider evidence saved after the transport returns.
+export const PROVIDER_EVIDENCE_STREAM_MAX_BYTES = 2 * 1024 * 1024;
+// Presentation caps from schemas/review.schema.json. Validation covers the
+// whole reply first; these only bound what the report stores.
+export const REVIEW_REPLY_CAPS = {
+  findings: 100,
+  questions: 50,
+  limitations: 50,
+  coverage: 200,
+  inspected_context: 200,
+  checks: 100,
+} as const;
 
 export interface ReviewFoundationResult {
   ok: false;
@@ -212,7 +229,7 @@ export async function runReview(
           },
     max_attempts: 1,
     max_runtime_sec: input.maxRuntimeSec ?? 900,
-    max_output_bytes: input.maxOutputBytes ?? 1024 * 1024,
+    max_output_bytes: input.maxOutputBytes ?? REVIEW_DEFAULT_MAX_OUTPUT_BYTES,
     ...(input.model ? { model: input.model } : {}),
     ...(input.effort ? { effort: input.effort } : {}),
   };
@@ -290,6 +307,7 @@ export interface ExecuteReviewInput {
   model?: string;
   effort?: string;
   maxRuntimeSec?: number;
+  maxOutputBytes?: number;
   allowSameProvider?: boolean;
   runId?: string;
   authoredBy?: AuthorEvidence[];
@@ -340,6 +358,7 @@ export type ExecuteReviewResult =
       reason: string;
       message: string;
       diagnosticPath?: string;
+      providerEvidencePath?: string;
       runState?: ReviewRunState;
       drift?: ScopeComparison;
     };
@@ -389,13 +408,35 @@ export interface ReviewAggregate {
   };
   drift: ScopeComparison;
   validation: { ok: true };
+  // reply.verdict is derived by the host from the validated reply; this is
+  // what the reviewer itself returned.
+  claimed_verdict: ReviewReply['verdict'];
+  warnings: string[];
+  truncation: ReviewTruncation;
+  host_limitations: string[];
   reply: ReviewReply;
   paths: {
     run_directory: string;
     request: string;
     evidence: string;
     result: string;
+    provider_evidence: string | null;
+    codex_last_message?: string;
   };
+}
+
+export interface ReviewTruncation {
+  truncated: boolean;
+  omitted: Record<keyof typeof REVIEW_REPLY_CAPS, number>;
+  strings_cut: number;
+}
+
+export interface ReviewReplyValidation {
+  ok: true;
+  value: ReviewReply;
+  claimedVerdict: ReviewReply['verdict'];
+  warnings: string[];
+  truncation: ReviewTruncation;
 }
 
 export async function executeBoundedReview(
@@ -547,6 +588,10 @@ export async function executeBoundedReview(
     });
   }
 
+  const codexCapturePath =
+    selected.reviewer.provider === 'codex'
+      ? path.join(runState.runDirectory, 'last-message.json')
+      : undefined;
   const transport = dependencies.transport ?? runReview;
   const transportResult = await transport(
     {
@@ -561,14 +606,10 @@ export async function executeBoundedReview(
       ...(input.maxRuntimeSec !== undefined
         ? { maxRuntimeSec: input.maxRuntimeSec }
         : {}),
-      ...(selected.reviewer.provider === 'codex'
-        ? {
-            codexCapturePath: path.join(
-              runState.runDirectory,
-              'last-message.json',
-            ),
-          }
+      ...(input.maxOutputBytes !== undefined
+        ? { maxOutputBytes: input.maxOutputBytes }
         : {}),
+      ...(codexCapturePath ? { codexCapturePath } : {}),
       scopeGuard: { scope, before },
     },
     {
@@ -578,6 +619,15 @@ export async function executeBoundedReview(
       preflight: async () => selected.readiness,
     },
   );
+
+  // Save what the provider produced before any later check can fail, so no
+  // completed run loses its output.
+  const evidence = await saveProviderEvidence({
+    path: path.join(runState.runDirectory, 'provider-evidence.json'),
+    transportResult,
+    codexCapturePath,
+    persist,
+  });
 
   let drift: ScopeComparison;
   try {
@@ -606,6 +656,7 @@ export async function executeBoundedReview(
       runState,
       diagnosticPath,
       drift,
+      evidence,
       persist,
     });
   }
@@ -619,6 +670,7 @@ export async function executeBoundedReview(
       runState,
       diagnosticPath,
       drift,
+      evidence,
       persist,
     });
   }
@@ -631,6 +683,7 @@ export async function executeBoundedReview(
       runState,
       diagnosticPath,
       drift,
+      evidence,
       persist,
     });
   }
@@ -645,6 +698,7 @@ export async function executeBoundedReview(
       runState,
       diagnosticPath,
       drift,
+      evidence,
       persist,
     });
   }
@@ -696,12 +750,23 @@ export async function executeBoundedReview(
     },
     drift,
     validation: { ok: true },
+    claimed_verdict: validation.claimedVerdict,
+    warnings: [
+      ...validation.warnings,
+      ...('error' in evidence
+        ? [`Provider evidence could not be saved: ${evidence.error}`]
+        : []),
+    ],
+    truncation: validation.truncation,
+    host_limitations: hostLimitations(scope),
     reply: validation.value,
     paths: {
       run_directory: runState.runDirectory,
       request: requestPath,
       evidence: evidencePath,
       result: resultPath,
+      provider_evidence: 'path' in evidence ? evidence.path : null,
+      ...(codexCapturePath ? { codex_last_message: codexCapturePath } : {}),
     },
   };
   try {
@@ -715,6 +780,7 @@ export async function executeBoundedReview(
       runState,
       diagnosticPath,
       drift,
+      evidence,
       persist,
     });
   }
@@ -728,10 +794,15 @@ export async function executeBoundedReview(
   };
 }
 
+/**
+ * Validates the whole reply, derives the verdict from every valid finding and
+ * check, and only then cuts the stored presentation to the schema caps.
+ * Truncation can therefore never hide a blocking finding from the verdict.
+ */
 export function validateReviewReply(
   value: unknown,
   scope: CapturedReviewScope,
-): { ok: true; value: ReviewReply } | { ok: false; errors: string[] } {
+): ReviewReplyValidation | { ok: false; errors: string[] } {
   const errors: string[] = [];
   if (!isRecord(value)) {
     return { ok: false, errors: ['reply must be an object'] };
@@ -762,36 +833,133 @@ export function validateReviewReply(
     'reply.verdict',
     errors,
   );
-  requireString(value.summary, 'reply.summary', 1, 8192, errors);
-  const findings = validateFindings(value.findings, scope, errors);
-  validateStringArray(value.questions, 'reply.questions', 50, 4096, errors);
-  validateStringArray(value.limitations, 'reply.limitations', 50, 4096, errors);
-  validateStringArray(value.coverage, 'reply.coverage', 200, 4096, errors);
+  requireText(value.summary, 'reply.summary', 1, errors);
+  validateFindings(value.findings, scope, errors);
+  validateTextArray(value.questions, 'reply.questions', errors);
+  validateTextArray(value.limitations, 'reply.limitations', errors);
+  validateTextArray(value.coverage, 'reply.coverage', errors);
   validateInspectedContext(value.inspected_context, errors);
   validateChecks(value.checks, errors);
   validateReviewerIdentity(value.reviewer_identity, errors);
-
-  const blockingFindings = findings.filter(
-    (finding) => finding.severity === 'critical' || finding.severity === 'high',
-  );
-  const failedChecks = Array.isArray(value.checks)
-    ? value.checks.some((check) => isRecord(check) && check.status === 'failed')
-    : false;
-  if (
-    value.verdict === 'pass' &&
-    (blockingFindings.length > 0 || failedChecks)
-  ) {
-    errors.push(
-      'reply.verdict pass forbids critical/high findings and failed checks',
-    );
-  }
-  if (value.verdict === 'changes_requested' && blockingFindings.length === 0) {
-    errors.push(
-      'reply.verdict changes_requested requires a critical or high finding',
-    );
-  }
   if (errors.length > 0) return { ok: false, errors };
-  return { ok: true, value: value as unknown as ReviewReply };
+
+  const reply = value as unknown as ReviewReply;
+  const blocking = reply.findings.filter(
+    (finding) => finding.severity === 'critical' || finding.severity === 'high',
+  ).length;
+  const failedChecks = reply.checks.filter(
+    (check) => check.status === 'failed',
+  ).length;
+  const claimedVerdict = reply.verdict;
+  const derivedVerdict: ReviewReply['verdict'] =
+    blocking > 0 || failedChecks > 0
+      ? 'changes_requested'
+      : claimedVerdict === 'inconclusive'
+        ? 'inconclusive'
+        : 'pass';
+  const warnings =
+    derivedVerdict === claimedVerdict
+      ? []
+      : [
+          `The reviewer claimed ${claimedVerdict}; the host derived ${derivedVerdict} from ${blocking} critical or high finding(s) and ${failedChecks} failed check(s) across the full reply.`,
+        ];
+
+  const cut = { count: 0 };
+  const text = (entry: string, max: number) => cutText(entry, max, cut);
+  const findings = keepFirst(
+    stableSortBy(reply.findings, (finding) => SEVERITY_RANK[finding.severity]),
+    REVIEW_REPLY_CAPS.findings,
+  ).map((finding) => ({
+    ...finding,
+    title: text(finding.title, 512),
+    claim: text(finding.claim, 8192),
+    evidence: text(finding.evidence, 8192),
+    suggestion: text(finding.suggestion, 8192),
+  }));
+  const checks = keepFirst(
+    stableSortBy(reply.checks, (check) => (check.status === 'failed' ? 0 : 1)),
+    REVIEW_REPLY_CAPS.checks,
+  ).map((check) => ({
+    ...check,
+    name: text(check.name, 512),
+    ...(check.detail !== undefined ? { detail: text(check.detail, 4096) } : {}),
+  }));
+  const normalized: ReviewReply = {
+    ...reply,
+    verdict: derivedVerdict,
+    summary: text(reply.summary, 8192),
+    findings,
+    questions: keepFirst(reply.questions, REVIEW_REPLY_CAPS.questions).map(
+      (entry) => text(entry, 4096),
+    ),
+    limitations: keepFirst(
+      reply.limitations,
+      REVIEW_REPLY_CAPS.limitations,
+    ).map((entry) => text(entry, 4096)),
+    coverage: keepFirst(reply.coverage, REVIEW_REPLY_CAPS.coverage).map(
+      (entry) => text(entry, 4096),
+    ),
+    inspected_context: keepFirst(
+      reply.inspected_context,
+      REVIEW_REPLY_CAPS.inspected_context,
+    ).map((entry) => ({ ...entry, subject: text(entry.subject, 4096) })),
+    checks,
+  };
+  const omitted = {
+    findings: reply.findings.length - normalized.findings.length,
+    questions: reply.questions.length - normalized.questions.length,
+    limitations: reply.limitations.length - normalized.limitations.length,
+    coverage: reply.coverage.length - normalized.coverage.length,
+    inspected_context:
+      reply.inspected_context.length - normalized.inspected_context.length,
+    checks: reply.checks.length - normalized.checks.length,
+  };
+  const truncated =
+    cut.count > 0 || Object.values(omitted).some((count) => count > 0);
+  if (truncated) {
+    warnings.push(
+      `The reply exceeded the report caps and was truncated after validation (omitted: ${
+        Object.entries(omitted)
+          .filter(([, count]) => count > 0)
+          .map(([name, count]) => `${count} ${name}`)
+          .join(', ') || 'none'
+      }; ${cut.count} string(s) cut).`,
+    );
+  }
+  return {
+    ok: true,
+    value: normalized,
+    claimedVerdict,
+    warnings,
+    truncation: { truncated, omitted, strings_cut: cut.count },
+  };
+}
+
+const SEVERITY_RANK: Record<ReviewFinding['severity'], number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
+
+function stableSortBy<T>(values: T[], rank: (value: T) => number): T[] {
+  return values
+    .map((value, index) => ({ value, index, rank: rank(value) }))
+    .toSorted(
+      (left, right) => left.rank - right.rank || left.index - right.index,
+    )
+    .map((entry) => entry.value);
+}
+
+function keepFirst<T>(values: T[], cap: number): T[] {
+  return values.slice(0, cap);
+}
+
+function cutText(value: string, max: number, cut: { count: number }): string {
+  if (value.length <= max) return value;
+  cut.count += 1;
+  const marker = ` [truncated ${value.length - max} of ${value.length} characters]`;
+  return `${value.slice(0, Math.max(0, max - marker.length))}${marker}`;
 }
 
 async function persistDiagnosticFailure(input: {
@@ -803,7 +971,12 @@ async function persistDiagnosticFailure(input: {
   diagnosticPath: string;
   persist: typeof persistPrivateJson;
   drift?: ScopeComparison;
+  evidence?: SavedProviderEvidence;
 }): Promise<ExecuteReviewResult> {
+  const evidencePath =
+    input.evidence && 'path' in input.evidence
+      ? input.evidence.path
+      : undefined;
   const diagnostic = {
     schema_version: 'v1',
     status: input.status,
@@ -811,6 +984,14 @@ async function persistDiagnosticFailure(input: {
     reason: input.reason,
     message: input.message,
     ...(input.drift ? { drift: input.drift } : {}),
+    ...(input.evidence
+      ? 'path' in input.evidence
+        ? { provider_evidence: input.evidence.path }
+        : { provider_evidence_error: input.evidence.error }
+      : {}),
+    ...(input.evidence?.codexLastMessage
+      ? { codex_last_message: input.evidence.codexLastMessage }
+      : {}),
   };
   try {
     await input.persist(input.diagnosticPath, diagnostic);
@@ -822,7 +1003,11 @@ async function persistDiagnosticFailure(input: {
         input.invocationCount,
         'result_and_diagnostic_persistence_failed',
         `Result persistence failed: ${input.message}; diagnostic persistence failed: ${diagnosticError}`,
-        { runState: input.runState, drift: input.drift },
+        {
+          runState: input.runState,
+          drift: input.drift,
+          ...(evidencePath ? { providerEvidencePath: evidencePath } : {}),
+        },
       );
     }
     return executeFailure(
@@ -830,7 +1015,11 @@ async function persistDiagnosticFailure(input: {
       input.invocationCount,
       'diagnostic_persistence_failed',
       fsMessage(error),
-      { runState: input.runState, drift: input.drift },
+      {
+        runState: input.runState,
+        drift: input.drift,
+        ...(evidencePath ? { providerEvidencePath: evidencePath } : {}),
+      },
     );
   }
   return executeFailure(
@@ -842,8 +1031,109 @@ async function persistDiagnosticFailure(input: {
       runState: input.runState,
       diagnosticPath: input.diagnosticPath,
       drift: input.drift,
+      ...(evidencePath ? { providerEvidencePath: evidencePath } : {}),
     },
   );
+}
+
+type SavedProviderEvidence = ({ path: string } | { error: string }) & {
+  codexLastMessage?: string;
+};
+
+async function saveProviderEvidence(input: {
+  path: string;
+  transportResult: ReviewRunResult;
+  codexCapturePath?: string;
+  persist: typeof persistPrivateJson;
+}): Promise<SavedProviderEvidence> {
+  const result = input.transportResult;
+  const envelope = 'envelope' in result ? result.envelope : undefined;
+  let codexLastMessage: Record<string, unknown> | undefined;
+  if (input.codexCapturePath) {
+    const capture = await readBoundedRegularFile(
+      input.codexCapturePath,
+      PROVIDER_EVIDENCE_STREAM_MAX_BYTES,
+    );
+    codexLastMessage = capture.ok
+      ? { path: input.codexCapturePath, ...boundedText(capture.contents) }
+      : {
+          path: input.codexCapturePath,
+          error: `${capture.reason}: ${capture.message}`,
+        };
+  }
+  const record = {
+    schema_version: 'v1',
+    transport: {
+      ok: result.ok,
+      status: result.status,
+      invocation_count: result.invocation_count,
+      ...('reason' in result ? { reason: result.reason } : {}),
+      ...('message' in result ? { message: result.message } : {}),
+    },
+    ...(envelope
+      ? {
+          envelope: {
+            ok: envelope.ok,
+            provider: envelope.provider,
+            ...(envelope.ok
+              ? {}
+              : { code: envelope.code, message: envelope.message }),
+            attempts: envelope.attempts,
+            ...(envelope.diagnostics
+              ? { diagnostics: envelope.diagnostics }
+              : {}),
+            ...(envelope.continuation
+              ? { continuation: envelope.continuation }
+              : {}),
+          },
+          stdout: boundedText(envelope.stdout ?? ''),
+          stderr: boundedText(envelope.stderr ?? ''),
+        }
+      : {}),
+    ...(codexLastMessage ? { codex_last_message: codexLastMessage } : {}),
+  };
+  const codexRef = input.codexCapturePath
+    ? { codexLastMessage: input.codexCapturePath }
+    : {};
+  try {
+    await input.persist(input.path, record);
+    return { path: input.path, ...codexRef };
+  } catch (error) {
+    return { error: fsMessage(error), ...codexRef };
+  }
+}
+
+function boundedText(value: string): {
+  bytes: number;
+  truncated: boolean;
+  text: string;
+} {
+  const bytes = Buffer.byteLength(value);
+  if (bytes <= PROVIDER_EVIDENCE_STREAM_MAX_BYTES) {
+    return { bytes, truncated: false, text: value };
+  }
+  return {
+    bytes,
+    truncated: true,
+    text: Buffer.from(value)
+      .subarray(0, PROVIDER_EVIDENCE_STREAM_MAX_BYTES)
+      .toString('utf8'),
+  };
+}
+
+function hostLimitations(scope: CapturedReviewScope): string[] {
+  const binaries = [
+    ...new Set(
+      scope.versions
+        .filter((version) => version.kind === 'binary_skipped')
+        .map((version) => version.path),
+    ),
+  ];
+  return binaries.length > 0
+    ? [
+        `Binary files were skipped and not reviewed; their size and hash are drift-checked only: ${binaries.join(', ')}.`,
+      ]
+    : [];
 }
 
 function normalizeAuthorEvidence(
@@ -1013,14 +1303,12 @@ function validateFindings(
   value: unknown,
   scope: CapturedReviewScope,
   errors: string[],
-): ReviewFinding[] {
+): void {
   if (!Array.isArray(value)) {
     errors.push('reply.findings must be an array');
-    return [];
+    return;
   }
-  if (value.length > 100) errors.push('reply.findings exceeds 100 items');
-  const findings: ReviewFinding[] = [];
-  value.slice(0, 100).forEach((candidate, index) => {
+  value.forEach((candidate, index) => {
     const label = `reply.findings[${index}]`;
     if (!isRecord(candidate)) {
       errors.push(`${label} must be an object`);
@@ -1047,10 +1335,10 @@ function validateFindings(
       `${label}.severity`,
       errors,
     );
-    requireString(candidate.title, `${label}.title`, 1, 512, errors);
-    requireString(candidate.claim, `${label}.claim`, 1, 8192, errors);
-    requireString(candidate.evidence, `${label}.evidence`, 1, 8192, errors);
-    requireString(candidate.suggestion, `${label}.suggestion`, 1, 8192, errors);
+    requireText(candidate.title, `${label}.title`, 1, errors);
+    requireText(candidate.claim, `${label}.claim`, 1, errors);
+    requireText(candidate.evidence, `${label}.evidence`, 1, errors);
+    requireText(candidate.suggestion, `${label}.suggestion`, 1, errors);
     if (
       typeof candidate.confidence !== 'number' ||
       !Number.isFinite(candidate.confidence) ||
@@ -1071,9 +1359,7 @@ function validateFindings(
         errors.push(`${label}.anchor requires an external document scope`);
       }
     }
-    findings.push(candidate as unknown as ReviewFinding);
   });
-  return findings;
 }
 
 function validateLocation(
@@ -1148,17 +1434,14 @@ function validateInspectedContext(value: unknown, errors: string[]): void {
     errors.push('reply.inspected_context must be an array');
     return;
   }
-  if (value.length > 200) {
-    errors.push('reply.inspected_context exceeds 200 items');
-  }
-  value.slice(0, 200).forEach((candidate, index) => {
+  value.forEach((candidate, index) => {
     const label = `reply.inspected_context[${index}]`;
     if (!isRecord(candidate)) {
       errors.push(`${label} must be an object`);
       return;
     }
     assertKeys(candidate, ['subject', 'source_version'], label, errors);
-    requireString(candidate.subject, `${label}.subject`, 1, 4096, errors);
+    requireText(candidate.subject, `${label}.subject`, 1, errors);
     requireString(
       candidate.source_version,
       `${label}.source_version`,
@@ -1174,15 +1457,14 @@ function validateChecks(value: unknown, errors: string[]): void {
     errors.push('reply.checks must be an array');
     return;
   }
-  if (value.length > 100) errors.push('reply.checks exceeds 100 items');
-  value.slice(0, 100).forEach((candidate, index) => {
+  value.forEach((candidate, index) => {
     const label = `reply.checks[${index}]`;
     if (!isRecord(candidate)) {
       errors.push(`${label} must be an object`);
       return;
     }
     assertKeys(candidate, ['name', 'status', 'detail'], label, errors);
-    requireString(candidate.name, `${label}.name`, 1, 512, errors);
+    requireText(candidate.name, `${label}.name`, 1, errors);
     requireEnum(
       candidate.status,
       ['passed', 'failed', 'not_run'],
@@ -1190,9 +1472,38 @@ function validateChecks(value: unknown, errors: string[]): void {
       errors,
     );
     if (candidate.detail !== undefined) {
-      requireString(candidate.detail, `${label}.detail`, 0, 4096, errors);
+      requireText(candidate.detail, `${label}.detail`, 0, errors);
     }
   });
+}
+
+function validateTextArray(
+  value: unknown,
+  label: string,
+  errors: string[],
+): void {
+  if (!Array.isArray(value)) {
+    errors.push(`${label} must be an array`);
+    return;
+  }
+  value.forEach((entry, index) =>
+    requireText(entry, `${label}[${index}]`, 1, errors),
+  );
+}
+
+// Free text is length-checked from below only; overlong text is cut for
+// presentation after validation rather than rejected.
+function requireText(
+  value: unknown,
+  label: string,
+  minLength: number,
+  errors: string[],
+): void {
+  if (typeof value !== 'string' || value.length < minLength) {
+    errors.push(
+      `${label} must be a string of at least ${minLength} characters`,
+    );
+  }
 }
 
 function validateReviewerIdentity(value: unknown, errors: string[]): void {

@@ -18,10 +18,18 @@ import { inside } from '../../../plugins/consensus/shared/cli-helpers-core.js';
 const execFileAsync = promisify(execFile);
 
 export const REVIEW_SCOPE_LIMITS = {
+  // A rename or copy counts once.
   maxSelectedFiles: 100,
-  maxEvidenceBytes: 2 * 1024 * 1024,
-  maxGitOutputBytes: 4 * 1024 * 1024,
+  // Charged per path as max(live, base) textual bytes, so evidence.json can
+  // retain up to twice this when both versions of every path are large.
+  maxEvidenceBytes: 8 * 1024 * 1024,
+  // One git call returns at most one blob, so it shares the evidence bound
+  // plus room for metadata output such as an index listing.
+  maxGitOutputBytes: 8 * 1024 * 1024 + 1024 * 1024,
 } as const;
+
+export const REVIEW_SCOPE_WORKAROUND =
+  'Narrow the scope with --files <paths...>, use a closer base_branch=<ref>, or pass base_branch=<sha> naming the commit your branch actually starts from.';
 
 export type ReviewScopeRequest =
   | { kind: 'base_branch'; ref: string }
@@ -31,7 +39,8 @@ export type ReviewScopeRequest =
 export interface CapturedFileVersion {
   source: 'live' | 'base';
   path: string;
-  kind: 'file' | 'symlink' | 'deleted';
+  // `binary_skipped` keeps the size and hash for drift checks but no text.
+  kind: 'file' | 'symlink' | 'deleted' | 'binary_skipped';
   mode: number | null;
   bytes: number;
   sha256: string | null;
@@ -49,14 +58,17 @@ export interface CapturedReviewScope {
   selectedPaths: string[];
   externalDocuments: string[];
   versions: CapturedFileVersion[];
+  // Textual bytes actually retained in the evidence (live plus base).
   evidenceBytes: number;
+  // Bytes charged against maxEvidenceBytes: max(live, base) per path.
+  chargedBytes: number;
   captureState: ScopeStateSnapshot;
 }
 
 export interface SelectedPathState {
   path: string;
   location: 'worktree' | 'external';
-  kind: 'file' | 'symlink' | 'deleted';
+  kind: CapturedFileVersion['kind'];
   mode: number | null;
   bytes: number;
   sha256: string | null;
@@ -120,8 +132,9 @@ export async function captureReviewScope(input: {
         `base_ref_invalid: could not resolve a merge base for ${ref}`,
       );
     });
-    selectedPaths = await changedTrackedPaths(canonicalWorktree, mergeBase);
-    enforceFileCount(selectedPaths);
+    const changed = await changedTrackedPaths(canonicalWorktree, mergeBase);
+    selectedPaths = changed.paths;
+    enforceFileCount(selectedPaths, changed.countedFiles);
     for (const relativePath of selectedPaths) {
       versions.push(
         await captureWorktreeVersion(canonicalWorktree, relativePath),
@@ -137,7 +150,7 @@ export async function captureReviewScope(input: {
     selectedPaths = unique(input.request.paths).map((candidate) =>
       normalizeRepositoryPath(candidate),
     );
-    enforceFileCount(selectedPaths);
+    enforceFileCount(selectedPaths, selectedPaths.length);
     for (const relativePath of selectedPaths) {
       versions.push(
         await captureWorktreeVersion(canonicalWorktree, relativePath, true),
@@ -156,13 +169,25 @@ export async function captureReviewScope(input: {
     versions.push(document.version);
   }
 
+  rejectBinaryOnlyScope(versions);
   const evidenceBytes = versions.reduce(
-    (total, version) => total + version.bytes,
+    (total, version) => total + textualBytes(version),
     0,
   );
-  if (evidenceBytes > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
+  const charges = chargedBytesByPath(versions);
+  const chargedBytes = [...charges.values()].reduce(
+    (total, bytes) => total + bytes,
+    0,
+  );
+  if (chargedBytes > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
     throw new Error(
-      `scope_too_large: selected textual evidence exceeds ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes} bytes`,
+      `scope_too_large: selected textual evidence is ${chargedBytes} bytes, over the ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes}-byte limit (each path is charged the larger of its live and base versions). Largest: ${largestOffenders(
+        [...charges.entries()].map(([name, bytes]) => ({
+          name,
+          size: bytes,
+          unit: 'bytes',
+        })),
+      )}. ${REVIEW_SCOPE_WORKAROUND}`,
     );
   }
 
@@ -176,6 +201,7 @@ export async function captureReviewScope(input: {
     externalDocuments,
     versions,
     evidenceBytes,
+    chargedBytes,
   };
   const captureState = await captureScopeState(scopeWithoutState);
   const captureComparison = compareCapturedScopeToState(
@@ -388,7 +414,7 @@ async function canonicalGitWorktree(cwd: string): Promise<string> {
 async function changedTrackedPaths(
   cwd: string,
   mergeBase: string,
-): Promise<string[]> {
+): Promise<{ paths: string[]; countedFiles: number }> {
   const output = await gitBytes(cwd, [
     'diff',
     '--name-status',
@@ -400,19 +426,22 @@ async function changedTrackedPaths(
   ]);
   const fields = splitNul(output);
   const paths: string[] = [];
+  // A rename or copy is one changed file with two paths; both stay in scope.
+  let countedFiles = 0;
   for (let index = 0; index < fields.length; ) {
     const status = fields[index++];
     if (!status) break;
     const first = fields[index++];
     if (first === undefined) throw new Error('git_diff_malformed');
     paths.push(normalizeRepositoryPath(first));
+    countedFiles += 1;
     if (status.startsWith('R') || status.startsWith('C')) {
       const second = fields[index++];
       if (second === undefined) throw new Error('git_diff_malformed');
       paths.push(normalizeRepositoryPath(second));
     }
   }
-  return unique(paths).toSorted();
+  return { paths: unique(paths).toSorted(), countedFiles };
 }
 
 async function rejectUnresolvedMerges(cwd: string): Promise<void> {
@@ -509,11 +538,33 @@ async function captureGitVersion(
   ) {
     throw new Error(`unsupported_git_entry: ${normalized}`);
   }
+  // Only an empty tree listing above means the path is absent at the base.
+  // A failed or oversized read is a scope error, never deletion evidence.
+  const size = Number(
+    await gitText(root, ['cat-file', '-s', blobId]).catch((error) => {
+      throw new Error(
+        `scope_base_unreadable: ${normalized}: ${fsMessage(error)}`,
+        { cause: error },
+      );
+    }),
+  );
+  if (!Number.isSafeInteger(size) || size < 0) {
+    throw new Error(`scope_base_unreadable: ${normalized}: invalid blob size`);
+  }
+  if (size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
+    throw oversizedFile(normalized, size);
+  }
   let bytes: Buffer;
   try {
-    bytes = await gitBytes(root, ['show', `${revision}:${normalized}`]);
-  } catch {
-    return deletedVersion(normalized, 'base');
+    bytes = await gitBytes(root, ['cat-file', 'blob', blobId]);
+  } catch (error) {
+    throw new Error(
+      `scope_base_unreadable: ${normalized}: ${fsMessage(error)}`,
+      { cause: error },
+    );
+  }
+  if (bytes.length !== size) {
+    throw new Error(`scope_base_unreadable: ${normalized}: short blob read`);
   }
   const symlink = mode === '120000';
   return versionFromBytes(
@@ -584,13 +635,13 @@ async function captureAbsoluteFile(
 async function boundedRead(filePath: string): Promise<Buffer> {
   const info = await stat(filePath);
   if (info.size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-    throw new Error(`scope_too_large: ${filePath}`);
+    throw oversizedFile(filePath, info.size);
   }
   const handle = await open(filePath, 'r');
   try {
     const current = await handle.stat();
     if (current.size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-      throw new Error(`scope_too_large: ${filePath}`);
+      throw oversizedFile(filePath, current.size);
     }
     const buffer = Buffer.alloc(current.size);
     let offset = 0;
@@ -623,8 +674,18 @@ function versionFromBytes(
   blobId: string | null = null,
   kind: 'file' | 'symlink' = 'file',
 ): CapturedFileVersion {
-  if (bytes.includes(0))
-    throw new Error(`binary_scope_not_supported: ${filePath}`);
+  if (bytes.includes(0)) {
+    return {
+      source,
+      path: filePath,
+      kind: 'binary_skipped',
+      mode,
+      bytes: bytes.length,
+      sha256: sha256(bytes),
+      blobId,
+      text: null,
+    };
+  }
   return {
     source,
     path: filePath,
@@ -722,12 +783,82 @@ function normalizeRepositoryPath(candidate: string): string {
   return normalized.split(path.sep).join('/');
 }
 
-function enforceFileCount(paths: string[]): void {
-  if (paths.length > REVIEW_SCOPE_LIMITS.maxSelectedFiles) {
-    throw new Error(
-      `scope_too_large: selected file count exceeds ${REVIEW_SCOPE_LIMITS.maxSelectedFiles}`,
+function enforceFileCount(paths: string[], countedFiles: number): void {
+  if (countedFiles <= REVIEW_SCOPE_LIMITS.maxSelectedFiles) return;
+  const directories = new Map<string, number>();
+  for (const candidate of paths) {
+    const directory = path.posix.dirname(candidate);
+    const key = directory === '.' ? './' : `${directory}/`;
+    directories.set(key, (directories.get(key) ?? 0) + 1);
+  }
+  throw new Error(
+    `scope_too_large: ${countedFiles} changed files selected, over the ${REVIEW_SCOPE_LIMITS.maxSelectedFiles}-file limit (a rename counts once). Largest directories: ${largestOffenders(
+      [...directories.entries()].map(([name, size]) => ({
+        name,
+        size,
+        unit: 'files',
+      })),
+    )}. ${REVIEW_SCOPE_WORKAROUND}`,
+  );
+}
+
+function oversizedFile(filePath: string, size: number): Error {
+  return new Error(
+    `scope_too_large: ${filePath} is ${size} bytes, over the ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes}-byte per-file limit. ${REVIEW_SCOPE_WORKAROUND}`,
+  );
+}
+
+function largestOffenders(
+  entries: Array<{ name: string; size: number; unit: string }>,
+): string {
+  return entries
+    .toSorted(
+      (left, right) =>
+        right.size - left.size || left.name.localeCompare(right.name),
+    )
+    .slice(0, 5)
+    .map((entry) => `${entry.name} (${entry.size} ${entry.unit})`)
+    .join(', ');
+}
+
+function textualBytes(version: CapturedFileVersion): number {
+  return version.kind === 'file' || version.kind === 'symlink'
+    ? version.bytes
+    : 0;
+}
+
+function chargedBytesByPath(
+  versions: CapturedFileVersion[],
+): Map<string, number> {
+  const charges = new Map<string, number>();
+  for (const version of versions) {
+    charges.set(
+      version.path,
+      Math.max(charges.get(version.path) ?? 0, textualBytes(version)),
     );
   }
+  return charges;
+}
+
+// Binary files are skipped individually, but a scope with no textual version
+// left has nothing to review.
+function rejectBinaryOnlyScope(versions: CapturedFileVersion[]): void {
+  const binaries = versions.filter(
+    (version) => version.kind === 'binary_skipped',
+  );
+  if (binaries.length === 0) return;
+  if (
+    versions.some(
+      (version) => version.kind === 'file' || version.kind === 'symlink',
+    )
+  ) {
+    return;
+  }
+  throw new Error(
+    `binary_scope_not_supported: every selected version is binary (${unique(
+      binaries.map((version) => version.path),
+    ).join(', ')})`,
+  );
 }
 
 function unique<T>(values: T[]): T[] {

@@ -229,7 +229,46 @@ describe('bounded review prompts', () => {
         scope: capturedScope(),
         evidencePath: '/state/run/evidence.json',
       }),
-    ).toThrow('review_prompt_too_large');
+    ).toThrow(
+      /review_prompt_too_large: assembled prompt is \d+ bytes, over the 65536-byte limit; largest contributor: host_summary/u,
+    );
+  });
+
+  it('builds a prompt for 100 long branch paths by listing 20 and pointing at the evidence', () => {
+    const paths = Array.from(
+      { length: 100 },
+      (_, index) => `${String(index).padStart(3, '0')}-${'p'.repeat(146)}`,
+    );
+    const scope: CapturedReviewScope = {
+      ...capturedScope(),
+      request: { kind: 'base_branch', ref: 'main' },
+      selectedPaths: paths,
+      versions: paths.flatMap((entry) =>
+        (['live', 'base'] as const).map((source) => ({
+          source,
+          path: entry,
+          kind: 'file' as const,
+          mode: 0o644,
+          bytes: 8,
+          sha256: 'a'.repeat(64),
+          blobId: source === 'base' ? 'b'.repeat(40) : null,
+          text: 'content\n',
+        })),
+      ),
+    };
+
+    const prompt = buildReviewPrompt({
+      request: 'review',
+      hostSummary: 'bounded summary',
+      scope,
+      evidencePath: '/state/run/evidence.json',
+    });
+
+    expect(paths[0]).toHaveLength(150);
+    expect(prompt).toContain('scope_path_count=100');
+    expect(prompt).toContain(`path=${paths[19]}`);
+    expect(prompt).not.toContain(paths[20]);
+    expect(prompt).toContain('evidence_path=/state/run/evidence.json');
   });
 });
 
@@ -271,6 +310,7 @@ function capturedScope(): CapturedReviewScope {
     selectedPaths: ['src/example.ts'],
     externalDocuments: [],
     evidenceBytes: 8,
+    chargedBytes: 8,
     versions: [
       {
         source: 'live',

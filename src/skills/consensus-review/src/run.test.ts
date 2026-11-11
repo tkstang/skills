@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import {
   chmod,
   link,
@@ -432,11 +433,13 @@ describe('one bounded review transaction', () => {
         hostSummary: 'No author identity evidence is available.',
         schemaPath: fixture.schema,
         maxRuntimeSec: 1200,
+        maxOutputBytes: 2_000_000,
         runId: 'complete-run',
       },
       reviewExecutionDependencies(fixture, async (request) => {
         invocations += 1;
         expect(request.max_runtime_sec).toBe(1200);
+        expect(request.max_output_bytes).toBe(2_000_000);
         return successEnvelope(validPassReply(scopeToken(request.prompt)));
       }),
     );
@@ -817,6 +820,10 @@ describe('one bounded review transaction', () => {
       reason: 'scope_drift',
       drift: { checked: true, stable: false },
     });
+    await expectDiagnosticReferencesEvidence(
+      result,
+      'The bounded fixture passes.',
+    );
   });
 
   it('persists a labeled diagnostic after result persistence failure without rerunning the provider', async () => {
@@ -825,6 +832,8 @@ describe('one bounded review transaction', () => {
     let invocations = 0;
     let diagnosticTarget = '';
     let diagnosticValue: unknown;
+    let providerEvidenceTarget = '';
+    let providerEvidenceValue: unknown;
     const result = await executeBoundedReview(
       {
         cwd: fixture.worktree,
@@ -842,8 +851,12 @@ describe('one bounded review transaction', () => {
         }),
         async persist(target, value) {
           writes += 1;
-          if (writes === 3) throw new Error('fixture output failure');
-          if (writes === 4) {
+          if (writes === 3) {
+            providerEvidenceTarget = target;
+            providerEvidenceValue = value;
+          }
+          if (writes === 4) throw new Error('fixture output failure');
+          if (writes === 5) {
             diagnosticTarget = target;
             diagnosticValue = value;
           }
@@ -852,7 +865,13 @@ describe('one bounded review transaction', () => {
     );
 
     expect(invocations).toBe(1);
-    expect(writes).toBe(4);
+    expect(writes).toBe(5);
+    expect(path.basename(providerEvidenceTarget)).toBe(
+      'provider-evidence.json',
+    );
+    expect(providerEvidenceValue).toMatchObject({
+      stdout: { text: expect.stringContaining('The bounded fixture passes.') },
+    });
     expect(result).toMatchObject({
       ok: false,
       status: 'output_failed',
@@ -867,6 +886,7 @@ describe('one bounded review transaction', () => {
       reason: 'result_persistence_failed',
       message: 'fixture output failure',
       drift: { checked: true, stable: true },
+      provider_evidence: providerEvidenceTarget,
     });
   });
 
@@ -891,14 +911,14 @@ describe('one bounded review transaction', () => {
         }),
         async persist() {
           writes += 1;
-          if (writes === 3) throw new Error('fixture result failure');
-          if (writes === 4) throw new Error('fixture diagnostic failure');
+          if (writes === 4) throw new Error('fixture result failure');
+          if (writes === 5) throw new Error('fixture diagnostic failure');
         },
       },
     );
 
     expect(invocations).toBe(1);
-    expect(writes).toBe(4);
+    expect(writes).toBe(5);
     expect(result).toMatchObject({
       ok: false,
       status: 'output_failed',
@@ -940,11 +960,150 @@ describe('one bounded review transaction', () => {
       invocation_count: 2,
       reason: 'invocation_count_invalid',
     });
+    await expectDiagnosticReferencesEvidence(
+      result,
+      'The bounded fixture passes.',
+    );
+  });
+
+  it('derives pass from a changes_requested reply with only medium findings and keeps the claim', async () => {
+    const fixture = await gitReviewFixture();
+    const result = await executeBoundedReview(
+      {
+        cwd: fixture.worktree,
+        scope: { kind: 'files', paths: ['reviewed.ts'] },
+        host: 'codex',
+        request: 'Review.',
+        hostSummary: '',
+        schemaPath: fixture.schema,
+        runId: 'derived-pass-run',
+      },
+      reviewExecutionDependencies(fixture, async (request) =>
+        successEnvelope({
+          ...validPassReply(scopeToken(request.prompt)),
+          verdict: 'changes_requested',
+          findings: [findingAt('medium', 1, sourceVersion(request.prompt))],
+        }),
+      ),
+    );
+
+    if (!result.ok || result.status !== 'completed') {
+      throw new Error(`expected completed review: ${JSON.stringify(result)}`);
+    }
+    expect(result.aggregate.reply.verdict).toBe('pass');
+    expect(result.aggregate.claimed_verdict).toBe('changes_requested');
+    expect(result.aggregate.warnings).toEqual([
+      expect.stringContaining('claimed changes_requested'),
+    ]);
+  });
+
+  it('derives changes_requested from a high finding past the cap and stores only the capped findings', async () => {
+    const fixture = await gitReviewFixture();
+    const result = await executeBoundedReview(
+      {
+        cwd: fixture.worktree,
+        scope: { kind: 'files', paths: ['reviewed.ts'] },
+        host: 'codex',
+        request: 'Review.',
+        hostSummary: '',
+        schemaPath: fixture.schema,
+        runId: 'over-cap-run',
+      },
+      reviewExecutionDependencies(fixture, async (request) => {
+        const version = sourceVersion(request.prompt);
+        return successEnvelope({
+          ...validPassReply(scopeToken(request.prompt)),
+          verdict: 'pass',
+          findings: Array.from({ length: 150 }, (_, index) =>
+            findingAt(index === 139 ? 'high' : 'low', index + 1, version),
+          ),
+        });
+      }),
+    );
+
+    if (!result.ok || result.status !== 'completed') {
+      throw new Error(`expected completed review: ${JSON.stringify(result)}`);
+    }
+    expect(result.aggregate.reply.verdict).toBe('changes_requested');
+    expect(result.aggregate.claimed_verdict).toBe('pass');
+    expect(result.aggregate.reply.findings).toHaveLength(100);
+    expect(result.aggregate.reply.findings[0]).toMatchObject({
+      severity: 'high',
+      title: 'Finding 140',
+    });
+    expect(result.aggregate.truncation).toMatchObject({
+      truncated: true,
+      omitted: { findings: 50 },
+    });
+  });
+
+  it('references the preserved Codex last-message capture when a Codex review fails', async () => {
+    const fixture = await gitReviewFixture();
+    const result = await executeBoundedReview(
+      {
+        cwd: fixture.worktree,
+        scope: { kind: 'files', paths: ['reviewed.ts'] },
+        host: 'claude',
+        request: 'Review.',
+        hostSummary: '',
+        schemaPath: fixture.schema,
+        runId: 'codex-failure-run',
+      },
+      {
+        env: { ...fixture.env, CONSENSUS_PARENT_HOST: 'claude' },
+        selection: { preflight: async () => readyProvider('codex') },
+        transportDependencies: {
+          async runTurn(_request, dependencies) {
+            await writeFile(
+              dependencies.transport!.lastMessageFile!,
+              '{"verdict":"pass","partial":true}',
+            );
+            return {
+              schema_version: 'v1',
+              ok: false,
+              provider: 'codex',
+              code: 'PROVIDER_INVALID_JSON',
+              message: 'fixture invalid reply',
+              retryable: false,
+              stdout: '{"type":"turn.completed"}',
+              attempts: {
+                cli_attempts: 1,
+                terminal_reason: 'invalid_json',
+                retryable: false,
+              },
+            };
+          },
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 'incomplete',
+      reason: 'PROVIDER_INVALID_JSON',
+    });
+    if (result.ok || !result.diagnosticPath) {
+      throw new Error('expected diagnostic');
+    }
+    const diagnostic = JSON.parse(
+      await readFile(result.diagnosticPath, 'utf8'),
+    );
+    expect(path.basename(diagnostic.codex_last_message)).toBe(
+      'last-message.json',
+    );
+    const evidence = JSON.parse(
+      await readFile(diagnostic.provider_evidence, 'utf8'),
+    );
+    expect(evidence.codex_last_message).toMatchObject({
+      path: diagnostic.codex_last_message,
+      text: '{"verdict":"pass","partial":true}',
+    });
+    expect(evidence.stdout.text).toBe('{"type":"turn.completed"}');
   });
 });
 
 describe('deep review reply validation', () => {
-  it('validates captured source versions, line ranges, anchors, and verdict consistency', async () => {
+  it('validates captured source versions, line ranges, anchors, and derives the verdict', async () => {
     const fixture = await gitReviewFixture();
     const scope = await captureReviewScope({
       cwd: fixture.worktree,
@@ -999,7 +1158,11 @@ describe('deep review reply validation', () => {
         { ...validPassReply(scope.token), findings: [reply.findings[0]] },
         scope,
       ),
-    ).toMatchObject({ ok: false });
+    ).toMatchObject({
+      ok: true,
+      claimedVerdict: 'pass',
+      value: { verdict: 'changes_requested' },
+    });
     expect(
       validateReviewReply(
         {
@@ -1115,6 +1278,47 @@ function reviewExecutionDependencies(
       preflight: async () => readyProvider('claude'),
     },
     transportDependencies: { runTurn },
+  };
+}
+
+async function expectDiagnosticReferencesEvidence(
+  result: Awaited<ReturnType<typeof executeBoundedReview>>,
+  stdoutFragment: string,
+): Promise<void> {
+  if (result.ok || !result.diagnosticPath) {
+    throw new Error('expected a persisted diagnostic');
+  }
+  const diagnostic = JSON.parse(await readFile(result.diagnosticPath, 'utf8'));
+  expect(diagnostic.provider_evidence).toBe(result.providerEvidencePath);
+  const evidence = JSON.parse(
+    await readFile(diagnostic.provider_evidence, 'utf8'),
+  );
+  expect(evidence.stdout.text).toContain(stdoutFragment);
+}
+
+// The prompt no longer carries the manifest, so a fixture reviewer reads the
+// captured version from evidence.json like a real one.
+function sourceVersion(prompt: string): string {
+  const evidencePath = /^evidence_path=(.+)$/mu.exec(prompt)?.[1];
+  if (!evidencePath) throw new Error('evidence path missing from prompt');
+  const scope = JSON.parse(readFileSync(evidencePath, 'utf8'));
+  return scope.versions[0].sha256;
+}
+
+function findingAt(severity: string, index: number, version: string) {
+  return {
+    severity,
+    title: `Finding ${index}`,
+    location: {
+      path: 'reviewed.ts',
+      start_line: 1,
+      end_line: 1,
+      source_version: version,
+    },
+    claim: 'A bounded claim.',
+    evidence: 'Captured evidence.',
+    suggestion: 'Apply a bounded correction.',
+    confidence: 0.5,
   };
 }
 

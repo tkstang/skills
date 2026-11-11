@@ -4,17 +4,46 @@
 
 ### Added
 
+- `consensus-review` 0.2.0 (`consensus` plugin 0.2.9) completes large reviews
+  and keeps every completed review's output (#146 item 1, #133):
+  - Scope errors give the count or bytes, the five largest offenders, and the
+    workaround (`--files`, a closer base, or `base_branch=<sha>`). A rename
+    counts once toward the 100-file limit and keeps both versions.
+  - Binary files are skipped as `binary_skipped` versions with their size and
+    hash, listed under limitations, and still drift-checked. A scope with no
+    textual version is still rejected.
+  - Evidence is charged per path as the larger of its live and base versions,
+    and the limit rises from 2 MiB to 8 MiB. A base blob that cannot be read is
+    now a scope error instead of a recorded deletion.
+  - The prompt lists at most 20 paths and points at `evidence.json` for the
+    full manifest. The 64 KiB check covers the assembled prompt and names its
+    largest contributor.
+  - New `--max-output-bytes` flag, default 10 MiB (previously a fixed 1 MiB).
+  - The host validates the whole reply, derives the verdict from every finding
+    and check, then truncates the stored report to the schema caps. The
+    reviewer's own verdict is kept as `claimed_verdict`, with a warning when it
+    differs.
+  - Provider stdout, stderr, the Codex last-message capture, and the transport
+    result are saved to `provider-evidence.json` before any later check, and
+    every diagnostic references it.
+  - The skill and `--help` document the limits.
+
+  The `v1` result gains additive fields: `claimed_verdict`, `warnings`,
+  `truncation`, `host_limitations`, `paths.provider_evidence`,
+  `paths.codex_last_message`, and `scope.chargedBytes`. Diagnostics gain
+  `provider_evidence` (or `provider_evidence_error`) and `codex_last_message`.
+
 - The shared consensus provider CLI (`consensus` plugin 0.2.9) reports a
   command line too long for the operating system (`E2BIG`) as
   `PROVIDER_ARGV_TOO_LARGE` instead of `PROVIDER_MISSING` or an uncaught
-  exception. Skills that bundle it take version-only bumps:
+  exception. `consensus-review` takes this with 0.2.0 above; the other skills
+  that bundle it take version-only bumps:
   - `consensus-create` 0.1.23
   - `consensus-decide` 0.1.23
   - `consensus-evaluate` 0.1.27
   - `consensus-panel` 0.1.20
   - `consensus-plan` 0.1.23
   - `consensus-refine` 0.1.26
-  - `consensus-review` 0.1.25
   - `phone-a-friend` 0.3.2
   - `session-observer` 1.1.4
   - `session-observer-collab` 1.0.82

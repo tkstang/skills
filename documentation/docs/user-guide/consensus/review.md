@@ -78,8 +78,8 @@ artifact actually written.
 ## Results and exit codes
 
 A valid stable reply produces external `result.json` and `review.md` artifacts.
-The Markdown keeps Critical, Important, Medium, and Minor sections with stable
-`C1` / `I1` / `M1` / `m1` IDs, complete repository-relative locations or
+The Markdown keeps Critical, High, Medium, and Low sections with stable
+`C1` / `H1` / `M1` / `L1` IDs, complete repository-relative locations or
 captured-document anchors, evidence, suggestions, confidence, provenance,
 questions, limitations, checks reported, and suggested verification.
 
@@ -91,6 +91,47 @@ diagnostics and are not offered as completed review artifacts.
 | `0`  | Completed valid review, including a review with findings, or an explicitly labeled empty-scope no-op. |
 | `1`  | Provider, validation, drift, persistence, or export failure. Inspect the returned diagnostic path.    |
 | `2`  | Usage or pre-dispatch argument error. No provider was invoked.                                        |
+
+## Limits
+
+Review checks these limits before dispatch unless noted. `review.mjs --help`
+prints the same values.
+
+| Limit                 | Value                                                                                                                                                                 | When exceeded                                                                                                   |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Changed files         | 100. A rename counts once; both paths and both versions stay in the evidence.                                                                                         | `scope_too_large` with the count, the five largest directories, and the workaround.                             |
+| Textual evidence      | 8 MiB, charged per path as the larger of its live and base versions. `evidence.json` can therefore retain up to 16 MiB.                                               | `scope_too_large` with the total and the five largest paths.                                                    |
+| One file or base blob | 8 MiB.                                                                                                                                                                | `scope_too_large` naming the path. A base blob that cannot be read is a scope error, never a recorded deletion. |
+| Binary files          | Skipped and listed under the report's limitations. Their size and SHA-256 stay in the evidence, so drift detection still covers them.                                 | A scope with no textual version fails with `binary_scope_not_supported`.                                        |
+| Assembled prompt      | 64 KiB. The prompt carries the evidence path, the path count, and at most 20 paths; `evidence.json` holds the full manifest. Requests over 32 KiB are passed by file. | `review_prompt_too_large` naming the largest contributor.                                                       |
+| Provider output       | `--max-output-bytes`, an integer from 65,536 through 67,108,864, default 10 MiB. Combined stdout and stderr are counted during the run.                               | The provider is stopped and the run is incomplete; the output captured so far is saved.                         |
+| Reply presentation    | 100 findings, 100 checks, 50 questions, 50 limitations, 200 coverage and inspected-context entries; text fields at their schema lengths.                              | Cut after validation; the report records `truncated: true` and the omitted count per collection.                |
+
+To stay inside the file and evidence limits, narrow the scope with `--files`,
+use a closer base, or pass `base_branch=<sha>`. When the SHA is an ancestor of
+`HEAD`, its merge base is that commit, so the review covers exactly the changes
+from it through the current worktree. This is the range selector to use after a
+branch has merged a newer base.
+
+### Verdict derivation and lost output
+
+The host validates the structure and provenance of every finding in the whole
+reply before anything is truncated. It then derives the verdict from the full
+validated set: any critical or high finding, or any failed check, means
+`changes_requested`; otherwise `pass`, or `inconclusive` when the reviewer said
+so. The reviewer's own verdict is stored as `claimed_verdict`, and the report
+warns when the two differ. When findings must be truncated, critical and high
+findings are kept first.
+
+As soon as the provider returns, Review writes `provider-evidence.json` to the
+run directory: bounded stdout and stderr (2 MiB each), the Codex last-message
+capture, and the transport result. Every later diagnostic references it, so a
+drift, validation, or persistence failure no longer loses the reviewer's
+output. If that file cannot be written, the original failure status is kept and
+the save error is recorded.
+
+A command line too long for the operating system now fails with
+`PROVIDER_ARGV_TOO_LARGE` instead of being reported as a missing provider.
 
 ## Configuration and selection
 
@@ -106,7 +147,8 @@ There is no repair call or post-dispatch alternate provider.
 Private state lives under
 `${XDG_STATE_HOME:-~/.local/state}/consensus/<worktree-key>/reviews/<run-id>/`,
 outside the reviewed worktree and keyed by its canonical path. It contains the
-exact request, captured evidence, host-owned JSON, Markdown or a diagnostic.
+exact request, captured evidence, saved provider evidence, any Codex
+last-message capture, host-owned JSON, and Markdown or a diagnostic.
 Retention is operator-managed: there is no automatic cleanup, TTL, or replay.
 
 The comparison covers HEAD, index identity, Git status, and hashes/kinds/modes

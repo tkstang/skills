@@ -369,6 +369,144 @@ describe('review scope capture', () => {
   });
 });
 
+describe('review scope limits', () => {
+  it('reports the count, the largest directories, and the workaround for an over-limit scope', async () => {
+    const fixture = await gitFixture();
+    const paths = [
+      ...Array.from({ length: 60 }, (_, index) => `a/f-${index}.txt`),
+      ...Array.from({ length: 41 }, (_, index) => `b/f-${index}.txt`),
+    ];
+
+    await expect(
+      captureReviewScope({
+        cwd: fixture.worktree,
+        request: { kind: 'files', paths },
+      }),
+    ).rejects.toThrow(
+      /scope_too_large: 101 changed files selected, over the 100-file limit.*a\/ \(60 files\), b\/ \(41 files\).*--files.*base_branch=<sha>/u,
+    );
+  });
+
+  it('counts a rename once while keeping both paths and versions', async () => {
+    const fixture = await gitFixture();
+    for (let index = 0; index < 51; index += 1) {
+      await writeFile(
+        path.join(fixture.worktree, `move-${index}.txt`),
+        `move ${index}\n`,
+      );
+    }
+    git(fixture.worktree, ['add', '.']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'files to move']);
+    const base = git(fixture.worktree, ['rev-parse', 'HEAD']).trim();
+    for (let index = 0; index < 51; index += 1) {
+      git(fixture.worktree, ['mv', `move-${index}.txt`, `moved-${index}.txt`]);
+    }
+
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'base_branch', ref: base },
+    });
+
+    expect(scope.selectedPaths).toHaveLength(102);
+    expect(
+      scope.versions.filter((entry) => entry.path === 'move-0.txt'),
+    ).toEqual([
+      expect.objectContaining({ source: 'live', kind: 'deleted' }),
+      expect.objectContaining({
+        source: 'base',
+        kind: 'file',
+        text: 'move 0\n',
+      }),
+    ]);
+    expect(
+      scope.versions.filter((entry) => entry.path === 'moved-0.txt'),
+    ).toEqual([
+      expect.objectContaining({
+        source: 'live',
+        kind: 'file',
+        text: 'move 0\n',
+      }),
+      expect.objectContaining({ source: 'base', kind: 'deleted' }),
+    ]);
+  });
+
+  it('skips a binary file in a mixed scope, records its hash, and still detects drift on it', async () => {
+    const fixture = await gitFixture();
+    const image = path.join(fixture.worktree, 'image.bin');
+    await writeFile(image, Buffer.from([0x89, 0x50, 0x00, 0x01]));
+
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'files', paths: ['tracked.txt', 'image.bin'] },
+    });
+
+    expect(scope.versions.find((entry) => entry.path === 'image.bin')).toEqual({
+      source: 'live',
+      path: 'image.bin',
+      kind: 'binary_skipped',
+      mode: expect.any(Number),
+      bytes: 4,
+      sha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      blobId: null,
+      text: null,
+    });
+    expect(scope.evidenceBytes).toBe('tracked\n'.length);
+
+    await writeFile(image, Buffer.from([0x89, 0x50, 0x00, 0x02]));
+    const comparison = compareScopeState(
+      scope.captureState,
+      await captureScopeState(scope),
+    );
+    expect(comparison.differences).toContain(
+      'selected path changed: worktree:image.bin',
+    );
+  });
+
+  it('reads a base blob over the former git bound and charges the larger version only', async () => {
+    const fixture = await gitFixture();
+    const large = `${'x'.repeat(5 * 1024 * 1024 - 1)}\n`;
+    await writeFile(path.join(fixture.worktree, 'large.txt'), large);
+    git(fixture.worktree, ['add', 'large.txt']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'large base']);
+    const base = git(fixture.worktree, ['rev-parse', 'HEAD']).trim();
+    await writeFile(path.join(fixture.worktree, 'large.txt'), `${large}tail\n`);
+
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'base_branch', ref: base },
+    });
+
+    expect(
+      scope.versions.find(
+        (entry) => entry.path === 'large.txt' && entry.source === 'base',
+      ),
+    ).toMatchObject({ kind: 'file', bytes: large.length });
+    expect(scope.chargedBytes).toBe(large.length + 'tail\n'.length);
+    expect(scope.evidenceBytes).toBe(2 * large.length + 'tail\n'.length);
+  });
+
+  it('rejects an oversized deleted base blob instead of recording a deletion', async () => {
+    const fixture = await gitFixture();
+    await writeFile(
+      path.join(fixture.worktree, 'huge.txt'),
+      'y'.repeat(REVIEW_SCOPE_LIMITS.maxEvidenceBytes + 1),
+    );
+    git(fixture.worktree, ['add', 'huge.txt']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'huge base']);
+    const base = git(fixture.worktree, ['rev-parse', 'HEAD']).trim();
+    git(fixture.worktree, ['rm', '-q', 'huge.txt']);
+
+    await expect(
+      captureReviewScope({
+        cwd: fixture.worktree,
+        request: { kind: 'base_branch', ref: base },
+      }),
+    ).rejects.toThrow(
+      `scope_too_large: huge.txt is ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes + 1} bytes`,
+    );
+  });
+});
+
 describe('selected scope drift', () => {
   it('detects a selected symlink being retargeted, replaced, or removed', async () => {
     const mutations = [
