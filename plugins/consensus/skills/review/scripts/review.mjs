@@ -257,25 +257,27 @@ function runProviderSubprocess(invocation2, options = {}) {
       });
     } catch (error) {
       if (error.code !== "E2BIG") throw error;
-      resolve(
-        failure({
-          code: "PROVIDER_ARGV_TOO_LARGE",
-          message: ARGV_TOO_LARGE_MESSAGE,
-          retryable: false,
-          stdout: "",
-          stderr: "",
-          exitCode: null,
-          signal: null,
-          diagnostics: diagnosticsFor({
-            invocation: invocation2,
-            stdoutBytes: 0,
-            stderrBytes: 0,
-            maxOutputBytes,
-            timeoutSec,
+      void cleanupInvocationFiles(invocation2).then(
+        () => resolve(
+          failure({
+            code: "PROVIDER_ARGV_TOO_LARGE",
+            message: ARGV_TOO_LARGE_MESSAGE,
+            retryable: false,
+            stdout: "",
+            stderr: "",
             exitCode: null,
-            signal: null
+            signal: null,
+            diagnostics: diagnosticsFor({
+              invocation: invocation2,
+              stdoutBytes: 0,
+              stderrBytes: 0,
+              maxOutputBytes,
+              timeoutSec,
+              exitCode: null,
+              signal: null
+            })
           })
-        })
+        )
       );
       return;
     }
@@ -296,8 +298,8 @@ function runProviderSubprocess(invocation2, options = {}) {
     child.stderr.on("data", (chunk) => {
       captureOutput("stderr", chunk);
     });
-    child.on("error", (error) => {
-      terminal = terminal ?? (error.code === "E2BIG" ? "argv_too_large" : "spawn_error");
+    child.on("error", () => {
+      terminal = terminal ?? "spawn_error";
       void finish();
     });
     child.on("close", (exitCode2, signal) => {
@@ -377,22 +379,6 @@ function runProviderSubprocess(invocation2, options = {}) {
           failure({
             code: "PROVIDER_MISSING",
             message: `Provider executable not found: ${invocation2.executable}`,
-            retryable: false,
-            stdout,
-            stderr,
-            exitCode,
-            signal: exitSignal,
-            diagnostics
-          })
-        );
-        return;
-      }
-      if (terminal === "argv_too_large") {
-        await cleanupInvocationFiles(invocation2);
-        resolve(
-          failure({
-            code: "PROVIDER_ARGV_TOO_LARGE",
-            message: ARGV_TOO_LARGE_MESSAGE,
             retryable: false,
             stdout,
             stderr,

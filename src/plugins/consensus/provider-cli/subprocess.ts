@@ -85,12 +85,7 @@ export function runProviderSubprocess(
     let exitCode: number | null = null;
     let exitSignal: NodeJS.Signals | null = null;
     let settled = false;
-    let terminal:
-      | 'timeout'
-      | 'output_cap'
-      | 'spawn_error'
-      | 'argv_too_large'
-      | undefined;
+    let terminal: 'timeout' | 'output_cap' | 'spawn_error' | undefined;
 
     let child: ChildProcessWithoutNullStreams;
     try {
@@ -101,28 +96,30 @@ export function runProviderSubprocess(
         stdio: ['pipe', 'pipe', 'pipe'],
       });
     } catch (error) {
-      // Node can raise E2BIG synchronously (observed on macOS) instead of
-      // emitting 'error'; both paths report the same failure.
+      // Node throws E2BIG from spawn() itself rather than emitting 'error'.
+      // The executable exists, so it must not be reported as missing.
       if ((error as NodeJS.ErrnoException).code !== 'E2BIG') throw error;
-      resolve(
-        failure({
-          code: 'PROVIDER_ARGV_TOO_LARGE',
-          message: ARGV_TOO_LARGE_MESSAGE,
-          retryable: false,
-          stdout: '',
-          stderr: '',
-          exitCode: null,
-          signal: null,
-          diagnostics: diagnosticsFor({
-            invocation,
-            stdoutBytes: 0,
-            stderrBytes: 0,
-            maxOutputBytes,
-            timeoutSec,
+      void cleanupInvocationFiles(invocation).then(() =>
+        resolve(
+          failure({
+            code: 'PROVIDER_ARGV_TOO_LARGE',
+            message: ARGV_TOO_LARGE_MESSAGE,
+            retryable: false,
+            stdout: '',
+            stderr: '',
             exitCode: null,
             signal: null,
+            diagnostics: diagnosticsFor({
+              invocation,
+              stdoutBytes: 0,
+              stderrBytes: 0,
+              maxOutputBytes,
+              timeoutSec,
+              exitCode: null,
+              signal: null,
+            }),
           }),
-        }),
+        ),
       );
       return;
     }
@@ -144,11 +141,8 @@ export function runProviderSubprocess(
       captureOutput('stderr', chunk);
     });
 
-    child.on('error', (error: NodeJS.ErrnoException) => {
-      // E2BIG means the argument list exceeded the OS limit; the executable
-      // exists, so it must not be reported as missing.
-      terminal =
-        terminal ?? (error.code === 'E2BIG' ? 'argv_too_large' : 'spawn_error');
+    child.on('error', () => {
+      terminal = terminal ?? 'spawn_error';
       void finish();
     });
 
@@ -246,23 +240,6 @@ export function runProviderSubprocess(
           failure({
             code: 'PROVIDER_MISSING',
             message: `Provider executable not found: ${invocation.executable}`,
-            retryable: false,
-            stdout,
-            stderr,
-            exitCode,
-            signal: exitSignal,
-            diagnostics,
-          }),
-        );
-        return;
-      }
-
-      if (terminal === 'argv_too_large') {
-        await cleanupInvocationFiles(invocation);
-        resolve(
-          failure({
-            code: 'PROVIDER_ARGV_TOO_LARGE',
-            message: ARGV_TOO_LARGE_MESSAGE,
             retryable: false,
             stdout,
             stderr,
