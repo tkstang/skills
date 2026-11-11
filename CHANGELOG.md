@@ -4,6 +4,22 @@
 
 ### Added
 
+- The shared consensus provider CLI (`consensus` plugin 0.2.9) reports a
+  command line too long for the operating system (`E2BIG`) as
+  `PROVIDER_ARGV_TOO_LARGE` instead of `PROVIDER_MISSING` or an uncaught
+  exception. Skills that bundle it take version-only bumps:
+  - `consensus-create` 0.1.23
+  - `consensus-decide` 0.1.23
+  - `consensus-evaluate` 0.1.27
+  - `consensus-panel` 0.1.20
+  - `consensus-plan` 0.1.23
+  - `consensus-refine` 0.1.26
+  - `consensus-review` 0.1.25
+  - `phone-a-friend` 0.3.2
+  - `session-observer` 1.1.4
+  - `session-observer-collab` 1.0.82
+  - `session-fork-to-destination` 0.3.9 (`session` plugin 0.8.2)
+
 - `consensus` plugin 0.2.8 reads `CONSENSUS_CLAUDE_EXECUTABLE`,
   `CONSENSUS_CODEX_EXECUTABLE`, and `CONSENSUS_CURSOR_EXECUTABLE` from the
   parent environment. Each replaces that provider's CLI with an absolute-path

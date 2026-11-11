@@ -693,6 +693,7 @@ var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 var DEFAULT_TIMEOUT_SEC = 300;
 var DEFAULT_TERMINATION_GRACE_MS = 250;
 var DEFAULT_FINAL_RESOLUTION_MS = 1e3;
+var ARGV_TOO_LARGE_MESSAGE = "Provider arguments exceeded the operating-system limit (E2BIG): prompt too large for argv.";
 function isReliableExternalInterrupt(input) {
   return input.code === "PROVIDER_EXIT" && input.signal !== null && input.exit_code === null;
 }
@@ -711,12 +712,38 @@ function runProviderSubprocess(invocation2, options = {}) {
     let exitSignal = null;
     let settled = false;
     let terminal;
-    const child = spawn(invocation2.executable, invocation2.argv, {
-      cwd: invocation2.cwd,
-      env: options.env,
-      shell: false,
-      stdio: ["pipe", "pipe", "pipe"]
-    });
+    let child;
+    try {
+      child = spawn(invocation2.executable, invocation2.argv, {
+        cwd: invocation2.cwd,
+        env: options.env,
+        shell: false,
+        stdio: ["pipe", "pipe", "pipe"]
+      });
+    } catch (error) {
+      if (error.code !== "E2BIG") throw error;
+      resolve(
+        failure({
+          code: "PROVIDER_ARGV_TOO_LARGE",
+          message: ARGV_TOO_LARGE_MESSAGE,
+          retryable: false,
+          stdout: "",
+          stderr: "",
+          exitCode: null,
+          signal: null,
+          diagnostics: diagnosticsFor({
+            invocation: invocation2,
+            stdoutBytes: 0,
+            stderrBytes: 0,
+            maxOutputBytes,
+            timeoutSec,
+            exitCode: null,
+            signal: null
+          })
+        })
+      );
+      return;
+    }
     let killEscalation;
     let finalResolution;
     const timeout = setTimeout(() => {
@@ -734,8 +761,8 @@ function runProviderSubprocess(invocation2, options = {}) {
     child.stderr.on("data", (chunk) => {
       captureOutput("stderr", chunk);
     });
-    child.on("error", () => {
-      terminal = terminal ?? "spawn_error";
+    child.on("error", (error) => {
+      terminal = terminal ?? (error.code === "E2BIG" ? "argv_too_large" : "spawn_error");
       void finish();
     });
     child.on("close", (exitCode2, signal) => {
@@ -815,6 +842,22 @@ function runProviderSubprocess(invocation2, options = {}) {
           failure({
             code: "PROVIDER_MISSING",
             message: `Provider executable not found: ${invocation2.executable}`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics
+          })
+        );
+        return;
+      }
+      if (terminal === "argv_too_large") {
+        await cleanupInvocationFiles(invocation2);
+        resolve(
+          failure({
+            code: "PROVIDER_ARGV_TOO_LARGE",
+            message: ARGV_TOO_LARGE_MESSAGE,
             retryable: false,
             stdout,
             stderr,
@@ -1383,6 +1426,7 @@ function isRecord2(value) {
 function terminalReasonForNonExitFailure(code) {
   if (code === "PROVIDER_MISSING") return "provider_missing";
   if (code === "PROVIDER_TIMEOUT") return "provider_timeout";
+  if (code === "PROVIDER_ARGV_TOO_LARGE") return "provider_argv_too_large";
   return "output_cap_exceeded";
 }
 function matchesAny(value, patterns) {
@@ -2987,6 +3031,7 @@ import path6 from "node:path";
 var UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 var NOT_STARTED_FAILURE_CODES = [
   "PROVIDER_MISSING",
+  "PROVIDER_ARGV_TOO_LARGE",
   "PROVIDER_AUTH_REQUIRED",
   "PROVIDER_UNSUPPORTED_OPTION",
   "PROVIDER_SESSION_NOT_FOUND"

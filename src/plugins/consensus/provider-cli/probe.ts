@@ -38,6 +38,7 @@ export interface ProbeCommandResult {
     | 'PROVIDER_MISSING'
     | 'PROVIDER_TIMEOUT'
     | 'PROVIDER_OUTPUT_CAP_EXCEEDED'
+    | 'PROVIDER_ARGV_TOO_LARGE'
     | 'PROVIDER_EXIT';
   diagnostics?: ProviderDiagnostics;
 }

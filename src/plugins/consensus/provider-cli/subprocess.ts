@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { open, rm } from 'node:fs/promises';
 
 import type { ProviderInvocation } from './invocation.js';
@@ -34,6 +35,7 @@ export interface ProviderProcessFailure {
     | 'PROVIDER_EXIT'
     | 'PROVIDER_TIMEOUT'
     | 'PROVIDER_OUTPUT_CAP_EXCEEDED'
+    | 'PROVIDER_ARGV_TOO_LARGE'
   >;
   message: string;
   retryable: boolean;
@@ -48,6 +50,8 @@ const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 const DEFAULT_TIMEOUT_SEC = 300;
 const DEFAULT_TERMINATION_GRACE_MS = 250;
 const DEFAULT_FINAL_RESOLUTION_MS = 1000;
+const ARGV_TOO_LARGE_MESSAGE =
+  'Provider arguments exceeded the operating-system limit (E2BIG): prompt too large for argv.';
 
 export function isReliableExternalInterrupt(input: {
   code: ProviderErrorCode;
@@ -81,14 +85,47 @@ export function runProviderSubprocess(
     let exitCode: number | null = null;
     let exitSignal: NodeJS.Signals | null = null;
     let settled = false;
-    let terminal: 'timeout' | 'output_cap' | 'spawn_error' | undefined;
+    let terminal:
+      | 'timeout'
+      | 'output_cap'
+      | 'spawn_error'
+      | 'argv_too_large'
+      | undefined;
 
-    const child = spawn(invocation.executable, invocation.argv, {
-      cwd: invocation.cwd,
-      env: options.env,
-      shell: false,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    let child: ChildProcessWithoutNullStreams;
+    try {
+      child = spawn(invocation.executable, invocation.argv, {
+        cwd: invocation.cwd,
+        env: options.env,
+        shell: false,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    } catch (error) {
+      // Node can raise E2BIG synchronously (observed on macOS) instead of
+      // emitting 'error'; both paths report the same failure.
+      if ((error as NodeJS.ErrnoException).code !== 'E2BIG') throw error;
+      resolve(
+        failure({
+          code: 'PROVIDER_ARGV_TOO_LARGE',
+          message: ARGV_TOO_LARGE_MESSAGE,
+          retryable: false,
+          stdout: '',
+          stderr: '',
+          exitCode: null,
+          signal: null,
+          diagnostics: diagnosticsFor({
+            invocation,
+            stdoutBytes: 0,
+            stderrBytes: 0,
+            maxOutputBytes,
+            timeoutSec,
+            exitCode: null,
+            signal: null,
+          }),
+        }),
+      );
+      return;
+    }
 
     let killEscalation: NodeJS.Timeout | undefined;
     let finalResolution: NodeJS.Timeout | undefined;
@@ -107,8 +144,11 @@ export function runProviderSubprocess(
       captureOutput('stderr', chunk);
     });
 
-    child.on('error', () => {
-      terminal = terminal ?? 'spawn_error';
+    child.on('error', (error: NodeJS.ErrnoException) => {
+      // E2BIG means the argument list exceeded the OS limit; the executable
+      // exists, so it must not be reported as missing.
+      terminal =
+        terminal ?? (error.code === 'E2BIG' ? 'argv_too_large' : 'spawn_error');
       void finish();
     });
 
@@ -206,6 +246,23 @@ export function runProviderSubprocess(
           failure({
             code: 'PROVIDER_MISSING',
             message: `Provider executable not found: ${invocation.executable}`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics,
+          }),
+        );
+        return;
+      }
+
+      if (terminal === 'argv_too_large') {
+        await cleanupInvocationFiles(invocation);
+        resolve(
+          failure({
+            code: 'PROVIDER_ARGV_TOO_LARGE',
+            message: ARGV_TOO_LARGE_MESSAGE,
             retryable: false,
             stdout,
             stderr,

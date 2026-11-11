@@ -24,6 +24,7 @@ const UUID_PATTERN =
 // after spawn (timeout, signal, unknown nonzero exit) is ambiguous.
 const NOT_STARTED_FAILURE_CODES: readonly ProviderErrorCode[] = [
   'PROVIDER_MISSING',
+  'PROVIDER_ARGV_TOO_LARGE',
   'PROVIDER_AUTH_REQUIRED',
   'PROVIDER_UNSUPPORTED_OPTION',
   'PROVIDER_SESSION_NOT_FOUND',
