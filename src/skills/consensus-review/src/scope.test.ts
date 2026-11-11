@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   mkdir,
   mkdtemp,
@@ -504,6 +505,99 @@ describe('review scope limits', () => {
     ).rejects.toThrow(
       `scope_too_large: huge.txt is ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes + 1} bytes`,
     );
+  });
+
+  it('skips a binary over the per-file limit in the worktree and at the base', async () => {
+    const fixture = await gitFixture();
+    const size = REVIEW_SCOPE_LIMITS.maxEvidenceBytes + 1;
+    const baseAsset = Buffer.alloc(size);
+    await writeFile(path.join(fixture.worktree, 'asset.bin'), baseAsset);
+    git(fixture.worktree, ['add', 'asset.bin']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'large asset']);
+    const base = git(fixture.worktree, ['rev-parse', 'HEAD']).trim();
+    const liveAsset = Buffer.alloc(size, 1);
+    liveAsset[0] = 0;
+    await writeFile(path.join(fixture.worktree, 'asset.bin'), liveAsset);
+    await writeFile(path.join(fixture.worktree, 'tracked.txt'), 'changed\n');
+
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'base_branch', ref: base },
+    });
+
+    const asset = (source: string) =>
+      scope.versions.find(
+        (entry) => entry.path === 'asset.bin' && entry.source === source,
+      );
+    expect(asset('live')).toMatchObject({
+      kind: 'binary_skipped',
+      bytes: size,
+      sha256: createHash('sha256').update(liveAsset).digest('hex'),
+      text: null,
+    });
+    expect(asset('base')).toMatchObject({
+      kind: 'binary_skipped',
+      bytes: size,
+      sha256: createHash('sha256').update(baseAsset).digest('hex'),
+      text: null,
+    });
+    expect(scope.chargedBytes).toBe('changed\n'.length);
+  });
+
+  it('rejects a scope whose only changes are binary, even over a textual base', async () => {
+    const fixture = await gitFixture();
+    await writeFile(
+      path.join(fixture.worktree, 'tracked.txt'),
+      Buffer.from([0]),
+    );
+
+    await expect(
+      captureReviewScope({
+        cwd: fixture.worktree,
+        request: { kind: 'base_branch', ref: fixture.base },
+      }),
+    ).rejects.toThrow(
+      'binary_scope_not_supported: every changed version is binary (tracked.txt)',
+    );
+
+    await writeFile(path.join(fixture.worktree, 'tracked.txt'), 'tracked\n');
+    await writeFile(path.join(fixture.worktree, 'added.bin'), Buffer.from([0]));
+    git(fixture.worktree, ['add', 'added.bin']);
+    git(fixture.worktree, ['rm', '-q', 'tracked.txt']);
+    const deletion = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'base_branch', ref: fixture.base },
+    });
+    expect(
+      deletion.versions.find(
+        (entry) => entry.path === 'tracked.txt' && entry.source === 'base',
+      ),
+    ).toMatchObject({ kind: 'file', text: 'tracked\n' });
+  });
+
+  it('reports an unreadable base blob as a scope error, not a deletion', async () => {
+    const fixture = await gitFixture();
+    const blobId = git(fixture.worktree, [
+      'rev-parse',
+      `${fixture.base}:tracked.txt`,
+    ]).trim();
+    await rm(
+      path.join(
+        fixture.worktree,
+        '.git',
+        'objects',
+        blobId.slice(0, 2),
+        blobId.slice(2),
+      ),
+    );
+    git(fixture.worktree, ['rm', '-q', 'tracked.txt']);
+
+    await expect(
+      captureReviewScope({
+        cwd: fixture.worktree,
+        request: { kind: 'base_branch', ref: fixture.base },
+      }),
+    ).rejects.toThrow('scope_base_unreadable: tracked.txt');
   });
 });
 

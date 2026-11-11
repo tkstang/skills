@@ -24,7 +24,7 @@ import type { CapturedReviewScope } from './scope.js';
 export const REVIEW_REQUEST_MAX_BYTES = 256 * 1024;
 export const REVIEW_PROMPT_MAX_BYTES = 64 * 1024;
 // The prompt names at most this many paths; evidence.json lists them all.
-export const REVIEW_PROMPT_LISTED_PATHS = 20;
+const REVIEW_PROMPT_LISTED_PATHS = 20;
 
 export interface ReviewSelectionInput {
   cwd: string;

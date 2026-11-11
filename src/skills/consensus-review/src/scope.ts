@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   chmod,
@@ -7,7 +7,6 @@ import {
   open,
   readlink,
   realpath,
-  stat,
 } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -28,7 +27,7 @@ export const REVIEW_SCOPE_LIMITS = {
   maxGitOutputBytes: 8 * 1024 * 1024 + 1024 * 1024,
 } as const;
 
-export const REVIEW_SCOPE_WORKAROUND =
+const REVIEW_SCOPE_WORKAROUND =
   'Narrow the scope with --files <paths...>, use a closer base_branch=<ref>, or pass base_branch=<sha> naming the commit your branch actually starts from.';
 
 export type ReviewScopeRequest =
@@ -551,20 +550,21 @@ async function captureGitVersion(
   if (!Number.isSafeInteger(size) || size < 0) {
     throw new Error(`scope_base_unreadable: ${normalized}: invalid blob size`);
   }
+  let bytes: Buffer | LargeBinary;
   if (size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-    throw oversizedFile(normalized, size);
-  }
-  let bytes: Buffer;
-  try {
-    bytes = await gitBytes(root, ['cat-file', 'blob', blobId]);
-  } catch (error) {
-    throw new Error(
-      `scope_base_unreadable: ${normalized}: ${fsMessage(error)}`,
-      { cause: error },
-    );
-  }
-  if (bytes.length !== size) {
-    throw new Error(`scope_base_unreadable: ${normalized}: short blob read`);
+    bytes = await hashLargeGitBlob(root, blobId, normalized, size);
+  } else {
+    try {
+      bytes = await gitBytes(root, ['cat-file', 'blob', blobId]);
+    } catch (error) {
+      throw new Error(
+        `scope_base_unreadable: ${normalized}: ${fsMessage(error)}`,
+        { cause: error },
+      );
+    }
+    if (bytes.length !== size) {
+      throw new Error(`scope_base_unreadable: ${normalized}: short blob read`);
+    }
   }
   const symlink = mode === '120000';
   return versionFromBytes(
@@ -632,16 +632,23 @@ async function captureAbsoluteFile(
   );
 }
 
-async function boundedRead(filePath: string): Promise<Buffer> {
-  const info = await stat(filePath);
-  if (info.size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-    throw oversizedFile(filePath, info.size);
-  }
+// Git's own binary heuristic: a NUL byte in the first 8000 bytes.
+const BINARY_SNIFF_BYTES = 8000;
+const HASH_CHUNK_BYTES = 1024 * 1024;
+
+// An oversized binary is recorded by size and hash only, so it never needs to
+// fit the evidence allowance; an oversized text file is still a scope error.
+interface LargeBinary {
+  size: number;
+  sha256: string;
+}
+
+async function boundedRead(filePath: string): Promise<Buffer | LargeBinary> {
   const handle = await open(filePath, 'r');
   try {
     const current = await handle.stat();
     if (current.size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-      throw oversizedFile(filePath, current.size);
+      return await hashLargeBinary(handle, filePath, current.size);
     }
     const buffer = Buffer.alloc(current.size);
     let offset = 0;
@@ -665,15 +672,105 @@ async function boundedRead(filePath: string): Promise<Buffer> {
   }
 }
 
+async function hashLargeBinary(
+  handle: Awaited<ReturnType<typeof open>>,
+  filePath: string,
+  size: number,
+): Promise<LargeBinary> {
+  const hash = createHash('sha256');
+  const chunk = Buffer.alloc(HASH_CHUNK_BYTES);
+  let offset = 0;
+  while (offset < size) {
+    const { bytesRead } = await handle.read(chunk, 0, chunk.length, offset);
+    if (bytesRead === 0) break;
+    if (
+      offset === 0 &&
+      !chunk.subarray(0, Math.min(bytesRead, BINARY_SNIFF_BYTES)).includes(0)
+    ) {
+      throw oversizedFile(filePath, size);
+    }
+    hash.update(chunk.subarray(0, bytesRead));
+    offset += bytesRead;
+  }
+  const final = await handle.stat();
+  if (final.size !== size || offset !== size) {
+    throw new Error(`scope_changed_during_read: ${filePath}`);
+  }
+  return { size, sha256: hash.digest('hex') };
+}
+
+// Streams an oversized base blob through the same binary check and hash
+// without holding it in memory.
+function hashLargeGitBlob(
+  root: string,
+  blobId: string,
+  filePath: string,
+  size: number,
+): Promise<LargeBinary> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('git', ['cat-file', 'blob', blobId], {
+      cwd: root,
+      env: gitEnv(),
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const hash = createHash('sha256');
+    let prefix = Buffer.alloc(0);
+    let sniffed = false;
+    let received = 0;
+    let failure: Error | undefined;
+    child.stdout.on('data', (data: Buffer) => {
+      if (failure) return;
+      received += data.length;
+      hash.update(data);
+      if (!sniffed) {
+        prefix = Buffer.concat([prefix, data]).subarray(0, BINARY_SNIFF_BYTES);
+        if (prefix.includes(0)) sniffed = true;
+        else if (prefix.length >= BINARY_SNIFF_BYTES) {
+          failure = oversizedFile(filePath, size);
+          child.kill();
+        }
+      }
+    });
+    child.on('error', (error) => {
+      failure ??= new Error(
+        `scope_base_unreadable: ${filePath}: ${fsMessage(error)}`,
+        { cause: error },
+      );
+    });
+    child.on('close', (code) => {
+      if (!failure && !sniffed) failure = oversizedFile(filePath, size);
+      if (!failure && (code !== 0 || received !== size)) {
+        failure = new Error(
+          `scope_base_unreadable: ${filePath}: short blob read`,
+        );
+      }
+      if (failure) reject(failure);
+      else resolve({ size, sha256: hash.digest('hex') });
+    });
+  });
+}
+
 function versionFromBytes(
   filePath: string,
   source: CapturedFileVersion['source'],
   mode: number | null,
-  bytes: Buffer,
+  bytes: Buffer | LargeBinary,
   includeText: boolean,
   blobId: string | null = null,
   kind: 'file' | 'symlink' = 'file',
 ): CapturedFileVersion {
+  if (!Buffer.isBuffer(bytes)) {
+    return {
+      source,
+      path: filePath,
+      kind: 'binary_skipped',
+      mode,
+      bytes: bytes.size,
+      sha256: bytes.sha256,
+      blobId,
+      text: null,
+    };
+  }
   if (bytes.includes(0)) {
     return {
       source,
@@ -745,19 +842,23 @@ async function gitOptionalHead(cwd: string): Promise<string | null> {
   }
 }
 
+function gitEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    GIT_CONFIG_COUNT: '2',
+    GIT_CONFIG_KEY_0: 'diff.external',
+    GIT_CONFIG_VALUE_0: '',
+    GIT_CONFIG_KEY_1: 'core.attributesFile',
+    GIT_CONFIG_VALUE_1: '/dev/null',
+  };
+}
+
 async function gitBytes(cwd: string, args: string[]): Promise<Buffer> {
   const result = await execFileAsync('git', args, {
     cwd,
     encoding: 'buffer',
     maxBuffer: REVIEW_SCOPE_LIMITS.maxGitOutputBytes,
-    env: {
-      ...process.env,
-      GIT_CONFIG_COUNT: '2',
-      GIT_CONFIG_KEY_0: 'diff.external',
-      GIT_CONFIG_VALUE_0: '',
-      GIT_CONFIG_KEY_1: 'core.attributesFile',
-      GIT_CONFIG_VALUE_1: '/dev/null',
-    },
+    env: gitEnv(),
   });
   return result.stdout as Buffer;
 }
@@ -840,22 +941,34 @@ function chargedBytesByPath(
   return charges;
 }
 
-// Binary files are skipped individually, but a scope with no textual version
-// left has nothing to review.
+// Binary files are skipped individually, but the scope still needs a change
+// the reviewer can read: a textual live version, or a deleted path whose base
+// was textual. Base text whose live version is binary does not count.
 function rejectBinaryOnlyScope(versions: CapturedFileVersion[]): void {
   const binaries = versions.filter(
     (version) => version.kind === 'binary_skipped',
   );
   if (binaries.length === 0) return;
+  const textual = (version: CapturedFileVersion) =>
+    version.kind === 'file' || version.kind === 'symlink';
+  const deletedLive = new Set(
+    versions
+      .filter(
+        (version) => version.source === 'live' && version.kind === 'deleted',
+      )
+      .map((version) => version.path),
+  );
   if (
     versions.some(
-      (version) => version.kind === 'file' || version.kind === 'symlink',
+      (version) =>
+        textual(version) &&
+        (version.source === 'live' || deletedLive.has(version.path)),
     )
   ) {
     return;
   }
   throw new Error(
-    `binary_scope_not_supported: every selected version is binary (${unique(
+    `binary_scope_not_supported: every changed version is binary (${unique(
       binaries.map((version) => version.path),
     ).join(', ')})`,
   );

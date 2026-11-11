@@ -1037,6 +1037,99 @@ describe('one bounded review transaction', () => {
     });
   });
 
+  it('cuts an over-long summary, derives from a failed check past the cap, and lists skipped binaries', async () => {
+    const fixture = await gitReviewFixture();
+    await writeFile(
+      path.join(fixture.worktree, 'image.bin'),
+      Buffer.from([0x89, 0x00]),
+    );
+    const summary = 's'.repeat(9000);
+    const result = await executeBoundedReview(
+      {
+        cwd: fixture.worktree,
+        scope: { kind: 'files', paths: ['reviewed.ts', 'image.bin'] },
+        host: 'codex',
+        request: 'Review.',
+        hostSummary: '',
+        schemaPath: fixture.schema,
+        runId: 'over-cap-checks-run',
+      },
+      reviewExecutionDependencies(fixture, async (request) =>
+        successEnvelope({
+          ...validPassReply(scopeToken(request.prompt)),
+          summary,
+          checks: Array.from({ length: 120 }, (_, index) => ({
+            name: `check ${index + 1}`,
+            status: index === 119 ? 'failed' : 'passed',
+          })),
+        }),
+      ),
+    );
+
+    if (!result.ok || result.status !== 'completed') {
+      throw new Error(`expected completed review: ${JSON.stringify(result)}`);
+    }
+    const reply = result.aggregate.reply;
+    expect(reply.verdict).toBe('changes_requested');
+    expect(reply.checks).toHaveLength(100);
+    expect(reply.checks[0]).toMatchObject({
+      name: 'check 120',
+      status: 'failed',
+    });
+    expect(reply.summary.length).toBeLessThanOrEqual(8192);
+    expect(reply.summary).toMatch(/^s+ \[truncated \d+ of 9000 characters\]$/u);
+    const kept = reply.summary.indexOf(' ');
+    expect(reply.summary).toContain(`[truncated ${9000 - kept} of 9000`);
+    expect(result.aggregate.truncation).toMatchObject({
+      omitted: { checks: 20 },
+      strings_cut: 1,
+    });
+    expect(result.aggregate.host_limitations).toEqual([
+      expect.stringContaining('image.bin'),
+    ]);
+  });
+
+  it('saves no provider evidence when the transport stops before dispatch', async () => {
+    const fixture = await gitReviewFixture();
+    const result = await executeBoundedReview(
+      {
+        cwd: fixture.worktree,
+        scope: { kind: 'files', paths: ['reviewed.ts'] },
+        host: 'codex',
+        request: 'Review.',
+        hostSummary: '',
+        schemaPath: fixture.schema,
+        runId: 'predispatch-transport-run',
+      },
+      {
+        ...reviewExecutionDependencies(fixture, async () => {
+          throw new Error('no provider should run');
+        }),
+        transport: async () => ({
+          ok: false,
+          status: 'preflight_failed',
+          invocation_count: 0,
+          reason: 'provider_not_ready',
+          message: 'Provider is not ready.',
+        }),
+      },
+    );
+
+    if (result.ok || !result.diagnosticPath || !result.runState) {
+      throw new Error(`expected a diagnostic: ${JSON.stringify(result)}`);
+    }
+    expect(result).toMatchObject({ status: 'predispatch_failed' });
+    expect(result.providerEvidencePath).toBeUndefined();
+    const diagnostic = JSON.parse(
+      await readFile(result.diagnosticPath, 'utf8'),
+    );
+    expect(diagnostic).not.toHaveProperty('provider_evidence');
+    expect(diagnostic).not.toHaveProperty('codex_last_message');
+    await expect(
+      lstat(path.join(result.runState.runDirectory, 'provider-evidence.json')),
+    ).rejects.toThrow('ENOENT');
+  });
+
   it('references the preserved Codex last-message capture when a Codex review fails', async () => {
     const fixture = await gitReviewFixture();
     const result = await executeBoundedReview(

@@ -721,6 +721,34 @@ describe('review Markdown rendering', () => {
     expect(renderReviewMarkdown(aggregate)).toBe(rendered);
   });
 
+  it('shows a changed verdict, warnings, omitted findings, skipped binaries, and saved evidence', async () => {
+    const root = await temporaryRoot();
+    const aggregate = aggregateFixture(root, path.join(root, 'state'));
+    aggregate.claimed_verdict = 'pass';
+    aggregate.warnings = [
+      'The reviewer claimed pass; the host derived changes_requested.',
+    ];
+    aggregate.truncation.truncated = true;
+    aggregate.truncation.omitted.findings = 7;
+    aggregate.host_limitations = ['Skipped binary file: image.bin'];
+    aggregate.paths.provider_evidence = path.join(
+      root,
+      'provider-evidence.json',
+    );
+
+    const rendered = renderReviewMarkdown(aggregate);
+
+    expect(rendered).toContain(
+      '**Verdict:** changes\\_requested (reviewer claimed pass)',
+    );
+    expect(rendered).toMatch(/## Warnings\n\n- The reviewer claimed pass/u);
+    expect(rendered).toContain('7 more omitted, lowest severity first');
+    expect(rendered).toContain('- Skipped binary file: image\\.bin');
+    expect(rendered).toContain(
+      `Provider evidence: \`${path.join(root, 'provider-evidence.json')}\``,
+    );
+  });
+
   it.each([
     ['clean', 'clean-review.md'],
     ['findings', 'findings-review.md'],

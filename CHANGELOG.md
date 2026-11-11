@@ -9,9 +9,9 @@
   - Scope errors give the count or bytes, the five largest offenders, and the
     workaround (`--files`, a closer base, or `base_branch=<sha>`). A rename
     counts once toward the 100-file limit and keeps both versions.
-  - Binary files are skipped as `binary_skipped` versions with their size and
-    hash, listed under limitations, and still drift-checked. A scope with no
-    textual version is still rejected.
+  - Binary files of any size are skipped as `binary_skipped` versions with
+    their size and hash, listed under limitations, and still drift-checked. A
+    scope with no textual change is still rejected.
   - Evidence is charged per path as the larger of its live and base versions,
     and the limit rises from 2 MiB to 8 MiB. A base blob that cannot be read is
     now a scope error instead of a recorded deletion.
@@ -32,6 +32,14 @@
   `truncation`, `host_limitations`, `paths.provider_evidence`,
   `paths.codex_last_message`, and `scope.chargedBytes`. Diagnostics gain
   `provider_evidence` (or `provider_evidence_error`) and `codex_last_message`.
+
+- Session Toolkit 0.1.0: cached stable-release notices on interactive CLI operations only, with quiet machine/library/hook execution and best-effort offline behavior.
+
+- Session Toolkit 0.1.0: sensitive full activity API/CLI capture with raw records, correlations, usage, source coordinates and explicit Cursor capability gaps.
+
+- Session Toolkit 0.1.0: stateless raw-evidence search and estimates with tiered widening, explicit scan authorization, redaction and optional accelerators.
+
+### Fixed
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.9) reports a
   command line too long for the operating system (`E2BIG`) as
@@ -92,14 +100,6 @@
   preparation, supported-runtime installation checks and protected, explicitly
   enabled trusted publication with integrity-only idempotent retries. Bootstrap
   publishes the validated tarball; consumer cutover remains separate.
-
-- Session Toolkit 0.1.0: cached stable-release notices on interactive CLI operations only, with quiet machine/library/hook execution and best-effort offline behavior.
-
-- Session Toolkit 0.1.0: sensitive full activity API/CLI capture with raw records, correlations, usage, source coordinates and explicit Cursor capability gaps.
-
-- Session Toolkit 0.1.0: stateless raw-evidence search and estimates with tiered widening, explicit scan authorization, redaction and optional accelerators.
-
-### Fixed
 
 - `session-observer` 1.1.2 keeps its duplicate-watcher test fixture alive through
   the competing claim, preserving real ownership assertions under slow test runs.

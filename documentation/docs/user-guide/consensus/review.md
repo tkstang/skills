@@ -101,17 +101,17 @@ prints the same values.
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | Changed files         | 100. A rename counts once; both paths and both versions stay in the evidence.                                                                                         | `scope_too_large` with the count, the five largest directories, and the workaround.                             |
 | Textual evidence      | 8 MiB, charged per path as the larger of its live and base versions. `evidence.json` can therefore retain up to 16 MiB.                                               | `scope_too_large` with the total and the five largest paths.                                                    |
-| One file or base blob | 8 MiB.                                                                                                                                                                | `scope_too_large` naming the path. A base blob that cannot be read is a scope error, never a recorded deletion. |
-| Binary files          | Skipped and listed under the report's limitations. Their size and SHA-256 stay in the evidence, so drift detection still covers them.                                 | A scope with no textual version fails with `binary_scope_not_supported`.                                        |
+| One file or base blob | 8 MiB for text. A larger binary is skipped by hash instead.                                                                                                           | `scope_too_large` naming the path. A base blob that cannot be read is a scope error, never a recorded deletion. |
+| Binary files          | Skipped at any size and listed under the report's limitations. Their size and SHA-256 stay in the evidence, so drift detection still covers them.                     | A scope with no textual change fails with `binary_scope_not_supported`.                                         |
 | Assembled prompt      | 64 KiB. The prompt carries the evidence path, the path count, and at most 20 paths; `evidence.json` holds the full manifest. Requests over 32 KiB are passed by file. | `review_prompt_too_large` naming the largest contributor.                                                       |
-| Provider output       | `--max-output-bytes`, an integer from 65,536 through 67,108,864, default 10 MiB. Combined stdout and stderr are counted during the run.                               | The provider is stopped and the run is incomplete; the output captured so far is saved.                         |
+| Provider output       | `--max-output-bytes`, an integer from 65,536 through 67,108,864, default 10 MiB. Combined stdout and stderr are counted during the run.                               | The provider is stopped and the run is incomplete; the first 2 MiB of each stream is saved.                     |
 | Reply presentation    | 100 findings, 100 checks, 50 questions, 50 limitations, 200 coverage and inspected-context entries; text fields at their schema lengths.                              | Cut after validation; the report records `truncated: true` and the omitted count per collection.                |
 
 To stay inside the file and evidence limits, narrow the scope with `--files`,
 use a closer base, or pass `base_branch=<sha>`. When the SHA is an ancestor of
-`HEAD`, its merge base is that commit, so the review covers exactly the changes
-from it through the current worktree. This is the range selector to use after a
-branch has merged a newer base.
+`HEAD`, its merge base is that commit, so the review covers exactly the tracked
+changes from it through the current worktree. This is the range selector to use
+after a branch has merged a newer base.
 
 ### Verdict derivation and lost output
 

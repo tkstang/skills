@@ -48,10 +48,10 @@ import type {
 // --max-output-bytes.
 export const REVIEW_DEFAULT_MAX_OUTPUT_BYTES = 10 * 1024 * 1024;
 // Per-stream bound for provider evidence saved after the transport returns.
-export const PROVIDER_EVIDENCE_STREAM_MAX_BYTES = 2 * 1024 * 1024;
+const PROVIDER_EVIDENCE_STREAM_MAX_BYTES = 2 * 1024 * 1024;
 // Presentation caps from schemas/review.schema.json. Validation covers the
 // whole reply first; these only bound what the report stores.
-export const REVIEW_REPLY_CAPS = {
+const REVIEW_REPLY_CAPS = {
   findings: 100,
   questions: 50,
   limitations: 50,
@@ -622,12 +622,18 @@ export async function executeBoundedReview(
 
   // Save what the provider produced before any later check can fail, so no
   // completed run loses its output.
-  const evidence = await saveProviderEvidence({
-    path: path.join(runState.runDirectory, 'provider-evidence.json'),
-    transportResult,
-    codexCapturePath,
-    persist,
-  });
+  // Pre-dispatch exits invoked no provider, so there is nothing to keep.
+  const dispatched =
+    transportResult.status === 'completed' ||
+    transportResult.status === 'execution_failed';
+  const evidence = dispatched
+    ? await saveProviderEvidence({
+        path: path.join(runState.runDirectory, 'provider-evidence.json'),
+        transportResult,
+        codexCapturePath,
+        persist,
+      })
+    : undefined;
 
   let drift: ScopeComparison;
   try {
@@ -753,7 +759,7 @@ export async function executeBoundedReview(
     claimed_verdict: validation.claimedVerdict,
     warnings: [
       ...validation.warnings,
-      ...('error' in evidence
+      ...(evidence && 'error' in evidence
         ? [`Provider evidence could not be saved: ${evidence.error}`]
         : []),
     ],
@@ -765,7 +771,7 @@ export async function executeBoundedReview(
       request: requestPath,
       evidence: evidencePath,
       result: resultPath,
-      provider_evidence: 'path' in evidence ? evidence.path : null,
+      provider_evidence: evidence && 'path' in evidence ? evidence.path : null,
       ...(codexCapturePath ? { codex_last_message: codexCapturePath } : {}),
     },
   };
@@ -866,43 +872,50 @@ export function validateReviewReply(
 
   const cut = { count: 0 };
   const text = (entry: string, max: number) => cutText(entry, max, cut);
-  const findings = keepFirst(
-    stableSortBy(reply.findings, (finding) => SEVERITY_RANK[finding.severity]),
-    REVIEW_REPLY_CAPS.findings,
-  ).map((finding) => ({
-    ...finding,
-    title: text(finding.title, 512),
-    claim: text(finding.claim, 8192),
-    evidence: text(finding.evidence, 8192),
-    suggestion: text(finding.suggestion, 8192),
-  }));
-  const checks = keepFirst(
-    stableSortBy(reply.checks, (check) => (check.status === 'failed' ? 0 : 1)),
-    REVIEW_REPLY_CAPS.checks,
-  ).map((check) => ({
-    ...check,
-    name: text(check.name, 512),
-    ...(check.detail !== undefined ? { detail: text(check.detail, 4096) } : {}),
-  }));
+  // toSorted is stable, so equal ranks keep the reviewer's order.
+  const findings = reply.findings
+    .toSorted(
+      (left, right) =>
+        SEVERITY_RANK[left.severity] - SEVERITY_RANK[right.severity],
+    )
+    .slice(0, REVIEW_REPLY_CAPS.findings)
+    .map((finding) => ({
+      ...finding,
+      title: text(finding.title, 512),
+      claim: text(finding.claim, 8192),
+      evidence: text(finding.evidence, 8192),
+      suggestion: text(finding.suggestion, 8192),
+    }));
+  const checks = reply.checks
+    .toSorted(
+      (left, right) =>
+        Number(left.status !== 'failed') - Number(right.status !== 'failed'),
+    )
+    .slice(0, REVIEW_REPLY_CAPS.checks)
+    .map((check) => ({
+      ...check,
+      name: text(check.name, 512),
+      ...(check.detail !== undefined
+        ? { detail: text(check.detail, 4096) }
+        : {}),
+    }));
   const normalized: ReviewReply = {
     ...reply,
     verdict: derivedVerdict,
     summary: text(reply.summary, 8192),
     findings,
-    questions: keepFirst(reply.questions, REVIEW_REPLY_CAPS.questions).map(
-      (entry) => text(entry, 4096),
-    ),
-    limitations: keepFirst(
-      reply.limitations,
-      REVIEW_REPLY_CAPS.limitations,
-    ).map((entry) => text(entry, 4096)),
-    coverage: keepFirst(reply.coverage, REVIEW_REPLY_CAPS.coverage).map(
-      (entry) => text(entry, 4096),
-    ),
-    inspected_context: keepFirst(
-      reply.inspected_context,
-      REVIEW_REPLY_CAPS.inspected_context,
-    ).map((entry) => ({ ...entry, subject: text(entry.subject, 4096) })),
+    questions: reply.questions
+      .slice(0, REVIEW_REPLY_CAPS.questions)
+      .map((entry) => text(entry, 4096)),
+    limitations: reply.limitations
+      .slice(0, REVIEW_REPLY_CAPS.limitations)
+      .map((entry) => text(entry, 4096)),
+    coverage: reply.coverage
+      .slice(0, REVIEW_REPLY_CAPS.coverage)
+      .map((entry) => text(entry, 4096)),
+    inspected_context: reply.inspected_context
+      .slice(0, REVIEW_REPLY_CAPS.inspected_context)
+      .map((entry) => ({ ...entry, subject: text(entry.subject, 4096) })),
     checks,
   };
   const omitted = {
@@ -942,24 +955,16 @@ const SEVERITY_RANK: Record<ReviewFinding['severity'], number> = {
   low: 3,
 };
 
-function stableSortBy<T>(values: T[], rank: (value: T) => number): T[] {
-  return values
-    .map((value, index) => ({ value, index, rank: rank(value) }))
-    .toSorted(
-      (left, right) => left.rank - right.rank || left.index - right.index,
-    )
-    .map((entry) => entry.value);
-}
-
-function keepFirst<T>(values: T[], cap: number): T[] {
-  return values.slice(0, cap);
-}
-
+// Cuts to at most `max` UTF-16 units, marker included, without splitting a
+// surrogate pair; the marker reports the characters actually removed.
 function cutText(value: string, max: number, cut: { count: number }): string {
   if (value.length <= max) return value;
   cut.count += 1;
-  const marker = ` [truncated ${value.length - max} of ${value.length} characters]`;
-  return `${value.slice(0, Math.max(0, max - marker.length))}${marker}`;
+  const widest = ` [truncated ${value.length} of ${value.length} characters]`;
+  let kept = Math.max(0, max - widest.length);
+  const last = value.charCodeAt(kept - 1);
+  if (kept > 0 && last >= 0xd800 && last <= 0xdbff) kept -= 1;
+  return `${value.slice(0, kept)} [truncated ${value.length - kept} of ${value.length} characters]`;
 }
 
 async function persistDiagnosticFailure(input: {

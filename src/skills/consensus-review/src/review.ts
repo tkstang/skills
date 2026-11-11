@@ -45,10 +45,10 @@ Options:
 Limits (checked before dispatch unless noted):
   100 changed files; a rename counts once, but both paths are kept.
   8 MiB of textual evidence, charged per path as the larger of its live and
-    base versions; evidence.json can therefore hold up to 16 MiB. One file
-    or base blob over 8 MiB is rejected.
-  Binary files are skipped, listed under limitations, and drift-checked by
-    hash; a scope with no textual version is rejected.
+    base versions; evidence.json can therefore hold up to 16 MiB. A text
+    file or base blob over 8 MiB is rejected.
+  Binary files of any size are skipped, listed under limitations, and
+    drift-checked by hash; a scope with no textual change is rejected.
   64 KiB assembled prompt. The prompt lists at most 20 paths; evidence.json
     holds the full manifest. Requests over 32 KiB are passed by file.
   Provider output: see --max-output-bytes (enforced during the run).
@@ -56,8 +56,8 @@ Limits (checked before dispatch unless noted):
     host validates the whole reply, derives the verdict from every finding
     and check, then truncates the stored report and records what it omitted.
 Workarounds: narrow with --files, use a closer base, or pass
-  base_branch=<sha>: an ancestor commit of HEAD selects exactly the changes
-  from that commit through the current worktree.
+  base_branch=<sha>: an ancestor commit of HEAD selects exactly the tracked
+  changes from that commit through the current worktree.
 
 Exit 0: completed review or empty-scope no-op. Exit 1: incomplete, defective,
 or output failure. Exit 2: usage or pre-dispatch argument error.`;
@@ -302,7 +302,7 @@ export function renderReviewMarkdown(aggregate: ReviewAggregate): string {
     `**Worktree:** ${inlineCode(aggregate.worktree_root)}`,
     `**Scope token:** ${inlineCode(aggregate.scope.token)}`,
     `**Reviewer:** ${escapeMarkdown(aggregate.reviewer.observed.provider)} (model ${escapeMarkdown(aggregate.reviewer.observed.model ?? 'unobserved')}, effort ${escapeMarkdown(aggregate.reviewer.observed.effort ?? 'unobserved')})`,
-    `**Findings:** ${findings.critical.length} critical, ${findings.high.length} high, ${findings.medium.length} medium, ${findings.low.length} low${aggregate.truncation.omitted.findings > 0 ? ` shown; ${aggregate.truncation.omitted.findings} lower-severity finding(s) omitted` : ''}`,
+    `**Findings:** ${findings.critical.length} critical, ${findings.high.length} high, ${findings.medium.length} medium, ${findings.low.length} low${aggregate.truncation.omitted.findings > 0 ? ` shown; ${aggregate.truncation.omitted.findings} more omitted, lowest severity first` : ''}`,
     '',
     ...(aggregate.warnings.length > 0
       ? [
@@ -488,23 +488,12 @@ async function parseReviewArgs(
           );
         }
         timeoutSeen = true;
-        if (!/^\d+$/u.test(option)) {
-          throw new UsageError(
-            'timeout_invalid',
-            '--timeout-sec must be an integer between 1 and 3600',
-          );
-        }
-        timeoutSec = Number(option);
-        if (
-          !Number.isSafeInteger(timeoutSec) ||
-          timeoutSec < 1 ||
-          timeoutSec > 3600
-        ) {
-          throw new UsageError(
-            'timeout_invalid',
-            '--timeout-sec must be an integer between 1 and 3600',
-          );
-        }
+        timeoutSec = boundedInteger(
+          option,
+          { min: 1, max: 3600 },
+          'timeout_invalid',
+          '--timeout-sec',
+        );
       } else if (argument === '--max-output-bytes') {
         if (maxOutputSeen) {
           throw new UsageError(

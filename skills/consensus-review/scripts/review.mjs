@@ -10,7 +10,7 @@ import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // src/skills/consensus-review/src/run.ts
 import { createHash as createHash3, randomUUID as randomUUID6 } from "node:crypto";
-import { link, lstat as lstat3, open as open3, realpath as realpath2, stat as stat2, unlink } from "node:fs/promises";
+import { link, lstat as lstat3, open as open3, realpath as realpath2, stat, unlink } from "node:fs/promises";
 import path12 from "node:path";
 
 // src/plugins/consensus/provider-cli/invocation.ts
@@ -2508,7 +2508,7 @@ function encodePromptBlockData(text) {
 }
 
 // src/skills/consensus-review/src/scope.ts
-import { execFile } from "node:child_process";
+import { execFile, spawn as spawn2 } from "node:child_process";
 import { createHash, randomUUID as randomUUID4 } from "node:crypto";
 import {
   chmod,
@@ -2516,8 +2516,7 @@ import {
   mkdir,
   open as open2,
   readlink,
-  realpath,
-  stat
+  realpath
 } from "node:fs/promises";
 import os from "node:os";
 import path9 from "node:path";
@@ -2916,20 +2915,21 @@ async function captureGitVersion(root, revision, relativePath) {
   if (!Number.isSafeInteger(size) || size < 0) {
     throw new Error(`scope_base_unreadable: ${normalized}: invalid blob size`);
   }
-  if (size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-    throw oversizedFile(normalized, size);
-  }
   let bytes;
-  try {
-    bytes = await gitBytes(root, ["cat-file", "blob", blobId]);
-  } catch (error) {
-    throw new Error(
-      `scope_base_unreadable: ${normalized}: ${fsMessage(error)}`,
-      { cause: error }
-    );
-  }
-  if (bytes.length !== size) {
-    throw new Error(`scope_base_unreadable: ${normalized}: short blob read`);
+  if (size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
+    bytes = await hashLargeGitBlob(root, blobId, normalized, size);
+  } else {
+    try {
+      bytes = await gitBytes(root, ["cat-file", "blob", blobId]);
+    } catch (error) {
+      throw new Error(
+        `scope_base_unreadable: ${normalized}: ${fsMessage(error)}`,
+        { cause: error }
+      );
+    }
+    if (bytes.length !== size) {
+      throw new Error(`scope_base_unreadable: ${normalized}: short blob read`);
+    }
   }
   const symlink = mode === "120000";
   return versionFromBytes(
@@ -2982,16 +2982,14 @@ async function captureAbsoluteFile(canonicalPath, source) {
     true
   );
 }
+var BINARY_SNIFF_BYTES = 8e3;
+var HASH_CHUNK_BYTES = 1024 * 1024;
 async function boundedRead(filePath) {
-  const info = await stat(filePath);
-  if (info.size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-    throw oversizedFile(filePath, info.size);
-  }
   const handle = await open2(filePath, "r");
   try {
     const current = await handle.stat();
     if (current.size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-      throw oversizedFile(filePath, current.size);
+      return await hashLargeBinary(handle, filePath, current.size);
     }
     const buffer = Buffer.alloc(current.size);
     let offset = 0;
@@ -3014,7 +3012,81 @@ async function boundedRead(filePath) {
     await handle.close();
   }
 }
+async function hashLargeBinary(handle, filePath, size) {
+  const hash = createHash("sha256");
+  const chunk = Buffer.alloc(HASH_CHUNK_BYTES);
+  let offset = 0;
+  while (offset < size) {
+    const { bytesRead } = await handle.read(chunk, 0, chunk.length, offset);
+    if (bytesRead === 0) break;
+    if (offset === 0 && !chunk.subarray(0, Math.min(bytesRead, BINARY_SNIFF_BYTES)).includes(0)) {
+      throw oversizedFile(filePath, size);
+    }
+    hash.update(chunk.subarray(0, bytesRead));
+    offset += bytesRead;
+  }
+  const final = await handle.stat();
+  if (final.size !== size || offset !== size) {
+    throw new Error(`scope_changed_during_read: ${filePath}`);
+  }
+  return { size, sha256: hash.digest("hex") };
+}
+function hashLargeGitBlob(root, blobId, filePath, size) {
+  return new Promise((resolve, reject) => {
+    const child = spawn2("git", ["cat-file", "blob", blobId], {
+      cwd: root,
+      env: gitEnv(),
+      stdio: ["ignore", "pipe", "ignore"]
+    });
+    const hash = createHash("sha256");
+    let prefix = Buffer.alloc(0);
+    let sniffed = false;
+    let received = 0;
+    let failure2;
+    child.stdout.on("data", (data) => {
+      if (failure2) return;
+      received += data.length;
+      hash.update(data);
+      if (!sniffed) {
+        prefix = Buffer.concat([prefix, data]).subarray(0, BINARY_SNIFF_BYTES);
+        if (prefix.includes(0)) sniffed = true;
+        else if (prefix.length >= BINARY_SNIFF_BYTES) {
+          failure2 = oversizedFile(filePath, size);
+          child.kill();
+        }
+      }
+    });
+    child.on("error", (error) => {
+      failure2 ??= new Error(
+        `scope_base_unreadable: ${filePath}: ${fsMessage(error)}`,
+        { cause: error }
+      );
+    });
+    child.on("close", (code) => {
+      if (!failure2 && !sniffed) failure2 = oversizedFile(filePath, size);
+      if (!failure2 && (code !== 0 || received !== size)) {
+        failure2 = new Error(
+          `scope_base_unreadable: ${filePath}: short blob read`
+        );
+      }
+      if (failure2) reject(failure2);
+      else resolve({ size, sha256: hash.digest("hex") });
+    });
+  });
+}
 function versionFromBytes(filePath, source, mode, bytes, includeText, blobId = null, kind = "file") {
+  if (!Buffer.isBuffer(bytes)) {
+    return {
+      source,
+      path: filePath,
+      kind: "binary_skipped",
+      mode,
+      bytes: bytes.size,
+      sha256: bytes.sha256,
+      blobId,
+      text: null
+    };
+  }
   if (bytes.includes(0)) {
     return {
       source,
@@ -3075,19 +3147,22 @@ async function gitOptionalHead(cwd) {
     }
   }
 }
+function gitEnv() {
+  return {
+    ...process.env,
+    GIT_CONFIG_COUNT: "2",
+    GIT_CONFIG_KEY_0: "diff.external",
+    GIT_CONFIG_VALUE_0: "",
+    GIT_CONFIG_KEY_1: "core.attributesFile",
+    GIT_CONFIG_VALUE_1: "/dev/null"
+  };
+}
 async function gitBytes(cwd, args) {
   const result = await execFileAsync("git", args, {
     cwd,
     encoding: "buffer",
     maxBuffer: REVIEW_SCOPE_LIMITS.maxGitOutputBytes,
-    env: {
-      ...process.env,
-      GIT_CONFIG_COUNT: "2",
-      GIT_CONFIG_KEY_0: "diff.external",
-      GIT_CONFIG_VALUE_0: "",
-      GIT_CONFIG_KEY_1: "core.attributesFile",
-      GIT_CONFIG_VALUE_1: "/dev/null"
-    }
+    env: gitEnv()
   });
   return result.stdout;
 }
@@ -3152,13 +3227,19 @@ function rejectBinaryOnlyScope(versions) {
     (version) => version.kind === "binary_skipped"
   );
   if (binaries.length === 0) return;
+  const textual = (version) => version.kind === "file" || version.kind === "symlink";
+  const deletedLive = new Set(
+    versions.filter(
+      (version) => version.source === "live" && version.kind === "deleted"
+    ).map((version) => version.path)
+  );
   if (versions.some(
-    (version) => version.kind === "file" || version.kind === "symlink"
+    (version) => textual(version) && (version.source === "live" || deletedLive.has(version.path))
   )) {
     return;
   }
   throw new Error(
-    `binary_scope_not_supported: every selected version is binary (${unique(
+    `binary_scope_not_supported: every changed version is binary (${unique(
       binaries.map((version) => version.path)
     ).join(", ")})`
   );
@@ -4079,12 +4160,13 @@ async function executeBoundedReview(input, dependencies = {}) {
       preflight: async () => selected.readiness
     }
   );
-  const evidence = await saveProviderEvidence({
+  const dispatched = transportResult.status === "completed" || transportResult.status === "execution_failed";
+  const evidence = dispatched ? await saveProviderEvidence({
     path: path12.join(runState.runDirectory, "provider-evidence.json"),
     transportResult,
     codexCapturePath,
     persist
-  });
+  }) : void 0;
   let drift;
   try {
     drift = compareScopeState(before, await scanScope(scope));
@@ -4194,7 +4276,7 @@ async function executeBoundedReview(input, dependencies = {}) {
     claimed_verdict: validation.claimedVerdict,
     warnings: [
       ...validation.warnings,
-      ..."error" in evidence ? [`Provider evidence could not be saved: ${evidence.error}`] : []
+      ...evidence && "error" in evidence ? [`Provider evidence could not be saved: ${evidence.error}`] : []
     ],
     truncation: validation.truncation,
     host_limitations: hostLimitations(scope),
@@ -4204,7 +4286,7 @@ async function executeBoundedReview(input, dependencies = {}) {
       request: requestPath,
       evidence: evidencePath,
       result: resultPath,
-      provider_evidence: "path" in evidence ? evidence.path : null,
+      provider_evidence: evidence && "path" in evidence ? evidence.path : null,
       ...codexCapturePath ? { codex_last_message: codexCapturePath } : {}
     }
   };
@@ -4286,20 +4368,18 @@ function validateReviewReply(value, scope) {
   ];
   const cut = { count: 0 };
   const text = (entry, max) => cutText(entry, max, cut);
-  const findings = keepFirst(
-    stableSortBy(reply.findings, (finding) => SEVERITY_RANK[finding.severity]),
-    REVIEW_REPLY_CAPS.findings
-  ).map((finding) => ({
+  const findings = reply.findings.toSorted(
+    (left, right) => SEVERITY_RANK[left.severity] - SEVERITY_RANK[right.severity]
+  ).slice(0, REVIEW_REPLY_CAPS.findings).map((finding) => ({
     ...finding,
     title: text(finding.title, 512),
     claim: text(finding.claim, 8192),
     evidence: text(finding.evidence, 8192),
     suggestion: text(finding.suggestion, 8192)
   }));
-  const checks = keepFirst(
-    stableSortBy(reply.checks, (check) => check.status === "failed" ? 0 : 1),
-    REVIEW_REPLY_CAPS.checks
-  ).map((check) => ({
+  const checks = reply.checks.toSorted(
+    (left, right) => Number(left.status !== "failed") - Number(right.status !== "failed")
+  ).slice(0, REVIEW_REPLY_CAPS.checks).map((check) => ({
     ...check,
     name: text(check.name, 512),
     ...check.detail !== void 0 ? { detail: text(check.detail, 4096) } : {}
@@ -4309,20 +4389,10 @@ function validateReviewReply(value, scope) {
     verdict: derivedVerdict,
     summary: text(reply.summary, 8192),
     findings,
-    questions: keepFirst(reply.questions, REVIEW_REPLY_CAPS.questions).map(
-      (entry) => text(entry, 4096)
-    ),
-    limitations: keepFirst(
-      reply.limitations,
-      REVIEW_REPLY_CAPS.limitations
-    ).map((entry) => text(entry, 4096)),
-    coverage: keepFirst(reply.coverage, REVIEW_REPLY_CAPS.coverage).map(
-      (entry) => text(entry, 4096)
-    ),
-    inspected_context: keepFirst(
-      reply.inspected_context,
-      REVIEW_REPLY_CAPS.inspected_context
-    ).map((entry) => ({ ...entry, subject: text(entry.subject, 4096) })),
+    questions: reply.questions.slice(0, REVIEW_REPLY_CAPS.questions).map((entry) => text(entry, 4096)),
+    limitations: reply.limitations.slice(0, REVIEW_REPLY_CAPS.limitations).map((entry) => text(entry, 4096)),
+    coverage: reply.coverage.slice(0, REVIEW_REPLY_CAPS.coverage).map((entry) => text(entry, 4096)),
+    inspected_context: reply.inspected_context.slice(0, REVIEW_REPLY_CAPS.inspected_context).map((entry) => ({ ...entry, subject: text(entry.subject, 4096) })),
     checks
   };
   const omitted = {
@@ -4353,19 +4423,14 @@ var SEVERITY_RANK = {
   medium: 2,
   low: 3
 };
-function stableSortBy(values, rank) {
-  return values.map((value, index) => ({ value, index, rank: rank(value) })).toSorted(
-    (left, right) => left.rank - right.rank || left.index - right.index
-  ).map((entry) => entry.value);
-}
-function keepFirst(values, cap) {
-  return values.slice(0, cap);
-}
 function cutText(value, max, cut) {
   if (value.length <= max) return value;
   cut.count += 1;
-  const marker = ` [truncated ${value.length - max} of ${value.length} characters]`;
-  return `${value.slice(0, Math.max(0, max - marker.length))}${marker}`;
+  const widest = ` [truncated ${value.length} of ${value.length} characters]`;
+  let kept = Math.max(0, max - widest.length);
+  const last = value.charCodeAt(kept - 1);
+  if (kept > 0 && last >= 55296 && last <= 56319) kept -= 1;
+  return `${value.slice(0, kept)} [truncated ${value.length - kept} of ${value.length} characters]`;
 }
 async function persistDiagnosticFailure(input) {
   const evidencePath = input.evidence && "path" in input.evidence ? input.evidence.path : void 0;
@@ -5068,10 +5133,10 @@ async function validateCodexCapture(input) {
 }
 async function aliasesProtectedInput(capturePath, input) {
   try {
-    const captureInfo = await stat2(capturePath);
+    const captureInfo = await stat(capturePath);
     for (const protectedPath of [input.schemaPath, input.cwd]) {
       try {
-        const protectedInfo = await stat2(protectedPath);
+        const protectedInfo = await stat(protectedPath);
         if (captureInfo.dev === protectedInfo.dev && captureInfo.ino === protectedInfo.ino) {
           return true;
         }
@@ -5142,10 +5207,10 @@ Options:
 Limits (checked before dispatch unless noted):
   100 changed files; a rename counts once, but both paths are kept.
   8 MiB of textual evidence, charged per path as the larger of its live and
-    base versions; evidence.json can therefore hold up to 16 MiB. One file
-    or base blob over 8 MiB is rejected.
-  Binary files are skipped, listed under limitations, and drift-checked by
-    hash; a scope with no textual version is rejected.
+    base versions; evidence.json can therefore hold up to 16 MiB. A text
+    file or base blob over 8 MiB is rejected.
+  Binary files of any size are skipped, listed under limitations, and
+    drift-checked by hash; a scope with no textual change is rejected.
   64 KiB assembled prompt. The prompt lists at most 20 paths; evidence.json
     holds the full manifest. Requests over 32 KiB are passed by file.
   Provider output: see --max-output-bytes (enforced during the run).
@@ -5153,8 +5218,8 @@ Limits (checked before dispatch unless noted):
     host validates the whole reply, derives the verdict from every finding
     and check, then truncates the stored report and records what it omitted.
 Workarounds: narrow with --files, use a closer base, or pass
-  base_branch=<sha>: an ancestor commit of HEAD selects exactly the changes
-  from that commit through the current worktree.
+  base_branch=<sha>: an ancestor commit of HEAD selects exactly the tracked
+  changes from that commit through the current worktree.
 
 Exit 0: completed review or empty-scope no-op. Exit 1: incomplete, defective,
 or output failure. Exit 2: usage or pre-dispatch argument error.`;
@@ -5323,7 +5388,7 @@ function renderReviewMarkdown(aggregate) {
     `**Worktree:** ${inlineCode(aggregate.worktree_root)}`,
     `**Scope token:** ${inlineCode(aggregate.scope.token)}`,
     `**Reviewer:** ${escapeMarkdown(aggregate.reviewer.observed.provider)} (model ${escapeMarkdown(aggregate.reviewer.observed.model ?? "unobserved")}, effort ${escapeMarkdown(aggregate.reviewer.observed.effort ?? "unobserved")})`,
-    `**Findings:** ${findings.critical.length} critical, ${findings.high.length} high, ${findings.medium.length} medium, ${findings.low.length} low${aggregate.truncation.omitted.findings > 0 ? ` shown; ${aggregate.truncation.omitted.findings} lower-severity finding(s) omitted` : ""}`,
+    `**Findings:** ${findings.critical.length} critical, ${findings.high.length} high, ${findings.medium.length} medium, ${findings.low.length} low${aggregate.truncation.omitted.findings > 0 ? ` shown; ${aggregate.truncation.omitted.findings} more omitted, lowest severity first` : ""}`,
     "",
     ...aggregate.warnings.length > 0 ? [
       "## Warnings",
@@ -5493,19 +5558,12 @@ async function parseReviewArgs(argv, cwd, fileSystem) {
           );
         }
         timeoutSeen = true;
-        if (!/^\d+$/u.test(option)) {
-          throw new UsageError(
-            "timeout_invalid",
-            "--timeout-sec must be an integer between 1 and 3600"
-          );
-        }
-        timeoutSec = Number(option);
-        if (!Number.isSafeInteger(timeoutSec) || timeoutSec < 1 || timeoutSec > 3600) {
-          throw new UsageError(
-            "timeout_invalid",
-            "--timeout-sec must be an integer between 1 and 3600"
-          );
-        }
+        timeoutSec = boundedInteger(
+          option,
+          { min: 1, max: 3600 },
+          "timeout_invalid",
+          "--timeout-sec"
+        );
       } else if (argument === "--max-output-bytes") {
         if (maxOutputSeen) {
           throw new UsageError(
