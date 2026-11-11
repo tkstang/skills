@@ -33,30 +33,6 @@
   `paths.codex_last_message`, and `scope.chargedBytes`. Diagnostics gain
   `provider_evidence` (or `provider_evidence_error`) and `codex_last_message`.
 
-- Session Toolkit 0.1.0: cached stable-release notices on interactive CLI operations only, with quiet machine/library/hook execution and best-effort offline behavior.
-
-- Session Toolkit 0.1.0: sensitive full activity API/CLI capture with raw records, correlations, usage, source coordinates and explicit Cursor capability gaps.
-
-- Session Toolkit 0.1.0: stateless raw-evidence search and estimates with tiered widening, explicit scan authorization, redaction and optional accelerators.
-
-### Fixed
-
-- The shared consensus provider CLI (`consensus` plugin 0.2.9) reports a
-  command line too long for the operating system (`E2BIG`) as
-  `PROVIDER_ARGV_TOO_LARGE` instead of `PROVIDER_MISSING` or an uncaught
-  exception. `consensus-review` takes this with 0.2.0 above; the other skills
-  that bundle it take version-only bumps:
-  - `consensus-create` 0.1.23
-  - `consensus-decide` 0.1.23
-  - `consensus-evaluate` 0.1.27
-  - `consensus-panel` 0.1.20
-  - `consensus-plan` 0.1.23
-  - `consensus-refine` 0.1.26
-  - `phone-a-friend` 0.3.2
-  - `session-observer` 1.1.4
-  - `session-observer-collab` 1.0.82
-  - `session-fork-to-destination` 0.3.9 (`session` plugin 0.8.2)
-
 - `consensus` plugin 0.2.8 reads `CONSENSUS_CLAUDE_EXECUTABLE`,
   `CONSENSUS_CODEX_EXECUTABLE`, and `CONSENSUS_CURSOR_EXECUTABLE` from the
   parent environment. Each replaces that provider's CLI with an absolute-path
@@ -100,6 +76,30 @@
   preparation, supported-runtime installation checks and protected, explicitly
   enabled trusted publication with integrity-only idempotent retries. Bootstrap
   publishes the validated tarball; consumer cutover remains separate.
+
+- Session Toolkit 0.1.0: cached stable-release notices on interactive CLI operations only, with quiet machine/library/hook execution and best-effort offline behavior.
+
+- Session Toolkit 0.1.0: sensitive full activity API/CLI capture with raw records, correlations, usage, source coordinates and explicit Cursor capability gaps.
+
+- Session Toolkit 0.1.0: stateless raw-evidence search and estimates with tiered widening, explicit scan authorization, redaction and optional accelerators.
+
+### Fixed
+
+- The shared consensus provider CLI (`consensus` plugin 0.2.9) reports a
+  command line too long for the operating system (`E2BIG`) as
+  `PROVIDER_ARGV_TOO_LARGE` instead of `PROVIDER_MISSING` or an uncaught
+  exception. `consensus-review` takes this with 0.2.0 above; the other skills
+  that bundle it take version-only bumps:
+  - `consensus-create` 0.1.23
+  - `consensus-decide` 0.1.23
+  - `consensus-evaluate` 0.1.27
+  - `consensus-panel` 0.1.20
+  - `consensus-plan` 0.1.23
+  - `consensus-refine` 0.1.26
+  - `phone-a-friend` 0.3.2
+  - `session-observer` 1.1.4
+  - `session-observer-collab` 1.0.82
+  - `session-fork-to-destination` 0.3.9 (`session` plugin 0.8.2)
 
 - `session-observer` 1.1.2 keeps its duplicate-watcher test fixture alive through
   the competing claim, preserving real ownership assertions under slow test runs.

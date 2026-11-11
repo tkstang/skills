@@ -542,6 +542,16 @@ describe('review scope limits', () => {
       text: null,
     });
     expect(scope.chargedBytes).toBe('changed\n'.length);
+
+    await writeFile(path.join(fixture.worktree, 'huge.txt'), 'y'.repeat(size));
+    await expect(
+      captureReviewScope({
+        cwd: fixture.worktree,
+        request: { kind: 'files', paths: ['huge.txt'] },
+      }),
+    ).rejects.toThrow(
+      `scope_too_large: ${path.join(fixture.worktree, 'huge.txt')} is ${size} bytes`,
+    );
   });
 
   it('rejects a scope whose only changes are binary, even over a textual base', async () => {

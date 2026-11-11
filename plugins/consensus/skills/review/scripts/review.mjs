@@ -3063,12 +3063,12 @@ function hashLargeGitBlob(root, blobId, filePath, size) {
       );
     });
     child.on("close", (code) => {
-      if (!failure2 && !sniffed) failure2 = oversizedFile(filePath, size);
       if (!failure2 && (code !== 0 || received !== size)) {
         failure2 = new Error(
           `scope_base_unreadable: ${filePath}: short blob read`
         );
       }
+      if (!failure2 && !sniffed) failure2 = oversizedFile(filePath, size);
       if (failure2) reject(failure2);
       else resolve({ size, sha256: hash.digest("hex") });
     });

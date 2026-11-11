@@ -738,12 +738,14 @@ function hashLargeGitBlob(
       );
     });
     child.on('close', (code) => {
-      if (!failure && !sniffed) failure = oversizedFile(filePath, size);
+      // A failed read is reported as unreadable before the text check, so a
+      // short read is never mistaken for an oversized text file.
       if (!failure && (code !== 0 || received !== size)) {
         failure = new Error(
           `scope_base_unreadable: ${filePath}: short blob read`,
         );
       }
+      if (!failure && !sniffed) failure = oversizedFile(filePath, size);
       if (failure) reject(failure);
       else resolve({ size, sha256: hash.digest('hex') });
     });
