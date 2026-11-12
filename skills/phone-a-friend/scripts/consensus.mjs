@@ -1142,10 +1142,12 @@ function runProviderSubprocess(invocation2, options = {}) {
       termination = {
         reason,
         scope: USE_PROCESS_GROUP ? "process_group" : "process",
-        signals: ["SIGTERM"],
+        signals: [],
         settled_by: "settlement_timeout"
       };
-      if (signalProvider("SIGTERM") === "gone") {
+      const sigtermDelivery = signalProvider("SIGTERM");
+      if (sigtermDelivery === "sent") termination.signals.push("SIGTERM");
+      if (sigtermDelivery === "gone") {
         settle("group_gone");
         return;
       }
@@ -4223,13 +4225,14 @@ Commands:
   provider ls --json
   preflight --json --provider <id> --capability run [--capability <name>] [--max-depth <n>]
   submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
-  run --provider <id> (--schema <path> | --output text) --json
-      [-|--prompt <text>|--prompt-file <path>] [--output json|text]
+  run --provider <id> (--schema <path> [--output json] | --output text) --json
+      [-|--prompt <text>|--prompt-file <path>]
       [--model <name>] [--effort <level>]
       [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
-      [--allow-read <absolute-file>] [--allow-edit <absolute-file>]
-      [--allow-bash <command-pattern>]
-      [--allow-web-search] [--allow-web-fetch-domain <domain>] (Claude only; repeat grants)
+      Claude-only grants, each repeatable except --allow-web-search:
+        [--allow-read <absolute-file>] [--allow-edit <absolute-file>]
+        [--allow-bash <command-pattern>]
+        [--allow-web-search] [--allow-web-fetch-domain <domain>]
       [--env-allow <name>] [--max-attempts <n>] [--timeout-sec <n>]
       [--max-output-bytes <n>] [--cwd <path>] [--max-depth <n>]
       [--consultation-id <id>] [--round <n>]

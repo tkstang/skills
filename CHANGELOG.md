@@ -13,9 +13,10 @@
   `--allow-read` grants (`dontAsk` with `Read,Glob,Grep`). Every other pairing
   of mode and grants is rejected before spawn, and unknown Claude modes are no
   longer passed through. Diagnostics gain the additive `permission_profile`
-  field (mode, tool list, and allow list, with file paths redacted). The configuration guide documents
-  the table, the live-checked Claude and Codex write behaviour, and its
-  limits; a resumed write turn repeats the same policy flags.
+  field (mode, tool list, and allow list, with file paths redacted). The
+  configuration guide documents the table, the live-checked Claude and Codex
+  write behaviour, and its limits; a resumed write turn repeats the same policy
+  flags.
 
 - `consensus run --output text|json` (`consensus` plugin 0.2.10).
   `--output text` (request JSON `output: "text"`) returns the provider's final
@@ -123,8 +124,8 @@
   operating-system argv limit. Claude's inline `--json-schema` stays in argv;
   an oversized one still fails as `PROVIDER_ARGV_TOO_LARGE`, whose message
   now names the argument rather than the prompt. The skills that bundle the
-  CLI take version-only bumps for this and the other `consensus` plugin
-  0.2.10 entries below:
+  CLI take version-only bumps for this and every other `consensus` plugin
+  0.2.10 entry in this release:
   - `consensus-create` 0.1.24
   - `consensus-decide` 0.1.24
   - `consensus-evaluate` 0.1.28

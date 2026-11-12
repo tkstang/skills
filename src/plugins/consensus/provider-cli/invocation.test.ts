@@ -475,6 +475,19 @@ describe('provider invocation builders', () => {
     expect(invocation.stdin).toBe('Sensitive prompt text.');
   });
 
+  // validateProviderOptions rejects these first through the advertised mode
+  // list; the builder must still refuse rather than pass a raw mode through.
+  it.each(['plan', 'acceptEdits', 'bypassPermissions', 'dontAsk'])(
+    'refuses to build a Claude invocation for mode %s outside the composition table',
+    (mode) => {
+      expect(() =>
+        buildInvocation('claude', 'provider_validated', {
+          runtime_policy: { permission_mode: mode },
+        }),
+      ).toThrow(`Unsupported Claude permission mode: ${mode}.`);
+    },
+  );
+
   it('refuses to build an unverified Cursor resume', () => {
     expect(() =>
       buildInvocation(

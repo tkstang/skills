@@ -484,14 +484,19 @@ grants apply, because `--allowedTools` alone does not exclude other tools.
 | Profile                                        | `--permission-mode` | Tools (`--tools`)                                          | Pre-approved (`--allowedTools`)      | Other flags                                     |
 | ---------------------------------------------- | ------------------- | ---------------------------------------------------------- | ------------------------------------ | ----------------------------------------------- |
 | `read-only`                                    | `plan`              | Claude's default for plan mode                             | none                                 | none                                            |
-| `read-only` + `--allow-read <file>`            | `dontAsk`           | `Read,Glob,Grep`                                           | `Read(<file>)` per grant             | `--permission-prompts none --strict-mcp-config` |
+| `read-only` + `--allow-read <file>`            | `dontAsk`           | `Read,Glob,Grep`                                           | `Read(/<file>)` per grant            | `--permission-prompts none --strict-mcp-config` |
 | `non-interactive` (the default)                | none                | Claude's default                                           | none                                 | none                                            |
 | `non-interactive` + read, edit, or web grants  | `dontAsk`           | the granted tools                                          | each grant                           | `--permission-prompts none --strict-mcp-config` |
 | `workspace-write`, optionally + `--allow-bash` | `acceptEdits`       | `Read,Glob,Grep,Edit,Write`, plus `Bash` with a Bash grant | `Bash(<pattern>)` per `--allow-bash` | `--permission-prompts none --strict-mcp-config` |
 
+A read grant prefixes the absolute path with `/`, so `--allow-read /repo/a.md`
+becomes `Read(//repo/a.md)`, Claude's form for an absolute path.
+
 `--allow-bash <pattern>` is repeatable and accepted only with
-`workspace-write`. A pattern is one line, such as `git status:*`, without
-parentheses or commas, and must name a command rather than only wildcards.
+`workspace-write`. A pattern such as `git status:*` is at most 256 characters,
+has no leading or trailing whitespace, contains no parentheses, commas, or
+control characters (so it is one line), and must name a command rather than
+only wildcards.
 The envelope's `diagnostics.permission_profile` records the Claude mode, tool
 list, and allow list that the run applied; file grants appear there as
 `Read(<path>)` and `Edit(<path>)`, so private paths stay out of diagnostics.

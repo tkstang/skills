@@ -126,6 +126,22 @@ process.stdin.on('end', () => {
     return;
   }
 
+  // A SIGTERM-ignoring leader whose grandchild, in another process group,
+  // holds the output pipes: group SIGKILL ends the leader, but the pipes stay
+  // open, so only the bounded settlement can end the run.
+  if (mode === 'escaped-grandchild-holds-pipes') {
+    process.on('SIGTERM', () => {});
+    const grandchild = spawn(
+      process.execPath,
+      ['-e', 'setTimeout(() => {}, 10000)'],
+      { detached: true, stdio: ['ignore', 'inherit', 'inherit'] },
+    );
+    process.stdout.write(`grandchild:${grandchild.pid}\n`);
+    grandchild.unref();
+    setInterval(() => {}, 1000);
+    return;
+  }
+
   if (mode === 'argv-json') {
     process.stdout.write(JSON.stringify(args));
     return;

@@ -269,18 +269,9 @@ export interface ClaudePermissionCompositionFailure {
   message: string;
 }
 
-// The only accepted pairings of a Claude permission mode and scoped grants:
-//
-// | Profile                          | Mode        | --tools                         | --allowedTools        |
-// | -------------------------------- | ----------- | ------------------------------- | --------------------- |
-// | read-only, no grants             | plan        | provider default                | none                  |
-// | read-only + read grants          | dontAsk     | Read,Glob,Grep                  | Read(<path>) per grant |
-// | non-interactive, no grants       | (default)   | provider default                | none                  |
-// | non-interactive + scoped grants  | dontAsk     | the granted tools               | each grant            |
-// | workspace-write                  | acceptEdits | Read,Glob,Grep,Edit,Write[,Bash] | Bash(<pattern>) each |
-//
-// `--tools` is always explicit when grants apply, because `--allowedTools`
-// alone does not exclude other tools. Every other pairing is rejected.
+// The accepted Claude mode and grant pairings are documented in "Claude
+// permission profiles" (documentation/docs/user-guide/consensus/configuration.md);
+// every other pairing is rejected.
 export function composeClaudePermissionProfile(
   policy: ProviderRuntimePolicy,
 ): ClaudePermissionComposition | ClaudePermissionCompositionFailure {

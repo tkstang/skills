@@ -498,8 +498,46 @@ setInterval(() => {}, 1000);
           diagnostics: {
             termination: {
               reason: 'timeout',
-              signals: ['SIGTERM'],
+              signals: [],
               settled_by: 'group_gone',
+            },
+          },
+        });
+      } finally {
+        killQuietly(grandchild);
+      }
+    });
+
+    it('ends on the settlement bound when an escaped process holds the pipes', async () => {
+      let grandchild: number | undefined;
+      const startedAt = Date.now();
+      try {
+        // Group SIGKILL ends the leader, but the escaped grandchild keeps the
+        // pipes open, so 'close' never fires and only the bound settles.
+        const result = await runProviderSubprocess(
+          invocation(['escaped-grandchild-holds-pipes']),
+          {
+            maxOutputBytes: 1024,
+            timeoutSec: 1,
+            terminationGraceMs: 200,
+            finalResolutionMs: 500,
+          },
+        );
+        const elapsed = Date.now() - startedAt;
+        grandchild = grandchildPid(result.stdout);
+
+        expect(elapsed).toBeGreaterThanOrEqual(1000 + 200 + 500);
+        expect(elapsed).toBeLessThan(5000);
+        expect(result).toMatchObject({
+          ok: false,
+          code: 'PROVIDER_TIMEOUT',
+          signal: 'SIGKILL',
+          diagnostics: {
+            termination: {
+              reason: 'timeout',
+              scope: 'process_group',
+              signals: ['SIGTERM', 'SIGKILL'],
+              settled_by: 'settlement_timeout',
             },
           },
         });

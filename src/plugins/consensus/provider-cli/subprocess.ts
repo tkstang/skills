@@ -209,10 +209,12 @@ export function runProviderSubprocess(
       termination = {
         reason,
         scope: USE_PROCESS_GROUP ? 'process_group' : 'process',
-        signals: ['SIGTERM'],
+        signals: [],
         settled_by: 'settlement_timeout',
       };
-      if (signalProvider('SIGTERM') === 'gone') {
+      const sigtermDelivery = signalProvider('SIGTERM');
+      if (sigtermDelivery === 'sent') termination.signals.push('SIGTERM');
+      if (sigtermDelivery === 'gone') {
         // ESRCH: the whole group already exited, so nothing is left to stop.
         settle('group_gone');
         return;

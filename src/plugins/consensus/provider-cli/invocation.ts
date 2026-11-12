@@ -118,10 +118,8 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
   }
 
   // The prompt travels on stdin (`--print` reads it there when no positional
-  // prompt is given), so a large prompt cannot exceed the argv limit. Live
-  // check 2026-11-11 with Claude Code 2.1.322: a stdin prompt with
-  // `--output-format json --permission-mode plan --json-schema` returned a
-  // `success` result with the expected structured_output.
+  // prompt is given), so a large prompt cannot exceed the argv limit. The live
+  // check is recorded with the Claude adapter in adapters.ts.
   return {
     ...invocation({
       executable: options.executable ?? 'claude',

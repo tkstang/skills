@@ -678,10 +678,12 @@ function runProviderSubprocess(invocation2, options = {}) {
       termination = {
         reason,
         scope: USE_PROCESS_GROUP ? "process_group" : "process",
-        signals: ["SIGTERM"],
+        signals: [],
         settled_by: "settlement_timeout"
       };
-      if (signalProvider("SIGTERM") === "gone") {
+      const sigtermDelivery = signalProvider("SIGTERM");
+      if (sigtermDelivery === "sent") termination.signals.push("SIGTERM");
+      if (sigtermDelivery === "gone") {
         settle("group_gone");
         return;
       }

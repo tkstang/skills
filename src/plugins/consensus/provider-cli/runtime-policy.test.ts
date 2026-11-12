@@ -172,7 +172,7 @@ describe('provider runtime policy validation', () => {
       ],
       ['unscoped Claude non-interactive', { provider: 'claude' }],
       [
-        'Claude with an edit grant',
+        'Claude non-interactive with an edit grant',
         {
           provider: 'claude',
           runtime_policy: {
@@ -182,7 +182,7 @@ describe('provider runtime policy validation', () => {
         },
       ],
       [
-        'Claude with a Bash grant',
+        'Claude workspace-write with a Bash grant',
         {
           provider: 'claude',
           runtime_policy: {
@@ -257,33 +257,48 @@ describe('provider runtime policy validation', () => {
         ),
       );
 
-    // Each of these would otherwise reach `--print ... --force`.
-    it.each<[string, () => Promise<ConsensusCliRunRequest>]>([
-      ['an omitted policy through flags', () => fromFlags([])],
+    // Each of these would otherwise reach `--print ... --force`. Cursor does
+    // not advertise workspace-write, so the mode list rejects it before the
+    // text-mode guard; the other rows are the text-mode guard's own.
+    const textModeOnly =
+      'Cursor text-mode runs require --permission-mode read-only.';
+    const unadvertised =
+      'Unsupported runtime_policy.permission_mode: workspace-write.';
+    it.each<[string, () => Promise<ConsensusCliRunRequest>, string]>([
+      ['an omitted policy through flags', () => fromFlags([]), textModeOnly],
       [
         'non-interactive through flags',
         () => fromFlags(['--permission-mode', 'non-interactive']),
+        textModeOnly,
       ],
       [
         'workspace-write through flags',
         () => fromFlags(['--permission-mode', 'workspace-write']),
+        unadvertised,
       ],
-      ['an omitted policy through request JSON', () => fromRequestJson()],
+      [
+        'an omitted policy through request JSON',
+        () => fromRequestJson(),
+        textModeOnly,
+      ],
       [
         'non-interactive through request JSON',
         () => fromRequestJson({ permission_mode: 'non-interactive' }),
+        textModeOnly,
       ],
       [
         'workspace-write through request JSON',
         () => fromRequestJson({ permission_mode: 'workspace-write' }),
+        unadvertised,
       ],
-    ])('rejects %s', async (_label, build) => {
+    ])('rejects %s', async (_label, build, message) => {
       expect(
         validateProviderOptions(await build(), capabilities('cursor')),
-      ).toMatchObject({
+      ).toEqual({
         ok: false,
         code: 'PROVIDER_UNSUPPORTED_OPTION',
         option: 'runtime_policy.permission_mode',
+        message,
       });
     });
 
@@ -378,7 +393,7 @@ describe('provider runtime policy validation', () => {
       });
     });
 
-    it('rejects Claude modes outside the composition table', () => {
+    it('rejects raw Claude modes that the adapter does not advertise', () => {
       for (const mode of ['plan', 'acceptEdits', 'bypassPermissions']) {
         expect(
           validateProviderOptions(
@@ -391,6 +406,7 @@ describe('provider runtime policy validation', () => {
         ).toMatchObject({
           ok: false,
           option: 'runtime_policy.permission_mode',
+          message: `Unsupported runtime_policy.permission_mode: ${mode}.`,
         });
       }
     });
@@ -418,6 +434,9 @@ describe('provider runtime policy validation', () => {
           ),
         ).toMatchObject({ ok: false, option: 'runtime_policy.bash_patterns' });
       }
+    });
+
+    it('rejects Bash grants for providers other than Claude', () => {
       expect(
         validateProviderOptions(
           request({

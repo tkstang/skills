@@ -225,6 +225,42 @@ describe('structured provider output coordinator', () => {
     expect(subprocess.prompts[0]).toContain('final-message JSON fallback');
   });
 
+  // Without a Bash grant a workspace-write Claude peer cannot run the submit
+  // command, so it must answer through the final message.
+  it('answers Claude workspace-write JSON turns through the final message, not submit', async () => {
+    const subprocess = fakeSubprocess([
+      processSuccess(
+        JSON.stringify({
+          type: 'result',
+          subtype: 'success',
+          is_error: false,
+          structured_output: { verdict: 'accept' },
+        }),
+      ),
+    ]);
+
+    const envelope = await runProviderTurn(
+      request({
+        provider: 'claude',
+        runtime_policy: { permission_mode: 'workspace-write' },
+      }),
+      { readSchema: async () => schema(), runSubprocess: subprocess.run },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      output_kind: 'json',
+      json: { verdict: 'accept' },
+      diagnostics: { verdict_source: 'final_message' },
+    });
+    expect(
+      Object.keys(subprocess.envs[0] ?? {}).filter((name) =>
+        name.startsWith('CONSENSUS_SUBMIT_'),
+      ),
+    ).toEqual([]);
+    expect(subprocess.prompts[0]).not.toContain('Verdict submission:');
+  });
+
   it('answers read-only Cursor turns through the final message, not submit', async () => {
     const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
@@ -1065,6 +1101,21 @@ describe('text output', () => {
     });
     expect(subprocess.invocations[0]?.argv).toContain('--trust');
     expect(subprocess.invocations[0]?.argv).not.toContain('--force');
+  });
+
+  it('accepts a Cursor result that carries no subtype', async () => {
+    const envelope = await runProviderTurn(textRequest('cursor'), {
+      readSchema: noSchema,
+      runSubprocess: fakeSubprocess([
+        processSuccess(JSON.stringify({ type: 'result', result: 'Fine.' })),
+      ]).run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      output_kind: 'text',
+      text: 'Fine.',
+    });
   });
 
   it('never exposes submit capture, even when its variables are allowlisted', async () => {
