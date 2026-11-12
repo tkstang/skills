@@ -39,10 +39,18 @@ Claude, `--permission-mode workspace-write`:
 
 - It runs with `acceptEdits` and the tools `Read`, `Glob`, `Grep`, `Edit`, and
   `Write`, plus `Bash` limited to the `--allow-bash` patterns you grant.
-- Writes outside the worktree and ungranted commands are denied.
-- Two limits: `acceptEdits` auto-approves simple file commands such as `touch`
-  inside the worktree, and the user's own Claude allow rules still apply, so an
-  interpreter they have allowlisted is not blocked.
+- The Edit and Write tools are denied outside the worktree, and ungranted
+  commands are denied.
+- These are Claude Code permission rules, not an operating-system sandbox, and
+  three limits remain:
+  - `acceptEdits` auto-approves simple file commands such as `touch` inside the
+    worktree.
+  - The user's own Claude allow rules still apply, so an interpreter they have
+    allowlisted is not blocked.
+  - A granted command runs repository code the peer can edit, such as
+    `package.json` scripts or tests, and that code is not confined to the
+    worktree. The after-run procedure in [accounting](accounting.md) checks
+    your own checkout for this.
 - An `--allow-bash` pattern, such as `git status:*`, is one line of at most 256
   characters with no parentheses or commas, and must name a command.
 

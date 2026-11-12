@@ -81,10 +81,14 @@ behaviour.
   lives outside its writable root, so its changes stay unstaged. Network
   access follows your Codex sandbox configuration.
 - **Claude** gets file tools plus only the Bash commands the host grants, such
-  as the verification command. Writes outside the worktree and other commands
-  are denied. Two limits remain: `acceptEdits` auto-approves simple file
-  commands such as `touch` inside the worktree, and your own Claude allow
-  rules still apply.
+  as the verification command. File-tool writes outside the worktree and other
+  commands are denied. These are permission rules, not an operating-system
+  sandbox, and three limits remain: `acceptEdits` auto-approves simple file
+  commands such as `touch` inside the worktree, your own Claude allow rules
+  still apply, and a granted command runs repository code the peer can edit,
+  such as `package.json` scripts or tests, without being confined to the
+  worktree. After a Claude write run the host also checks that your own
+  checkout is unchanged and reports any difference.
 
 A commit made by any peer is reported, never accepted silently.
 

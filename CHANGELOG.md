@@ -34,8 +34,7 @@
   computes every change from its own git baseline, reports any peer commit,
   reads the full diff, and reruns the brief's verification command. Claude and
   Codex sessions can be continued; Cursor is read-only. The skill never merges
-  or pushes. The plugin manifests, README, and docs list the new skill, and the
-  Codex default prompts now fit the 128-character limit.
+  or pushes. The plugin manifests, README, and docs list the new skill.
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.10) composes
   Claude's permission flags from an explicit table. A new
@@ -180,6 +179,10 @@
   possibly repeating a turn's writes. No in-repo caller requested retries.
 
 ### Fixed
+
+- The Consensus plugin's Codex `interface.defaultPrompt` entries (`consensus`
+  plugin 0.2.11) now fit the 128-character limit. All three were longer, so
+  Codex ignored them; they now also mention `delegate`.
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.10) stops a
   timed-out or output-capped provider's whole process group on macOS and

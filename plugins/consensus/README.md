@@ -309,10 +309,13 @@ and `--allow-web-fetch-domain` flags are opt-in. Preflight does not test these
 tools, and a schema-valid reply remains transport success even when the peer
 reports denied tool calls.
 
-`delegate` runs `consensus run --output text` and `git`. A write run needs
-permission to create a linked worktree beside the repository and to write the
-brief and run state outside it; the peer's own write access is set by the
-provider policy described in `skills/delegate/references/worktree-writes.md`.
+`delegate` runs `consensus run --output text` and `git`. A write run also
+runs the snapshot shell function from `skills/delegate/references/accounting.md`
+and the brief's verification command in the worktree. It needs permission to
+create a linked worktree beside the repository and to write the brief and run
+state outside it and outside temp directories. The peer's own write access is
+set by the provider policy described in
+`skills/delegate/references/worktree-writes.md`.
 
 `panel` uses the generated panel wrapper, writes `.consensus/` run state and a
 markdown panel artifact, and should ask before sending sensitive/private context

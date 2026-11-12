@@ -4,7 +4,7 @@ description: Use when the user asks to hand a task to another AI provider (Codex
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+, git, and the generated consensus CLI.
 allowed-tools: Bash(node:*), Bash(git:*), Read, Write
-argument-hint: ["<task>"] [--peer <provider-id>] [--model <model>] [--effort <effort>]
+argument-hint: '"<task>" [--peer <provider-id>] [--model <model>] [--effort <effort>]'
 metadata:
   author: Thomas Stang
   version: '0.1.0'
@@ -46,24 +46,26 @@ you. Preflight only that provider:
 node <skill-dir>/scripts/consensus.mjs preflight --json --provider <peer> --capability run
 ```
 
-If it is not `ready`, try the next provider other than you (skip Cursor for a
-write run). If none is ready, report it and stop; the user may name any peer,
-including your own provider.
+If the user named the peer and it is not `ready`, report that and stop; do not
+swap in another provider. If they named none, try the next provider other than
+you (skip Cursor for a write run). If none is ready, report it and stop; the
+user may name any peer, including your own provider.
 
 ## Workflow
 
 1. **Write the brief** from the [brief template](references/brief-template.md):
    `<task>`, `<output_contract>`, and `<verification_loop>` blocks, with the
    exact verification command. Include only the context the task needs, and
-   never secrets or credentials. Save it outside the worktree so it does not
-   show up as a change.
+   never secrets or credentials. Save it in the state directory described in
+   [accounting](references/accounting.md#state-directory), outside the
+   worktree, so it does not show up as a change.
 2. **Write mode only: set up the worktree.** Follow
    [worktree writes](references/worktree-writes.md): create a dedicated linked
    worktree from a commit, never your own checkout, then take the baseline
    snapshot in [accounting](references/accounting.md). One writer per worktree:
    do not edit it yourself while the peer runs.
 3. **Run once** with the command in [Invocation](#invocation). Save the JSON
-   envelope to a file outside the worktree.
+   envelope in the state directory.
 4. **Read the envelope**, not the exit code. Provider failures exit `0` with
    `ok: false`; usage errors exit `2`. See [Failures](#failures).
 5. **Write mode: account for the changes** with the after-run procedure in
@@ -110,7 +112,8 @@ node <skill-dir>/scripts/consensus.mjs run --provider <peer> \
 
 For a Claude write run, grant the brief's verification command, such as
 `--allow-bash 'pnpm run test:*'`, and any other command the task needs. Other
-Bash commands are denied, apart from the limits in
+Bash commands are denied, but a granted command runs repository code the peer
+can edit, outside any sandbox; see the limits in
 [worktree writes](references/worktree-writes.md).
 
 Always pass `--output text --max-attempts 1 --max-depth 1 --json`. Use any
@@ -135,16 +138,17 @@ A success has `ok: true`, `output_kind: "text"`, and the peer's final reply in
 
 ## Failures
 
-- `turn: not_started`, or a usage or preflight error: nothing reached the
-  peer. Fix the cause and run again.
+- Authentication, setup, or `HOST_RECURSION_BLOCKED` failures stop the run,
+  even when `turn` is `not_started`. Report them; do not switch providers on
+  your own.
+- Any other `turn: not_started`, or a usage or preflight error: nothing reached
+  the peer. Fix the cause and run again.
 - `PROVIDER_TIMEOUT`, an interrupt, or `turn: unknown`: the peer may have
   changed files. Inspect the worktree with the after-run procedure and report.
   Never resend the brief.
 - `turn: completed` with `PROVIDER_EMPTY_OUTPUT` or
   `PROVIDER_MALFORMED_RESULT`: the turn ran but its reply is unusable. Account
   for the worktree and report; do not resend.
-- Authentication, setup, or `HOST_RECURSION_BLOCKED` failures stop the run.
-  Report them; do not switch providers on your own.
 
 ## Continue
 
