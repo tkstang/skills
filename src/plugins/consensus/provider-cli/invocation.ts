@@ -132,9 +132,11 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
     );
   }
 
-  argv.push(request.prompt);
-  redactedArgv.push('<prompt>');
-
+  // The prompt travels on stdin (`--print` reads it there when no positional
+  // prompt is given), so a large prompt cannot exceed the argv limit. Live
+  // check 2026-11-11 with Claude Code 2.1.322: a stdin prompt with
+  // `--output-format json --permission-mode plan --json-schema` returned a
+  // `success` result with the expected structured_output.
   return invocation({
     executable: options.executable ?? 'claude',
     argv,
@@ -142,7 +144,6 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
     request,
     strategy,
     outputMode: 'stdout_json',
-    stdin: '',
   });
 };
 

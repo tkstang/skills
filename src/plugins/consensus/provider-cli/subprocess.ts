@@ -51,7 +51,7 @@ const DEFAULT_TIMEOUT_SEC = 300;
 const DEFAULT_TERMINATION_GRACE_MS = 250;
 const DEFAULT_FINAL_RESOLUTION_MS = 1000;
 const ARGV_TOO_LARGE_MESSAGE =
-  'Provider arguments or environment exceeded the operating-system limit (E2BIG). A prompt too large for argv is one possible cause.';
+  'Provider arguments or environment exceeded the operating-system limit (E2BIG). Reduce the environment or argument sizes, such as the inline JSON schema.';
 
 export function isReliableExternalInterrupt(input: {
   code: ProviderErrorCode;

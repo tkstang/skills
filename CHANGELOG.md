@@ -88,6 +88,28 @@
 
 - Session Toolkit 0.1.0: stateless raw-evidence search and estimates with tiered widening, explicit scan authorization, redaction and optional accelerators.
 
+### Changed
+
+- The shared consensus provider CLI (`consensus` plugin 0.2.10) sends
+  Claude's prompt on stdin instead of as a positional argument, as it already
+  did for Codex and Cursor, so a large prompt can no longer exceed the
+  operating-system argv limit. Claude's inline `--json-schema` stays in argv;
+  an oversized one still fails as `PROVIDER_ARGV_TOO_LARGE`, whose message
+  now names the argument rather than the prompt. The skills that bundle the
+  CLI take version-only bumps for this and the other `consensus` plugin
+  0.2.10 entries below:
+  - `consensus-create` 0.1.24
+  - `consensus-decide` 0.1.24
+  - `consensus-evaluate` 0.1.28
+  - `consensus-panel` 0.1.21
+  - `consensus-plan` 0.1.24
+  - `consensus-refine` 0.1.27
+  - `consensus-review` 0.2.1
+  - `phone-a-friend` 0.3.3
+  - `session-observer` 1.1.5
+  - `session-observer-collab` 1.0.83
+  - `session-fork-to-destination` 0.3.10 (`session` plugin 0.8.3)
+
 ### Fixed
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.9) reports

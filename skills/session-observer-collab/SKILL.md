@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash(node:*) Read AskUserQuestion
 metadata:
   author: Thomas Stang
-  version: '1.0.82'
+  version: '1.0.83'
 ---
 
 # session-observer-collab

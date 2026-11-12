@@ -774,17 +774,20 @@ while [ "$#" -gt 0 ]; do
       exit 64
       ;;
     *)
-      prompt="$1"
-      shift
+      printf 'unexpected positional argument; the prompt must arrive on stdin\\n' >&2
+      exit 64
       ;;
   esac
 done
+# PATH holds only the fixture directory, so read stdin with shell builtins.
+prompt=''
+while IFS= read -r line || [ -n "$line" ]; do prompt="$prompt$line"; done
 if [ "$seen_schema" != "1" ]; then
   printf 'missing --json-schema\\n' >&2
   exit 64
 fi
 if [ -z "$prompt" ]; then
-  printf 'missing prompt argument\\n' >&2
+  printf 'missing stdin prompt\\n' >&2
   exit 64
 fi
 printf '%s\\n' '${providerEnvelope}'

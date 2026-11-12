@@ -305,7 +305,7 @@ describe('bounded provider subprocess runner', () => {
       ok: false,
       code: 'PROVIDER_ARGV_TOO_LARGE',
       retryable: false,
-      message: expect.stringContaining('prompt too large for argv'),
+      message: expect.stringContaining('too large for argv'),
     });
 
     const missing = await runProviderSubprocess(

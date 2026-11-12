@@ -38,10 +38,12 @@ records and host or user direction when resuming an in-flight section.
 Peer execution crosses two child-process boundaries: a wrapper/core process
 invokes the generated consensus CLI, and that CLI invokes the selected provider
 executable. Provider adapters hide incompatible command shapes behind one run
-request. Claude receives prompt/output flags and optional inline schema flags;
+request. Claude receives output flags and optional inline schema flags;
 Codex uses `exec`, a last-message file, and optional output-schema/config flags;
-Cursor uses its own JSON output flags. Every provider invocation sets
-`shell: false`.
+Cursor uses its own JSON output flags. Every provider reads the prompt from
+stdin, so a large prompt never reaches argv; an oversized argument such as
+Claude's inline schema fails as `PROVIDER_ARGV_TOO_LARGE`. Every provider
+invocation sets `shell: false`.
 
 The normalized envelope keeps the loop provider-neutral. It carries success or
 failure, structured output, redacted arguments, diagnostics, and attempt data.

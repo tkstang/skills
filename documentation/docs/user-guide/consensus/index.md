@@ -230,8 +230,8 @@ diagnostics, and permissions, and the per-skill pages for the full command set.
 ## What is handed to a provider process
 
 This is the local process boundary, not a network boundary. The wrapper reads
-selected input and constructs a prompt payload: an argv argument for Claude,
-stdin for Codex and Cursor. It also supplies schema and submission information.
+selected input and constructs a prompt payload, which every provider receives
+on stdin. It also supplies schema and submission information.
 
 Transcript, observer, and run-state files are stored locally, but selected
 contents can enter the prompt. Provider subprocesses may also access files in
@@ -260,7 +260,7 @@ validation does not make their advice trustworthy or authorize following it.
       end
       HOST["Host skill / wrapper<br/>reads the input artifact locally and<br/>compacts it into the prompt payload"]
       subgraph crossing["Crosses the boundary — approval is a skill instruction, not a code gate"]
-        PR["Prompt payload<br/>argv for Claude — stdin for Codex and Cursor<br/>facts, constraints, and the compacted artifact text"]
+        PR["Prompt payload<br/>stdin for every provider<br/>facts, constraints, and the compacted artifact text"]
         SCH["Claude: the schema is ALSO passed<br/>inline in argv as --json-schema"]
         ENV["Submit env, 4 vars — set for every provider<br/>CONSENSUS_SUBMIT_COMMAND / FILE / SCHEMA<br/>and CONSENSUS_SUBMIT_MAX_BYTES"]
         CWD["Working directory and provider policy<br/>wrapper path guards do not sandbox the child"]
@@ -292,7 +292,7 @@ validation does not make their advice trustworthy or authorize following it.
       TR -.->|"untrusted input: prompt injection<br/>is mitigated, not solved"| GUARD
     ```
 
-    *Mermaid updated 2026-09-29*
+    *Mermaid updated 2026-11-11*
 
 ## Limitations
 
