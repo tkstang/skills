@@ -123,6 +123,14 @@
   - `session-observer-collab` 1.0.83
   - `session-fork-to-destination` 0.3.10 (`session` plugin 0.8.3)
 
+- `consensus run` (`consensus` plugin 0.2.10) accepts `--max-attempts`
+  above 1 only for an explicitly read-only profile: Codex with
+  `--sandbox read-only`, Claude with `--permission-mode read-only` and no edit
+  or Bash grant, or Cursor with `--permission-mode read-only`. Any other
+  profile, including an omitted Codex sandbox and Claude's default
+  non-interactive mode, now fails with `CONSENSUS_CLI_USAGE` instead of
+  possibly repeating a turn's writes. No in-repo caller requested retries.
+
 ### Fixed
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.9) reports

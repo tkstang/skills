@@ -101,7 +101,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('{"verdict":"accept"}'),
     ]);
 
-    const envelope = await runProviderTurn(request(), {
+    const envelope = await runProviderTurn(retryable('claude'), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -123,7 +123,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('{"verdict":"accept"}'),
     ]);
 
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runProviderTurn(retryable('cursor'), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -176,7 +176,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('{"verdict":"accept"}'),
     ]);
 
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runProviderTurn(retryable('cursor'), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -369,7 +369,7 @@ describe('structured provider output coordinator', () => {
     ]);
 
     await expect(
-      runProviderTurn(request({ provider: 'codex' }), {
+      runProviderTurn(retryable('codex'), {
         readSchema: async () => schema(),
         runSubprocess: subprocess.run,
       }),
@@ -379,7 +379,7 @@ describe('structured provider output coordinator', () => {
     });
 
     await expect(
-      runProviderTurn(request({ provider: 'codex' }), {
+      runProviderTurn(retryable('codex'), {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
           processFailure('PROVIDER_TIMEOUT', false),
@@ -395,7 +395,7 @@ describe('structured provider output coordinator', () => {
 
   it('does not retry adapter-classified terminal provider exits', async () => {
     await expect(
-      runProviderTurn(request({ provider: 'claude' }), {
+      runProviderTurn(retryable('claude'), {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
           processFailure('PROVIDER_EXIT', true, {
@@ -414,7 +414,7 @@ describe('structured provider output coordinator', () => {
     });
 
     await expect(
-      runProviderTurn(request({ provider: 'codex' }), {
+      runProviderTurn(retryable('codex'), {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
           processFailure('PROVIDER_EXIT', true, {
@@ -433,7 +433,7 @@ describe('structured provider output coordinator', () => {
     });
 
     await expect(
-      runProviderTurn(request({ provider: 'cursor' }), {
+      runProviderTurn(retryable('cursor'), {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
           processFailure('PROVIDER_EXIT', true, {
@@ -461,7 +461,7 @@ describe('structured provider output coordinator', () => {
     ]);
 
     const envelope = await runProviderTurn(
-      request({ provider: 'cursor', max_attempts: 3 }),
+      retryable('cursor', { max_attempts: 3 }),
       {
         readSchema: async () => schema(),
         runSubprocess: subprocess.run,
@@ -480,18 +480,15 @@ describe('structured provider output coordinator', () => {
   });
 
   it('records which exit classification fired in diagnostics', async () => {
-    const transientEnvelope = await runProviderTurn(
-      request({ provider: 'cursor' }),
-      {
-        readSchema: async () => schema(),
-        runSubprocess: fakeSubprocess([
-          processFailure('PROVIDER_EXIT', true, {
-            stderr: 'temporary unavailable, try again',
-          }),
-          processSuccess('{"verdict":"accept"}'),
-        ]).run,
-      },
-    );
+    const transientEnvelope = await runProviderTurn(retryable('cursor'), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([
+        processFailure('PROVIDER_EXIT', true, {
+          stderr: 'temporary unavailable, try again',
+        }),
+        processSuccess('{"verdict":"accept"}'),
+      ]).run,
+    });
 
     expect(transientEnvelope).toMatchObject({
       ok: true,
@@ -501,7 +498,7 @@ describe('structured provider output coordinator', () => {
     });
 
     const unknownEnvelope = await runProviderTurn(
-      request({ provider: 'cursor', max_attempts: 3 }),
+      retryable('cursor', { max_attempts: 3 }),
       {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
@@ -1292,9 +1289,25 @@ function request(
     provider: 'claude',
     schema_path: 'schema.json',
     prompt: 'Return JSON.',
-    max_attempts: 2,
+    max_attempts: 1,
     ...overrides,
   };
+}
+
+// The read-only profile that may retry a turn, per provider.
+function retryable(
+  provider: 'claude' | 'codex' | 'cursor',
+  overrides: Partial<ConsensusCliRunRequest> = {},
+): ConsensusCliRunRequest {
+  return request({
+    provider,
+    max_attempts: 2,
+    runtime_policy:
+      provider === 'codex'
+        ? { sandbox: 'read-only', approval_policy: 'never' }
+        : { permission_mode: 'read-only' },
+    ...overrides,
+  });
 }
 
 function schema() {

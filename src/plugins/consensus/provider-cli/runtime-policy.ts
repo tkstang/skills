@@ -15,7 +15,10 @@ export interface ProviderOptionValidationSuccess {
 
 export interface ProviderOptionValidationFailure {
   ok: false;
-  code: Extract<ProviderErrorCode, 'PROVIDER_UNSUPPORTED_OPTION'>;
+  code: Extract<
+    ProviderErrorCode,
+    'PROVIDER_UNSUPPORTED_OPTION' | 'CONSENSUS_CLI_USAGE'
+  >;
   option: string;
   message: string;
 }
@@ -126,6 +129,18 @@ export function validateProviderOptions(
       return unsupported(composition.option, composition.message);
     }
   }
+  if (
+    (request.max_attempts ?? 1) > 1 &&
+    !isProvenReadOnlyProfile(request.provider, policy)
+  ) {
+    return {
+      ok: false,
+      code: 'CONSENSUS_CLI_USAGE',
+      option: 'max_attempts',
+      message:
+        'More than one attempt is allowed only for a proven read-only profile: Codex with --sandbox read-only, Claude with --permission-mode read-only and no edit or Bash grant, or Cursor with --permission-mode read-only. A retried turn could repeat its side effects.',
+    };
+  }
   for (const pattern of policy.bash_patterns ?? []) {
     if (!isExactBashPattern(pattern)) {
       return unsupported(
@@ -193,6 +208,26 @@ export function validateProviderOptions(
   }
 
   return { ok: true };
+}
+
+// Only these profiles may retry a turn: each is explicitly read-only, so a
+// resubmitted turn cannot repeat writes. An omitted Codex sandbox, Claude's
+// unscoped non-interactive mode (which installs no restrictions), any Bash or
+// edit grant, and every write profile run once.
+export function isProvenReadOnlyProfile(
+  provider: string,
+  policy: ProviderRuntimePolicy,
+) {
+  if (provider === 'codex') return policy.sandbox === 'read-only';
+  if (provider === 'claude') {
+    return (
+      policy.permission_mode === 'read-only' &&
+      !policy.edit_paths?.length &&
+      !policy.bash_patterns?.length
+    );
+  }
+  if (provider === 'cursor') return policy.permission_mode === 'read-only';
+  return false;
 }
 
 export function hasScopedToolAccess(policy: ProviderRuntimePolicy = {}) {

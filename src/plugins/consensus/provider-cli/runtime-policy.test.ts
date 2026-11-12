@@ -119,6 +119,103 @@ describe('provider runtime policy validation', () => {
     ).toMatchObject({ ok: false, option: 'runtime_policy.permission_mode' });
   });
 
+  describe('attempt budget', () => {
+    const readPath = realpathSync(fileURLToPath(import.meta.url));
+
+    it.each<[string, Partial<ConsensusCliRunRequest>]>([
+      [
+        'Codex with an explicit read-only sandbox',
+        { provider: 'codex', runtime_policy: { sandbox: 'read-only' } },
+      ],
+      [
+        'Claude read-only',
+        {
+          provider: 'claude',
+          runtime_policy: { permission_mode: 'read-only' },
+        },
+      ],
+      [
+        'Claude read-only with a read grant',
+        {
+          provider: 'claude',
+          runtime_policy: {
+            permission_mode: 'read-only',
+            read_paths: [readPath],
+          },
+        },
+      ],
+      [
+        'Cursor read-only',
+        {
+          provider: 'cursor',
+          runtime_policy: { permission_mode: 'read-only' },
+        },
+      ],
+    ])('allows retries for %s', (_label, overrides) => {
+      expect(
+        validateProviderOptions(
+          request({ ...overrides, max_attempts: 3 }),
+          capabilities(overrides.provider as 'claude' | 'codex' | 'cursor'),
+        ),
+      ).toEqual({ ok: true });
+    });
+
+    it.each<[string, Partial<ConsensusCliRunRequest>]>([
+      ['Codex with an omitted sandbox', { provider: 'codex' }],
+      [
+        'Codex workspace-write',
+        { provider: 'codex', runtime_policy: { sandbox: 'workspace-write' } },
+      ],
+      ['unscoped Claude non-interactive', { provider: 'claude' }],
+      [
+        'Claude with an edit grant',
+        {
+          provider: 'claude',
+          runtime_policy: {
+            permission_mode: 'non-interactive',
+            edit_paths: [path.join(path.dirname(readPath), 'out.md')],
+          },
+        },
+      ],
+      [
+        'Claude with a Bash grant',
+        {
+          provider: 'claude',
+          runtime_policy: {
+            permission_mode: 'workspace-write',
+            bash_patterns: ['git status:*'],
+          },
+        },
+      ],
+      [
+        'Claude workspace-write',
+        {
+          provider: 'claude',
+          runtime_policy: { permission_mode: 'workspace-write' },
+        },
+      ],
+      ['Cursor non-interactive', { provider: 'cursor' }],
+    ])('rejects retries for %s', (_label, overrides) => {
+      const id = overrides.provider as 'claude' | 'codex' | 'cursor';
+      expect(
+        validateProviderOptions(
+          request({ ...overrides, max_attempts: 2 }),
+          capabilities(id),
+        ),
+      ).toMatchObject({
+        ok: false,
+        code: 'CONSENSUS_CLI_USAGE',
+        option: 'max_attempts',
+      });
+      expect(
+        validateProviderOptions(
+          request({ ...overrides, max_attempts: 1 }),
+          capabilities(id),
+        ),
+      ).toEqual({ ok: true });
+    });
+  });
+
   describe('Claude permission composition', () => {
     const readPath = realpathSync(fileURLToPath(import.meta.url));
     const editPath = path.join(path.dirname(readPath), 'new-output.md');

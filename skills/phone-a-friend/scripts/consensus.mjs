@@ -573,6 +573,14 @@ function validateProviderOptions(request, capabilities) {
       return unsupported(composition.option, composition.message);
     }
   }
+  if ((request.max_attempts ?? 1) > 1 && !isProvenReadOnlyProfile(request.provider, policy)) {
+    return {
+      ok: false,
+      code: "CONSENSUS_CLI_USAGE",
+      option: "max_attempts",
+      message: "More than one attempt is allowed only for a proven read-only profile: Codex with --sandbox read-only, Claude with --permission-mode read-only and no edit or Bash grant, or Cursor with --permission-mode read-only. A retried turn could repeat its side effects."
+    };
+  }
   for (const pattern of policy.bash_patterns ?? []) {
     if (!isExactBashPattern(pattern)) {
       return unsupported(
@@ -626,6 +634,14 @@ function validateProviderOptions(request, capabilities) {
     }
   }
   return { ok: true };
+}
+function isProvenReadOnlyProfile(provider, policy) {
+  if (provider === "codex") return policy.sandbox === "read-only";
+  if (provider === "claude") {
+    return policy.permission_mode === "read-only" && !policy.edit_paths?.length && !policy.bash_patterns?.length;
+  }
+  if (provider === "cursor") return policy.permission_mode === "read-only";
+  return false;
 }
 function hasScopedToolAccess(policy = {}) {
   return Boolean(

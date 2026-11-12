@@ -403,6 +403,21 @@ These `consensus run` controls apply to every caller, through flags or
 `--request-json`, and are checked after the runtime policy is normalized and
 before any provider process starts.
 
+### Attempts and retries
+
+`--max-attempts` (`max_attempts`) above 1 is accepted only for a profile that
+is explicitly read-only, so a retried turn cannot repeat writes:
+
+- Codex with `--sandbox read-only` set explicitly.
+- Claude with `--permission-mode read-only` and no edit or Bash grant.
+- Cursor with `--permission-mode read-only`.
+
+Every other profile runs once, and a higher value is rejected as
+`CONSENSUS_CLI_USAGE` before spawn. That includes an omitted Codex sandbox,
+Claude's default `non-interactive` mode (which installs no restrictions), any
+Bash or edit grant, and `workspace-write`. Native resume is always a single
+attempt.
+
 ### Claude permission profiles
 
 Each accepted pairing of `--permission-mode` and Claude grants maps to one set
