@@ -133,6 +133,16 @@
 
 ### Fixed
 
+- The shared consensus provider CLI (`consensus` plugin 0.2.10) stops a
+  timed-out or output-capped provider's whole process group on macOS and
+  Linux. The provider is spawned as a group leader; SIGTERM goes to the group,
+  and the SIGKILL escalation keeps running after the leader exits, so a
+  descendant that ignores SIGTERM no longer survives the run. A group that is
+  already gone (`ESRCH`) settles at once, settlement stays time-bounded, and
+  the additive `diagnostics.termination` field records the signals sent and
+  the step that ended the run. Normal exits are never signalled; Windows is
+  unchanged.
+
 - The shared consensus provider CLI (`consensus` plugin 0.2.9) reports
   arguments or an environment too large for the operating system (`E2BIG`) as
   `PROVIDER_ARGV_TOO_LARGE` instead of `PROVIDER_MISSING` or an uncaught

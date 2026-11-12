@@ -542,6 +542,7 @@ var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 var DEFAULT_TIMEOUT_SEC = 300;
 var DEFAULT_TERMINATION_GRACE_MS = 250;
 var DEFAULT_FINAL_RESOLUTION_MS = 1e3;
+var USE_PROCESS_GROUP = process.platform !== "win32";
 var ARGV_TOO_LARGE_MESSAGE = "Provider arguments or environment exceeded the operating-system limit (E2BIG). Reduce the environment or argument sizes, such as the inline JSON schema.";
 function isReliableExternalInterrupt(input) {
   return input.code === "PROVIDER_EXIT" && input.signal !== null && input.exit_code === null;
@@ -561,12 +562,15 @@ function runProviderSubprocess(invocation2, options = {}) {
     let exitSignal = null;
     let settled = false;
     let terminal;
+    let termination;
+    let leaderClosed = false;
     let child;
     try {
       child = spawn(invocation2.executable, invocation2.argv, {
         cwd: invocation2.cwd,
         env: options.env,
         shell: false,
+        detached: USE_PROCESS_GROUP,
         stdio: ["pipe", "pipe", "pipe"]
       });
     } catch (error) {
@@ -595,6 +599,7 @@ function runProviderSubprocess(invocation2, options = {}) {
       );
       return;
     }
+    const provider = child;
     let killEscalation;
     let finalResolution;
     const timeout = setTimeout(() => {
@@ -616,8 +621,30 @@ function runProviderSubprocess(invocation2, options = {}) {
       terminal = terminal ?? "spawn_error";
       void finish();
     });
-    child.on("close", (exitCode2, signal) => {
-      void finish(exitCode2, signal);
+    child.on("exit", (code, signal) => {
+      exitCode = code;
+      exitSignal = signal;
+    });
+    child.on("close", (code, signal) => {
+      leaderClosed = true;
+      exitCode = code;
+      exitSignal = signal;
+      if (!termination) {
+        void finish(code, signal);
+        return;
+      }
+      if (termination.scope === "process") {
+        settle("leader_exit");
+        return;
+      }
+      if (termination.signals.includes("SIGKILL")) {
+        settle("sigkill");
+        return;
+      }
+      if (!processGroupAlive()) {
+        settle("sigterm");
+        return;
+      }
     });
     child.stdin.on("error", () => {
     });
@@ -627,15 +654,63 @@ function runProviderSubprocess(invocation2, options = {}) {
       if (reason === "output_cap") {
         closeOutputCapture();
       }
-      child.kill("SIGTERM");
-      if (!killEscalation) {
-        killEscalation = setTimeout(() => {
-          child.kill("SIGKILL");
-          finalResolution = setTimeout(() => {
-            void finish(null, "SIGKILL");
-          }, finalResolutionMs);
-        }, terminationGraceMs);
+      if (termination) return;
+      termination = {
+        reason,
+        scope: USE_PROCESS_GROUP ? "process_group" : "process",
+        signals: ["SIGTERM"],
+        settled_by: "settlement_timeout"
+      };
+      if (signalProvider("SIGTERM") === "gone") {
+        settle("group_gone");
+        return;
       }
+      killEscalation = setTimeout(() => {
+        const delivery = signalProvider("SIGKILL");
+        if (delivery === "sent") termination?.signals.push("SIGKILL");
+        if (delivery === "gone") {
+          settle("sigterm");
+          return;
+        }
+        if (leaderClosed) {
+          settle("sigkill");
+          return;
+        }
+        finalResolution = setTimeout(() => {
+          settle("settlement_timeout");
+        }, finalResolutionMs);
+      }, terminationGraceMs);
+    }
+    function signalProvider(signal) {
+      if (!USE_PROCESS_GROUP || provider.pid === void 0) {
+        provider.kill(signal);
+        return "sent";
+      }
+      try {
+        process.kill(-provider.pid, signal);
+        return "sent";
+      } catch (error) {
+        if (error.code === "ESRCH") return "gone";
+        provider.kill(signal);
+        return "sent";
+      }
+    }
+    function processGroupAlive() {
+      if (provider.pid === void 0) return false;
+      try {
+        process.kill(-provider.pid, 0);
+        return true;
+      } catch (error) {
+        return error.code !== "ESRCH";
+      }
+    }
+    function settle(settledBy) {
+      if (settled || !termination) return;
+      termination.settled_by = settledBy;
+      closeOutputCapture();
+      provider.stdin.destroy();
+      const forcedWithoutExit = settledBy === "settlement_timeout" && exitCode === null && exitSignal === null;
+      void finish(exitCode, forcedWithoutExit ? "SIGKILL" : exitSignal);
     }
     function captureOutput(stream, chunk) {
       if (outputCaptureClosed) return;
@@ -685,7 +760,8 @@ function runProviderSubprocess(invocation2, options = {}) {
         maxOutputBytes,
         timeoutSec,
         exitCode,
-        signal: exitSignal
+        signal: exitSignal,
+        termination
       });
       if (terminal === "spawn_error") {
         await cleanupInvocationFiles(invocation2);
@@ -877,6 +953,12 @@ function takeUtf8Prefix(input, maxBytes) {
 }
 function diagnosticsFor(input) {
   return {
+    ...input.termination ? {
+      termination: {
+        ...input.termination,
+        signals: [...input.termination.signals]
+      }
+    } : {},
     strategy_used: input.invocation.strategy,
     output_mode: input.invocation.output_mode,
     redacted_command: input.invocation.redacted_command,

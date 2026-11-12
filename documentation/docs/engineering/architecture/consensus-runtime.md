@@ -45,6 +45,14 @@ stdin, so a large prompt never reaches argv; an oversized argument such as
 Claude's inline schema fails as `PROVIDER_ARGV_TOO_LARGE`. Every provider
 invocation sets `shell: false`.
 
+The [subprocess runner](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/subprocess.ts)
+spawns the provider detached on POSIX, so it leads its own process group. A
+timeout or output-cap breach sends SIGTERM to the group and keeps the SIGKILL
+escalation running after the leader exits, until the group is gone (`ESRCH`)
+or the settlement bound expires; `diagnostics.termination` records the steps.
+A normal exit never signals the group. Windows keeps single-process
+termination.
+
 The normalized envelope keeps the loop provider-neutral. It carries success or
 failure, structured output, redacted arguments, diagnostics, and attempt data.
 The loop then applies its own verdict rules rather than trusting provider exit

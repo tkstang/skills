@@ -295,6 +295,123 @@ describe('bounded provider subprocess runner', () => {
     ).toBeLessThanOrEqual(16);
   });
 
+  describe.skipIf(process.platform === 'win32')('process group', () => {
+    it('SIGKILLs a SIGTERM-ignoring grandchild after the leader exits on timeout', async () => {
+      let grandchild: number | undefined;
+      try {
+        const result = await runProviderSubprocess(
+          invocation(['sigterm-grandchild', 'wait']),
+          {
+            maxOutputBytes: 1024,
+            timeoutSec: 1,
+            terminationGraceMs: 100,
+            finalResolutionMs: 2000,
+          },
+        );
+        grandchild = grandchildPid(result.stdout);
+
+        expect(result).toMatchObject({
+          ok: false,
+          code: 'PROVIDER_TIMEOUT',
+          diagnostics: {
+            termination: {
+              reason: 'timeout',
+              scope: 'process_group',
+              signals: ['SIGTERM', 'SIGKILL'],
+              settled_by: 'sigkill',
+            },
+          },
+        });
+        await expect(waitForExit(grandchild)).resolves.toBe(true);
+      } finally {
+        killQuietly(grandchild);
+      }
+    });
+
+    it('SIGKILLs a SIGTERM-ignoring grandchild on the output cap', async () => {
+      let grandchild: number | undefined;
+      try {
+        const result = await runProviderSubprocess(
+          invocation(['sigterm-grandchild', 'flood']),
+          {
+            maxOutputBytes: 16 * 1024,
+            timeoutSec: 30,
+            terminationGraceMs: 100,
+            finalResolutionMs: 2000,
+          },
+        );
+        grandchild = grandchildPid(result.stdout);
+
+        expect(result).toMatchObject({
+          ok: false,
+          code: 'PROVIDER_OUTPUT_CAP_EXCEEDED',
+          diagnostics: {
+            termination: {
+              reason: 'output_cap',
+              scope: 'process_group',
+              signals: ['SIGTERM', 'SIGKILL'],
+              settled_by: 'sigkill',
+            },
+          },
+        });
+        await expect(waitForExit(grandchild)).resolves.toBe(true);
+      } finally {
+        killQuietly(grandchild);
+      }
+    });
+
+    it('settles at once when the group is already gone (ESRCH)', async () => {
+      let grandchild: number | undefined;
+      const startedAt = Date.now();
+      try {
+        // The escaped grandchild holds the output pipes, so the run cannot
+        // end on 'close'; without ESRCH handling it waits out both bounds.
+        const result = await runProviderSubprocess(
+          invocation(['escaped-grandchild']),
+          {
+            maxOutputBytes: 1024,
+            timeoutSec: 0.5,
+            terminationGraceMs: 5000,
+            finalResolutionMs: 5000,
+          },
+        );
+        grandchild = grandchildPid(result.stdout);
+
+        expect(Date.now() - startedAt).toBeLessThan(3000);
+        expect(result).toMatchObject({
+          ok: false,
+          code: 'PROVIDER_TIMEOUT',
+          diagnostics: {
+            termination: {
+              reason: 'timeout',
+              signals: ['SIGTERM'],
+              settled_by: 'group_gone',
+            },
+          },
+        });
+      } finally {
+        killQuietly(grandchild);
+      }
+    });
+
+    it('does not signal the group when the provider exits normally', async () => {
+      let grandchild: number | undefined;
+      try {
+        const result = await runProviderSubprocess(
+          invocation(['sigterm-grandchild', 'exit']),
+          { maxOutputBytes: 1024, timeoutSec: 5 },
+        );
+        grandchild = grandchildPid(result.stdout);
+
+        expect(result).toMatchObject({ ok: true, exit_code: 0 });
+        expect(result.diagnostics.termination).toBeUndefined();
+        expect(isAlive(grandchild)).toBe(true);
+      } finally {
+        killQuietly(grandchild);
+      }
+    });
+  });
+
   it('reports an oversized argv as PROVIDER_ARGV_TOO_LARGE, not a missing executable', async () => {
     // 4 MiB exceeds both the macOS ARG_MAX and Linux's per-argument limit.
     const oversized = await runProviderSubprocess(
@@ -360,4 +477,37 @@ function invocation(argv: string[]): ProviderInvocation {
     redacted_command: ['consensus-provider-stub', ...argv],
     shell: false,
   };
+}
+
+function grandchildPid(stdout: string): number {
+  const match = /grandchild:(\d+)/.exec(stdout);
+  if (!match) throw new Error(`Fixture did not report a grandchild: ${stdout}`);
+  return Number(match[1]);
+}
+
+function isAlive(pid: number) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForExit(pid: number, timeoutMs = 2000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!isAlive(pid)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  return !isAlive(pid);
+}
+
+function killQuietly(pid: number | undefined) {
+  if (pid === undefined) return;
+  try {
+    process.kill(pid, 'SIGKILL');
+  } catch {
+    // Already gone.
+  }
 }

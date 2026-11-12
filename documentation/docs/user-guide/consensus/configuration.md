@@ -418,6 +418,19 @@ Claude's default `non-interactive` mode (which installs no restrictions), any
 Bash or edit grant, and `workspace-write`. Native resume is always a single
 attempt.
 
+### Timeouts and process cleanup
+
+`--timeout-sec` defaults to 300 seconds. On macOS and Linux the provider runs
+as the leader of its own process group. When a run times out or exceeds
+`--max-output-bytes`, consensus sends SIGTERM to the whole group, then SIGKILL
+to the group after a short grace period, even if the provider itself has
+already exited, so a descendant that ignores SIGTERM does not survive. A group
+that is already gone counts as stopped, settlement is time-bounded, and the
+envelope's `diagnostics.termination` records the signals sent and which step
+ended the run. A provider that exits normally is never signalled. A process
+that moves itself to another process group or session escapes this cleanup.
+On Windows only the provider process is signalled, as before.
+
 ### Claude permission profiles
 
 Each accepted pairing of `--permission-mode` and Claude grants maps to one set

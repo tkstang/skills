@@ -198,6 +198,25 @@ export interface ProviderDiagnostics {
     tools: string[];
   };
   permission_profile?: ProviderPermissionProfile;
+  termination?: ProviderTermination;
+}
+
+// How a timed-out or capped provider run was stopped. `scope` is
+// `process_group` on POSIX and `process` on Windows. `settled_by`:
+// `sigterm` the group exited after SIGTERM; `sigkill` the escalation sent
+// SIGKILL; `group_gone` the group had already exited (ESRCH);
+// `settlement_timeout` the bound expired while the output pipes stayed open;
+// `leader_exit` the single process exited (Windows).
+export interface ProviderTermination {
+  reason: 'timeout' | 'output_cap';
+  scope: 'process_group' | 'process';
+  signals: Array<'SIGTERM' | 'SIGKILL'>;
+  settled_by:
+    | 'sigterm'
+    | 'sigkill'
+    | 'group_gone'
+    | 'settlement_timeout'
+    | 'leader_exit';
 }
 
 // The provider permission controls one invocation applied. `mode` is the

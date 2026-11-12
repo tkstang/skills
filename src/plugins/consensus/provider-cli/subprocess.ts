@@ -3,7 +3,11 @@ import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { open, rm } from 'node:fs/promises';
 
 import type { ProviderInvocation } from './invocation.js';
-import type { ProviderDiagnostics, ProviderErrorCode } from './types.js';
+import type {
+  ProviderDiagnostics,
+  ProviderErrorCode,
+  ProviderTermination,
+} from './types.js';
 
 export interface RunProviderSubprocessOptions {
   env?: NodeJS.ProcessEnv;
@@ -50,6 +54,7 @@ const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 const DEFAULT_TIMEOUT_SEC = 300;
 const DEFAULT_TERMINATION_GRACE_MS = 250;
 const DEFAULT_FINAL_RESOLUTION_MS = 1000;
+const USE_PROCESS_GROUP = process.platform !== 'win32';
 const ARGV_TOO_LARGE_MESSAGE =
   'Provider arguments or environment exceeded the operating-system limit (E2BIG). Reduce the environment or argument sizes, such as the inline JSON schema.';
 
@@ -86,13 +91,19 @@ export function runProviderSubprocess(
     let exitSignal: NodeJS.Signals | null = null;
     let settled = false;
     let terminal: 'timeout' | 'output_cap' | 'spawn_error' | undefined;
+    let termination: ProviderTermination | undefined;
+    let leaderClosed = false;
 
     let child: ChildProcessWithoutNullStreams;
     try {
+      // POSIX: the provider leads its own process group, so a timeout or
+      // output cap can signal every process it started. Windows keeps the
+      // single-process behaviour.
       child = spawn(invocation.executable, invocation.argv, {
         cwd: invocation.cwd,
         env: options.env,
         shell: false,
+        detached: USE_PROCESS_GROUP,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
     } catch (error) {
@@ -123,6 +134,7 @@ export function runProviderSubprocess(
       );
       return;
     }
+    const provider = child;
 
     let killEscalation: NodeJS.Timeout | undefined;
     let finalResolution: NodeJS.Timeout | undefined;
@@ -146,8 +158,34 @@ export function runProviderSubprocess(
       void finish();
     });
 
-    child.on('close', (exitCode, signal) => {
-      void finish(exitCode, signal);
+    child.on('exit', (code, signal) => {
+      exitCode = code;
+      exitSignal = signal;
+    });
+
+    child.on('close', (code, signal) => {
+      leaderClosed = true;
+      exitCode = code;
+      exitSignal = signal;
+      if (!termination) {
+        // Normal exit: the group is never signalled.
+        void finish(code, signal);
+        return;
+      }
+      if (termination.scope === 'process') {
+        settle('leader_exit');
+        return;
+      }
+      if (termination.signals.includes('SIGKILL')) {
+        settle('sigkill');
+        return;
+      }
+      if (!processGroupAlive()) {
+        settle('sigterm');
+        return;
+      }
+      // A descendant outlived the leader: the pending SIGKILL escalation
+      // still runs and settles the run.
     });
 
     child.stdin.on('error', () => {});
@@ -158,15 +196,73 @@ export function runProviderSubprocess(
       if (reason === 'output_cap') {
         closeOutputCapture();
       }
-      child.kill('SIGTERM');
-      if (!killEscalation) {
-        killEscalation = setTimeout(() => {
-          child.kill('SIGKILL');
-          finalResolution = setTimeout(() => {
-            void finish(null, 'SIGKILL');
-          }, finalResolutionMs);
-        }, terminationGraceMs);
+      if (termination) return;
+      termination = {
+        reason,
+        scope: USE_PROCESS_GROUP ? 'process_group' : 'process',
+        signals: ['SIGTERM'],
+        settled_by: 'settlement_timeout',
+      };
+      if (signalProvider('SIGTERM') === 'gone') {
+        // ESRCH: the whole group already exited, so nothing is left to stop.
+        settle('group_gone');
+        return;
       }
+      killEscalation = setTimeout(() => {
+        const delivery = signalProvider('SIGKILL');
+        if (delivery === 'sent') termination?.signals.push('SIGKILL');
+        if (delivery === 'gone') {
+          settle('sigterm');
+          return;
+        }
+        if (leaderClosed) {
+          settle('sigkill');
+          return;
+        }
+        // Bound total settlement: resolve even if a process outside the
+        // group keeps the output pipes open.
+        finalResolution = setTimeout(() => {
+          settle('settlement_timeout');
+        }, finalResolutionMs);
+      }, terminationGraceMs);
+    }
+
+    function signalProvider(signal: 'SIGTERM' | 'SIGKILL'): 'sent' | 'gone' {
+      if (!USE_PROCESS_GROUP || provider.pid === undefined) {
+        provider.kill(signal);
+        return 'sent';
+      }
+      try {
+        process.kill(-provider.pid, signal);
+        return 'sent';
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ESRCH') return 'gone';
+        provider.kill(signal);
+        return 'sent';
+      }
+    }
+
+    function processGroupAlive() {
+      if (provider.pid === undefined) return false;
+      try {
+        process.kill(-provider.pid, 0);
+        return true;
+      } catch (error) {
+        return (error as NodeJS.ErrnoException).code !== 'ESRCH';
+      }
+    }
+
+    function settle(settledBy: ProviderTermination['settled_by']) {
+      if (settled || !termination) return;
+      termination.settled_by = settledBy;
+      closeOutputCapture();
+      provider.stdin.destroy();
+      // A forced settlement with no observed exit reports the SIGKILL sent.
+      const forcedWithoutExit =
+        settledBy === 'settlement_timeout' &&
+        exitCode === null &&
+        exitSignal === null;
+      void finish(exitCode, forcedWithoutExit ? 'SIGKILL' : exitSignal);
     }
 
     function captureOutput(stream: 'stdout' | 'stderr', chunk: string) {
@@ -232,6 +328,7 @@ export function runProviderSubprocess(
         timeoutSec,
         exitCode,
         signal: exitSignal,
+        termination,
       });
 
       if (terminal === 'spawn_error') {
@@ -466,8 +563,17 @@ function diagnosticsFor(input: {
   timeoutSec: number;
   exitCode: number | null;
   signal: NodeJS.Signals | null;
+  termination?: ProviderTermination;
 }): ProviderDiagnostics {
   return {
+    ...(input.termination
+      ? {
+          termination: {
+            ...input.termination,
+            signals: [...input.termination.signals],
+          },
+        }
+      : {}),
     strategy_used: input.invocation.strategy,
     output_mode: input.invocation.output_mode,
     redacted_command: input.invocation.redacted_command,
