@@ -479,7 +479,325 @@ function assertNever(value) {
 // src/plugins/consensus/provider-cli/invocation.ts
 import { randomUUID as randomUUID2 } from "node:crypto";
 import { tmpdir } from "node:os";
+import path4 from "node:path";
+
+// src/plugins/consensus/provider-cli/runtime-policy.ts
+import { realpathSync, statSync } from "node:fs";
+import path3 from "node:path";
+
+// src/plugins/consensus/provider-cli/executable.ts
 import path2 from "node:path";
+var PROVIDER_EXECUTABLE_ENV = {
+  claude: "CONSENSUS_CLAUDE_EXECUTABLE",
+  codex: "CONSENSUS_CODEX_EXECUTABLE",
+  cursor: "CONSENSUS_CURSOR_EXECUTABLE"
+};
+function resolveProviderExecutable(adapter, env) {
+  const variable = PROVIDER_EXECUTABLE_ENV[adapter.id];
+  const value = env[variable];
+  if (value === void 0 || value === "") {
+    return { ok: true, executable: adapter.executable };
+  }
+  if (!path2.isAbsolute(value)) {
+    return {
+      ok: false,
+      message: `${variable} must be an absolute path to an executable, not ${JSON.stringify(value)}.`
+    };
+  }
+  return { ok: true, executable: value };
+}
+
+// src/plugins/consensus/provider-cli/runtime-policy.ts
+var DEFAULT_RUNTIME_POLICY = {
+  permission_mode: "non-interactive"
+};
+var BASE_ENV_ALLOWLIST = [
+  "PATH",
+  "HOME",
+  "TMPDIR",
+  "TEMP",
+  "TMP",
+  "USER",
+  "LOGNAME",
+  "SHELL",
+  "LANG"
+];
+var PROVIDER_ENV_ALLOWLIST = [
+  ["claude", ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]],
+  ["codex", ["OPENAI_API_KEY"]],
+  ["cursor", ["CURSOR_API_KEY"]]
+];
+function validateProviderOptions(request, capabilities) {
+  if (request.model && !capabilities.options.model) {
+    return unsupported("model", "Provider does not support model selection.");
+  }
+  if (request.effort && capabilities.options.effort === null) {
+    return unsupported("effort", "Provider does not support effort selection.");
+  }
+  const policy = defaultRuntimePolicy(request.runtime_policy);
+  const runtimeCapabilities = capabilities.options.runtime_policy;
+  const permissionResult = validateOptionValue(
+    "runtime_policy.permission_mode",
+    policy.permission_mode,
+    runtimeCapabilities.permission_modes
+  );
+  if (permissionResult) return permissionResult;
+  const sandboxResult = validateOptionValue(
+    "runtime_policy.sandbox",
+    policy.sandbox,
+    runtimeCapabilities.sandboxes
+  );
+  if (sandboxResult) return sandboxResult;
+  const approvalResult = validateOptionValue(
+    "runtime_policy.approval_policy",
+    policy.approval_policy,
+    runtimeCapabilities.approval_policies
+  );
+  if (approvalResult) return approvalResult;
+  if (policy.env_allowlist && policy.env_allowlist.length > 0 && !runtimeCapabilities.env_allowlist) {
+    return unsupported(
+      "runtime_policy.env_allowlist",
+      "Provider does not support child environment allowlist extension."
+    );
+  }
+  const hasScopedTools = hasScopedToolAccess(policy);
+  if (hasScopedTools && request.provider !== "claude") {
+    return unsupported(
+      "runtime_policy.scoped_tools",
+      "Scoped tool grants are supported only by the Claude provider."
+    );
+  }
+  if (request.provider === "claude") {
+    const composition = composeClaudePermissionProfile(policy);
+    if (!composition.ok) {
+      return unsupported(composition.option, composition.message);
+    }
+  }
+  for (const pattern of policy.bash_patterns ?? []) {
+    if (!isExactBashPattern(pattern)) {
+      return unsupported(
+        "runtime_policy.bash_patterns",
+        "Bash grants require a single-line command pattern without parentheses or commas, naming a command rather than only wildcards."
+      );
+    }
+  }
+  for (const [field, paths] of [
+    ["read_paths", policy.read_paths],
+    ["edit_paths", policy.edit_paths]
+  ]) {
+    for (const filePath of paths ?? []) {
+      if (!path3.isAbsolute(filePath) || path3.normalize(filePath) !== filePath || filePath.split(path3.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires exact absolute paths without parent traversal or glob characters.`
+        );
+      }
+      try {
+        const target = statSync(filePath, { throwIfNoEntry: false });
+        if (target) {
+          if (!target.isFile() || realpathSync(filePath) !== filePath) {
+            return unsupported(
+              `runtime_policy.${field}`,
+              `${field} requires canonical regular-file targets, not directories or symlinks.`
+            );
+          }
+        } else if (field === "read_paths" || realpathSync(path3.dirname(filePath)) !== path3.dirname(filePath)) {
+          return unsupported(
+            `runtime_policy.${field}`,
+            `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
+          );
+        }
+      } catch {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
+        );
+      }
+    }
+  }
+  for (const domain of policy.web_fetch_domains ?? []) {
+    if (domain.length > 253 || !/^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
+      domain
+    )) {
+      return unsupported(
+        "runtime_policy.web_fetch_domains",
+        "WebFetch grants require exact domain names without schemes, ports, or wildcards."
+      );
+    }
+  }
+  return { ok: true };
+}
+function hasScopedToolAccess(policy = {}) {
+  return Boolean(
+    policy.read_paths?.length || policy.edit_paths?.length || policy.bash_patterns?.length || policy.web_search || policy.web_fetch_domains?.length
+  );
+}
+function composeClaudePermissionProfile(policy) {
+  const mode = policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode;
+  const readPaths = policy.read_paths ?? [];
+  const editPaths = policy.edit_paths ?? [];
+  const bashPatterns = policy.bash_patterns ?? [];
+  const webFetchDomains = policy.web_fetch_domains ?? [];
+  const webSearch = Boolean(policy.web_search);
+  const readRules = readPaths.map((filePath) => `Read(/${filePath})`);
+  if (mode === "read-only") {
+    if (editPaths.length > 0 || bashPatterns.length > 0 || webSearch || webFetchDomains.length > 0) {
+      return compositionFailure(
+        "Claude read-only accepts only --allow-read grants; use non-interactive for edit or web grants and workspace-write for Bash grants."
+      );
+    }
+    if (readPaths.length === 0) {
+      return { ok: true, mode: "plan", allowed_tools: [], restricted: false };
+    }
+    return {
+      ok: true,
+      mode: "dontAsk",
+      tools: ["Read", "Glob", "Grep"],
+      allowed_tools: readRules,
+      restricted: true
+    };
+  }
+  if (mode === "non-interactive") {
+    if (bashPatterns.length > 0) {
+      return compositionFailure(
+        "Claude Bash grants require --permission-mode workspace-write."
+      );
+    }
+    const allowedTools = [
+      ...readRules,
+      ...editPaths.map((filePath) => `Edit(/${filePath})`),
+      ...webSearch ? ["WebSearch"] : [],
+      ...webFetchDomains.map((domain) => `WebFetch(domain:${domain})`)
+    ];
+    if (allowedTools.length === 0) {
+      return { ok: true, allowed_tools: [], restricted: false };
+    }
+    return {
+      ok: true,
+      mode: "dontAsk",
+      tools: [
+        ...readPaths.length > 0 ? ["Read"] : [],
+        ...editPaths.length > 0 ? ["Edit", "Write"] : [],
+        ...webSearch ? ["WebSearch"] : [],
+        ...webFetchDomains.length > 0 ? ["WebFetch"] : []
+      ],
+      allowed_tools: allowedTools,
+      restricted: true
+    };
+  }
+  if (mode === "workspace-write") {
+    if (readPaths.length > 0 || editPaths.length > 0 || webSearch || webFetchDomains.length > 0) {
+      return compositionFailure(
+        "Claude workspace-write accepts only --allow-bash grants; its file tools already cover the working directory."
+      );
+    }
+    return {
+      ok: true,
+      mode: "acceptEdits",
+      tools: [
+        "Read",
+        "Glob",
+        "Grep",
+        "Edit",
+        "Write",
+        ...bashPatterns.length > 0 ? ["Bash"] : []
+      ],
+      allowed_tools: bashPatterns.map((pattern) => `Bash(${pattern})`),
+      restricted: true
+    };
+  }
+  return compositionFailure(`Unsupported Claude permission mode: ${mode}.`);
+}
+function compositionFailure(message) {
+  return { ok: false, option: "runtime_policy.permission_mode", message };
+}
+function isExactBashPattern(pattern) {
+  return pattern.length > 0 && pattern.length <= 256 && pattern.trim() === pattern && !/[(),]/.test(pattern) && ![...pattern].some((character) => {
+    const code = character.charCodeAt(0);
+    return code < 32 || code === 127;
+  }) && /[^\s*:]/.test(pattern);
+}
+function defaultRuntimePolicy(policy = {}) {
+  return {
+    permission_mode: policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode,
+    ...policy.sandbox ? { sandbox: policy.sandbox } : {},
+    ...policy.approval_policy ? { approval_policy: policy.approval_policy } : {},
+    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {},
+    ...policy.read_paths ? { read_paths: policy.read_paths } : {},
+    ...policy.edit_paths ? { edit_paths: policy.edit_paths } : {},
+    ...policy.bash_patterns ? { bash_patterns: policy.bash_patterns } : {},
+    ...policy.web_search ? { web_search: true } : {},
+    ...policy.web_fetch_domains ? { web_fetch_domains: policy.web_fetch_domains } : {}
+  };
+}
+function buildChildEnvironment({
+  parentEnv,
+  request,
+  hostEnv
+}) {
+  const allowedNames = /* @__PURE__ */ new Set([
+    ...BASE_ENV_ALLOWLIST,
+    ...providerEnvAllowlist(request.provider),
+    ...request.runtime_policy?.env_allowlist ?? []
+  ]);
+  for (const name of Object.values(PROVIDER_EXECUTABLE_ENV)) {
+    allowedNames.delete(name);
+  }
+  const childEnv = {};
+  for (const name of allowedNames) {
+    const value = parentEnv[name];
+    if (value !== void 0) childEnv[name] = value;
+  }
+  return {
+    ...childEnv,
+    ...hostEnv
+  };
+}
+function buildProviderProbeEnvironment({
+  parentEnv,
+  provider
+}) {
+  const allowedNames = /* @__PURE__ */ new Set([
+    ...BASE_ENV_ALLOWLIST,
+    ...providerEnvAllowlist(provider)
+  ]);
+  const probeEnv = {};
+  for (const name of allowedNames) {
+    const value = parentEnv[name];
+    if (value !== void 0) probeEnv[name] = value;
+  }
+  return probeEnv;
+}
+function providerEnvAllowlist(provider) {
+  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
+}
+function redactedRuntimePolicyDiagnostics(policy = {}) {
+  const effectivePolicy = defaultRuntimePolicy(policy);
+  return {
+    permission_mode: effectivePolicy.permission_mode,
+    ...effectivePolicy.sandbox ? { sandbox: effectivePolicy.sandbox } : {},
+    ...effectivePolicy.approval_policy ? { approval_policy: effectivePolicy.approval_policy } : {},
+    ...effectivePolicy.env_allowlist ? { env_allowlist: [...effectivePolicy.env_allowlist] } : {}
+  };
+}
+function validateOptionValue(option, value, supportedValues) {
+  if (!value) return void 0;
+  if (supportedValues?.includes(value)) return void 0;
+  return unsupported(
+    option,
+    supportedValues ? `Unsupported ${option}: ${value}.` : `Provider does not support ${option}.`
+  );
+}
+function unsupported(option, message) {
+  return {
+    ok: false,
+    code: "PROVIDER_UNSUPPORTED_OPTION",
+    option,
+    message
+  };
+}
+
+// src/plugins/consensus/provider-cli/invocation.ts
 function buildProviderInvocation(adapter, request, options = {}) {
   return adapter.buildInvocation(request, {
     strategy: options.strategy ?? defaultStrategy(adapter),
@@ -511,64 +829,56 @@ var buildClaudeInvocation = (request, options = {}) => {
     argv.push("--effort", request.effort);
     redactedArgv.push("--effort", request.effort);
   }
-  const claudePermissionMode = mapClaudePermissionMode(
-    request.runtime_policy?.permission_mode
+  const permission = composeClaudePermissionProfile(
+    request.runtime_policy ?? {}
   );
-  if (claudePermissionMode) {
-    argv.push("--permission-mode", claudePermissionMode);
-    redactedArgv.push("--permission-mode", claudePermissionMode);
+  if (!permission.ok) {
+    throw new Error(permission.message);
+  }
+  if (permission.allowed_tools.length > 0) {
+    argv.push("--allowedTools", ...permission.allowed_tools);
+    redactedArgv.push("--allowedTools", "<scoped-tool-rules>");
+  }
+  if (permission.tools) {
+    argv.push("--tools", permission.tools.join(","));
+    redactedArgv.push("--tools", permission.tools.join(","));
+  }
+  if (permission.restricted) {
+    argv.push("--permission-prompts", "none");
+    redactedArgv.push("--permission-prompts", "none");
+  }
+  if (permission.mode) {
+    argv.push("--permission-mode", permission.mode);
+    redactedArgv.push("--permission-mode", permission.mode);
+  }
+  if (permission.restricted) {
+    argv.push("--strict-mcp-config");
+    redactedArgv.push("--strict-mcp-config");
   }
   if (options.resumeSessionId) {
     argv.push("--resume", options.resumeSessionId);
     redactedArgv.push("--resume", options.resumeSessionId);
   }
-  const policy = request.runtime_policy;
-  const scopedTools = [
-    ...(policy?.read_paths ?? []).map((filePath) => `Read(/${filePath})`),
-    ...(policy?.edit_paths ?? []).map((filePath) => `Edit(/${filePath})`),
-    ...policy?.web_search ? ["WebSearch"] : [],
-    ...(policy?.web_fetch_domains ?? []).map(
-      (domain) => `WebFetch(domain:${domain})`
-    )
-  ];
-  if (scopedTools.length > 0) {
-    const availableTools = [
-      ...policy?.read_paths?.length ? ["Read"] : [],
-      ...policy?.edit_paths?.length ? ["Edit", "Write"] : [],
-      ...policy?.web_search ? ["WebSearch"] : [],
-      ...policy?.web_fetch_domains?.length ? ["WebFetch"] : []
-    ];
-    argv.push(
-      "--allowedTools",
-      ...scopedTools,
-      "--tools",
-      availableTools.join(","),
-      "--permission-prompts",
-      "none",
-      "--permission-mode",
-      "dontAsk",
-      "--strict-mcp-config"
-    );
-    redactedArgv.push(
-      "--allowedTools",
-      "<scoped-tool-rules>",
-      "--tools",
-      availableTools.join(","),
-      "--permission-prompts",
-      "none",
-      "--permission-mode",
-      "dontAsk",
-      "--strict-mcp-config"
-    );
-  }
-  return invocation({
-    executable: options.executable ?? "claude",
-    argv,
-    redactedArgv,
-    request,
-    strategy,
-    outputMode: "stdout_json"
-  });
+  return {
+    ...invocation({
+      executable: options.executable ?? "claude",
+      argv,
+      redactedArgv,
+      request,
+      strategy,
+      outputMode: "stdout_json"
+    }),
+    permission_profile: {
+      mode: permission.mode ?? "provider_default",
+      ...permission.tools ? { tools: [...permission.tools] } : {},
+      // File paths stay out of diagnostics, as they do in redacted_command.
+      ...permission.allowed_tools.length > 0 ? {
+        allowed_tools: permission.allowed_tools.map(
+          (rule) => rule.replace(/^(Read|Edit)\(.*\)$/s, "$1(<path>)")
+        )
+      } : {}
+    }
+  };
 };
 var buildCodexInvocation = (request, options = {}) => {
   const strategy = options.strategy ?? "prompt_only";
@@ -657,20 +967,11 @@ function invocation(input) {
     shell: false
   };
 }
-function mapClaudePermissionMode(permissionMode) {
-  if (!permissionMode || permissionMode === "non-interactive") {
-    return void 0;
-  }
-  if (permissionMode === "read-only") {
-    return "plan";
-  }
-  return permissionMode;
-}
 function codexConfigOverride(key, value) {
   return `${key}=${JSON.stringify(value)}`;
 }
 function codexLastMessageFile() {
-  return path2.join(
+  return path4.join(
     tmpdir(),
     `consensus-codex-last-message-${randomUUID2()}.txt`
   );
@@ -1148,7 +1449,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
         model: true,
         effort: "effort",
         runtime_policy: {
-          permission_modes: ["non-interactive", "read-only"],
+          permission_modes: ["non-interactive", "read-only", "workspace-write"],
           env_allowlist: true
         }
       },
@@ -1158,8 +1459,20 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       continuation: {
         native_resume: "verified",
         session_id_source: "stdout_json.session_id",
-        evidence: "Live same-session smoke 2026-09-28 with Claude Code 2.1.284: `--print --output-format json --json-schema --resume <uuid>` recalled an unseen marker, preserved session_id, model, and schema. `--resume` also accepts a session title, so the wrapper requires a UUID."
+        evidence: "Live same-session smoke 2026-09-28 with Claude Code 2.1.284: `--print --output-format json --json-schema --resume <uuid>` recalled an unseen marker, preserved session_id, model, and schema. `--resume` also accepts a session title, so the wrapper requires a UUID. Write-mode resume, raw CLI 2026-11-11 with Claude Code 2.1.322 in a linked worktree: `--resume <uuid>` with the full workspace-write flag set kept the session_id, the acceptEdits mode, the explicit tool set (WebFetch absent), and the Bash allowlist; a write outside the worktree and an ungranted `python3` were still denied and a granted `git status` ran."
       }
+      // Workspace-write composition, raw CLI 2026-11-11 with Claude Code
+      // 2.1.322 in a linked worktree (`--permission-mode acceptEdits --tools
+      // Read,Glob,Grep,Edit,Write,Bash --allowedTools 'Bash(git status:*)'
+      // --permission-prompts none --strict-mcp-config`): Write-tool and Bash
+      // redirection writes outside the worktree and an ungranted `python3 -c`
+      // write were denied (listed in permission_denials); the granted
+      // `git status` ran. acceptEdits still auto-approves simple filesystem
+      // commands such as `touch` inside the working directory, and the user's
+      // own allow rules (for example `Bash(node:*)`) still apply.
+      // Prompt on stdin, same date and version: `--print --output-format json
+      // --permission-mode plan --json-schema` with the prompt on stdin
+      // returned a `success` result with the expected structured_output.
     }
   },
   {
@@ -1215,8 +1528,18 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       continuation: {
         native_resume: "verified",
         session_id_source: "jsonl.thread.started.thread_id",
-        evidence: "Live same-session smoke 2026-09-28 with codex-cli 0.157.1: `exec resume --json --output-schema -c sandbox_mode=... <uuid> -` recalled an unseen marker with read-only sandbox and approval never. `exec resume` rejects `--sandbox`, and a non-UUID that matches no thread name silently starts a new thread, so the wrapper requires a UUID and verifies the returned thread_id."
+        evidence: 'Live same-session smoke 2026-09-28 with codex-cli 0.157.1: `exec resume --json --output-schema -c sandbox_mode=... <uuid> -` recalled an unseen marker with read-only sandbox and approval never. `exec resume` rejects `--sandbox`, and a non-UUID that matches no thread name silently starts a new thread, so the wrapper requires a UUID and verifies the returned thread_id. Write-mode resume, raw CLI 2026-11-11 with codex-cli 0.166.0 in a linked worktree: `exec resume <uuid> -c sandbox_mode="workspace-write" -c approval_policy="never"` returned the same thread_id, edited inside the worktree, and was denied writing outside it and to $HOME, although the ambient config set sandbox_mode="danger-full-access"; the override, not ambient config, applies.'
       }
+      // Workspace-write in a linked worktree, raw CLI 2026-11-11 with
+      // codex-cli 0.166.0 (`exec --sandbox workspace-write -c
+      // approval_policy="never"`): edits inside the worktree worked and writes
+      // outside it were denied ("operation not permitted"). `git add` and
+      // `git commit` failed, because the linked worktree's index lock lives
+      // under the main checkout's `.git/worktrees/<name>/`, outside the
+      // writable root. The adapter never widens the sandbox for this: the
+      // peer leaves changes unstaged and the host commits. Network access is
+      // whatever the sandbox configuration says; the invocation does not
+      // override it.
     }
   },
   {
@@ -1853,6 +2176,7 @@ function parseRunCommand(tokens) {
       "--env-allow",
       "--allow-read",
       "--allow-edit",
+      "--allow-bash",
       "--allow-web-search",
       "--allow-web-fetch-domain",
       "--max-depth",
@@ -1882,6 +2206,7 @@ function parseRunCommand(tokens) {
       "--env-allow",
       "--allow-read",
       "--allow-edit",
+      "--allow-bash",
       "--allow-web-fetch-domain",
       "--max-depth",
       "--resume",
@@ -1925,6 +2250,8 @@ function parseRunCommand(tokens) {
   if (readPaths.length > 0) command.readPaths = readPaths;
   const editPaths = valuesFor(parsed.flags, "--allow-edit");
   if (editPaths.length > 0) command.editPaths = editPaths;
+  const bashPatterns = valuesFor(parsed.flags, "--allow-bash");
+  if (bashPatterns.length > 0) command.bashPatterns = bashPatterns;
   if (parsed.flags.has("--allow-web-search")) command.webSearch = true;
   const webFetchDomains = valuesFor(parsed.flags, "--allow-web-fetch-domain");
   if (webFetchDomains.length > 0) command.webFetchDomains = webFetchDomains;
@@ -2085,6 +2412,7 @@ function assertNoRequestJsonConflicts(command, positionalCount) {
     command.envAllow && command.envAllow.length > 0 ? "--env-allow" : void 0,
     command.readPaths ? "--allow-read" : void 0,
     command.editPaths ? "--allow-edit" : void 0,
+    command.bashPatterns ? "--allow-bash" : void 0,
     command.webSearch ? "--allow-web-search" : void 0,
     command.webFetchDomains ? "--allow-web-fetch-domain" : void 0,
     command.maxDepth !== void 0 ? "--max-depth" : void 0,
@@ -2111,6 +2439,9 @@ function normalizeRuntimePolicy(command) {
   }
   if (command.readPaths) runtimePolicy.read_paths = command.readPaths;
   if (command.editPaths) runtimePolicy.edit_paths = command.editPaths;
+  if (command.bashPatterns) {
+    runtimePolicy.bash_patterns = command.bashPatterns;
+  }
   if (command.webSearch) runtimePolicy.web_search = true;
   if (command.webFetchDomains) {
     runtimePolicy.web_fetch_domains = command.webFetchDomains;
@@ -2228,6 +2559,7 @@ function validateRuntimePolicy(value) {
   for (const field of [
     "read_paths",
     "edit_paths",
+    "bash_patterns",
     "web_fetch_domains"
   ]) {
     if (value[field] !== void 0 && !isStringArray(value[field])) {
@@ -2484,228 +2816,6 @@ function buildAttemptSummary(attempts, retryable) {
 import { constants } from "node:fs";
 import { access as access2 } from "node:fs/promises";
 import path5 from "node:path";
-
-// src/plugins/consensus/provider-cli/executable.ts
-import path3 from "node:path";
-var PROVIDER_EXECUTABLE_ENV = {
-  claude: "CONSENSUS_CLAUDE_EXECUTABLE",
-  codex: "CONSENSUS_CODEX_EXECUTABLE",
-  cursor: "CONSENSUS_CURSOR_EXECUTABLE"
-};
-function resolveProviderExecutable(adapter, env) {
-  const variable = PROVIDER_EXECUTABLE_ENV[adapter.id];
-  const value = env[variable];
-  if (value === void 0 || value === "") {
-    return { ok: true, executable: adapter.executable };
-  }
-  if (!path3.isAbsolute(value)) {
-    return {
-      ok: false,
-      message: `${variable} must be an absolute path to an executable, not ${JSON.stringify(value)}.`
-    };
-  }
-  return { ok: true, executable: value };
-}
-
-// src/plugins/consensus/provider-cli/runtime-policy.ts
-import { realpathSync, statSync } from "node:fs";
-import path4 from "node:path";
-var DEFAULT_RUNTIME_POLICY = {
-  permission_mode: "non-interactive"
-};
-var BASE_ENV_ALLOWLIST = [
-  "PATH",
-  "HOME",
-  "TMPDIR",
-  "TEMP",
-  "TMP",
-  "USER",
-  "LOGNAME",
-  "SHELL",
-  "LANG"
-];
-var PROVIDER_ENV_ALLOWLIST = [
-  ["claude", ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]],
-  ["codex", ["OPENAI_API_KEY"]],
-  ["cursor", ["CURSOR_API_KEY"]]
-];
-function validateProviderOptions(request, capabilities) {
-  if (request.model && !capabilities.options.model) {
-    return unsupported("model", "Provider does not support model selection.");
-  }
-  if (request.effort && capabilities.options.effort === null) {
-    return unsupported("effort", "Provider does not support effort selection.");
-  }
-  const policy = defaultRuntimePolicy(request.runtime_policy);
-  const runtimeCapabilities = capabilities.options.runtime_policy;
-  const permissionResult = validateOptionValue(
-    "runtime_policy.permission_mode",
-    policy.permission_mode,
-    runtimeCapabilities.permission_modes
-  );
-  if (permissionResult) return permissionResult;
-  const sandboxResult = validateOptionValue(
-    "runtime_policy.sandbox",
-    policy.sandbox,
-    runtimeCapabilities.sandboxes
-  );
-  if (sandboxResult) return sandboxResult;
-  const approvalResult = validateOptionValue(
-    "runtime_policy.approval_policy",
-    policy.approval_policy,
-    runtimeCapabilities.approval_policies
-  );
-  if (approvalResult) return approvalResult;
-  if (policy.env_allowlist && policy.env_allowlist.length > 0 && !runtimeCapabilities.env_allowlist) {
-    return unsupported(
-      "runtime_policy.env_allowlist",
-      "Provider does not support child environment allowlist extension."
-    );
-  }
-  const hasScopedTools = hasScopedToolAccess(policy);
-  if (hasScopedTools && request.provider !== "claude") {
-    return unsupported(
-      "runtime_policy.scoped_tools",
-      "Scoped tool grants are supported only by the Claude provider."
-    );
-  }
-  if (hasScopedTools && policy.permission_mode !== "non-interactive") {
-    return unsupported(
-      "runtime_policy.permission_mode",
-      "Scoped Claude tool grants require non-interactive permission mode."
-    );
-  }
-  for (const [field, paths] of [
-    ["read_paths", policy.read_paths],
-    ["edit_paths", policy.edit_paths]
-  ]) {
-    for (const filePath of paths ?? []) {
-      if (!path4.isAbsolute(filePath) || path4.normalize(filePath) !== filePath || filePath.split(path4.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
-        return unsupported(
-          `runtime_policy.${field}`,
-          `${field} requires exact absolute paths without parent traversal or glob characters.`
-        );
-      }
-      try {
-        const target = statSync(filePath, { throwIfNoEntry: false });
-        if (target) {
-          if (!target.isFile() || realpathSync(filePath) !== filePath) {
-            return unsupported(
-              `runtime_policy.${field}`,
-              `${field} requires canonical regular-file targets, not directories or symlinks.`
-            );
-          }
-        } else if (field === "read_paths" || realpathSync(path4.dirname(filePath)) !== path4.dirname(filePath)) {
-          return unsupported(
-            `runtime_policy.${field}`,
-            `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
-          );
-        }
-      } catch {
-        return unsupported(
-          `runtime_policy.${field}`,
-          `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
-        );
-      }
-    }
-  }
-  for (const domain of policy.web_fetch_domains ?? []) {
-    if (domain.length > 253 || !/^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
-      domain
-    )) {
-      return unsupported(
-        "runtime_policy.web_fetch_domains",
-        "WebFetch grants require exact domain names without schemes, ports, or wildcards."
-      );
-    }
-  }
-  return { ok: true };
-}
-function hasScopedToolAccess(policy = {}) {
-  return Boolean(
-    policy.read_paths?.length || policy.edit_paths?.length || policy.web_search || policy.web_fetch_domains?.length
-  );
-}
-function defaultRuntimePolicy(policy = {}) {
-  return {
-    permission_mode: policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode,
-    ...policy.sandbox ? { sandbox: policy.sandbox } : {},
-    ...policy.approval_policy ? { approval_policy: policy.approval_policy } : {},
-    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {},
-    ...policy.read_paths ? { read_paths: policy.read_paths } : {},
-    ...policy.edit_paths ? { edit_paths: policy.edit_paths } : {},
-    ...policy.web_search ? { web_search: true } : {},
-    ...policy.web_fetch_domains ? { web_fetch_domains: policy.web_fetch_domains } : {}
-  };
-}
-function buildChildEnvironment({
-  parentEnv,
-  request,
-  hostEnv
-}) {
-  const allowedNames = /* @__PURE__ */ new Set([
-    ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(request.provider),
-    ...request.runtime_policy?.env_allowlist ?? []
-  ]);
-  for (const name of Object.values(PROVIDER_EXECUTABLE_ENV)) {
-    allowedNames.delete(name);
-  }
-  const childEnv = {};
-  for (const name of allowedNames) {
-    const value = parentEnv[name];
-    if (value !== void 0) childEnv[name] = value;
-  }
-  return {
-    ...childEnv,
-    ...hostEnv
-  };
-}
-function buildProviderProbeEnvironment({
-  parentEnv,
-  provider
-}) {
-  const allowedNames = /* @__PURE__ */ new Set([
-    ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(provider)
-  ]);
-  const probeEnv = {};
-  for (const name of allowedNames) {
-    const value = parentEnv[name];
-    if (value !== void 0) probeEnv[name] = value;
-  }
-  return probeEnv;
-}
-function providerEnvAllowlist(provider) {
-  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
-}
-function redactedRuntimePolicyDiagnostics(policy = {}) {
-  const effectivePolicy = defaultRuntimePolicy(policy);
-  return {
-    permission_mode: effectivePolicy.permission_mode,
-    ...effectivePolicy.sandbox ? { sandbox: effectivePolicy.sandbox } : {},
-    ...effectivePolicy.approval_policy ? { approval_policy: effectivePolicy.approval_policy } : {},
-    ...effectivePolicy.env_allowlist ? { env_allowlist: [...effectivePolicy.env_allowlist] } : {}
-  };
-}
-function validateOptionValue(option, value, supportedValues) {
-  if (!value) return void 0;
-  if (supportedValues?.includes(value)) return void 0;
-  return unsupported(
-    option,
-    supportedValues ? `Unsupported ${option}: ${value}.` : `Provider does not support ${option}.`
-  );
-}
-function unsupported(option, message) {
-  return {
-    ok: false,
-    code: "PROVIDER_UNSUPPORTED_OPTION",
-    option,
-    message
-  };
-}
-
-// src/plugins/consensus/provider-cli/probe.ts
 var DEFAULT_PROBE_TIMEOUT_SEC = 10;
 var DEFAULT_PROBE_MAX_OUTPUT_BYTES = 64 * 1024;
 async function probeProviderRegistry({
@@ -3379,7 +3489,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
-  const submitCaptureEnabled = (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && hasScopedToolAccess(request.runtime_policy)) && !(request.provider === "cursor" && request.runtime_policy?.permission_mode === "read-only");
+  const submitCaptureEnabled = (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && (hasScopedToolAccess(request.runtime_policy) || request.runtime_policy?.permission_mode === "workspace-write")) && !(request.provider === "cursor" && request.runtime_policy?.permission_mode === "read-only");
   const strategy = selectStructuredOutputStrategy(adapter, {
     submitCaptureEnabled,
     strategy: dependencies.transport?.strategy
@@ -3458,7 +3568,8 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         {
           strategy_used: strategy,
           output_mode: invocation2.output_mode,
-          redacted_command: invocation2.redacted_command
+          redacted_command: invocation2.redacted_command,
+          ...invocation2.permission_profile ? { permission_profile: invocation2.permission_profile } : {}
         },
         hostGuard.diagnostics,
         processResult.diagnostics,
@@ -3827,6 +3938,7 @@ Commands:
       [--model <name>] [--effort <level>]
       [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
       [--allow-read <absolute-file>] [--allow-edit <absolute-file>]
+      [--allow-bash <command-pattern>]
       [--allow-web-search] [--allow-web-fetch-domain <domain>] (Claude only; repeat grants)
       [--env-allow <name>] [--max-attempts <n>] [--timeout-sec <n>]
       [--max-output-bytes <n>] [--cwd <path>] [--max-depth <n>]

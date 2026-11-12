@@ -192,6 +192,44 @@ describe('provider CLI argument parsing', () => {
     });
   });
 
+  it('normalizes repeated Bash grants into the runtime policy', async () => {
+    const command = parseConsensusCliArgs([
+      'run',
+      '--provider',
+      'claude',
+      '--schema',
+      'schema.json',
+      '--json',
+      '--prompt',
+      'Edit the file.',
+      '--permission-mode',
+      'workspace-write',
+      '--allow-bash',
+      'git status:*',
+      '--allow-bash',
+      'pnpm run test',
+    ]);
+
+    await expect(normalizeRunRequest(command, testIo())).resolves.toMatchObject(
+      {
+        runtime_policy: {
+          permission_mode: 'workspace-write',
+          bash_patterns: ['git status:*', 'pnpm run test'],
+        },
+      },
+    );
+    expect(() =>
+      parseConsensusCliArgs([
+        'run',
+        '--request-json',
+        'request.json',
+        '--allow-bash',
+        'git status:*',
+        '--json',
+      ]),
+    ).toThrow(/--allow-bash/);
+  });
+
   it('normalizes run host context from native runtime markers', async () => {
     const command = parseConsensusCliArgs([
       'run',
@@ -402,6 +440,10 @@ describe('provider CLI argument parsing', () => {
     [
       { runtime_policy: { env_allowlist: ['OPENAI_API_KEY', 42] } },
       'Request JSON runtime_policy.env_allowlist must be a string array',
+    ],
+    [
+      { runtime_policy: { bash_patterns: 'git status:*' } },
+      'Request JSON runtime_policy.bash_patterns must be a string array',
     ],
     [{ host: [] }, 'Request JSON host must be an object'],
     [

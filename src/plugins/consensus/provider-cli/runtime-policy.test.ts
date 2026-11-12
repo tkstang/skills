@@ -15,6 +15,7 @@ import {
 import type {
   ConsensusCliRunRequest,
   ProviderCapabilities,
+  ProviderRuntimePolicy,
 } from '../provider-cli/types.js';
 
 describe('provider runtime policy validation', () => {
@@ -116,6 +117,128 @@ describe('provider runtime policy validation', () => {
         capabilities('claude'),
       ),
     ).toMatchObject({ ok: false, option: 'runtime_policy.permission_mode' });
+  });
+
+  describe('Claude permission composition', () => {
+    const readPath = realpathSync(fileURLToPath(import.meta.url));
+    const editPath = path.join(path.dirname(readPath), 'new-output.md');
+
+    it.each<[string, ProviderRuntimePolicy]>([
+      ['read-only without grants', { permission_mode: 'read-only' }],
+      [
+        'read-only with read grants',
+        { permission_mode: 'read-only', read_paths: [readPath] },
+      ],
+      [
+        'non-interactive without grants',
+        { permission_mode: 'non-interactive' },
+      ],
+      [
+        'non-interactive with read, edit, and web grants',
+        {
+          permission_mode: 'non-interactive',
+          read_paths: [readPath],
+          edit_paths: [editPath],
+          web_search: true,
+          web_fetch_domains: ['example.org'],
+        },
+      ],
+      [
+        'workspace-write without grants',
+        { permission_mode: 'workspace-write' },
+      ],
+      [
+        'workspace-write with Bash grants',
+        {
+          permission_mode: 'workspace-write',
+          bash_patterns: ['git status:*', 'pnpm run test'],
+        },
+      ],
+    ])('accepts %s', (_label, runtimePolicy) => {
+      expect(
+        validateProviderOptions(
+          request({ provider: 'claude', runtime_policy: runtimePolicy }),
+          capabilities('claude'),
+        ),
+      ).toEqual({ ok: true });
+    });
+
+    it.each<[string, ProviderRuntimePolicy]>([
+      ['read-only', { edit_paths: [editPath] }],
+      ['read-only', { bash_patterns: ['git status:*'] }],
+      ['read-only', { web_search: true }],
+      ['read-only', { web_fetch_domains: ['example.org'] }],
+      ['non-interactive', { bash_patterns: ['git status:*'] }],
+      ['workspace-write', { read_paths: [readPath] }],
+      ['workspace-write', { edit_paths: [editPath] }],
+      ['workspace-write', { web_search: true }],
+      ['workspace-write', { web_fetch_domains: ['example.org'] }],
+    ])('rejects %s with %j', (mode, grants) => {
+      expect(
+        validateProviderOptions(
+          request({
+            provider: 'claude',
+            runtime_policy: { permission_mode: mode, ...grants },
+          }),
+          capabilities('claude'),
+        ),
+      ).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_UNSUPPORTED_OPTION',
+        option: 'runtime_policy.permission_mode',
+      });
+    });
+
+    it('rejects Claude modes outside the composition table', () => {
+      for (const mode of ['plan', 'acceptEdits', 'bypassPermissions']) {
+        expect(
+          validateProviderOptions(
+            request({
+              provider: 'claude',
+              runtime_policy: { permission_mode: mode },
+            }),
+            capabilities('claude'),
+          ),
+        ).toMatchObject({
+          ok: false,
+          option: 'runtime_policy.permission_mode',
+        });
+      }
+    });
+
+    it('rejects Bash grants that are not one exact command pattern', () => {
+      for (const pattern of [
+        '*',
+        ':*',
+        ' git status',
+        'git status)',
+        'git (status)',
+        'git status,rm -rf',
+        'git status\nrm -rf /',
+      ]) {
+        expect(
+          validateProviderOptions(
+            request({
+              provider: 'claude',
+              runtime_policy: {
+                permission_mode: 'workspace-write',
+                bash_patterns: [pattern],
+              },
+            }),
+            capabilities('claude'),
+          ),
+        ).toMatchObject({ ok: false, option: 'runtime_policy.bash_patterns' });
+      }
+      expect(
+        validateProviderOptions(
+          request({
+            provider: 'codex',
+            runtime_policy: { bash_patterns: ['git status:*'] },
+          }),
+          capabilities('codex'),
+        ),
+      ).toMatchObject({ ok: false, option: 'runtime_policy.scoped_tools' });
+    });
   });
 
   it('rejects directory grants while allowing a file and a new file in a canonical parent', () => {

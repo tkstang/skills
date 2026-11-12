@@ -325,12 +325,14 @@ async function runStructuredTurn(
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
   // Peers that cannot run a shell command cannot call `consensus submit`, so
-  // they answer through the final message instead.
+  // they answer through the final message instead. Claude's scoped and
+  // workspace-write profiles allow no Bash beyond explicit grants.
   const submitCaptureEnabled =
     (dependencies.transport?.submitCaptureEnabled ?? true) &&
     !(
       request.provider === 'claude' &&
-      hasScopedToolAccess(request.runtime_policy)
+      (hasScopedToolAccess(request.runtime_policy) ||
+        request.runtime_policy?.permission_mode === 'workspace-write')
     ) &&
     !(
       request.provider === 'cursor' &&
@@ -423,6 +425,9 @@ async function runStructuredTurn(
           strategy_used: strategy,
           output_mode: invocation.output_mode,
           redacted_command: invocation.redacted_command,
+          ...(invocation.permission_profile
+            ? { permission_profile: invocation.permission_profile }
+            : {}),
         },
         hostGuard.diagnostics,
         processResult.diagnostics,

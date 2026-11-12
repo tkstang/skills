@@ -1,6 +1,6 @@
 ---
 title: 'Configuration'
-description: 'Consensus config JSON examples, field types, model and effort support, workflow defaults, precedence, provider diagnostics, and provider program overrides.'
+description: 'Consensus config JSON examples, field types, model and effort support, workflow defaults, precedence, provider diagnostics, provider run controls, and provider program overrides.'
 ---
 
 # Configuration
@@ -396,6 +396,63 @@ the JSON envelope instead of checking `$?`. CLI usage failures
 (`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` subcommand
 uses ordinary nonzero exit codes for validation or capture failures so the peer
 can correct the verdict in-turn.
+
+## Provider run controls
+
+These `consensus run` controls apply to every caller, through flags or
+`--request-json`, and are checked after the runtime policy is normalized and
+before any provider process starts.
+
+### Claude permission profiles
+
+Each accepted pairing of `--permission-mode` and Claude grants maps to one set
+of Claude flags. Any other pairing is rejected with
+`PROVIDER_UNSUPPORTED_OPTION` before spawn. `--tools` is always explicit when
+grants apply, because `--allowedTools` alone does not exclude other tools.
+
+| Profile                                        | `--permission-mode` | Tools (`--tools`)                                          | Pre-approved (`--allowedTools`)      | Other flags                                     |
+| ---------------------------------------------- | ------------------- | ---------------------------------------------------------- | ------------------------------------ | ----------------------------------------------- |
+| `read-only`                                    | `plan`              | Claude's default for plan mode                             | none                                 | none                                            |
+| `read-only` + `--allow-read <file>`            | `dontAsk`           | `Read,Glob,Grep`                                           | `Read(<file>)` per grant             | `--permission-prompts none --strict-mcp-config` |
+| `non-interactive` (the default)                | none                | Claude's default                                           | none                                 | none                                            |
+| `non-interactive` + read, edit, or web grants  | `dontAsk`           | the granted tools                                          | each grant                           | `--permission-prompts none --strict-mcp-config` |
+| `workspace-write`, optionally + `--allow-bash` | `acceptEdits`       | `Read,Glob,Grep,Edit,Write`, plus `Bash` with a Bash grant | `Bash(<pattern>)` per `--allow-bash` | `--permission-prompts none --strict-mcp-config` |
+
+`--allow-bash <pattern>` is repeatable and accepted only with
+`workspace-write`. A pattern is one line, such as `git status:*`, without
+parentheses or commas, and must name a command rather than only wildcards.
+The envelope's `diagnostics.permission_profile` records the Claude mode, tool
+list, and allow list that the run applied; file grants appear there as
+`Read(<path>)` and `Edit(<path>)`, so private paths stay out of diagnostics.
+
+These are Claude Code permission rules, not an operating-system sandbox. An
+authorized live check (Claude Code 2.1.322, 2026-11-11, linked worktree) found
+that `workspace-write` denied Write-tool and shell-redirection writes outside
+the worktree and an ungranted `python3` command, and allowed a granted
+`git status`. Two limits remain:
+
+- `acceptEdits` auto-approves simple filesystem commands such as `touch`
+  inside the working directory, even with no Bash grant.
+- Your own user and project allow rules still apply. An interpreter you have
+  allowlisted yourself, such as `Bash(node:*)`, is not blocked.
+
+A resumed write turn (`--resume`) repeats the same flags; the same live check
+confirmed that the resumed session kept its mode, tool set, and allowlist.
+
+### Codex write runs
+
+Codex `--sandbox workspace-write --approval-policy never` edits inside the
+working directory and is denied writes outside it. Network access is whatever
+your Codex sandbox configuration says: the invocation does not override it,
+so do not assume network is off. A resumed turn sets the same sandbox through
+`-c sandbox_mode=...`, which a live check (codex-cli 0.166.0, 2026-11-11)
+confirmed applies over an ambient `danger-full-access` config.
+
+In a linked worktree, Codex cannot stage or commit: the worktree's git index
+lives under the main checkout's `.git/worktrees/`, outside the writable root,
+so `git add` and `git commit` fail with `Operation not permitted`. consensus
+never widens the sandbox for this. The peer leaves its changes unstaged, and
+the host stages and commits them.
 
 ## Synthesizer
 

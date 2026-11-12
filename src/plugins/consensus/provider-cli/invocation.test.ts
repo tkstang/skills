@@ -8,6 +8,8 @@ import {
 import { defaultRuntimePolicy } from '../provider-cli/runtime-policy.js';
 import type {
   ConsensusCliRunRequest,
+  ProviderPermissionProfile,
+  ProviderRuntimePolicy,
   StructuredOutputStrategy,
 } from '../provider-cli/types.js';
 
@@ -77,30 +79,235 @@ describe('provider invocation builders', () => {
     );
   });
 
-  it('passes only explicit scoped Claude tool grants and redacts private paths', () => {
-    const invocation = buildInvocation('claude', 'provider_validated', {
-      runtime_policy: {
-        permission_mode: 'non-interactive',
-        read_paths: ['/private/vault/brief with spaces.md'],
-        edit_paths: ['/private/scratch/result.md'],
-        web_search: true,
-        web_fetch_domains: ['example.org'],
-      },
-    });
+  it.each<[string, ProviderRuntimePolicy, string[], ProviderPermissionProfile]>(
+    [
+      [
+        'read-only',
+        { permission_mode: 'read-only' },
+        ['--permission-mode', 'plan'],
+        { mode: 'plan' },
+      ],
+      [
+        'read-only with a read grant',
+        {
+          permission_mode: 'read-only',
+          read_paths: ['/private/vault/brief with spaces.md'],
+        },
+        [
+          '--allowedTools',
+          'Read(//private/vault/brief with spaces.md)',
+          '--tools',
+          'Read,Glob,Grep',
+          '--permission-prompts',
+          'none',
+          '--permission-mode',
+          'dontAsk',
+          '--strict-mcp-config',
+        ],
+        {
+          mode: 'dontAsk',
+          tools: ['Read', 'Glob', 'Grep'],
+          allowed_tools: ['Read(<path>)'],
+        },
+      ],
+      [
+        'non-interactive',
+        { permission_mode: 'non-interactive' },
+        [],
+        { mode: 'provider_default' },
+      ],
+      [
+        'non-interactive with scoped grants',
+        {
+          permission_mode: 'non-interactive',
+          read_paths: ['/private/vault/brief with spaces.md'],
+          edit_paths: ['/private/scratch/result.md'],
+          web_search: true,
+          web_fetch_domains: ['example.org'],
+        },
+        [
+          '--allowedTools',
+          'Read(//private/vault/brief with spaces.md)',
+          'Edit(//private/scratch/result.md)',
+          'WebSearch',
+          'WebFetch(domain:example.org)',
+          '--tools',
+          'Read,Edit,Write,WebSearch,WebFetch',
+          '--permission-prompts',
+          'none',
+          '--permission-mode',
+          'dontAsk',
+          '--strict-mcp-config',
+        ],
+        {
+          mode: 'dontAsk',
+          tools: ['Read', 'Edit', 'Write', 'WebSearch', 'WebFetch'],
+          allowed_tools: [
+            'Read(<path>)',
+            'Edit(<path>)',
+            'WebSearch',
+            'WebFetch(domain:example.org)',
+          ],
+        },
+      ],
+      [
+        'workspace-write',
+        { permission_mode: 'workspace-write' },
+        [
+          '--tools',
+          'Read,Glob,Grep,Edit,Write',
+          '--permission-prompts',
+          'none',
+          '--permission-mode',
+          'acceptEdits',
+          '--strict-mcp-config',
+        ],
+        {
+          mode: 'acceptEdits',
+          tools: ['Read', 'Glob', 'Grep', 'Edit', 'Write'],
+        },
+      ],
+      [
+        'workspace-write with Bash grants',
+        {
+          permission_mode: 'workspace-write',
+          bash_patterns: ['git status:*', 'pnpm run test'],
+        },
+        [
+          '--allowedTools',
+          'Bash(git status:*)',
+          'Bash(pnpm run test)',
+          '--tools',
+          'Read,Glob,Grep,Edit,Write,Bash',
+          '--permission-prompts',
+          'none',
+          '--permission-mode',
+          'acceptEdits',
+          '--strict-mcp-config',
+        ],
+        {
+          mode: 'acceptEdits',
+          tools: ['Read', 'Glob', 'Grep', 'Edit', 'Write', 'Bash'],
+          allowed_tools: ['Bash(git status:*)', 'Bash(pnpm run test)'],
+        },
+      ],
+    ],
+  )(
+    'builds the exact Claude permission flags for %s',
+    (_label, runtimePolicy, policyArgv, permissionProfile) => {
+      const invocation = buildInvocation('claude', 'prompt_only', {
+        runtime_policy: runtimePolicy,
+      });
 
-    expect(invocation.argv).toEqual(
-      expect.arrayContaining([
-        'Read(//private/vault/brief with spaces.md)',
-        'Edit(//private/scratch/result.md)',
-        'WebFetch(domain:example.org)',
-        'Read,Edit,Write,WebSearch,WebFetch',
-        'dontAsk',
+      expect(invocation.argv).toEqual([
+        '--print',
+        '--output-format',
+        'json',
+        ...policyArgv,
+      ]);
+      expect(invocation.permission_profile).toEqual(permissionProfile);
+      expect(JSON.stringify(invocation.permission_profile)).not.toContain(
+        '/private/',
+      );
+      expect(invocation.redacted_command.join(' ')).not.toContain('/private/');
+    },
+  );
+
+  it.each<['claude' | 'codex', ProviderRuntimePolicy, string[], string[]]>([
+    [
+      'claude',
+      {
+        permission_mode: 'workspace-write',
+        bash_patterns: ['git status:*'],
+      },
+      [
+        '--print',
+        '--output-format',
+        'json',
+        '--allowedTools',
+        'Bash(git status:*)',
+        '--tools',
+        'Read,Glob,Grep,Edit,Write,Bash',
+        '--permission-prompts',
+        'none',
+        '--permission-mode',
+        'acceptEdits',
         '--strict-mcp-config',
-      ]),
-    );
-    expect(invocation.redacted_command.join(' ')).not.toContain('/private/');
-    expect(invocation.argv).not.toContain('bypassPermissions');
-  });
+      ],
+      [
+        '--print',
+        '--output-format',
+        'json',
+        '--allowedTools',
+        'Bash(git status:*)',
+        '--tools',
+        'Read,Glob,Grep,Edit,Write,Bash',
+        '--permission-prompts',
+        'none',
+        '--permission-mode',
+        'acceptEdits',
+        '--strict-mcp-config',
+        '--resume',
+        '0199f3a2-7c1e-7d40-9a55-3b6f0e2d8c41',
+      ],
+    ],
+    [
+      'codex',
+      {
+        permission_mode: 'non-interactive',
+        sandbox: 'workspace-write',
+        approval_policy: 'never',
+      },
+      [
+        'exec',
+        '--json',
+        '--output-last-message',
+        '<last-message>',
+        '--sandbox',
+        'workspace-write',
+        '-c',
+        'approval_policy="never"',
+      ],
+      // `codex exec resume` rejects `--sandbox`, so the same sandbox is set
+      // through the config override (live check 2026-11-11, codex-cli 0.166.0:
+      // it applies over an ambient danger-full-access config).
+      [
+        'exec',
+        'resume',
+        '--json',
+        '--output-last-message',
+        '<last-message>',
+        '-c',
+        'sandbox_mode="workspace-write"',
+        '-c',
+        'approval_policy="never"',
+        '0199f3a2-7c1e-7d40-9a55-3b6f0e2d8c41',
+        '-',
+      ],
+    ],
+  ])(
+    'keeps the %s write policy on a resumed write turn',
+    (id, runtimePolicy, firstTurnArgv, resumedArgv) => {
+      const lastMessageFile = '<last-message>';
+      const first = buildInvocation(
+        id,
+        'prompt_only',
+        {
+          runtime_policy: runtimePolicy,
+        },
+        { lastMessageFile },
+      );
+      const resumed = buildInvocation(
+        id,
+        'prompt_only',
+        { runtime_policy: runtimePolicy },
+        { resumeSessionId: SESSION_ID, lastMessageFile },
+      );
+
+      expect(first.argv).toEqual(firstTurnArgv);
+      expect(resumed.argv).toEqual(resumedArgv);
+    },
+  );
 
   it('reflects Codex constrained-native schema and reasoning effort in argv', () => {
     const invocation = buildInvocation('codex', 'constrained_native', {
@@ -312,7 +519,7 @@ function buildInvocation(
   id: 'claude' | 'codex' | 'cursor',
   strategy: StructuredOutputStrategy,
   overrides: Partial<ConsensusCliRunRequest> = {},
-  builderOptions: { resumeSessionId?: string } = {},
+  builderOptions: { resumeSessionId?: string; lastMessageFile?: string } = {},
 ): ProviderInvocation {
   const adapter = providerRegistry().get(id);
   if (!adapter) throw new Error(`Missing adapter fixture: ${id}`);

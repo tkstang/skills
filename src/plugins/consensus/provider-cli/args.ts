@@ -122,6 +122,7 @@ export interface ParsedRunCommand {
   envAllow?: string[];
   readPaths?: string[];
   editPaths?: string[];
+  bashPatterns?: string[];
   webSearch?: boolean;
   webFetchDomains?: string[];
   continuation?: ParsedRunContinuation;
@@ -548,6 +549,7 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
       '--env-allow',
       '--allow-read',
       '--allow-edit',
+      '--allow-bash',
       '--allow-web-search',
       '--allow-web-fetch-domain',
       '--max-depth',
@@ -577,6 +579,7 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
       '--env-allow',
       '--allow-read',
       '--allow-edit',
+      '--allow-bash',
       '--allow-web-fetch-domain',
       '--max-depth',
       '--resume',
@@ -622,6 +625,8 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
   if (readPaths.length > 0) command.readPaths = readPaths;
   const editPaths = valuesFor(parsed.flags, '--allow-edit');
   if (editPaths.length > 0) command.editPaths = editPaths;
+  const bashPatterns = valuesFor(parsed.flags, '--allow-bash');
+  if (bashPatterns.length > 0) command.bashPatterns = bashPatterns;
   if (parsed.flags.has('--allow-web-search')) command.webSearch = true;
   const webFetchDomains = valuesFor(parsed.flags, '--allow-web-fetch-domain');
   if (webFetchDomains.length > 0) command.webFetchDomains = webFetchDomains;
@@ -811,6 +816,7 @@ function assertNoRequestJsonConflicts(
     command.envAllow && command.envAllow.length > 0 ? '--env-allow' : undefined,
     command.readPaths ? '--allow-read' : undefined,
     command.editPaths ? '--allow-edit' : undefined,
+    command.bashPatterns ? '--allow-bash' : undefined,
     command.webSearch ? '--allow-web-search' : undefined,
     command.webFetchDomains ? '--allow-web-fetch-domain' : undefined,
     command.maxDepth !== undefined ? '--max-depth' : undefined,
@@ -840,6 +846,9 @@ function normalizeRuntimePolicy(command: ParsedRunCommand) {
   }
   if (command.readPaths) runtimePolicy.read_paths = command.readPaths;
   if (command.editPaths) runtimePolicy.edit_paths = command.editPaths;
+  if (command.bashPatterns) {
+    runtimePolicy.bash_patterns = command.bashPatterns;
+  }
   if (command.webSearch) runtimePolicy.web_search = true;
   if (command.webFetchDomains) {
     runtimePolicy.web_fetch_domains = command.webFetchDomains;
@@ -994,6 +1003,7 @@ function validateRuntimePolicy(value: unknown) {
   for (const field of [
     'read_paths',
     'edit_paths',
+    'bash_patterns',
     'web_fetch_domains',
   ] as const) {
     if (value[field] !== undefined && !isStringArray(value[field])) {

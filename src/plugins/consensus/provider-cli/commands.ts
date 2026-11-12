@@ -182,6 +182,7 @@ Commands:
       [--model <name>] [--effort <level>]
       [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
       [--allow-read <absolute-file>] [--allow-edit <absolute-file>]
+      [--allow-bash <command-pattern>]
       [--allow-web-search] [--allow-web-fetch-domain <domain>] (Claude only; repeat grants)
       [--env-allow <name>] [--max-attempts <n>] [--timeout-sec <n>]
       [--max-output-bytes <n>] [--cwd <path>] [--max-depth <n>]

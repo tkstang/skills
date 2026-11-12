@@ -113,6 +113,8 @@ export interface ProviderRuntimePolicy {
   env_allowlist?: string[];
   read_paths?: string[];
   edit_paths?: string[];
+  // Claude `workspace-write` only: one `Bash(<pattern>)` rule each.
+  bash_patterns?: string[];
   web_search?: boolean;
   web_fetch_domains?: string[];
 }
@@ -195,6 +197,16 @@ export interface ProviderDiagnostics {
     count: number;
     tools: string[];
   };
+  permission_profile?: ProviderPermissionProfile;
+}
+
+// The provider permission controls one invocation applied. `mode` is the
+// provider's own mode value, or `provider_default` when none was passed;
+// absent `tools` means the provider's default tool set.
+export interface ProviderPermissionProfile {
+  mode: string;
+  tools?: string[];
+  allowed_tools?: string[];
 }
 
 export type ProviderExitClassification =

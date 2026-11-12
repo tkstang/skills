@@ -3,9 +3,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type { ProviderAdapter } from './adapters.js';
+import { composeClaudePermissionProfile } from './runtime-policy.js';
 import type {
   ConsensusCliRunRequest,
   OutputMode,
+  ProviderPermissionProfile,
   StructuredOutputStrategy,
 } from './types.js';
 
@@ -19,6 +21,8 @@ export interface ProviderInvocation {
   redacted_command: string[];
   last_message_file?: string;
   cleanup_last_message_file?: boolean;
+  // Claude only: the permission controls this invocation applies.
+  permission_profile?: ProviderPermissionProfile;
   shell: false;
 }
 
@@ -78,58 +82,39 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
     argv.push('--effort', request.effort);
     redactedArgv.push('--effort', request.effort);
   }
-  const claudePermissionMode = mapClaudePermissionMode(
-    request.runtime_policy?.permission_mode,
+  const permission = composeClaudePermissionProfile(
+    request.runtime_policy ?? {},
   );
-  if (claudePermissionMode) {
-    argv.push('--permission-mode', claudePermissionMode);
-    redactedArgv.push('--permission-mode', claudePermissionMode);
+  if (!permission.ok) {
+    // Callers validate the policy first (validateProviderOptions).
+    throw new Error(permission.message);
+  }
+  if (permission.allowed_tools.length > 0) {
+    argv.push('--allowedTools', ...permission.allowed_tools);
+    redactedArgv.push('--allowedTools', '<scoped-tool-rules>');
+  }
+  if (permission.tools) {
+    argv.push('--tools', permission.tools.join(','));
+    redactedArgv.push('--tools', permission.tools.join(','));
+  }
+  if (permission.restricted) {
+    argv.push('--permission-prompts', 'none');
+    redactedArgv.push('--permission-prompts', 'none');
+  }
+  if (permission.mode) {
+    argv.push('--permission-mode', permission.mode);
+    redactedArgv.push('--permission-mode', permission.mode);
+  }
+  if (permission.restricted) {
+    argv.push('--strict-mcp-config');
+    redactedArgv.push('--strict-mcp-config');
   }
   // Explicit same-session resume. Never `--continue` (latest in cwd) or
-  // `--fork-session` (new id); never `--no-session-persistence`.
+  // `--fork-session` (new id); never `--no-session-persistence`. A resumed
+  // turn repeats every permission flag above.
   if (options.resumeSessionId) {
     argv.push('--resume', options.resumeSessionId);
     redactedArgv.push('--resume', options.resumeSessionId);
-  }
-
-  const policy = request.runtime_policy;
-  const scopedTools = [
-    ...(policy?.read_paths ?? []).map((filePath) => `Read(/${filePath})`),
-    ...(policy?.edit_paths ?? []).map((filePath) => `Edit(/${filePath})`),
-    ...(policy?.web_search ? ['WebSearch'] : []),
-    ...(policy?.web_fetch_domains ?? []).map(
-      (domain) => `WebFetch(domain:${domain})`,
-    ),
-  ];
-  if (scopedTools.length > 0) {
-    const availableTools = [
-      ...(policy?.read_paths?.length ? ['Read'] : []),
-      ...(policy?.edit_paths?.length ? ['Edit', 'Write'] : []),
-      ...(policy?.web_search ? ['WebSearch'] : []),
-      ...(policy?.web_fetch_domains?.length ? ['WebFetch'] : []),
-    ];
-    argv.push(
-      '--allowedTools',
-      ...scopedTools,
-      '--tools',
-      availableTools.join(','),
-      '--permission-prompts',
-      'none',
-      '--permission-mode',
-      'dontAsk',
-      '--strict-mcp-config',
-    );
-    redactedArgv.push(
-      '--allowedTools',
-      '<scoped-tool-rules>',
-      '--tools',
-      availableTools.join(','),
-      '--permission-prompts',
-      'none',
-      '--permission-mode',
-      'dontAsk',
-      '--strict-mcp-config',
-    );
   }
 
   // The prompt travels on stdin (`--print` reads it there when no positional
@@ -137,14 +122,28 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
   // check 2026-11-11 with Claude Code 2.1.322: a stdin prompt with
   // `--output-format json --permission-mode plan --json-schema` returned a
   // `success` result with the expected structured_output.
-  return invocation({
-    executable: options.executable ?? 'claude',
-    argv,
-    redactedArgv,
-    request,
-    strategy,
-    outputMode: 'stdout_json',
-  });
+  return {
+    ...invocation({
+      executable: options.executable ?? 'claude',
+      argv,
+      redactedArgv,
+      request,
+      strategy,
+      outputMode: 'stdout_json',
+    }),
+    permission_profile: {
+      mode: permission.mode ?? 'provider_default',
+      ...(permission.tools ? { tools: [...permission.tools] } : {}),
+      // File paths stay out of diagnostics, as they do in redacted_command.
+      ...(permission.allowed_tools.length > 0
+        ? {
+            allowed_tools: permission.allowed_tools.map((rule) =>
+              rule.replace(/^(Read|Edit)\(.*\)$/s, '$1(<path>)'),
+            ),
+          }
+        : {}),
+    },
+  };
 };
 
 export const buildCodexInvocation: ProviderInvocationBuilder = (
@@ -273,16 +272,6 @@ function invocation(input: {
       : {}),
     shell: false,
   };
-}
-
-function mapClaudePermissionMode(permissionMode: string | undefined) {
-  if (!permissionMode || permissionMode === 'non-interactive') {
-    return undefined;
-  }
-  if (permissionMode === 'read-only') {
-    return 'plan';
-  }
-  return permissionMode;
 }
 
 function codexConfigOverride(key: string, value: string) {

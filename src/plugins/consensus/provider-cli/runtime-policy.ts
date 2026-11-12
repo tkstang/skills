@@ -120,11 +120,19 @@ export function validateProviderOptions(
       'Scoped tool grants are supported only by the Claude provider.',
     );
   }
-  if (hasScopedTools && policy.permission_mode !== 'non-interactive') {
-    return unsupported(
-      'runtime_policy.permission_mode',
-      'Scoped Claude tool grants require non-interactive permission mode.',
-    );
+  if (request.provider === 'claude') {
+    const composition = composeClaudePermissionProfile(policy);
+    if (!composition.ok) {
+      return unsupported(composition.option, composition.message);
+    }
+  }
+  for (const pattern of policy.bash_patterns ?? []) {
+    if (!isExactBashPattern(pattern)) {
+      return unsupported(
+        'runtime_policy.bash_patterns',
+        'Bash grants require a single-line command pattern without parentheses or commas, naming a command rather than only wildcards.',
+      );
+    }
   }
   for (const [field, paths] of [
     ['read_paths', policy.read_paths],
@@ -191,8 +199,153 @@ export function hasScopedToolAccess(policy: ProviderRuntimePolicy = {}) {
   return Boolean(
     policy.read_paths?.length ||
     policy.edit_paths?.length ||
+    policy.bash_patterns?.length ||
     policy.web_search ||
     policy.web_fetch_domains?.length,
+  );
+}
+
+// Claude's permission flags for one effective runtime policy.
+// `restricted` adds `--permission-prompts none --strict-mcp-config`.
+export interface ClaudePermissionComposition {
+  ok: true;
+  // Claude `--permission-mode` value; undefined keeps the provider default.
+  mode?: 'plan' | 'dontAsk' | 'acceptEdits';
+  tools?: string[];
+  allowed_tools: string[];
+  restricted: boolean;
+}
+
+export interface ClaudePermissionCompositionFailure {
+  ok: false;
+  option: string;
+  message: string;
+}
+
+// The only accepted pairings of a Claude permission mode and scoped grants:
+//
+// | Profile                          | Mode        | --tools                         | --allowedTools        |
+// | -------------------------------- | ----------- | ------------------------------- | --------------------- |
+// | read-only, no grants             | plan        | provider default                | none                  |
+// | read-only + read grants          | dontAsk     | Read,Glob,Grep                  | Read(<path>) per grant |
+// | non-interactive, no grants       | (default)   | provider default                | none                  |
+// | non-interactive + scoped grants  | dontAsk     | the granted tools               | each grant            |
+// | workspace-write                  | acceptEdits | Read,Glob,Grep,Edit,Write[,Bash] | Bash(<pattern>) each |
+//
+// `--tools` is always explicit when grants apply, because `--allowedTools`
+// alone does not exclude other tools. Every other pairing is rejected.
+export function composeClaudePermissionProfile(
+  policy: ProviderRuntimePolicy,
+): ClaudePermissionComposition | ClaudePermissionCompositionFailure {
+  const mode = policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode;
+  const readPaths = policy.read_paths ?? [];
+  const editPaths = policy.edit_paths ?? [];
+  const bashPatterns = policy.bash_patterns ?? [];
+  const webFetchDomains = policy.web_fetch_domains ?? [];
+  const webSearch = Boolean(policy.web_search);
+  const readRules = readPaths.map((filePath) => `Read(/${filePath})`);
+
+  if (mode === 'read-only') {
+    if (
+      editPaths.length > 0 ||
+      bashPatterns.length > 0 ||
+      webSearch ||
+      webFetchDomains.length > 0
+    ) {
+      return compositionFailure(
+        'Claude read-only accepts only --allow-read grants; use non-interactive for edit or web grants and workspace-write for Bash grants.',
+      );
+    }
+    if (readPaths.length === 0) {
+      return { ok: true, mode: 'plan', allowed_tools: [], restricted: false };
+    }
+    return {
+      ok: true,
+      mode: 'dontAsk',
+      tools: ['Read', 'Glob', 'Grep'],
+      allowed_tools: readRules,
+      restricted: true,
+    };
+  }
+
+  if (mode === 'non-interactive') {
+    if (bashPatterns.length > 0) {
+      return compositionFailure(
+        'Claude Bash grants require --permission-mode workspace-write.',
+      );
+    }
+    const allowedTools = [
+      ...readRules,
+      ...editPaths.map((filePath) => `Edit(/${filePath})`),
+      ...(webSearch ? ['WebSearch'] : []),
+      ...webFetchDomains.map((domain) => `WebFetch(domain:${domain})`),
+    ];
+    if (allowedTools.length === 0) {
+      return { ok: true, allowed_tools: [], restricted: false };
+    }
+    return {
+      ok: true,
+      mode: 'dontAsk',
+      tools: [
+        ...(readPaths.length > 0 ? ['Read'] : []),
+        ...(editPaths.length > 0 ? ['Edit', 'Write'] : []),
+        ...(webSearch ? ['WebSearch'] : []),
+        ...(webFetchDomains.length > 0 ? ['WebFetch'] : []),
+      ],
+      allowed_tools: allowedTools,
+      restricted: true,
+    };
+  }
+
+  if (mode === 'workspace-write') {
+    if (
+      readPaths.length > 0 ||
+      editPaths.length > 0 ||
+      webSearch ||
+      webFetchDomains.length > 0
+    ) {
+      return compositionFailure(
+        'Claude workspace-write accepts only --allow-bash grants; its file tools already cover the working directory.',
+      );
+    }
+    return {
+      ok: true,
+      mode: 'acceptEdits',
+      tools: [
+        'Read',
+        'Glob',
+        'Grep',
+        'Edit',
+        'Write',
+        ...(bashPatterns.length > 0 ? ['Bash'] : []),
+      ],
+      allowed_tools: bashPatterns.map((pattern) => `Bash(${pattern})`),
+      restricted: true,
+    };
+  }
+
+  return compositionFailure(`Unsupported Claude permission mode: ${mode}.`);
+}
+
+function compositionFailure(
+  message: string,
+): ClaudePermissionCompositionFailure {
+  return { ok: false, option: 'runtime_policy.permission_mode', message };
+}
+
+// One Claude `Bash(<pattern>)` rule: a single line, no rule delimiters, and
+// at least one character that names a command rather than a wildcard.
+function isExactBashPattern(pattern: string) {
+  return (
+    pattern.length > 0 &&
+    pattern.length <= 256 &&
+    pattern.trim() === pattern &&
+    !/[(),]/.test(pattern) &&
+    ![...pattern].some((character) => {
+      const code = character.charCodeAt(0);
+      return code < 0x20 || code === 0x7f;
+    }) &&
+    /[^\s*:]/.test(pattern)
   );
 }
 
@@ -209,6 +362,7 @@ export function defaultRuntimePolicy(
     ...(policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {}),
     ...(policy.read_paths ? { read_paths: policy.read_paths } : {}),
     ...(policy.edit_paths ? { edit_paths: policy.edit_paths } : {}),
+    ...(policy.bash_patterns ? { bash_patterns: policy.bash_patterns } : {}),
     ...(policy.web_search ? { web_search: true } : {}),
     ...(policy.web_fetch_domains
       ? { web_fetch_domains: policy.web_fetch_domains }

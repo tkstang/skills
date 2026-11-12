@@ -177,7 +177,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
         model: true,
         effort: 'effort',
         runtime_policy: {
-          permission_modes: ['non-interactive', 'read-only'],
+          permission_modes: ['non-interactive', 'read-only', 'workspace-write'],
           env_allowlist: true,
         },
       },
@@ -188,8 +188,20 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
         native_resume: 'verified',
         session_id_source: 'stdout_json.session_id',
         evidence:
-          'Live same-session smoke 2026-09-28 with Claude Code 2.1.284: `--print --output-format json --json-schema --resume <uuid>` recalled an unseen marker, preserved session_id, model, and schema. `--resume` also accepts a session title, so the wrapper requires a UUID.',
+          'Live same-session smoke 2026-09-28 with Claude Code 2.1.284: `--print --output-format json --json-schema --resume <uuid>` recalled an unseen marker, preserved session_id, model, and schema. `--resume` also accepts a session title, so the wrapper requires a UUID. Write-mode resume, raw CLI 2026-11-11 with Claude Code 2.1.322 in a linked worktree: `--resume <uuid>` with the full workspace-write flag set kept the session_id, the acceptEdits mode, the explicit tool set (WebFetch absent), and the Bash allowlist; a write outside the worktree and an ungranted `python3` were still denied and a granted `git status` ran.',
       },
+      // Workspace-write composition, raw CLI 2026-11-11 with Claude Code
+      // 2.1.322 in a linked worktree (`--permission-mode acceptEdits --tools
+      // Read,Glob,Grep,Edit,Write,Bash --allowedTools 'Bash(git status:*)'
+      // --permission-prompts none --strict-mcp-config`): Write-tool and Bash
+      // redirection writes outside the worktree and an ungranted `python3 -c`
+      // write were denied (listed in permission_denials); the granted
+      // `git status` ran. acceptEdits still auto-approves simple filesystem
+      // commands such as `touch` inside the working directory, and the user's
+      // own allow rules (for example `Bash(node:*)`) still apply.
+      // Prompt on stdin, same date and version: `--print --output-format json
+      // --permission-mode plan --json-schema` with the prompt on stdin
+      // returned a `success` result with the expected structured_output.
     },
   },
   {
@@ -246,8 +258,18 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
         native_resume: 'verified',
         session_id_source: 'jsonl.thread.started.thread_id',
         evidence:
-          'Live same-session smoke 2026-09-28 with codex-cli 0.157.1: `exec resume --json --output-schema -c sandbox_mode=... <uuid> -` recalled an unseen marker with read-only sandbox and approval never. `exec resume` rejects `--sandbox`, and a non-UUID that matches no thread name silently starts a new thread, so the wrapper requires a UUID and verifies the returned thread_id.',
+          'Live same-session smoke 2026-09-28 with codex-cli 0.157.1: `exec resume --json --output-schema -c sandbox_mode=... <uuid> -` recalled an unseen marker with read-only sandbox and approval never. `exec resume` rejects `--sandbox`, and a non-UUID that matches no thread name silently starts a new thread, so the wrapper requires a UUID and verifies the returned thread_id. Write-mode resume, raw CLI 2026-11-11 with codex-cli 0.166.0 in a linked worktree: `exec resume <uuid> -c sandbox_mode="workspace-write" -c approval_policy="never"` returned the same thread_id, edited inside the worktree, and was denied writing outside it and to $HOME, although the ambient config set sandbox_mode="danger-full-access"; the override, not ambient config, applies.',
       },
+      // Workspace-write in a linked worktree, raw CLI 2026-11-11 with
+      // codex-cli 0.166.0 (`exec --sandbox workspace-write -c
+      // approval_policy="never"`): edits inside the worktree worked and writes
+      // outside it were denied ("operation not permitted"). `git add` and
+      // `git commit` failed, because the linked worktree's index lock lives
+      // under the main checkout's `.git/worktrees/<name>/`, outside the
+      // writable root. The adapter never widens the sandbox for this: the
+      // peer leaves changes unstaged and the host commits. Network access is
+      // whatever the sandbox configuration says; the invocation does not
+      // override it.
     },
   },
   {

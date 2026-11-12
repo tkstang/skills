@@ -71,6 +71,11 @@ describe('structured provider output coordinator', () => {
       attempts: { terminal_reason: 'success' },
       diagnostics: {
         permission_denials: { count: 2, tools: ['Read', 'WebSearch'] },
+        permission_profile: {
+          mode: 'dontAsk',
+          tools: ['Read', 'WebSearch'],
+          allowed_tools: ['Read(<path>)', 'WebSearch'],
+        },
         warnings: [expect.stringContaining('verify task completeness')],
       },
     });

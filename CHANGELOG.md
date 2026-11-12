@@ -4,6 +4,19 @@
 
 ### Added
 
+- The shared consensus provider CLI (`consensus` plugin 0.2.10) composes
+  Claude's permission flags from an explicit table. A new
+  `--permission-mode workspace-write` runs Claude in `acceptEdits` with
+  `--tools Read,Glob,Grep,Edit,Write` and, through the new repeatable
+  `--allow-bash <pattern>` grant (`runtime_policy.bash_patterns`), `Bash` with
+  one `Bash(<pattern>)` rule per grant. `read-only` now also accepts
+  `--allow-read` grants (`dontAsk` with `Read,Glob,Grep`). Every other pairing
+  of mode and grants is rejected before spawn, and unknown Claude modes are no
+  longer passed through. Diagnostics gain the additive `permission_profile`
+  field (mode, tool list, and allow list, with file paths redacted). The configuration guide documents
+  the table, the live-checked Claude and Codex write behaviour, and its
+  limits; a resumed write turn repeats the same policy flags.
+
 - `consensus-review` 0.2.0 (`consensus` plugin 0.2.9) completes large reviews
   and keeps every completed review's output (#146 item 1, #133):
   - Scope errors give the count or bytes, the five largest offenders, and the
