@@ -1,6 +1,6 @@
 ---
 title: 'Configuration'
-description: 'Consensus config JSON examples, field types, model and effort support, workflow defaults, precedence, provider diagnostics, provider run controls, and provider program overrides.'
+description: 'Consensus config examples, field types, model and effort support, workflow defaults, precedence, diagnostics, run controls, and provider programs.'
 ---
 
 # Configuration
