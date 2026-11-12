@@ -61,7 +61,7 @@ A freshly created worktree is clean: `index` and `tree` both equal
 ignored, list them in the report as part of the baseline.
 
 For a Claude write run, also snapshot your own checkout into
-`<state-dir>/host-before`. A granted command can run code the peer edited, and
+`<state-dir>/host-<n>-before` before each turn. A granted command can run code the peer edited, and
 Claude has no operating-system sandbox, so the peer can reach beyond the
 worktree.
 
@@ -75,7 +75,7 @@ new ones:
 git -C <worktree> rev-list <B.head>..<A.head>   # new commits
 git -C <worktree> diff --cached --stat          # staged changes
 git -C <worktree> diff --stat                   # unstaged changes
-git -C <worktree> diff --raw --no-abbrev --diff-filter=A <A.index> <A.tree>
+git -C <worktree> diff --raw --no-abbrev --no-renames --diff-filter=A <A.index> <A.tree>
                                                 # untracked files with hashes
 git -C <worktree> diff --stat <B.tree> <A.tree> # everything this turn changed
 git -C <worktree> diff <B.tree> <A.tree>        # the full diff to read
@@ -86,8 +86,11 @@ git -C <worktree> diff <B.tree> <A.tree>        # the full diff to read
 - The last command covers committed, staged, unstaged, and untracked changes
   alike. Read all of it before you run verification.
 - For a Claude write run, snapshot your own checkout into
-  `<state-dir>/host-after` and compare its IDs with `host-before`. Report any
-  difference, with `git -C <repo-root> diff --stat <before.tree> <after.tree>`.
+  `<state-dir>/host-<n>-after` and compare its IDs with `host-<n>-before`.
+  Report any difference, with
+  `git -C <repo-root> diff --stat <before.tree> <after.tree>`, noting that it
+  may be the user's own edits during the run. If either host snapshot fails
+  (for example, a merge in progress), report that the host check could not run.
 - If your own verification run then changes files that are not ignored, list
   them in the report and snapshot the worktree again into
   `<state-dir>/turn-<n>-closing`. Otherwise `turn-<n>-after` is the closing
