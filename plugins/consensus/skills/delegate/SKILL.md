@@ -109,8 +109,9 @@ node <skill-dir>/scripts/consensus.mjs run --provider <peer> \
 | Cursor | `--permission-mode read-only` | not supported                                                        |
 
 For a Claude write run, grant the brief's verification command, such as
-`--allow-bash 'pnpm run test:*'`, and any other command the task needs. Claude
-runs no other Bash commands.
+`--allow-bash 'pnpm run test:*'`, and any other command the task needs. Other
+Bash commands are denied, apart from the limits in
+[worktree writes](references/worktree-writes.md).
 
 Always pass `--output text --max-attempts 1 --max-depth 1 --json`. Use any
 stable `--consultation-id`, such as `delegate-<slug>`.
