@@ -443,6 +443,23 @@ export function runProviderSubprocess(
         return;
       }
 
+      if (termination?.reason === 'interrupt') {
+        await cleanupInvocationFiles(invocation);
+        resolve(
+          failure({
+            code: 'PROVIDER_EXIT',
+            message: `Provider run was interrupted by ${interruptSignal ?? 'a signal'} sent to consensus.`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics,
+          }),
+        );
+        return;
+      }
+
       if (exitCode !== 0) {
         await cleanupInvocationFiles(invocation);
         resolve(

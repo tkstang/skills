@@ -1329,6 +1329,22 @@ function runProviderSubprocess(invocation2, options = {}) {
         );
         return;
       }
+      if (termination?.reason === "interrupt") {
+        await cleanupInvocationFiles(invocation2);
+        resolve(
+          failure({
+            code: "PROVIDER_EXIT",
+            message: `Provider run was interrupted by ${interruptSignal ?? "a signal"} sent to consensus.`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics
+          })
+        );
+        return;
+      }
       if (exitCode !== 0) {
         await cleanupInvocationFiles(invocation2);
         resolve(
@@ -1767,6 +1783,15 @@ function providerRegistry(adapters = DEFAULT_PROVIDER_ADAPTERS) {
 }
 function defaultRunFailureClassifier(patterns) {
   return (failure2) => {
+    if (failure2.diagnostics?.termination?.reason === "interrupt") {
+      return {
+        code: failure2.code,
+        message: failure2.message,
+        retryable: false,
+        terminal_reason: "provider_run_interrupted",
+        exit_classification: "terminal"
+      };
+    }
     if (failure2.code !== "PROVIDER_EXIT") {
       return {
         code: failure2.code,

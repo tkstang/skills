@@ -429,6 +429,45 @@ describe('structured provider output coordinator', () => {
     });
   });
 
+  // The shape runProviderSubprocess returns when consensus itself was
+  // interrupted and stopped the provider group: a signal exit that would
+  // otherwise look like an external, retryable interrupt.
+  it('never retries a run that consensus interrupted', async () => {
+    const subprocess = fakeSubprocess([
+      processFailure('PROVIDER_EXIT', false, {
+        message: 'Provider run was interrupted by SIGINT sent to consensus.',
+        exit_code: null,
+        signal: 'SIGINT',
+        diagnostics: {
+          termination: {
+            reason: 'interrupt',
+            scope: 'process_group',
+            signals: ['SIGINT'],
+            settled_by: 'forwarded_signal',
+          },
+        },
+      }),
+      processSuccess('{"verdict":"accept"}'),
+    ]);
+
+    const envelope = await runProviderTurn(readOnlyRetryRequest('codex'), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_EXIT',
+      retryable: false,
+      message: 'Provider run was interrupted by SIGINT sent to consensus.',
+      attempts: {
+        cli_attempts: 1,
+        terminal_reason: 'provider_run_interrupted',
+      },
+    });
+    expect(subprocess.invocations).toHaveLength(1);
+  });
+
   it('does not retry adapter-classified terminal provider exits', async () => {
     await expect(
       runProviderTurn(readOnlyRetryRequest('claude'), {

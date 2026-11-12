@@ -393,6 +393,10 @@ setInterval(() => {}, 1000);
         for (const result of results) {
           expect(result).toMatchObject({
             ok: false,
+            code: 'PROVIDER_EXIT',
+            retryable: false,
+            message:
+              'Provider run was interrupted by SIGTERM sent to consensus.',
             signal: 'SIGTERM',
             diagnostics: {
               termination: {
@@ -410,17 +414,34 @@ setInterval(() => {}, 1000);
     });
 
     it('escalates a repeated interrupt straight to SIGKILL', async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), 'consensus-repeat-'));
+      const pidFile = path.join(dir, 'pids');
+      const provider = path.join(dir, 'provider');
+      // The grandchild records its pid only after it ignores SIGTERM.
+      const grandchildSource = [
+        "process.on('SIGTERM', () => {});",
+        `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, process.argv[1] + ':' + process.pid);`,
+        'setInterval(() => {}, 1000);',
+      ].join(' ');
+      await writeFile(
+        provider,
+        `#!${process.execPath}
+const { spawn } = require('node:child_process');
+spawn(process.execPath, ['-e', ${JSON.stringify(grandchildSource)}, String(process.pid)], { stdio: 'ignore' });
+setInterval(() => {}, 1000);
+`,
+      );
+      await chmod(provider, 0o755);
       const ownedBefore = process.listeners('SIGTERM').length;
       const hostHandler = () => {};
       process.on('SIGTERM', hostHandler);
-      let grandchild: number | undefined;
-      const startedAt = Date.now();
+      const pids: number[] = [];
       try {
         // The grandchild ignores SIGTERM, so the long grace period would hold
         // the run open unless the repeated signal escalates. A host listener
         // keeps the signal from being re-raised on this test process.
         const run = runProviderSubprocess(
-          invocation(['sigterm-grandchild', 'wait']),
+          { ...invocation([]), executable: provider },
           {
             maxOutputBytes: 1024,
             timeoutSec: 20,
@@ -429,16 +450,18 @@ setInterval(() => {}, 1000);
           },
         );
         const [forward] = process.listeners('SIGTERM').slice(ownedBefore + 1);
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        pids.push(...(await waitForPids(pidFile)));
+        const signalledAt = Date.now();
         (forward as (signal: NodeJS.Signals) => void)('SIGTERM');
         (forward as (signal: NodeJS.Signals) => void)('SIGTERM');
 
         const result = await run;
-        grandchild = grandchildPid(result.stdout);
 
-        expect(Date.now() - startedAt).toBeLessThan(5000);
+        expect(Date.now() - signalledAt).toBeLessThan(5000);
         expect(result).toMatchObject({
           ok: false,
+          code: 'PROVIDER_EXIT',
+          retryable: false,
           diagnostics: {
             termination: {
               reason: 'interrupt',
@@ -447,10 +470,13 @@ setInterval(() => {}, 1000);
             },
           },
         });
-        await expect(waitForExit(grandchild)).resolves.toBe(true);
+        for (const pid of pids) {
+          await expect(waitForExit(pid)).resolves.toBe(true);
+        }
       } finally {
         process.removeListener('SIGTERM', hostHandler);
-        killQuietly(grandchild);
+        pids.forEach(killQuietly);
+        await rm(dir, { recursive: true, force: true });
       }
     });
 

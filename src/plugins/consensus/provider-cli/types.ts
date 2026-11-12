@@ -212,10 +212,13 @@ export interface ProviderDiagnostics {
   termination?: ProviderTermination;
 }
 
-// How a timed-out or capped provider run was stopped. `scope` is
-// `process_group` on POSIX and `process` on Windows. `settled_by`:
-// `sigterm` the group exited after SIGTERM; `sigkill` the escalation sent
-// SIGKILL; `group_gone` the group had already exited (ESRCH);
+// How a timed-out, capped, or interrupted provider run was stopped. `reason`
+// `interrupt` means consensus received SIGINT, SIGTERM, or SIGHUP and
+// forwarded it to the group. `scope` is `process_group` on POSIX and
+// `process` on Windows. `settled_by`: `sigterm` the group exited after
+// SIGTERM; `forwarded_signal` the group exited after the forwarded interrupt;
+// `sigkill` the escalation sent SIGKILL; `group_gone` the group had already
+// exited (ESRCH);
 // `settlement_timeout` the bound expired while the output pipes stayed open;
 // `leader_exit` the single process exited (Windows).
 export interface ProviderTermination {

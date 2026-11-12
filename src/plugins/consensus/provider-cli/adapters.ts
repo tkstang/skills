@@ -10,6 +10,7 @@ import type {
   FirstScopeProviderId,
   ProviderExitClassification,
   ProviderCapabilities,
+  ProviderDiagnostics,
   ProviderErrorCode,
   ProviderId,
   StructuredOutputStrategy,
@@ -57,6 +58,7 @@ export interface ProviderRunFailureInput {
   stderr: string;
   exit_code: number | null;
   signal: string | null;
+  diagnostics?: ProviderDiagnostics;
 }
 
 export interface ProviderRunFailureClassification {
@@ -370,6 +372,17 @@ function defaultRunFailureClassifier(
   patterns: RunFailureClassifierPatterns,
 ): ProviderRunFailureClassifier {
   return (failure) => {
+    // Consensus itself was interrupted and stopped the provider; a retry
+    // would start a new turn the operator just asked to stop.
+    if (failure.diagnostics?.termination?.reason === 'interrupt') {
+      return {
+        code: failure.code,
+        message: failure.message,
+        retryable: false,
+        terminal_reason: 'provider_run_interrupted',
+        exit_classification: 'terminal',
+      };
+    }
     if (failure.code !== 'PROVIDER_EXIT') {
       return {
         code: failure.code,

@@ -158,9 +158,10 @@
   the step that ended the run. Normal exits are never signalled. SIGINT,
   SIGTERM, or SIGHUP sent to the consensus CLI, such as Ctrl-C, is forwarded to
   the provider's group and escalates to SIGKILL after the grace period (at once
-  on a repeated signal) before the CLI exits by that signal, so interrupting a
-  run no longer orphans the provider or a descendant that ignores the signal.
-  Windows is unchanged.
+  on a repeated signal). The interrupted run is never retried, and the CLI
+  then re-raises the signal and exits by it unless another listener in the
+  process owns it, so interrupting a run no longer orphans the provider or a
+  descendant that ignores the signal. Windows is unchanged.
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.9) reports
   arguments or an environment too large for the operating system (`E2BIG`) as

@@ -52,8 +52,9 @@ escalation running after the leader exits, until the group is gone (`ESRCH`)
 or the settlement bound expires; `diagnostics.termination` records the steps.
 A normal exit never signals the group. While a run is active, SIGINT, SIGTERM,
 and SIGHUP received by the CLI are forwarded to that run's group through the
-same escalation (a repeat escalates to SIGKILL at once), and the signal is
-re-raised on the CLI after the run settles when no other listener remains.
+same escalation (a repeat escalates to SIGKILL at once). The interrupted run
+is never retried, and the signal is re-raised on the CLI after the run settles
+when no other listener remains.
 Windows keeps single-process termination.
 
 The normalized envelope keeps the loop provider-neutral. It carries success or

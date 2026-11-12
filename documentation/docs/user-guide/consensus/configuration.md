@@ -471,8 +471,10 @@ envelope's `diagnostics.termination` records the signals sent and which step
 ended the run. A provider that exits normally is never signalled. An interrupt
 (SIGINT, SIGTERM, or SIGHUP, such as Ctrl-C) sent to the consensus CLI is
 forwarded to the provider's group and escalates to SIGKILL after the same grace
-period, or at once if the interrupt is repeated; the CLI then exits by that
-signal, with `diagnostics.termination.reason` set to `interrupt`. A process
+period, or at once if the interrupt is repeated. An interrupted run is never
+retried. The CLI then re-raises the signal and exits by it, unless another
+listener in the same process owns it; `diagnostics.termination.reason` is
+`interrupt`. A process
 that moves itself to another process group or session escapes this cleanup.
 On Windows only the provider process is signalled, as before.
 
