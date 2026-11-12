@@ -24,6 +24,19 @@
 
 ### Added
 
+- `consensus-delegate` 0.1.0, the Consensus plugin skill `delegate`
+  (`consensus` plugin 0.2.11). It hands one task to another provider through
+  `consensus run --output text` with a single attempt. A task that changes
+  code runs in write mode in a dedicated linked worktree the host creates
+  (Codex `workspace-write` with approval `never`, or Claude
+  `workspace-write` with `--allow-bash` grants); questions, reviews,
+  investigations, and host-initiated consultations run read-only. The host
+  computes every change from its own git baseline, reports any peer commit,
+  reads the full diff, and reruns the brief's verification command. Claude and
+  Codex sessions can be continued; Cursor is read-only. The skill never merges
+  or pushes. The plugin manifests, README, and docs list the new skill, and the
+  Codex default prompts now fit the 128-character limit.
+
 - The shared consensus provider CLI (`consensus` plugin 0.2.10) composes
   Claude's permission flags from an explicit table. A new
   `--permission-mode workspace-write` runs Claude in `acceptEdits` with

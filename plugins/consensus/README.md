@@ -4,19 +4,20 @@ Status: v0.2.
 
 `plugins/consensus/` is a self-contained plugin package for consensus workflows
 and cross-provider session observation. It ships the peer workflows `create`,
-`decide`, `plan`, `refine`, `evaluate`, `review`, `panel`, and `phone-a-friend`, plus
+`decide`, `plan`, `refine`, `evaluate`, `review`, `panel`, `phone-a-friend`, and `delegate`, plus
 plugin-local `observer` and `observer-collab` forms of the canonical
 `session-observer` and `session-observer-collab` skills.
 
 Consensus peers run through the generated provider CLI. The CLI owns provider inventory, preflight, bounded subprocess execution, conservative retry classification, schema delivery, and the internal `consensus submit` sidecar-verdict path used to capture peer verdicts before final-message parsing fallback.
 
-The peer-workflow scope is intentionally narrow: eight peer skills, three
+The peer-workflow scope is intentionally narrow: nine peer skills, three
 iteration modes selected with `--iteration`, a configurable synthesizer, an
 agency-gated escalation ladder, sequential sections by default for refine,
 opt-in host-mediated parallel section orchestration, single-round neutral panel
 questions, and advisory consultation (one-shot by default, with bounded
 follow-up rounds that natively resume the peer session where verified or use a
-disclosed reconstructed continuation). The two observer skills are
+disclosed reconstructed continuation), and delegation of one task to another
+provider, which the host verifies. The two observer skills are
 grouped here because observing and collaborating across providers is consensus
 behavior; they do not invoke the peer-deliberation loop. Future work may add
 `consensus-research`, a whole-document harmonization pass, multi-round panel
@@ -265,10 +266,33 @@ schema contract and manual QA walkthrough, see
 `skills/phone-a-friend/schemas/advisory.schema.json` and
 `skills/phone-a-friend/references/operator-qa.md`.
 
+### Delegate
+
+Hand one task to another provider and verify its work:
+
+```bash
+node plugins/consensus/skills/delegate/scripts/consensus.mjs run \
+  --provider codex \
+  --sandbox workspace-write --approval-policy never \
+  --cwd /abs/path/to/my-repo-delegate-fix-test \
+  --prompt-file /abs/path/to/brief.md \
+  --timeout-sec 1800 \
+  --output text --max-attempts 1 --max-depth 1 --json
+```
+
+A task that changes code runs in write mode in a dedicated linked worktree the
+host creates; questions, reviews, and investigations, and any consultation the
+host starts on its own, run read-only at the repository root. The host takes a
+git baseline before the run, computes the changes itself afterwards, reads the
+full diff, and reruns the brief's verification command. It never merges or
+pushes; the user decides what to keep. Codex and Claude can write and continue
+a session; Cursor is read-only. See `skills/delegate/SKILL.md` and the
+[Delegate guide](https://tkstang.github.io/skills/user-guide/consensus/delegate/).
+
 ## Permissions
 
 The consensus `create`, `decide`, `plan`, `refine`, `evaluate`, `review`,
-`panel`, and `phone-a-friend` skills need permission to run:
+`panel`, `phone-a-friend`, and `delegate` skills need permission to run:
 
 - `node` for the wrapper and loop scripts.
 - `consensus` for provider inventory/preflight/submit when exposed as a command.
@@ -284,6 +308,11 @@ runbook. Its Claude-only `--allow-read`, `--allow-edit`, `--allow-web-search`,
 and `--allow-web-fetch-domain` flags are opt-in. Preflight does not test these
 tools, and a schema-valid reply remains transport success even when the peer
 reports denied tool calls.
+
+`delegate` runs `consensus run --output text` and `git`. A write run needs
+permission to create a linked worktree beside the repository and to write the
+brief and run state outside it; the peer's own write access is set by the
+provider policy described in `skills/delegate/references/worktree-writes.md`.
 
 `panel` uses the generated panel wrapper, writes `.consensus/` run state and a
 markdown panel artifact, and should ask before sending sensitive/private context
@@ -367,6 +396,8 @@ Native Cursor submit-tool support is reserved for a later acceptance path; the p
 - `skills/phone-a-friend/schemas/advisory.schema.json` - structured advisory response contract.
 - `skills/phone-a-friend/references/operator-qa.md` - manual QA walkthrough of one-shot advisory calls, expected JSON, and host disposition.
 - `skills/phone-a-friend/references/examples/` - example advisory prompt and response payload.
+- `skills/delegate/` - task delegation skill with a bundled provider helper.
+- `skills/delegate/references/` - the brief template, worktree write rules, and the baseline and diff accounting procedure.
 - `skills/observer/` - plugin-local `session-observer`, including its generated
   dependency-free transcript CLI.
 - `skills/observer-collab/` - plugin-local

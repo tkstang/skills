@@ -8,12 +8,13 @@ const repoRoot = new URL('../..', import.meta.url);
 const plugins = [
   {
     name: 'consensus',
-    version: '0.2.10',
+    version: '0.2.11',
     description:
-      'Consensus create, decide, plan, refine, evaluate, review, panel, phone-a-friend, observer, and observer-collab skills for deliberation, bounded review, consultation, and observation.',
+      'Consensus create, decide, plan, refine, evaluate, review, panel, phone-a-friend, delegate, observer, and observer-collab skills for deliberation, bounded review, consultation, task delegation, and observation.',
     skills: [
       'create',
       'decide',
+      'delegate',
       'evaluate',
       'observer',
       'observer-collab',

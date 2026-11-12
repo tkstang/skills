@@ -153,6 +153,19 @@ export const distributions: readonly DistributionDeclaration[] = [
     ],
   },
   {
+    owner: 'consensus-delegate',
+    source: 'src/skills/consensus-delegate',
+    allowedSourceRoots: ['src/plugins/consensus'],
+    targets: [
+      {
+        kind: 'plugin',
+        plugin: 'consensus',
+        name: 'delegate',
+        output: 'plugins/consensus/skills/delegate',
+      },
+    ],
+  },
+  {
     owner: 'complexity-review',
     source: 'src/skills/complexity-review',
     targets: [
