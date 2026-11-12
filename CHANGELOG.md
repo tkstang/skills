@@ -20,9 +20,10 @@
     largest contributor.
   - New `--max-output-bytes` flag, default 10 MiB (previously a fixed 1 MiB).
   - The host validates the whole reply, derives the verdict from every finding
-    and check, then truncates the stored report to the schema caps. The
-    reviewer's own verdict is kept as `claimed_verdict`, with a warning when it
-    differs.
+    and check, then truncates the stored report to its caps. The reviewer's
+    schema no longer carries those caps, because Claude and Codex both shorten
+    a reply to fit them and would choose what to drop. The reviewer's own
+    verdict is kept as `claimed_verdict`, with a warning when it differs.
   - Provider stdout, stderr, the Codex last-message capture, and the transport
     result are saved to `provider-evidence.json` before any later check, and
     every diagnostic references it.

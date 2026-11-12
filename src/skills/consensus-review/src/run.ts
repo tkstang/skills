@@ -49,8 +49,10 @@ import type {
 export const REVIEW_DEFAULT_MAX_OUTPUT_BYTES = 10 * 1024 * 1024;
 // Per-stream bound for provider evidence saved after the transport returns.
 const PROVIDER_EVIDENCE_STREAM_MAX_BYTES = 2 * 1024 * 1024;
-// Presentation caps from schemas/review.schema.json. Validation covers the
-// whole reply first; these only bound what the report stores.
+// Presentation caps for the stored report. schemas/review.schema.json leaves
+// them out: Claude and Codex both shorten a reply to fit schema caps, which
+// would let the reviewer, not the host, choose what to drop. Validation covers
+// the whole reply first; these only bound what the report stores.
 const REVIEW_REPLY_CAPS = {
   findings: 100,
   questions: 50,
@@ -1197,10 +1199,12 @@ function normalizeAuthorEvidence(
       `${label}.scope_coverage`,
       errors,
     );
+    // A rename counts once toward the file limit but selects two paths, so
+    // full coverage can list more than 100; cap at the scope's own size.
     validateStringArray(
       entry.covered_paths,
       `${label}.covered_paths`,
-      100,
+      scopePaths.length,
       4096,
       errors,
     );
@@ -1427,11 +1431,30 @@ function validateLocation(
     errors.push(`${label}.source_version must identify captured bytes`);
     return;
   }
-  const lineCount =
-    version.text.length === 0 ? 1 : version.text.split('\n').length;
-  if (isPositiveInteger(value.end_line) && value.end_line > lineCount) {
+  if (
+    isPositiveInteger(value.end_line) &&
+    value.end_line > capturedLineCount(version, version.text)
+  ) {
     errors.push(`${label}.end_line exceeds captured source lines`);
   }
+}
+
+// Every finding can cite the same large version, so count each version once.
+const lineCounts = new WeakMap<object, number>();
+function capturedLineCount(version: object, text: string): number {
+  let count = lineCounts.get(version);
+  if (count === undefined) {
+    count = 1;
+    for (
+      let index = text.indexOf('\n');
+      index !== -1;
+      index = text.indexOf('\n', index + 1)
+    ) {
+      count += 1;
+    }
+    lineCounts.set(version, count);
+  }
+  return count;
 }
 
 function validateInspectedContext(value: unknown, errors: string[]): void {

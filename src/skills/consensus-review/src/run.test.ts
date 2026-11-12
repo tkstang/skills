@@ -564,6 +564,60 @@ describe('one bounded review transaction', () => {
     );
   });
 
+  it('accepts full author coverage of a rename scope with more than 100 paths', async () => {
+    const fixture = await gitReviewFixture();
+    const git = (args: string[]) =>
+      execFileSync('git', args, { cwd: fixture.worktree, encoding: 'utf8' });
+    for (let index = 0; index < 51; index += 1) {
+      await writeFile(
+        path.join(fixture.worktree, `move-${index}.txt`),
+        `move ${index}\n`,
+      );
+    }
+    git(['add', '.']);
+    git(['commit', '-q', '-m', 'files to move']);
+    const base = git(['rev-parse', 'HEAD']).trim();
+    for (let index = 0; index < 51; index += 1) {
+      git(['mv', `move-${index}.txt`, `moved-${index}.txt`]);
+    }
+    const coveredPaths = Array.from({ length: 51 }, (_, index) => [
+      `move-${index}.txt`,
+      `moved-${index}.txt`,
+    ]).flat();
+
+    const result = await executeBoundedReview(
+      {
+        cwd: fixture.worktree,
+        scope: { kind: 'base_branch', ref: base },
+        host: 'codex',
+        request: 'Review the renames.',
+        hostSummary: 'Fifty-one renamed files.',
+        schemaPath: fixture.schema,
+        reviewer: 'claude',
+        runId: 'rename-author-evidence-run',
+        authoredBy: [
+          {
+            identity: 'alice@example.com',
+            evidence_source: 'detected',
+            evidence_reference: 'git author metadata for every renamed path',
+            scope_coverage: 'full',
+            covered_paths: coveredPaths,
+          },
+        ],
+      },
+      reviewExecutionDependencies(fixture, async (request) =>
+        successEnvelope(validPassReply(scopeToken(request.prompt))),
+      ),
+    );
+
+    expect(result).toMatchObject({ ok: true, status: 'completed' });
+    expect(
+      result.ok && result.status === 'completed'
+        ? result.aggregate.authored_by[0]?.covered_paths
+        : undefined,
+    ).toHaveLength(102);
+  });
+
   it('persists mixed bounded author evidence and keeps requested options separate from observed identity', async () => {
     const fixture = await gitReviewFixture();
     await writeFile(path.join(fixture.worktree, 'second.ts'), 'second\n');

@@ -141,6 +141,7 @@ export async function captureReviewScope(input: {
       versions.push(
         await captureGitVersion(canonicalWorktree, mergeBase, relativePath),
       );
+      enforceEvidenceBudget(versions, 'partial');
     }
   } else if (input.request.kind === 'files') {
     if (input.request.paths.length === 0) {
@@ -154,6 +155,7 @@ export async function captureReviewScope(input: {
       versions.push(
         await captureWorktreeVersion(canonicalWorktree, relativePath, true),
       );
+      enforceEvidenceBudget(versions, 'partial');
     }
   } else {
     if (!input.request.path.trim()) {
@@ -173,22 +175,7 @@ export async function captureReviewScope(input: {
     (total, version) => total + textualBytes(version),
     0,
   );
-  const charges = chargedBytesByPath(versions);
-  const chargedBytes = [...charges.values()].reduce(
-    (total, bytes) => total + bytes,
-    0,
-  );
-  if (chargedBytes > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-    throw new Error(
-      `scope_too_large: selected textual evidence is ${chargedBytes} bytes, over the ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes}-byte limit (each path is charged the larger of its live and base versions). Largest: ${largestOffenders(
-        [...charges.entries()].map(([name, bytes]) => ({
-          name,
-          size: bytes,
-          unit: 'bytes',
-        })),
-      )}. ${REVIEW_SCOPE_WORKAROUND}`,
-    );
-  }
+  const chargedBytes = enforceEvidenceBudget(versions, 'complete');
 
   const scopeWithoutState = {
     request: input.request,
@@ -922,6 +909,35 @@ function largestOffenders(
     .slice(0, 5)
     .map((entry) => `${entry.name} (${entry.size} ${entry.unit})`)
     .join(', ');
+}
+
+// Checked after every captured path, so an oversized scope stops before the
+// rest of it is held in memory, and once more on the complete set.
+function enforceEvidenceBudget(
+  versions: CapturedFileVersion[],
+  extent: 'partial' | 'complete',
+): number {
+  const charges = chargedBytesByPath(versions);
+  const chargedBytes = [...charges.values()].reduce(
+    (total, bytes) => total + bytes,
+    0,
+  );
+  if (chargedBytes > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
+    throw new Error(
+      `scope_too_large: selected textual evidence is ${
+        extent === 'partial' ? 'at least ' : ''
+      }${chargedBytes} bytes, over the ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes}-byte limit (each path is charged the larger of its live and base versions). Largest${
+        extent === 'partial' ? ' read so far' : ''
+      }: ${largestOffenders(
+        [...charges.entries()].map(([name, bytes]) => ({
+          name,
+          size: bytes,
+          unit: 'bytes',
+        })),
+      )}. ${REVIEW_SCOPE_WORKAROUND}`,
+    );
+  }
+  return chargedBytes;
 }
 
 function textualBytes(version: CapturedFileVersion): number {

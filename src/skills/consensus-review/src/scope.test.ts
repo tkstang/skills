@@ -486,6 +486,28 @@ describe('review scope limits', () => {
     expect(scope.evidenceBytes).toBe(2 * large.length + 'tail\n'.length);
   });
 
+  it('stops capturing once the aggregate evidence budget is exceeded', async () => {
+    const fixture = await gitFixture();
+    const half = 'z'.repeat(REVIEW_SCOPE_LIMITS.maxEvidenceBytes / 2 + 1);
+    await writeFile(path.join(fixture.worktree, 'first.txt'), half);
+    await writeFile(path.join(fixture.worktree, 'second.txt'), half);
+    // Capturing this path would fail differently, so the error proves the
+    // budget stopped capture before reaching it.
+    execFileSync('mkfifo', [path.join(fixture.worktree, 'later-pipe')]);
+
+    await expect(
+      captureReviewScope({
+        cwd: fixture.worktree,
+        request: {
+          kind: 'files',
+          paths: ['first.txt', 'second.txt', 'later-pipe'],
+        },
+      }),
+    ).rejects.toThrow(
+      `scope_too_large: selected textual evidence is at least ${2 * half.length} bytes`,
+    );
+  });
+
   it('rejects an oversized deleted base blob instead of recording a deletion', async () => {
     const fixture = await gitFixture();
     await writeFile(

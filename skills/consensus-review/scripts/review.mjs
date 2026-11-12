@@ -2574,6 +2574,7 @@ async function captureReviewScope(input) {
       versions.push(
         await captureGitVersion(canonicalWorktree, mergeBase, relativePath)
       );
+      enforceEvidenceBudget(versions, "partial");
     }
   } else if (input.request.kind === "files") {
     if (input.request.paths.length === 0) {
@@ -2587,6 +2588,7 @@ async function captureReviewScope(input) {
       versions.push(
         await captureWorktreeVersion(canonicalWorktree, relativePath, true)
       );
+      enforceEvidenceBudget(versions, "partial");
     }
   } else {
     if (!input.request.path.trim()) {
@@ -2605,22 +2607,7 @@ async function captureReviewScope(input) {
     (total, version) => total + textualBytes(version),
     0
   );
-  const charges = chargedBytesByPath(versions);
-  const chargedBytes = [...charges.values()].reduce(
-    (total, bytes) => total + bytes,
-    0
-  );
-  if (chargedBytes > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-    throw new Error(
-      `scope_too_large: selected textual evidence is ${chargedBytes} bytes, over the ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes}-byte limit (each path is charged the larger of its live and base versions). Largest: ${largestOffenders(
-        [...charges.entries()].map(([name, bytes]) => ({
-          name,
-          size: bytes,
-          unit: "bytes"
-        }))
-      )}. ${REVIEW_SCOPE_WORKAROUND}`
-    );
-  }
+  const chargedBytes = enforceEvidenceBudget(versions, "complete");
   const scopeWithoutState = {
     request: input.request,
     canonicalWorktree,
@@ -3208,6 +3195,25 @@ function largestOffenders(entries) {
   return entries.toSorted(
     (left, right) => right.size - left.size || left.name.localeCompare(right.name)
   ).slice(0, 5).map((entry) => `${entry.name} (${entry.size} ${entry.unit})`).join(", ");
+}
+function enforceEvidenceBudget(versions, extent) {
+  const charges = chargedBytesByPath(versions);
+  const chargedBytes = [...charges.values()].reduce(
+    (total, bytes) => total + bytes,
+    0
+  );
+  if (chargedBytes > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
+    throw new Error(
+      `scope_too_large: selected textual evidence is ${extent === "partial" ? "at least " : ""}${chargedBytes} bytes, over the ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes}-byte limit (each path is charged the larger of its live and base versions). Largest${extent === "partial" ? " read so far" : ""}: ${largestOffenders(
+        [...charges.entries()].map(([name, bytes]) => ({
+          name,
+          size: bytes,
+          unit: "bytes"
+        }))
+      )}. ${REVIEW_SCOPE_WORKAROUND}`
+    );
+  }
+  return chargedBytes;
 }
 function textualBytes(version) {
   return version.kind === "file" || version.kind === "symlink" ? version.bytes : 0;
@@ -4608,7 +4614,7 @@ function normalizeAuthorEvidence(input, scope) {
     validateStringArray(
       entry.covered_paths,
       `${label}.covered_paths`,
-      100,
+      scopePaths.length,
       4096,
       errors
     );
@@ -4784,10 +4790,21 @@ function validateLocation(value, scope, findingLabel, errors) {
     errors.push(`${label}.source_version must identify captured bytes`);
     return;
   }
-  const lineCount = version.text.length === 0 ? 1 : version.text.split("\n").length;
-  if (isPositiveInteger(value.end_line) && value.end_line > lineCount) {
+  if (isPositiveInteger(value.end_line) && value.end_line > capturedLineCount(version, version.text)) {
     errors.push(`${label}.end_line exceeds captured source lines`);
   }
+}
+var lineCounts = /* @__PURE__ */ new WeakMap();
+function capturedLineCount(version, text) {
+  let count = lineCounts.get(version);
+  if (count === void 0) {
+    count = 1;
+    for (let index = text.indexOf("\n"); index !== -1; index = text.indexOf("\n", index + 1)) {
+      count += 1;
+    }
+    lineCounts.set(version, count);
+  }
+  return count;
 }
 function validateInspectedContext(value, errors) {
   if (!Array.isArray(value)) {
