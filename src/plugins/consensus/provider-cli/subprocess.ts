@@ -58,6 +58,7 @@ const USE_PROCESS_GROUP = process.platform !== 'win32';
 // A detached provider is outside the terminal's foreground group, so these
 // no longer reach it on their own; each run forwards them to its group.
 const FORWARDED_SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const;
+type ForwardedSignal = (typeof FORWARDED_SIGNALS)[number];
 const ARGV_TOO_LARGE_MESSAGE =
   'Provider arguments or environment exceeded the operating-system limit (E2BIG). Reduce the environment or argument sizes, such as the inline JSON schema.';
 
@@ -84,7 +85,16 @@ export function runProviderSubprocess(
   const finalResolutionMs =
     options.finalResolutionMs ?? DEFAULT_FINAL_RESOLUTION_MS;
 
-  return new Promise((resolve) => {
+  return new Promise((resolvePromise) => {
+    // An interrupt received during the run is re-raised on this process once
+    // the provider group has been stopped and the run has settled.
+    let interruptSignal: ForwardedSignal | undefined;
+    const resolve = (result: ProviderProcessResult) => {
+      resolvePromise(result);
+      if (interruptSignal && process.listenerCount(interruptSignal) === 0) {
+        process.kill(process.pid, interruptSignal);
+      }
+    };
     let stdout = '';
     let stderr = '';
     let stdoutBytes = 0;
@@ -190,7 +200,7 @@ export function runProviderSubprocess(
         return;
       }
       if (!processGroupAlive()) {
-        settle('sigterm');
+        settle(firstSignalSettlement());
         return;
       }
       // A descendant outlived the leader: the pending SIGKILL escalation
@@ -200,8 +210,13 @@ export function runProviderSubprocess(
     child.stdin.on('error', () => {});
     child.stdin.end(invocation.stdin);
 
-    function terminate(reason: 'timeout' | 'output_cap') {
-      terminal = terminal ?? reason;
+    // Stops the provider: the first signal to the group, then SIGKILL after
+    // the grace period, with settlement bounded either way.
+    function terminate(
+      reason: 'timeout' | 'output_cap' | 'interrupt',
+      firstSignal: 'SIGTERM' | 'SIGINT' | 'SIGHUP' = 'SIGTERM',
+    ) {
+      if (reason !== 'interrupt') terminal = terminal ?? reason;
       if (reason === 'output_cap') {
         closeOutputCapture();
       }
@@ -212,41 +227,57 @@ export function runProviderSubprocess(
         signals: [],
         settled_by: 'settlement_timeout',
       };
-      const sigtermDelivery = signalProvider('SIGTERM');
-      if (sigtermDelivery === 'sent') termination.signals.push('SIGTERM');
-      if (sigtermDelivery === 'gone') {
+      const firstDelivery = signalProvider(firstSignal);
+      if (firstDelivery === 'sent') termination.signals.push(firstSignal);
+      if (firstDelivery === 'gone') {
         // ESRCH: the whole group already exited, so nothing is left to stop.
         settle('group_gone');
         return;
       }
-      killEscalation = setTimeout(() => {
-        const delivery = signalProvider('SIGKILL');
-        if (delivery === 'sent') termination?.signals.push('SIGKILL');
-        if (delivery === 'gone') {
-          settle('sigterm');
-          return;
-        }
-        if (leaderClosed) {
-          settle('sigkill');
-          return;
-        }
-        // Bound total settlement: resolve even if a process outside the
-        // group keeps the output pipes open.
-        finalResolution = setTimeout(() => {
-          settle('settlement_timeout');
-        }, finalResolutionMs);
-      }, terminationGraceMs);
+      killEscalation = setTimeout(escalate, terminationGraceMs);
     }
 
-    // Forward an interrupt of this process to the provider's group. When no
-    // other listener remains, re-raise it so the default action (exit) still
-    // applies; otherwise another run or a host handler owns the behaviour.
-    function forwardInterrupt(signal: NodeJS.Signals) {
-      stopForwardingInterrupts();
-      signalProvider(signal);
-      if (process.listenerCount(signal) === 0) {
-        process.kill(process.pid, signal);
+    function escalate() {
+      if (killEscalation) clearTimeout(killEscalation);
+      killEscalation = undefined;
+      if (settled || finalResolution) return;
+      const delivery = signalProvider('SIGKILL');
+      if (delivery === 'sent') termination?.signals.push('SIGKILL');
+      if (delivery === 'gone') {
+        settle(firstSignalSettlement());
+        return;
       }
+      if (leaderClosed) {
+        settle('sigkill');
+        return;
+      }
+      // Bound total settlement: resolve even if a process outside the group
+      // keeps the output pipes open.
+      finalResolution = setTimeout(() => {
+        settle('settlement_timeout');
+      }, finalResolutionMs);
+    }
+
+    function firstSignalSettlement(): ProviderTermination['settled_by'] {
+      return termination?.reason === 'interrupt'
+        ? 'forwarded_signal'
+        : 'sigterm';
+    }
+
+    // An interrupt of this process stops the provider's group through the
+    // same escalation as a timeout. The listener stays installed until the
+    // run settles, so a repeated signal escalates straight to SIGKILL; the
+    // signal is re-raised on this process only after settlement and only
+    // when no other listener (another run or a host handler) remains.
+    function forwardInterrupt(signal: ForwardedSignal) {
+      interruptSignal = interruptSignal ?? signal;
+      // An interrupted run ends as an interrupt, not a later timeout.
+      clearTimeout(timeout);
+      if (termination) {
+        escalate();
+        return;
+      }
+      terminate('interrupt', signal);
     }
 
     function stopForwardingInterrupts() {

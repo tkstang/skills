@@ -157,7 +157,9 @@
   the additive `diagnostics.termination` field records the signals sent and
   the step that ended the run. Normal exits are never signalled. SIGINT,
   SIGTERM, or SIGHUP sent to the consensus CLI, such as Ctrl-C, is forwarded to
-  the provider's group, so interrupting a run no longer orphans the provider.
+  the provider's group and escalates to SIGKILL after the grace period (at once
+  on a repeated signal) before the CLI exits by that signal, so interrupting a
+  run no longer orphans the provider or a descendant that ignores the signal.
   Windows is unchanged.
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.9) reports

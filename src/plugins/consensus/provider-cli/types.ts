@@ -219,11 +219,12 @@ export interface ProviderDiagnostics {
 // `settlement_timeout` the bound expired while the output pipes stayed open;
 // `leader_exit` the single process exited (Windows).
 export interface ProviderTermination {
-  reason: 'timeout' | 'output_cap';
+  reason: 'timeout' | 'output_cap' | 'interrupt';
   scope: 'process_group' | 'process';
-  signals: Array<'SIGTERM' | 'SIGKILL'>;
+  signals: Array<'SIGTERM' | 'SIGKILL' | 'SIGINT' | 'SIGHUP'>;
   settled_by:
     | 'sigterm'
+    | 'forwarded_signal'
     | 'sigkill'
     | 'group_gone'
     | 'settlement_timeout'

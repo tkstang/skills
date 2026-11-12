@@ -1030,7 +1030,14 @@ function runProviderSubprocess(invocation2, options = {}) {
   const timeoutSec = options.timeoutSec ?? DEFAULT_TIMEOUT_SEC;
   const terminationGraceMs = options.terminationGraceMs ?? DEFAULT_TERMINATION_GRACE_MS;
   const finalResolutionMs = options.finalResolutionMs ?? DEFAULT_FINAL_RESOLUTION_MS;
-  return new Promise((resolve) => {
+  return new Promise((resolvePromise) => {
+    let interruptSignal;
+    const resolve = (result) => {
+      resolvePromise(result);
+      if (interruptSignal && process.listenerCount(interruptSignal) === 0) {
+        process.kill(process.pid, interruptSignal);
+      }
+    };
     let stdout = "";
     let stderr = "";
     let stdoutBytes = 0;
@@ -1126,15 +1133,15 @@ function runProviderSubprocess(invocation2, options = {}) {
         return;
       }
       if (!processGroupAlive()) {
-        settle("sigterm");
+        settle(firstSignalSettlement());
         return;
       }
     });
     child.stdin.on("error", () => {
     });
     child.stdin.end(invocation2.stdin);
-    function terminate(reason) {
-      terminal = terminal ?? reason;
+    function terminate(reason, firstSignal = "SIGTERM") {
+      if (reason !== "interrupt") terminal = terminal ?? reason;
       if (reason === "output_cap") {
         closeOutputCapture();
       }
@@ -1145,34 +1152,43 @@ function runProviderSubprocess(invocation2, options = {}) {
         signals: [],
         settled_by: "settlement_timeout"
       };
-      const sigtermDelivery = signalProvider("SIGTERM");
-      if (sigtermDelivery === "sent") termination.signals.push("SIGTERM");
-      if (sigtermDelivery === "gone") {
+      const firstDelivery = signalProvider(firstSignal);
+      if (firstDelivery === "sent") termination.signals.push(firstSignal);
+      if (firstDelivery === "gone") {
         settle("group_gone");
         return;
       }
-      killEscalation = setTimeout(() => {
-        const delivery = signalProvider("SIGKILL");
-        if (delivery === "sent") termination?.signals.push("SIGKILL");
-        if (delivery === "gone") {
-          settle("sigterm");
-          return;
-        }
-        if (leaderClosed) {
-          settle("sigkill");
-          return;
-        }
-        finalResolution = setTimeout(() => {
-          settle("settlement_timeout");
-        }, finalResolutionMs);
-      }, terminationGraceMs);
+      killEscalation = setTimeout(escalate, terminationGraceMs);
+    }
+    function escalate() {
+      if (killEscalation) clearTimeout(killEscalation);
+      killEscalation = void 0;
+      if (settled || finalResolution) return;
+      const delivery = signalProvider("SIGKILL");
+      if (delivery === "sent") termination?.signals.push("SIGKILL");
+      if (delivery === "gone") {
+        settle(firstSignalSettlement());
+        return;
+      }
+      if (leaderClosed) {
+        settle("sigkill");
+        return;
+      }
+      finalResolution = setTimeout(() => {
+        settle("settlement_timeout");
+      }, finalResolutionMs);
+    }
+    function firstSignalSettlement() {
+      return termination?.reason === "interrupt" ? "forwarded_signal" : "sigterm";
     }
     function forwardInterrupt(signal) {
-      stopForwardingInterrupts();
-      signalProvider(signal);
-      if (process.listenerCount(signal) === 0) {
-        process.kill(process.pid, signal);
+      interruptSignal = interruptSignal ?? signal;
+      clearTimeout(timeout);
+      if (termination) {
+        escalate();
+        return;
       }
+      terminate("interrupt", signal);
     }
     function stopForwardingInterrupts() {
       if (!forwardsInterrupts) return;
