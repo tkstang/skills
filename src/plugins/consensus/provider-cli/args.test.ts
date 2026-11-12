@@ -311,6 +311,106 @@ describe('provider CLI argument parsing', () => {
     expect(request.prompt).toBe('Prompt from file.');
   });
 
+  it('normalizes text output without a schema', async () => {
+    const command = parseConsensusCliArgs([
+      'run',
+      '--provider',
+      'codex',
+      '--output',
+      'text',
+      '--json',
+      '--prompt',
+      'Reply in prose.',
+    ]);
+
+    await expect(normalizeRunRequest(command, testIo())).resolves.toEqual({
+      schema_version: 'v1',
+      provider: 'codex',
+      output: 'text',
+      prompt: 'Reply in prose.',
+    });
+  });
+
+  it.each([
+    [['--output', 'json'], /Missing required --schema/],
+    [[], /Missing required --schema/],
+    [
+      ['--output', 'text', '--schema', 'schema.json'],
+      /--schema cannot be combined with --output text/,
+    ],
+  ])(
+    'rejects output %j without a matching schema pairing',
+    async (flags, error) => {
+      const command = parseConsensusCliArgs([
+        'run',
+        '--provider',
+        'codex',
+        ...flags,
+        '--json',
+        '--prompt',
+        'prompt',
+      ]);
+
+      await expect(normalizeRunRequest(command, testIo())).rejects.toThrow(
+        error,
+      );
+    },
+  );
+
+  it('rejects an unknown output kind', () => {
+    expect(() =>
+      parseConsensusCliArgs([
+        'run',
+        '--provider',
+        'codex',
+        '--output',
+        'markdown',
+        '--json',
+        '--prompt',
+        'prompt',
+      ]),
+    ).toThrow(/Invalid --output: markdown/);
+  });
+
+  it('normalizes text output from request JSON without a schema', async () => {
+    await expect(
+      normalizeRequestJson({ output: 'text', schema_path: undefined }),
+    ).resolves.toEqual({
+      schema_version: 'v1',
+      provider: 'codex',
+      output: 'text',
+      prompt: 'Prompt from request.',
+    });
+  });
+
+  it.each([
+    [
+      { output: 'json', schema_path: undefined },
+      /Missing required Request JSON schema_path/,
+    ],
+    [{ schema_path: undefined }, /Missing required Request JSON schema_path/],
+    [
+      { output: 'text' },
+      /Request JSON schema_path cannot be combined with output "text"/,
+    ],
+    [{ output: 'markdown' }, /Request JSON output must be one of: json, text/],
+  ])('rejects request JSON output pairing %j', async (overrides, error) => {
+    await expect(normalizeRequestJson(overrides)).rejects.toThrow(error);
+  });
+
+  it('rejects --output mixed with request JSON', () => {
+    expect(() =>
+      parseConsensusCliArgs([
+        'run',
+        '--request-json',
+        'request.json',
+        '--output',
+        'text',
+        '--json',
+      ]),
+    ).toThrow(/request-shaping flags: --output/);
+  });
+
   it('normalizes full request JSON from a file', async () => {
     const command = parseConsensusCliArgs([
       'run',

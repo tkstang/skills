@@ -17,6 +17,20 @@
   the table, the live-checked Claude and Codex write behaviour, and its
   limits; a resumed write turn repeats the same policy flags.
 
+- `consensus run --output text|json` (`consensus` plugin 0.2.10).
+  `--output text` (request JSON `output: "text"`) returns the provider's final
+  reply as free-form text without a schema; `--output json`, the default,
+  still requires `--schema`, and passing a schema with text output is a usage
+  error. Text mode
+  turns submit capture off and strips every `CONSENSUS_SUBMIT_*` variable from
+  the provider environment, even when allowlisted. Extraction is strict, with
+  two new failure codes, `PROVIDER_EMPTY_OUTPUT` and
+  `PROVIDER_MALFORMED_RESULT`, which the loop maps to the data exit code.
+  Cursor text mode accepts only `--permission-mode read-only`. Success
+  envelopes gain the additive `output_kind` field (`"json"` or `"text"`), and a
+  text success adds `text` with `json: null`; `schema_path` is now optional in
+  the request type.
+
 - `consensus-review` 0.2.0 (`consensus` plugin 0.2.9) completes large reviews
   and keeps every completed review's output (#146 item 1, #133):
   - Scope errors give the count or bytes, the five largest offenders, and the

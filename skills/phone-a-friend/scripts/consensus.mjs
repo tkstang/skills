@@ -25,6 +25,7 @@ import path from "node:path";
 // src/plugins/consensus/provider-cli/types.ts
 var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
 var PROVIDER_PREFLIGHT_CAPABILITIES = ["run"];
+var RUN_OUTPUT_KINDS = ["json", "text"];
 var CONTINUATION_MODES = [
   "new",
   "native-resume",
@@ -567,6 +568,12 @@ function validateProviderOptions(request, capabilities) {
       "Scoped tool grants are supported only by the Claude provider."
     );
   }
+  if (request.output === "text" && request.provider === "cursor" && policy.permission_mode !== "read-only") {
+    return unsupported(
+      "runtime_policy.permission_mode",
+      "Cursor text-mode runs require --permission-mode read-only."
+    );
+  }
   if (request.provider === "claude") {
     const composition = composeClaudePermissionProfile(policy);
     if (!composition.ok) {
@@ -764,11 +771,15 @@ function buildChildEnvironment({
     const value = parentEnv[name];
     if (value !== void 0) childEnv[name] = value;
   }
-  return {
-    ...childEnv,
-    ...hostEnv
-  };
+  const env = { ...childEnv, ...hostEnv };
+  if (request.output === "text") {
+    for (const name of Object.keys(env)) {
+      if (name.startsWith(RESERVED_SUBMIT_ENV_PREFIX)) delete env[name];
+    }
+  }
+  return env;
 }
+var RESERVED_SUBMIT_ENV_PREFIX = "CONSENSUS_SUBMIT_";
 function buildProviderProbeEnvironment({
   parentEnv,
   provider
@@ -908,6 +919,9 @@ var buildCodexInvocation = (request, options = {}) => {
     lastMessageFile
   ];
   if (strategy === "constrained_native") {
+    if (!request.schema_path) {
+      throw new Error("Codex constrained-native invocation requires a schema.");
+    }
     argv.push("--output-schema", request.schema_path);
   }
   if (request.model) argv.push("--model", request.model);
@@ -1541,7 +1555,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
     },
     capabilities: {
-      schema_strategies: ["provider_validated", "prompt_only"],
+      schema_strategies: ["provider_validated", "prompt_only", "text"],
       output_modes: ["stdout_json"],
       options: {
         model: true,
@@ -1608,7 +1622,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
     },
     capabilities: {
-      schema_strategies: ["constrained_native", "prompt_only"],
+      schema_strategies: ["constrained_native", "prompt_only", "text"],
       output_modes: ["last_message_file"],
       options: {
         model: true,
@@ -1677,7 +1691,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
     },
     capabilities: {
-      schema_strategies: ["prompt_only", "submit_tool_candidate"],
+      schema_strategies: ["prompt_only", "submit_tool_candidate", "text"],
       output_modes: ["stdout_json"],
       options: {
         model: false,
@@ -1992,9 +2006,11 @@ async function normalizeRunRequest(command, io) {
   if (!command.provider) {
     throw new ConsensusCliUsageError("Missing required --provider");
   }
-  if (!command.schemaPath) {
-    throw new ConsensusCliUsageError("Missing required --schema");
-  }
+  const output = command.output ?? "json";
+  assertOutputSchemaPairing(output, command.schemaPath, {
+    schema: "--schema",
+    output: "--output text"
+  });
   if (!command.promptSource) {
     throw new ConsensusCliUsageError(
       "Missing prompt source: use -, --prompt, --prompt-file, or --request-json"
@@ -2004,7 +2020,8 @@ async function normalizeRunRequest(command, io) {
   const request = {
     schema_version: "v1",
     provider: command.provider,
-    schema_path: command.schemaPath,
+    ...command.output ? { output: command.output } : {},
+    ...command.schemaPath ? { schema_path: command.schemaPath } : {},
     prompt
   };
   if (command.cwd) request.cwd = command.cwd;
@@ -2258,6 +2275,7 @@ function parseRunCommand(tokens) {
     allowedFlags: /* @__PURE__ */ new Set([
       "--json",
       "--provider",
+      "--output",
       "--schema",
       "--prompt",
       "--prompt-file",
@@ -2288,6 +2306,7 @@ function parseRunCommand(tokens) {
     ]),
     valueFlags: /* @__PURE__ */ new Set([
       "--provider",
+      "--output",
       "--schema",
       "--prompt",
       "--prompt-file",
@@ -2322,6 +2341,8 @@ function parseRunCommand(tokens) {
     json: true
   };
   assignIfDefined(command, "provider", singleValue(parsed.flags, "--provider"));
+  const output = singleValue(parsed.flags, "--output");
+  if (output !== void 0) command.output = parseRunOutput(output);
   assignIfDefined(command, "schemaPath", singleValue(parsed.flags, "--schema"));
   assignIfDefined(
     command,
@@ -2442,6 +2463,26 @@ function parseRunContinuation(flags) {
   assignIfDefined(continuation, "fallbackPromptFile", fallbackPromptFile);
   return continuation;
 }
+function parseRunOutput(value) {
+  if (RUN_OUTPUT_KINDS.includes(value)) {
+    return value;
+  }
+  throw new ConsensusCliUsageError(
+    `Invalid --output: ${value} (expected ${RUN_OUTPUT_KINDS.join(", ")})`
+  );
+}
+function assertOutputSchemaPairing(output, schemaPath, labels) {
+  if (output === "json" && !schemaPath) {
+    throw new ConsensusCliUsageError(
+      `Missing required ${labels.schema} (JSON output is schema-validated; use ${labels.output} for free-form text)`
+    );
+  }
+  if (output === "text" && schemaPath !== void 0) {
+    throw new ConsensusCliUsageError(
+      `${labels.schema} cannot be combined with ${labels.output}`
+    );
+  }
+}
 function parseContinuationMode(value) {
   if (CONTINUATION_MODES.includes(value)) {
     return value;
@@ -2496,6 +2537,7 @@ function parseSubmitCommand(tokens) {
 function assertNoRequestJsonConflicts(command, positionalCount) {
   const conflicts = [
     command.provider ? "--provider" : void 0,
+    command.output ? "--output" : void 0,
     command.schemaPath ? "--schema" : void 0,
     command.promptSource ? "prompt source" : void 0,
     command.maxAttempts !== void 0 ? "--max-attempts" : void 0,
@@ -2595,11 +2637,21 @@ function parseRequestJson(contents) {
   if (typeof parsed.provider !== "string" || parsed.provider.length === 0) {
     throw new ConsensusCliUsageError("Request JSON provider must be a string");
   }
-  if (typeof parsed.schema_path !== "string" || parsed.schema_path.length === 0) {
+  if (parsed.output !== void 0 && !RUN_OUTPUT_KINDS.includes(parsed.output)) {
+    throw new ConsensusCliUsageError(
+      `Request JSON output must be one of: ${RUN_OUTPUT_KINDS.join(", ")}`
+    );
+  }
+  if (parsed.schema_path !== void 0 && (typeof parsed.schema_path !== "string" || parsed.schema_path.length === 0)) {
     throw new ConsensusCliUsageError(
       "Request JSON schema_path must be a string"
     );
   }
+  assertOutputSchemaPairing(
+    parsed.output ?? "json",
+    parsed.schema_path,
+    { schema: "Request JSON schema_path", output: 'output "text"' }
+  );
   if (typeof parsed.prompt !== "string") {
     throw new ConsensusCliUsageError("Request JSON prompt must be a string");
   }
@@ -2855,7 +2907,24 @@ function successEnvelope(input) {
     provider: input.provider,
     args: input.args,
     stdout: input.stdout,
+    output_kind: "json",
     json: input.json,
+    attempts: buildAttemptSummary(input.attempts, false)
+  };
+  if (input.stderr !== void 0) envelope.stderr = input.stderr;
+  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
+  return envelope;
+}
+function textSuccessEnvelope(input) {
+  const envelope = {
+    schema_version: "v1",
+    ok: true,
+    provider: input.provider,
+    args: input.args,
+    stdout: input.stdout,
+    output_kind: "text",
+    text: input.text,
+    json: null,
     attempts: buildAttemptSummary(input.attempts, false)
   };
   if (input.stderr !== void 0) envelope.stderr = input.stderr;
@@ -3393,6 +3462,7 @@ function submitCaptureFilePath(cwd, id = randomUUID4()) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 function selectStructuredOutputStrategy(adapter, options = {}) {
+  if (options.output === "text") return "text";
   if (options.strategy) return options.strategy;
   if (options.submitCaptureEnabled && adapter.capabilities.schema_strategies.includes("constrained_native") && adapter.capabilities.schema_strategies.includes("prompt_only")) {
     return "prompt_only";
@@ -3561,38 +3631,52 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       diagnostics: hostGuard.diagnostics
     });
   }
-  const readSchema = dependencies.readSchema ?? readJsonSchema;
+  const textMode = request.output === "text";
+  const schemaPath = request.schema_path;
   let schema;
-  try {
-    schema = await readSchema(request.schema_path);
-  } catch (error) {
-    return preInvocationFailure({
-      provider: request.provider,
-      code: "CONSENSUS_CLI_USAGE",
-      message: `Could not read schema: ${error instanceof Error ? error.message : String(error)}`,
-      terminalReason: "schema_read_failed"
-    });
-  }
-  const inlineJsonSchema = JSON.stringify(schema);
-  if (inlineJsonSchema === void 0) {
-    return preInvocationFailure({
-      provider: request.provider,
-      code: "CONSENSUS_CLI_USAGE",
-      message: "Schema must be JSON-serializable.",
-      terminalReason: "schema_read_failed"
-    });
+  let inlineJsonSchema;
+  if (!textMode) {
+    if (!schemaPath) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: "JSON output requires a schema path.",
+        terminalReason: "schema_missing"
+      });
+    }
+    const readSchema = dependencies.readSchema ?? readJsonSchema;
+    try {
+      schema = await readSchema(schemaPath);
+    } catch (error) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: `Could not read schema: ${error instanceof Error ? error.message : String(error)}`,
+        terminalReason: "schema_read_failed"
+      });
+    }
+    inlineJsonSchema = JSON.stringify(schema);
+    if (inlineJsonSchema === void 0) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: "Schema must be JSON-serializable.",
+        terminalReason: "schema_read_failed"
+      });
+    }
   }
   const effectiveRequest = {
     ...request,
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
-  const submitCaptureEnabled = (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && (hasScopedToolAccess(request.runtime_policy) || request.runtime_policy?.permission_mode === "workspace-write")) && !(request.provider === "cursor" && request.runtime_policy?.permission_mode === "read-only");
+  const submitCaptureEnabled = !textMode && (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && (hasScopedToolAccess(request.runtime_policy) || request.runtime_policy?.permission_mode === "workspace-write")) && !(request.provider === "cursor" && request.runtime_policy?.permission_mode === "read-only");
   const strategy = selectStructuredOutputStrategy(adapter, {
+    output: request.output,
     submitCaptureEnabled,
     strategy: dependencies.transport?.strategy
   });
-  if (!adapter.capabilities.schema_strategies.includes(strategy)) {
+  if (!adapter.capabilities.schema_strategies.includes(strategy) || !textMode && strategy === "text") {
     return preInvocationFailure({
       provider: request.provider,
       code: "PROVIDER_UNSUPPORTED_OPTION",
@@ -3619,11 +3703,11 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     request: effectiveRequest,
     hostEnv: {
       ...hostGuard.child_env,
-      ...submitCaptureEnabled && submitCommand && submitCapturePath ? {
+      ...submitCaptureEnabled && submitCommand && submitCapturePath && schemaPath ? {
         CONSENSUS_SUBMIT_COMMAND: submitCommand,
         CONSENSUS_SUBMIT_FILE: submitCapturePath,
         [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path8.resolve(request.schema_path)
+        CONSENSUS_SUBMIT_SCHEMA: path8.resolve(schemaPath)
       } : {}
     }
   });
@@ -3637,7 +3721,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       }
       const invocationRequest = {
         ...effectiveRequest,
-        prompt: promptForStrategy({
+        prompt: textMode || inlineJsonSchema === void 0 ? request.prompt : promptForStrategy({
           prompt: request.prompt,
           strategy,
           inlineJsonSchema,
@@ -3697,6 +3781,40 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
             terminal_reason: classification.terminal_reason
           },
           diagnostics: failureDiagnostics
+        });
+      }
+      if (textMode) {
+        const extracted = extractProviderText(
+          invocation2,
+          processResult,
+          request.provider
+        );
+        if (!extracted.ok) {
+          return failureEnvelope({
+            provider: request.provider,
+            code: extracted.code,
+            message: extracted.message,
+            retryable: false,
+            stdout: processResult.stdout,
+            stderr: processResult.stderr,
+            attempts: {
+              cli_attempts: attempt,
+              terminal_reason: extracted.terminal_reason
+            },
+            diagnostics
+          });
+        }
+        return textSuccessEnvelope({
+          provider: request.provider,
+          args: invocation2.redacted_command,
+          stdout: extracted.raw,
+          stderr: processResult.stderr,
+          text: extracted.text,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "success"
+          },
+          diagnostics
         });
       }
       const submittedVerdict = submitCapturePath ? await readSubmittedVerdict(submitCapturePath, schema, maxSubmitBytes) : { ok: false };
@@ -3869,6 +3987,58 @@ function extractProviderOutput(invocation2, result) {
     message: "Provider did not write a last-message file response."
   };
 }
+function extractProviderText(invocation2, result, provider) {
+  const empty = (message) => ({
+    ok: false,
+    code: "PROVIDER_EMPTY_OUTPUT",
+    message,
+    terminal_reason: "empty_output"
+  });
+  const malformed = (message) => ({
+    ok: false,
+    code: "PROVIDER_MALFORMED_RESULT",
+    message,
+    terminal_reason: "malformed_result"
+  });
+  if (invocation2.output_mode === "last_message_file") {
+    const lastMessage = result.last_message;
+    if (lastMessage === void 0) {
+      return empty("Provider did not write a last-message file response.");
+    }
+    if (!lastMessage.trim()) {
+      return empty("Provider wrote a blank last-message file response.");
+    }
+    return { ok: true, raw: lastMessage, text: lastMessage };
+  }
+  if (!result.stdout.trim()) {
+    return empty("Provider produced no output.");
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout.trim());
+  } catch {
+    return malformed("Provider output is not a JSON result object.");
+  }
+  if (!isRecord4(parsed)) {
+    return malformed("Provider output is not a JSON result object.");
+  }
+  if (parsed.is_error === true) {
+    return malformed("Provider reported an error result.");
+  }
+  const subtype = parsed.subtype;
+  if (provider === "claude" && subtype !== "success" || subtype !== void 0 && subtype !== "success") {
+    return malformed(
+      `Provider result subtype is ${typeof subtype === "string" ? subtype : "missing"}, not success.`
+    );
+  }
+  if (typeof parsed.result !== "string") {
+    return malformed("Provider result object has no text result.");
+  }
+  if (!parsed.result.trim()) {
+    return empty("Provider returned a blank text result.");
+  }
+  return { ok: true, raw: result.stdout, text: parsed.result };
+}
 function parseProviderJson(stdout) {
   try {
     return { ok: true, value: JSON.parse(stdout.trim()) };
@@ -4032,7 +4202,8 @@ Commands:
   provider ls --json
   preflight --json --provider <id> --capability run [--capability <name>] [--max-depth <n>]
   submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
-  run --provider <id> --schema <path> --json [-|--prompt <text>|--prompt-file <path>]
+  run --provider <id> (--schema <path> | --output text) --json
+      [-|--prompt <text>|--prompt-file <path>] [--output json|text]
       [--model <name>] [--effort <level>]
       [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
       [--allow-read <absolute-file>] [--allow-edit <absolute-file>]

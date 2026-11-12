@@ -6,6 +6,10 @@ import { describe, expect, it } from 'vitest';
 
 import { providerRegistry } from '../provider-cli/adapters.js';
 import {
+  normalizeRunRequest,
+  parseConsensusCliArgs,
+} from '../provider-cli/args.js';
+import {
   buildChildEnvironment,
   buildProviderProbeEnvironment,
   defaultRuntimePolicy,
@@ -216,6 +220,94 @@ describe('provider runtime policy validation', () => {
     });
   });
 
+  describe('Cursor text mode', () => {
+    const textIo = (stdin = '') => ({
+      cwd: '/workspace',
+      readFile: async (filePath: string): Promise<string> => {
+        throw new Error(`Unexpected file read: ${filePath}`);
+      },
+      readStdin: async () => stdin,
+    });
+    const fromFlags = (policyFlags: string[]) =>
+      normalizeRunRequest(
+        parseConsensusCliArgs([
+          'run',
+          '--provider',
+          'cursor',
+          '--output',
+          'text',
+          ...policyFlags,
+          '--json',
+          '--prompt',
+          'Reply in prose.',
+        ]),
+        textIo(),
+      );
+    const fromRequestJson = (runtimePolicy?: ProviderRuntimePolicy) =>
+      normalizeRunRequest(
+        parseConsensusCliArgs(['run', '--request-json', '-', '--json']),
+        textIo(
+          JSON.stringify({
+            schema_version: 'v1',
+            provider: 'cursor',
+            output: 'text',
+            prompt: 'Reply in prose.',
+            ...(runtimePolicy ? { runtime_policy: runtimePolicy } : {}),
+          }),
+        ),
+      );
+
+    // Each of these would otherwise reach `--print ... --force`.
+    it.each<[string, () => Promise<ConsensusCliRunRequest>]>([
+      ['an omitted policy through flags', () => fromFlags([])],
+      [
+        'non-interactive through flags',
+        () => fromFlags(['--permission-mode', 'non-interactive']),
+      ],
+      [
+        'workspace-write through flags',
+        () => fromFlags(['--permission-mode', 'workspace-write']),
+      ],
+      ['an omitted policy through request JSON', () => fromRequestJson()],
+      [
+        'non-interactive through request JSON',
+        () => fromRequestJson({ permission_mode: 'non-interactive' }),
+      ],
+      [
+        'workspace-write through request JSON',
+        () => fromRequestJson({ permission_mode: 'workspace-write' }),
+      ],
+    ])('rejects %s', async (_label, build) => {
+      expect(
+        validateProviderOptions(await build(), capabilities('cursor')),
+      ).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_UNSUPPORTED_OPTION',
+        option: 'runtime_policy.permission_mode',
+      });
+    });
+
+    it('accepts read-only through flags and request JSON', async () => {
+      for (const built of [
+        await fromFlags(['--permission-mode', 'read-only']),
+        await fromRequestJson({ permission_mode: 'read-only' }),
+      ]) {
+        expect(validateProviderOptions(built, capabilities('cursor'))).toEqual({
+          ok: true,
+        });
+      }
+    });
+
+    it('leaves JSON-mode Cursor profiles unchanged', () => {
+      expect(
+        validateProviderOptions(
+          request({ provider: 'cursor' }),
+          capabilities('cursor'),
+        ),
+      ).toEqual({ ok: true });
+    });
+  });
+
   describe('Claude permission composition', () => {
     const readPath = realpathSync(fileURLToPath(import.meta.url));
     const editPath = path.join(path.dirname(readPath), 'new-output.md');
@@ -411,6 +503,43 @@ describe('provider runtime policy validation', () => {
       expect(env).not.toHaveProperty('SECRET_TOKEN');
     },
   );
+
+  it('strips reserved submit variables in text mode even when allowlisted', () => {
+    const submitEnv = {
+      CONSENSUS_SUBMIT_FILE: '/workspace/.consensus/submit/x.json',
+      CONSENSUS_SUBMIT_SCHEMA: '/workspace/schema.json',
+      CONSENSUS_SUBMIT_COMMAND: 'consensus submit',
+    };
+    const build = (output: 'json' | 'text') =>
+      buildChildEnvironment({
+        parentEnv: { PATH: '/usr/bin', ...submitEnv },
+        request: request({
+          provider: 'codex',
+          output,
+          runtime_policy: { env_allowlist: Object.keys(submitEnv) },
+        }),
+        hostEnv: {
+          CONSENSUS_RUN_ID: 'run-123',
+          CONSENSUS_SUBMIT_FILE: '/host/submit.json',
+        },
+      });
+
+    const textEnv = build('text');
+    expect(
+      Object.keys(textEnv).filter((name) =>
+        name.startsWith('CONSENSUS_SUBMIT_'),
+      ),
+    ).toEqual([]);
+    expect(textEnv).toMatchObject({
+      PATH: '/usr/bin',
+      CONSENSUS_RUN_ID: 'run-123',
+    });
+    // JSON mode keeps today's allowlist behaviour.
+    expect(build('json')).toMatchObject({
+      CONSENSUS_SUBMIT_SCHEMA: '/workspace/schema.json',
+      CONSENSUS_SUBMIT_FILE: '/host/submit.json',
+    });
+  });
 
   it('allows explicit env allowlist variables even when unrelated to the selected provider', () => {
     const env = buildChildEnvironment({

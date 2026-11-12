@@ -4,6 +4,7 @@ import {
   failureEnvelope,
   processExitForEnvelope,
   successEnvelope,
+  textSuccessEnvelope,
   usageFailure,
 } from '../provider-cli/envelope.js';
 
@@ -27,12 +28,41 @@ describe('provider CLI envelopes', () => {
       provider: 'claude',
       args: ['claude', '--print'],
       stdout: '{"verdict":"accept"}',
+      output_kind: 'json',
       json: { verdict: 'accept' },
       attempts: {
         cli_attempts: 1,
         retryable: false,
         terminal_reason: 'success',
       },
+    });
+  });
+
+  it('builds text success envelopes with a null json value', () => {
+    expect(
+      textSuccessEnvelope({
+        provider: 'codex',
+        args: ['codex', 'exec'],
+        stdout: 'Looks correct.',
+        text: 'Looks correct.',
+        attempts: { cli_attempts: 1, terminal_reason: 'success' },
+        diagnostics: { strategy_used: 'text' },
+      }),
+    ).toEqual({
+      schema_version: 'v1',
+      ok: true,
+      provider: 'codex',
+      args: ['codex', 'exec'],
+      stdout: 'Looks correct.',
+      output_kind: 'text',
+      text: 'Looks correct.',
+      json: null,
+      attempts: {
+        cli_attempts: 1,
+        retryable: false,
+        terminal_reason: 'success',
+      },
+      diagnostics: { strategy_used: 'text' },
     });
   });
 

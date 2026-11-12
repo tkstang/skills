@@ -161,6 +161,9 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
     lastMessageFile,
   ];
   if (strategy === 'constrained_native') {
+    if (!request.schema_path) {
+      throw new Error('Codex constrained-native invocation requires a schema.');
+    }
     argv.push('--output-schema', request.schema_path);
   }
   if (request.model) argv.push('--model', request.model);

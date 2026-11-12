@@ -473,7 +473,9 @@ function exitCodeForProviderError(code: ProviderErrorCode) {
   if (code === 'CONSENSUS_CLI_USAGE') return EXIT_CODES.USAGE;
   if (
     code === 'PROVIDER_INVALID_JSON' ||
-    code === 'PROVIDER_SCHEMA_VALIDATION'
+    code === 'PROVIDER_SCHEMA_VALIDATION' ||
+    code === 'PROVIDER_EMPTY_OUTPUT' ||
+    code === 'PROVIDER_MALFORMED_RESULT'
   ) {
     return EXIT_CODES.DATA;
   }

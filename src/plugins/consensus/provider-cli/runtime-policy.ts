@@ -123,6 +123,18 @@ export function validateProviderOptions(
       'Scoped tool grants are supported only by the Claude provider.',
     );
   }
+  // Every Cursor profile except read-only reaches `--print ... --force`, which
+  // auto-approves commands, so the text surface accepts only read-only.
+  if (
+    request.output === 'text' &&
+    request.provider === 'cursor' &&
+    policy.permission_mode !== 'read-only'
+  ) {
+    return unsupported(
+      'runtime_policy.permission_mode',
+      'Cursor text-mode runs require --permission-mode read-only.',
+    );
+  }
   if (request.provider === 'claude') {
     const composition = composeClaudePermissionProfile(policy);
     if (!composition.ok) {
@@ -427,11 +439,18 @@ export function buildChildEnvironment({
     if (value !== undefined) childEnv[name] = value;
   }
 
-  return {
-    ...childEnv,
-    ...hostEnv,
-  };
+  const env = { ...childEnv, ...hostEnv };
+  // Text mode has no verdict to submit, so no reserved submit variable may
+  // reach the provider, even one named in env_allowlist.
+  if (request.output === 'text') {
+    for (const name of Object.keys(env)) {
+      if (name.startsWith(RESERVED_SUBMIT_ENV_PREFIX)) delete env[name];
+    }
+  }
+  return env;
 }
+
+const RESERVED_SUBMIT_ENV_PREFIX = 'CONSENSUS_SUBMIT_';
 
 export function buildProviderProbeEnvironment({
   parentEnv,

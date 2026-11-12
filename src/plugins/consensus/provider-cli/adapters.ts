@@ -171,7 +171,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
     },
     capabilities: {
-      schema_strategies: ['provider_validated', 'prompt_only'],
+      schema_strategies: ['provider_validated', 'prompt_only', 'text'],
       output_modes: ['stdout_json'],
       options: {
         model: true,
@@ -239,7 +239,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
     },
     capabilities: {
-      schema_strategies: ['constrained_native', 'prompt_only'],
+      schema_strategies: ['constrained_native', 'prompt_only', 'text'],
       output_modes: ['last_message_file'],
       options: {
         model: true,
@@ -309,7 +309,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS,
     },
     capabilities: {
-      schema_strategies: ['prompt_only', 'submit_tool_candidate'],
+      schema_strategies: ['prompt_only', 'submit_tool_candidate', 'text'],
       output_modes: ['stdout_json'],
       options: {
         model: false,

@@ -26,10 +26,18 @@ export const STRUCTURED_OUTPUT_STRATEGIES = [
   'provider_validated',
   'prompt_only',
   'submit_tool_candidate',
+  // Free-form text: no schema, submit capture, or validation.
+  'text',
 ] as const;
 
 export type StructuredOutputStrategy =
   (typeof STRUCTURED_OUTPUT_STRATEGIES)[number];
+
+// What a successful run returns: schema-validated JSON (the default) or the
+// provider's final text.
+export const RUN_OUTPUT_KINDS = ['json', 'text'] as const;
+
+export type RunOutputKind = (typeof RUN_OUTPUT_KINDS)[number];
 
 export const OUTPUT_MODES = [
   'stdout_json',
@@ -148,7 +156,10 @@ export interface ContinuationRequest {
 export interface ConsensusCliRunRequest {
   schema_version: 'v1';
   provider: ProviderId;
-  schema_path: string;
+  // Defaults to `json`. `text` takes no schema.
+  output?: RunOutputKind;
+  // Required when `output` is `json`; rejected when it is `text`.
+  schema_path?: string;
   prompt: string;
   cwd?: string;
   host?: HostContext;
@@ -243,6 +254,8 @@ export const PROVIDER_ERROR_CODES = [
   'PROVIDER_EXIT',
   'PROVIDER_INVALID_JSON',
   'PROVIDER_SCHEMA_VALIDATION',
+  'PROVIDER_EMPTY_OUTPUT',
+  'PROVIDER_MALFORMED_RESULT',
   'PROVIDER_TIMEOUT',
   'PROVIDER_OUTPUT_CAP_EXCEEDED',
   'PROVIDER_ARGV_TOO_LARGE',
@@ -279,18 +292,33 @@ export interface ContinuationReceipt {
   capability?: ProviderContinuationCapability;
 }
 
-export interface ConsensusCliRunSuccess {
+interface ConsensusCliRunSuccessBase {
   schema_version: 'v1';
   ok: true;
   provider: ProviderId;
   args: string[];
   stdout: string;
   stderr?: string;
-  json: unknown;
   attempts: AttemptSummary;
   diagnostics?: ProviderDiagnostics;
   continuation?: ContinuationReceipt;
 }
+
+export interface ConsensusCliRunJsonSuccess extends ConsensusCliRunSuccessBase {
+  output_kind: 'json';
+  json: unknown;
+}
+
+export interface ConsensusCliRunTextSuccess extends ConsensusCliRunSuccessBase {
+  output_kind: 'text';
+  text: string;
+  json: null;
+}
+
+// `output_kind` is an additive v1 discriminator.
+export type ConsensusCliRunSuccess =
+  | ConsensusCliRunJsonSuccess
+  | ConsensusCliRunTextSuccess;
 
 export interface ConsensusCliRunFailure {
   schema_version: 'v1';

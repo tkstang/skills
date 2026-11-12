@@ -391,7 +391,8 @@ used:
 
 Provider `run` results are machine-readable envelopes. Terminal provider
 failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_ARGV_TOO_LARGE`,
-`PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; shell callers must parse
+`PROVIDER_INVALID_JSON`, `PROVIDER_SCHEMA_VALIDATION`, `PROVIDER_EMPTY_OUTPUT`,
+or `PROVIDER_MALFORMED_RESULT` still exit process `0`; shell callers must parse
 the JSON envelope instead of checking `$?`. CLI usage failures
 (`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` subcommand
 uses ordinary nonzero exit codes for validation or capture failures so the peer
@@ -402,6 +403,46 @@ can correct the verdict in-turn.
 These `consensus run` controls apply to every caller, through flags or
 `--request-json`, and are checked after the runtime policy is normalized and
 before any provider process starts.
+
+### Output modes
+
+`--output json` (the default) returns a schema-validated JSON reply and needs
+`--schema`. `--output text` returns the provider's final reply as free-form
+text and takes no schema; passing both is a usage error. In request JSON the
+fields are `output` and `schema_path`, with the same pairing rule.
+
+A text-mode turn reads no schema, adds nothing to your prompt, validates
+nothing, and turns `consensus submit` capture off: no `.consensus/submit`
+sidecar, no submit instructions, and every `CONSENSUS_SUBMIT_*` variable is
+removed from the provider's environment, even one named with `--env-allow`.
+
+The success envelope stays `schema_version: "v1"` and carries `output_kind`:
+
+| Mode | `output_kind` | Reply fields                             |
+| ---- | ------------- | ---------------------------------------- |
+| JSON | `"json"`      | `json` holds the validated reply         |
+| Text | `"text"`      | `text` holds the reply; `json` is `null` |
+
+`stdout`, `attempts`, `diagnostics`, and `continuation` keep their meaning in
+both modes.
+
+Text extraction is strict, and output that cannot be read is a failure, never
+raw-text success:
+
+- Claude and Cursor: stdout must be the provider's JSON result object with a
+  non-blank string `result`. Unparseable output, a result without a string
+  `result`, `is_error: true`, or a `subtype` other than `success` (for Claude, a
+  missing `subtype` too) fails with `PROVIDER_MALFORMED_RESULT`.
+- Codex: the `--output-last-message` file must exist and hold non-blank text.
+- Empty output or whitespace-only text fails with `PROVIDER_EMPTY_OUTPUT`.
+
+Neither failure is retried: the provider finished its turn, so only a
+transient process failure on a read-only profile is retried.
+
+Cursor text mode accepts only `--permission-mode read-only`. Every other Cursor
+profile, including an omitted one, runs `cursor-agent --print --force`, which
+auto-approves commands, so text mode rejects it before spawn with
+`PROVIDER_UNSUPPORTED_OPTION`. JSON-mode Cursor runs are unchanged.
 
 ### Attempts and retries
 

@@ -56,7 +56,12 @@ termination.
 The normalized envelope keeps the loop provider-neutral. It carries success or
 failure, structured output, redacted arguments, diagnostics, and attempt data.
 The loop then applies its own verdict rules rather than trusting provider exit
-status or provider-specific response syntax as a consensus decision.
+status or provider-specific response syntax as a consensus decision. Every
+in-repo caller, including the loop, runs in JSON mode (`output_kind: "json"`).
+`consensus run --output text` is a schema-free surface for free-form replies:
+it turns submit capture off, strips `CONSENSUS_SUBMIT_*` from the child
+environment, and fails unreadable output as `PROVIDER_EMPTY_OUTPUT` or
+`PROVIDER_MALFORMED_RESULT` rather than returning raw text.
 
 ## Guardrails, not isolation
 
