@@ -125,6 +125,26 @@ describe('plugin-manifests', () => {
     }
   });
 
+  // Codex ignores a default prompt longer than 128 characters and accepts at
+  // most three (root AGENTS.md).
+  it('keeps every Codex default prompt within the Codex limits', async () => {
+    for (const plugin of plugins) {
+      const manifest = await readJson(
+        `plugins/${plugin.name}/.codex-plugin/plugin.json`,
+      );
+      const prompts = (manifest.interface?.defaultPrompt ?? [])
+        .map((prompt: string) => prompt.replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+
+      expect(prompts.length, plugin.name).toBeLessThanOrEqual(3);
+      for (const prompt of prompts) {
+        expect(prompt.length, `${plugin.name}: ${prompt}`).toBeLessThanOrEqual(
+          128,
+        );
+      }
+    }
+  });
+
   it('codex manifests include plugin-specific runtime interface metadata', async () => {
     const consensus = await readJson(
       'plugins/consensus/.codex-plugin/plugin.json',
