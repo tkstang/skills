@@ -1022,6 +1022,7 @@ var DEFAULT_TIMEOUT_SEC = 300;
 var DEFAULT_TERMINATION_GRACE_MS = 250;
 var DEFAULT_FINAL_RESOLUTION_MS = 1e3;
 var USE_PROCESS_GROUP = process.platform !== "win32";
+var FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
 var ARGV_TOO_LARGE_MESSAGE = "Provider arguments or environment exceeded the operating-system limit (E2BIG). Reduce the environment or argument sizes, such as the inline JSON schema.";
 function isReliableExternalInterrupt(input) {
   return input.code === "PROVIDER_EXIT" && input.signal !== null && input.exit_code === null;
@@ -1079,6 +1080,12 @@ function runProviderSubprocess(invocation2, options = {}) {
       return;
     }
     const provider = child;
+    const forwardsInterrupts = USE_PROCESS_GROUP && provider.pid !== void 0;
+    if (forwardsInterrupts) {
+      for (const signal of FORWARDED_SIGNALS) {
+        process.on(signal, forwardInterrupt);
+      }
+    }
     let killEscalation;
     let finalResolution;
     const timeout = setTimeout(() => {
@@ -1160,6 +1167,19 @@ function runProviderSubprocess(invocation2, options = {}) {
         }, finalResolutionMs);
       }, terminationGraceMs);
     }
+    function forwardInterrupt(signal) {
+      stopForwardingInterrupts();
+      signalProvider(signal);
+      if (process.listenerCount(signal) === 0) {
+        process.kill(process.pid, signal);
+      }
+    }
+    function stopForwardingInterrupts() {
+      if (!forwardsInterrupts) return;
+      for (const signal of FORWARDED_SIGNALS) {
+        process.removeListener(signal, forwardInterrupt);
+      }
+    }
     function signalProvider(signal) {
       if (!USE_PROCESS_GROUP || provider.pid === void 0) {
         provider.kill(signal);
@@ -1227,6 +1247,7 @@ function runProviderSubprocess(invocation2, options = {}) {
     async function finish(closeExitCode = exitCode, closeSignal = exitSignal) {
       if (settled) return;
       settled = true;
+      stopForwardingInterrupts();
       exitCode = closeExitCode;
       exitSignal = closeSignal;
       clearTimeout(timeout);

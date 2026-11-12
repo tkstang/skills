@@ -1,4 +1,12 @@
-import { appendFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import {
+  appendFile,
+  chmod,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -296,6 +304,112 @@ describe('bounded provider subprocess runner', () => {
   });
 
   describe.skipIf(process.platform === 'win32')('process group', () => {
+    // The parent must be a separate process that a signal can kill, so this
+    // runs the generated CLI against a provider program that starts a
+    // grandchild in the provider's group and records both pids.
+    it('forwards an interrupt of the consensus CLI to the provider group', async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), 'consensus-interrupt-'));
+      const pidFile = path.join(dir, 'pids');
+      const provider = path.join(dir, 'provider');
+      await writeFile(
+        provider,
+        `#!${process.execPath}
+const { spawn } = require('node:child_process');
+const grandchild = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, process.pid + ':' + grandchild.pid);
+setInterval(() => {}, 1000);
+`,
+      );
+      await chmod(provider, 0o755);
+      const pids: number[] = [];
+      try {
+        const parent = spawn(
+          process.execPath,
+          [
+            path.join(repoRoot, 'plugins/consensus/scripts/consensus.mjs'),
+            'run',
+            '--provider',
+            'codex',
+            '--output',
+            'text',
+            '--json',
+            '--prompt',
+            'Reply in prose.',
+          ],
+          {
+            cwd: dir,
+            env: { ...process.env, CONSENSUS_CODEX_EXECUTABLE: provider },
+            stdio: 'ignore',
+          },
+        );
+        const exited = new Promise<NodeJS.Signals | null>((resolve) => {
+          parent.on('exit', (_code, signal) => resolve(signal));
+        });
+        pids.push(...(await waitForPids(pidFile)));
+
+        parent.kill('SIGINT');
+
+        await expect(exited).resolves.toBe('SIGINT');
+        for (const pid of pids) {
+          await expect(waitForExit(pid)).resolves.toBe(true);
+        }
+      } finally {
+        pids.forEach(killQuietly);
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('forwards to each concurrent run and leaves the signal to remaining listeners', async () => {
+      const ownedBefore = process.listeners('SIGTERM').length;
+      // Another listener stands in for a host handler, so the forwarders must
+      // not re-raise the signal on this test process.
+      const hostHandler = () => {};
+      process.on('SIGTERM', hostHandler);
+      try {
+        const runs = [1, 2].map(() =>
+          runProviderSubprocess(invocation(['sleep', '30000']), {
+            maxOutputBytes: 1024,
+            timeoutSec: 20,
+          }),
+        );
+        const forwarders = process.listeners('SIGTERM').slice(ownedBefore + 1);
+        expect(forwarders).toHaveLength(2);
+        for (const forward of forwarders) {
+          (forward as (signal: NodeJS.Signals) => void)('SIGTERM');
+        }
+
+        const results = await Promise.all(runs);
+        for (const result of results) {
+          expect(result).toMatchObject({ ok: false, signal: 'SIGTERM' });
+        }
+        expect(process.listeners('SIGTERM')).toHaveLength(ownedBefore + 1);
+      } finally {
+        process.removeListener('SIGTERM', hostHandler);
+      }
+    });
+
+    it('leaves no interrupt listeners after a run settles', async () => {
+      const counts = () =>
+        ['SIGINT', 'SIGTERM', 'SIGHUP'].map((signal) =>
+          process.listenerCount(signal),
+        );
+      const before = counts();
+
+      await runProviderSubprocess(invocation(['echo-stdin']), {
+        maxOutputBytes: 1024,
+        timeoutSec: 5,
+      });
+      await runProviderSubprocess(
+        {
+          ...invocation(['echo-stdin']),
+          executable: path.join(fixtureBin, 'no-such-provider'),
+        },
+        { maxOutputBytes: 1024, timeoutSec: 5 },
+      );
+
+      expect(counts()).toEqual(before);
+    });
+
     it('SIGKILLs a SIGTERM-ignoring grandchild after the leader exits on timeout', async () => {
       let grandchild: number | undefined;
       try {
@@ -501,6 +615,16 @@ async function waitForExit(pid: number, timeoutMs = 2000) {
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
   return !isAlive(pid);
+}
+
+async function waitForPids(pidFile: string, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const contents = await readFile(pidFile, 'utf8').catch(() => '');
+    if (contents.includes(':')) return contents.split(':').map(Number);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error('Provider fixture did not record its pids.');
 }
 
 function killQuietly(pid: number | undefined) {

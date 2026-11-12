@@ -154,8 +154,10 @@
   descendant that ignores SIGTERM no longer survives the run. A group that is
   already gone (`ESRCH`) settles at once, settlement stays time-bounded, and
   the additive `diagnostics.termination` field records the signals sent and
-  the step that ended the run. Normal exits are never signalled; Windows is
-  unchanged.
+  the step that ended the run. Normal exits are never signalled. SIGINT,
+  SIGTERM, or SIGHUP sent to the consensus CLI, such as Ctrl-C, is forwarded to
+  the provider's group, so interrupting a run no longer orphans the provider.
+  Windows is unchanged.
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.9) reports
   arguments or an environment too large for the operating system (`E2BIG`) as

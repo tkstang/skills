@@ -50,7 +50,9 @@ spawns the provider detached on POSIX, so it leads its own process group. A
 timeout or output-cap breach sends SIGTERM to the group and keeps the SIGKILL
 escalation running after the leader exits, until the group is gone (`ESRCH`)
 or the settlement bound expires; `diagnostics.termination` records the steps.
-A normal exit never signals the group. Windows keeps single-process
+A normal exit never signals the group. While a run is active, SIGINT, SIGTERM,
+and SIGHUP received by the CLI are forwarded to that run's group and then
+re-raised when no other listener remains. Windows keeps single-process
 termination.
 
 The normalized envelope keeps the loop provider-neutral. It carries success or

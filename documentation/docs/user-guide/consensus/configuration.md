@@ -468,7 +468,9 @@ to the group after a short grace period, even if the provider itself has
 already exited, so a descendant that ignores SIGTERM does not survive. A group
 that is already gone counts as stopped, settlement is time-bounded, and the
 envelope's `diagnostics.termination` records the signals sent and which step
-ended the run. A provider that exits normally is never signalled. A process
+ended the run. A provider that exits normally is never signalled. An interrupt
+(SIGINT, SIGTERM, or SIGHUP, such as Ctrl-C) sent to the consensus CLI is
+forwarded to the provider's group before the CLI exits. A process
 that moves itself to another process group or session escapes this cleanup.
 On Windows only the provider process is signalled, as before.
 

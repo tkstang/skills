@@ -55,6 +55,9 @@ const DEFAULT_TIMEOUT_SEC = 300;
 const DEFAULT_TERMINATION_GRACE_MS = 250;
 const DEFAULT_FINAL_RESOLUTION_MS = 1000;
 const USE_PROCESS_GROUP = process.platform !== 'win32';
+// A detached provider is outside the terminal's foreground group, so these
+// no longer reach it on their own; each run forwards them to its group.
+const FORWARDED_SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const;
 const ARGV_TOO_LARGE_MESSAGE =
   'Provider arguments or environment exceeded the operating-system limit (E2BIG). Reduce the environment or argument sizes, such as the inline JSON schema.';
 
@@ -135,6 +138,12 @@ export function runProviderSubprocess(
       return;
     }
     const provider = child;
+    const forwardsInterrupts = USE_PROCESS_GROUP && provider.pid !== undefined;
+    if (forwardsInterrupts) {
+      for (const signal of FORWARDED_SIGNALS) {
+        process.on(signal, forwardInterrupt);
+      }
+    }
 
     let killEscalation: NodeJS.Timeout | undefined;
     let finalResolution: NodeJS.Timeout | undefined;
@@ -227,7 +236,25 @@ export function runProviderSubprocess(
       }, terminationGraceMs);
     }
 
-    function signalProvider(signal: 'SIGTERM' | 'SIGKILL'): 'sent' | 'gone' {
+    // Forward an interrupt of this process to the provider's group. When no
+    // other listener remains, re-raise it so the default action (exit) still
+    // applies; otherwise another run or a host handler owns the behaviour.
+    function forwardInterrupt(signal: NodeJS.Signals) {
+      stopForwardingInterrupts();
+      signalProvider(signal);
+      if (process.listenerCount(signal) === 0) {
+        process.kill(process.pid, signal);
+      }
+    }
+
+    function stopForwardingInterrupts() {
+      if (!forwardsInterrupts) return;
+      for (const signal of FORWARDED_SIGNALS) {
+        process.removeListener(signal, forwardInterrupt);
+      }
+    }
+
+    function signalProvider(signal: NodeJS.Signals): 'sent' | 'gone' {
       if (!USE_PROCESS_GROUP || provider.pid === undefined) {
         provider.kill(signal);
         return 'sent';
@@ -314,6 +341,7 @@ export function runProviderSubprocess(
     ) {
       if (settled) return;
       settled = true;
+      stopForwardingInterrupts();
       exitCode = closeExitCode;
       exitSignal = closeSignal;
       clearTimeout(timeout);
