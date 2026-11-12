@@ -42,7 +42,7 @@
     - [Library Reference](docs/user-guide/session-toolkit/library.md) — Use the public ESM APIs to discover, read, search, export, and inspect sessions with explicit stores and identity handling.
   - [Installation](docs/user-guide/installation.md) — Install the consensus or session plugin, choose optional standalone skill forms, and check prerequisites and release evidence.
   - Consensus
-    - [Consensus](docs/user-guide/consensus/index.md) — How the consensus plugin uses provider-backed AI peers for converging artifacts, bounded review, panels, and advisory takes.
+    - [Consensus](docs/user-guide/consensus/index.md) — How the consensus plugin uses provider-backed AI peers for converging artifacts, bounded review, panels, advisory takes, and delegated tasks.
     - [Create](docs/user-guide/consensus/create.md) — Run the create skill to produce a new artifact from a brief with independent peer drafts, synthesis, a deliberation log, and resolution metadata.
     - [Plan](docs/user-guide/consensus/plan.md) — Run the plan skill to turn a goal and inline constraints into structured markdown steps, dependencies, risks, a deliberation log, and resolution metadata.
     - [Decide](docs/user-guide/consensus/decide.md) — Run the decide skill to choose between options with independent peer decision drafts, synthesis, minimal agency, explicit dissent, and resolution metadata.
@@ -51,6 +51,7 @@
     - [Review](docs/user-guide/consensus/review.md) — Run one bounded, read-only, provider-backed review and produce validated JSON plus OAT-compatible Markdown.
     - [Phone-a-friend](docs/user-guide/consensus/phone-a-friend.md) — Use phone-a-friend for advisory peer consultation with a structured take and explicit host disposition, one-shot by default with optional follow-up rounds.
     - [Panel](docs/user-guide/consensus/panel.md) — Run consensus-panel to ask multiple provider-backed panelists the same question while the host stays a neutral moderator.
+    - [Delegate](docs/user-guide/consensus/delegate.md) — Use delegate to hand one task to another provider: code changes run in a dedicated git worktree, and the host verifies the diff before you decide.
     - [Configuration](docs/user-guide/consensus/configuration.md) — Consensus configuration examples, field types, model and effort support, precedence, and workflow defaults.
     - [Provider setup](docs/user-guide/consensus/provider-setup.md) — Consensus provider inventory, readiness, diagnostics, executable overrides, and Cursor authentication.
     - [Provider run controls](docs/user-guide/consensus/provider-run-controls.md) — Consensus run output modes, retries, timeouts, process cleanup, and Claude and Codex write policies.

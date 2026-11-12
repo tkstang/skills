@@ -218,3 +218,7 @@ nor an advisory take should be described as a consensus-loop outcome. See
 [Phone-a-friend](../../user-guide/consensus/phone-a-friend.md) for their user
 contracts; see [Create](../../user-guide/consensus/create.md) and
 [Refine](../../user-guide/consensus/refine.md) for converging workflow usage.
+
+`delegate` is outside the loop too. It runs one `consensus run --output text`
+turn with a single attempt, then the host computes the changes from its own git
+baseline and verifies them. See [Delegate](../../user-guide/consensus/delegate.md).

@@ -1,22 +1,23 @@
 ---
 title: 'Consensus'
-description: 'How the consensus plugin uses provider-backed AI peers for converging artifacts, bounded review, panels, and advisory takes.'
+description: 'How the consensus plugin uses provider-backed AI peers for converging artifacts, bounded review, panels, advisory takes, and delegated tasks.'
 ---
 
 # Consensus
 
-The consensus plugin uses provider-CLI-backed AI peers for four related
+The consensus plugin uses provider-CLI-backed AI peers for five related
 workflows: converging artifacts through peer deliberation, one bounded read-only
-review, single-round panel responses with side-by-side attribution, and
+review, single-round panel responses with side-by-side attribution,
 advisory takes that the host dispositions (one-shot by default, with bounded
-follow-up rounds on request). It also packages `observer` and `observer-collab`, the
+follow-up rounds on request), and delegated tasks that the host verifies. It also packages `observer` and `observer-collab`, the
 plugin-local forms of the standalone session observation skills. The peers are invoked through the generated consensus CLI; the
 converging wrappers parse your document, run the peers through structured verdict
 rounds, and write a markdown deliberation artifact with the final output,
 resolution metadata, and a deliberation log.
 
 The peer-workflow scope stays intentionally narrow: five converging skills, one
-panel skill, one review skill, and one advisory skill. The plugin additionally ships two
+panel skill, one review skill, one advisory skill, and one delegation skill.
+The plugin additionally ships two
 session-observation skills because observing and collaborating across providers
 belong with consensus behavior.
 
@@ -46,6 +47,9 @@ belong with consensus behavior.
   for a structured advisory take, then leaves the host responsible for agreeing,
   applying, ignoring, or following up. It also ships standalone under the same
   name.
+- **[`delegate`](delegate.md)** — hands one task to another provider: code
+  changes run in a dedicated git worktree, questions and investigations run
+  read-only, and the host verifies the diff before you decide what to keep.
 - **`observer`** — plugin-local form of
   [`session-observer`](../skills/session-observer.md).
 - **`observer-collab`** — plugin-local form of
@@ -304,9 +308,10 @@ validation does not make their advice trustworthy or authorize following it.
 ## Limitations
 
 - The plugin ships `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`,
-  `phone-a-friend`, `review`, `observer`, and `observer-collab`. Phone and Review
-  also have declared standalone forms; the two observer skills use their full
-  `session-*` names standalone. The other six peer workflows are plugin-only.
+  `phone-a-friend`, `delegate`, `review`, `observer`, and `observer-collab`.
+  Phone and Review also have declared standalone forms; the two observer skills
+  use their full `session-*` names standalone. The other seven peer workflows
+  are plugin-only.
 - Remaining consensus-family skills are future work: `consensus-research`.
 - Three iteration modes ship (`alternating`, `parallel_revision`,
   `parallel_synthesized`); `parallel_revision` and `parallel_synthesized`
@@ -351,6 +356,7 @@ validation does not make their advice trustworthy or authorize following it.
 
 - [Phone-a-friend](phone-a-friend.md) — `phone-a-friend` usage: advisory peer call, optional bounded follow-up, provider selection, and host disposition.
 - [Panel](panel.md) — `panel` usage: single-round multi-peer questions, panelist selection, JSONL status, output contract, and neutral moderation.
+- [Delegate](delegate.md) — `delegate` usage: write or read-only mode, peer selection, worktree writes, host verification, and continuation.
 
 ### Observe & Collaborate
 

@@ -15,7 +15,8 @@ What ships today:
   options, or goal; `refine` and `evaluate` converge or judge artifacts with
   audit trails; `panel` collects attributed perspectives; `phone-a-friend`
   asks one peer for an advisory take, one-shot by default with bounded
-  follow-up rounds on request;
+  follow-up rounds on request; `delegate` hands one task to another provider
+  and verifies the result;
   `observer` and `observer-collab` provide plugin-local session observation.
 - **Session plugin** — `align`, `debrief`, `sitrep`, and `reorient` clarify
   intent, recent history, current progress, and the whole thread; `next-steps`
@@ -32,7 +33,7 @@ What ships today:
   standalone only.
   The PR skills repair CI/review findings until green; only `land-pr` merges.
   Consensus `phone-a-friend` and `review` are also available as the standalone
-  skills `phone-a-friend` and `consensus-review`; its six other peer workflows
+  skills `phone-a-friend` and `consensus-review`; its seven other peer workflows
   remain plugin-only.
 
 Plugin and standalone entries share canonical guides rather than duplicate

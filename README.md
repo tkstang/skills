@@ -24,7 +24,7 @@ installation and available capabilities vary by host.
 
 Plugins group related capabilities; standalone skills let you install one
 capability. Consensus `phone-a-friend` and `review` are also available as the
-standalone skills `phone-a-friend` and `consensus-review`; the other six peer
+standalone skills `phone-a-friend` and `consensus-review`; the other seven peer
 workflows are plugin-only. Where both forms exist, they
 share one implementation and one guide.
 Choose one form of a skill to avoid duplicate entries in your agent.

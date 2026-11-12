@@ -90,6 +90,8 @@ Inside `plugins/consensus/`:
   - `skills/phone-a-friend/schemas/advisory.schema.json` — structured advisory response contract.
   - `skills/phone-a-friend/references/operator-qa.md` — manual QA walkthrough of one-shot advisory calls, expected JSON, and host disposition.
   - `skills/phone-a-friend/references/examples/` — example advisory prompt and response payload.
+- `skills/delegate/` — task delegation skill with a bundled executable provider helper.
+  - `skills/delegate/references/` — the brief template, worktree write rules, and the baseline and diff accounting procedure.
 - `references/live-e2e.md` — repeatable live provider E2E release-gate runbook for refine and evaluate.
 - `references/e2e/` — small checked-in artifacts and rubrics used by the live E2E runbook.
 - `agents/consensus-section-runner.md` — task contract for host-mediated parallel section runners.
