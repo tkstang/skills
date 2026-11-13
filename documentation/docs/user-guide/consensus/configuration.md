@@ -390,8 +390,8 @@ used:
 - `PROVIDER_UNSUPPORTED_OPTION`
 
 Provider `run` results are machine-readable envelopes. Terminal provider
-failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or
-`PROVIDER_SCHEMA_VALIDATION` still exit process `0`; shell callers must parse
+failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_ARGV_TOO_LARGE`,
+`PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; shell callers must parse
 the JSON envelope instead of checking `$?`. CLI usage failures
 (`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` subcommand
 uses ordinary nonzero exit codes for validation or capture failures so the peer

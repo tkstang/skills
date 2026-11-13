@@ -119,6 +119,58 @@ describe('review CLI', () => {
   );
 
   it.each([
+    { outputArgs: [], expected: 10_485_760 },
+    { outputArgs: ['--max-output-bytes', '65536'], expected: 65_536 },
+    { outputArgs: ['--max-output-bytes', '67108864'], expected: 67_108_864 },
+  ])(
+    'forwards a $expected-byte provider output cap',
+    async ({ outputArgs, expected }) => {
+      const execute = vi.fn(async (input: ExecuteReviewInput) => {
+        expect(input.maxOutputBytes).toBe(expected);
+        return {
+          ok: true,
+          status: 'empty_scope',
+          invocation_count: 0,
+          scope: { selectedPaths: [], externalDocuments: [] },
+        } as unknown as ExecuteReviewResult;
+      });
+
+      const result = await runReviewCli(
+        ['--files', 'src/a.ts', '--host', 'codex', ...outputArgs],
+        { execute },
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(execute).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([
+    [['--max-output-bytes', '65535'], 'max_output_bytes_invalid'],
+    [['--max-output-bytes', '67108865'], 'max_output_bytes_invalid'],
+    [['--max-output-bytes', '1e6'], 'max_output_bytes_invalid'],
+    [
+      ['--max-output-bytes', '65536', '--max-output-bytes', '65536'],
+      'argument_duplicate',
+    ],
+  ])(
+    'rejects invalid output caps before dispatch',
+    async (outputArgs, reason) => {
+      const execute = vi.fn();
+      const result = await runReviewCli(
+        ['--files', 'src/a.ts', '--host', 'codex', ...outputArgs],
+        { execute },
+      );
+
+      expect(result).toMatchObject({
+        exitCode: 2,
+        payload: { reason, invocation_count: 0 },
+      });
+      expect(execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
     [['--timeout-sec', '0'], 'timeout_invalid'],
     [['--timeout-sec', '3601'], 'timeout_invalid'],
     [['--timeout-sec', '1.5'], 'timeout_invalid'],
@@ -669,6 +721,34 @@ describe('review Markdown rendering', () => {
     expect(renderReviewMarkdown(aggregate)).toBe(rendered);
   });
 
+  it('shows a changed verdict, warnings, omitted findings, skipped binaries, and saved evidence', async () => {
+    const root = await temporaryRoot();
+    const aggregate = aggregateFixture(root, path.join(root, 'state'));
+    aggregate.claimed_verdict = 'pass';
+    aggregate.warnings = [
+      'The reviewer claimed pass; the host derived changes_requested.',
+    ];
+    aggregate.truncation.truncated = true;
+    aggregate.truncation.omitted.findings = 7;
+    aggregate.host_limitations = ['Skipped binary file: image.bin'];
+    aggregate.paths.provider_evidence = path.join(
+      root,
+      'provider-evidence.json',
+    );
+
+    const rendered = renderReviewMarkdown(aggregate);
+
+    expect(rendered).toContain(
+      '**Verdict:** changes\\_requested (reviewer claimed pass)',
+    );
+    expect(rendered).toMatch(/## Warnings\n\n- The reviewer claimed pass/u);
+    expect(rendered).toContain('7 more omitted, lowest severity first');
+    expect(rendered).toContain('- Skipped binary file: image\\.bin');
+    expect(rendered).toContain(
+      `Provider evidence: \`${path.join(root, 'provider-evidence.json')}\``,
+    );
+  });
+
   it.each([
     ['clean', 'clean-review.md'],
     ['findings', 'findings-review.md'],
@@ -813,6 +893,7 @@ function aggregateFixture(root: string, runDirectory: string): ReviewAggregate {
         },
       ],
       evidenceBytes: 24,
+      chargedBytes: 24,
       captureState: snapshot,
     },
     reviewer: {
@@ -860,6 +941,21 @@ function aggregateFixture(root: string, runDirectory: string): ReviewAggregate {
       after: snapshot,
     },
     validation: { ok: true },
+    claimed_verdict: 'changes_requested',
+    warnings: [],
+    truncation: {
+      truncated: false,
+      omitted: {
+        findings: 0,
+        questions: 0,
+        limitations: 0,
+        coverage: 0,
+        inspected_context: 0,
+        checks: 0,
+      },
+      strings_cut: 0,
+    },
+    host_limitations: [],
     reply: {
       schema_version: 'v1',
       scope_token: 'scope-token',
@@ -898,6 +994,7 @@ function aggregateFixture(root: string, runDirectory: string): ReviewAggregate {
       request: path.join(runDirectory, 'request.txt'),
       evidence: path.join(runDirectory, 'evidence.json'),
       result: path.join(runDirectory, 'result.json'),
+      provider_evidence: null,
     },
   };
 }
@@ -922,6 +1019,7 @@ function receiptAggregateFixture(kind: 'clean' | 'findings'): ReviewAggregate {
     aggregate.scope.selectedPaths = ['src/clean.ts'];
     aggregate.scope.externalDocuments = [];
     aggregate.scope.evidenceBytes = 24;
+    aggregate.claimed_verdict = 'pass';
     aggregate.reply = {
       schema_version: 'v1',
       scope_token: 'receipt-clean-token',

@@ -24,35 +24,29 @@
     "verdict": {
       "enum": ["pass", "changes_requested", "inconclusive"]
     },
-    "summary": { "type": "string", "minLength": 1, "maxLength": 8192 },
+    "summary": { "type": "string", "minLength": 1 },
     "findings": {
       "type": "array",
-      "maxItems": 100,
       "items": { "$ref": "#/definitions/finding" }
     },
     "questions": {
       "type": "array",
-      "maxItems": 50,
-      "items": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      "items": { "type": "string", "minLength": 1 }
     },
     "limitations": {
       "type": "array",
-      "maxItems": 50,
-      "items": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      "items": { "type": "string", "minLength": 1 }
     },
     "coverage": {
       "type": "array",
-      "maxItems": 200,
-      "items": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      "items": { "type": "string", "minLength": 1 }
     },
     "inspected_context": {
       "type": "array",
-      "maxItems": 200,
       "items": { "$ref": "#/definitions/inspectedContext" }
     },
     "checks": {
       "type": "array",
-      "maxItems": 100,
       "items": { "$ref": "#/definitions/check" }
     },
     "reviewer_identity": { "$ref": "#/definitions/reviewerIdentity" }
@@ -74,7 +68,7 @@
         "severity": {
           "enum": ["critical", "high", "medium", "low"]
         },
-        "title": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "title": { "type": "string", "minLength": 1 },
         "location": {
           "$ref": "#/definitions/location"
         },
@@ -84,13 +78,9 @@
           "minLength": 1,
           "maxLength": 1024
         },
-        "claim": { "type": "string", "minLength": 1, "maxLength": 8192 },
-        "evidence": { "type": "string", "minLength": 1, "maxLength": 8192 },
-        "suggestion": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 8192
-        },
+        "claim": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "string", "minLength": 1 },
+        "suggestion": { "type": "string", "minLength": 1 },
         "confidence": {
           "description": "Confidence in this individual finding, from 0 (least certain) to 1 (most certain).",
           "type": "number",
@@ -134,7 +124,7 @@
       "additionalProperties": false,
       "required": ["subject", "source_version"],
       "properties": {
-        "subject": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "subject": { "type": "string", "minLength": 1 },
         "source_version": {
           "type": "string",
           "minLength": 1,
@@ -147,9 +137,9 @@
       "additionalProperties": false,
       "required": ["name", "status"],
       "properties": {
-        "name": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "name": { "type": "string", "minLength": 1 },
         "status": { "enum": ["passed", "failed", "not_run"] },
-        "detail": { "type": "string", "maxLength": 4096 }
+        "detail": { "type": "string" }
       }
     },
     "reviewerIdentity": {

@@ -49,6 +49,7 @@ export interface ProviderRunFailureInput {
     | 'PROVIDER_EXIT'
     | 'PROVIDER_TIMEOUT'
     | 'PROVIDER_OUTPUT_CAP_EXCEEDED'
+    | 'PROVIDER_ARGV_TOO_LARGE'
   >;
   message: string;
   retryable: boolean;
@@ -490,6 +491,7 @@ function terminalReasonForNonExitFailure(
 ) {
   if (code === 'PROVIDER_MISSING') return 'provider_missing';
   if (code === 'PROVIDER_TIMEOUT') return 'provider_timeout';
+  if (code === 'PROVIDER_ARGV_TOO_LARGE') return 'provider_argv_too_large';
   return 'output_cap_exceeded';
 }
 

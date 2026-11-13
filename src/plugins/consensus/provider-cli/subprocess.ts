@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { open, rm } from 'node:fs/promises';
 
 import type { ProviderInvocation } from './invocation.js';
@@ -34,6 +35,7 @@ export interface ProviderProcessFailure {
     | 'PROVIDER_EXIT'
     | 'PROVIDER_TIMEOUT'
     | 'PROVIDER_OUTPUT_CAP_EXCEEDED'
+    | 'PROVIDER_ARGV_TOO_LARGE'
   >;
   message: string;
   retryable: boolean;
@@ -48,6 +50,8 @@ const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 const DEFAULT_TIMEOUT_SEC = 300;
 const DEFAULT_TERMINATION_GRACE_MS = 250;
 const DEFAULT_FINAL_RESOLUTION_MS = 1000;
+const ARGV_TOO_LARGE_MESSAGE =
+  'Provider arguments or environment exceeded the operating-system limit (E2BIG). A prompt too large for argv is one possible cause.';
 
 export function isReliableExternalInterrupt(input: {
   code: ProviderErrorCode;
@@ -83,12 +87,42 @@ export function runProviderSubprocess(
     let settled = false;
     let terminal: 'timeout' | 'output_cap' | 'spawn_error' | undefined;
 
-    const child = spawn(invocation.executable, invocation.argv, {
-      cwd: invocation.cwd,
-      env: options.env,
-      shell: false,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    let child: ChildProcessWithoutNullStreams;
+    try {
+      child = spawn(invocation.executable, invocation.argv, {
+        cwd: invocation.cwd,
+        env: options.env,
+        shell: false,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    } catch (error) {
+      // Node throws E2BIG from spawn() itself rather than emitting 'error'.
+      // The executable exists, so it must not be reported as missing.
+      if ((error as NodeJS.ErrnoException).code !== 'E2BIG') throw error;
+      void cleanupInvocationFiles(invocation).then(() =>
+        resolve(
+          failure({
+            code: 'PROVIDER_ARGV_TOO_LARGE',
+            message: ARGV_TOO_LARGE_MESSAGE,
+            retryable: false,
+            stdout: '',
+            stderr: '',
+            exitCode: null,
+            signal: null,
+            diagnostics: diagnosticsFor({
+              invocation,
+              stdoutBytes: 0,
+              stderrBytes: 0,
+              maxOutputBytes,
+              timeoutSec,
+              exitCode: null,
+              signal: null,
+            }),
+          }),
+        ),
+      );
+      return;
+    }
 
     let killEscalation: NodeJS.Timeout | undefined;
     let finalResolution: NodeJS.Timeout | undefined;

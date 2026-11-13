@@ -47,6 +47,37 @@ describe('review response schema', () => {
     });
   });
 
+  // Claude and Codex both shorten a reply to fit schema caps, choosing what to
+  // drop; the host truncates instead, after validating the full reply.
+  it('leaves presentation caps out of the reviewer schema', () => {
+    const { properties, definitions } = schema;
+    for (const name of [
+      'findings',
+      'questions',
+      'limitations',
+      'coverage',
+      'inspected_context',
+      'checks',
+    ]) {
+      expect(properties[name].maxItems, name).toBeUndefined();
+    }
+    for (const [label, field] of [
+      ['summary', properties.summary],
+      ['questions', properties.questions.items],
+      ['limitations', properties.limitations.items],
+      ['coverage', properties.coverage.items],
+      ['finding.title', definitions.finding.properties.title],
+      ['finding.claim', definitions.finding.properties.claim],
+      ['finding.evidence', definitions.finding.properties.evidence],
+      ['finding.suggestion', definitions.finding.properties.suggestion],
+      ['inspected.subject', definitions.inspectedContext.properties.subject],
+      ['check.name', definitions.check.properties.name],
+      ['check.detail', definitions.check.properties.detail],
+    ] as const) {
+      expect(field.maxLength, label).toBeUndefined();
+    }
+  });
+
   it('rejects absolute and parent-traversal paths without regex lookaround', () => {
     const pathSchema = schema.definitions.location.properties.path;
     const rejected = pathSchema.not.anyOf.map(

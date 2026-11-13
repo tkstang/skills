@@ -295,6 +295,29 @@ describe('bounded provider subprocess runner', () => {
     ).toBeLessThanOrEqual(16);
   });
 
+  it('reports an oversized argv as PROVIDER_ARGV_TOO_LARGE, not a missing executable', async () => {
+    // 4 MiB exceeds both the macOS ARG_MAX and Linux's per-argument limit.
+    const oversized = await runProviderSubprocess(
+      invocation(['echo-stdin', 'x'.repeat(4 * 1024 * 1024)]),
+      { maxOutputBytes: 1024, timeoutSec: 5 },
+    );
+    expect(oversized).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_ARGV_TOO_LARGE',
+      retryable: false,
+      message: expect.stringContaining('prompt too large for argv'),
+    });
+
+    const missing = await runProviderSubprocess(
+      {
+        ...invocation(['echo-stdin']),
+        executable: path.join(fixtureBin, 'no-such-provider'),
+      },
+      { maxOutputBytes: 1024, timeoutSec: 5 },
+    );
+    expect(missing).toMatchObject({ ok: false, code: 'PROVIDER_MISSING' });
+  });
+
   it('reports redacted command diagnostics without prompt content', async () => {
     const result = await runProviderSubprocess(invocation(['echo-stdin']), {
       maxOutputBytes: 1024,
