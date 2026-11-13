@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(git:*), Read, Write
 argument-hint: '"<task>" [--peer <provider-id>] [--model <model>] [--effort <effort>]'
 metadata:
   author: Thomas Stang
-  version: '0.1.1'
+  version: '0.2.0'
 ---
 
 # Delegate
@@ -64,7 +64,7 @@ user may name any peer, including your own provider.
    worktree from a commit, never your own checkout, then take the baseline
    snapshot in [accounting](references/accounting.md). One writer per worktree:
    do not edit it yourself while the peer runs.
-3. **Run once** with the command in [Invocation](#invocation). Save the JSON
+3. **Run one turn** with the command in [Invocation](#invocation). Save the JSON
    envelope in the state directory.
 4. **Read the envelope**, not the exit code. Provider failures exit `0` with
    `ok: false`; usage errors exit `2`. See [Failures](#failures).
@@ -74,10 +74,13 @@ user may name any peer, including your own provider.
 6. **Verify.** Read the full diff (write mode) or check the load-bearing claims
    against source (read-only). Rerun the brief's verification command yourself
    in the same directory. Give a reason for every claim or change you dismiss.
-7. **Report and stop.** Give the user the report from
+   If verification finds an ordinary failure within the original task, follow
+   [Continue](#continue) to have the same peer fix it automatically, then account
+   for and verify that turn too.
+7. **Report when verification passes or work is blocked.** Give the user the report from
    [accounting](references/accounting.md#report), your verification result, and
    your assessment. The user decides what happens next: commit, bring the
-   changes into their branch, continue with the peer, or discard. Do those only
+   changes into their branch, request further work, or discard. Do those only
    when asked, and never merge or push.
 
 ## Invocation
@@ -152,8 +155,25 @@ A success has `ok: true`, `output_kind: "text"`, and the peer's final reply in
 
 ## Continue
 
-Continue only when the user asks, with the same peer, model, effort, and mode
-flags, on Claude or Codex:
+On Claude or Codex, continue automatically when a completed turn returned a
+usable reply and your own verification finds an ordinary failure within the
+original task. Write a short follow-up with the failing command or evidence,
+the expected result, and the original verification loop. Resume the same peer
+session with the same model, effort, mode, and permission grants. Keep each
+turn single-attempt; this is a follow-up after verification, not a retry of an
+uncertain provider run.
+
+Save each turn's envelope, verification result, and report before continuing;
+write runs also need the closing snapshot. Read the next diff and rerun verification yourself. Continue
+while the peer is making progress within the original task; stop and report
+when verification passes, progress stops, or the fix is blocked or outside that
+task. Do not widen permissions or weaken verification to get a pass. The
+[Failures](#failures) rules still stop timeouts, interrupts, unknown turn states,
+and unusable replies. Cursor has no native continuation, so report the failed
+verification instead of starting another session.
+
+Also continue when the user explicitly asks for further work. On Claude or
+Codex, use:
 
 ```bash
 node <skill-dir>/scripts/consensus.mjs run --provider <peer> <same-controls> \

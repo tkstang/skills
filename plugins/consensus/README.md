@@ -286,7 +286,9 @@ A task that changes code runs in write mode in a dedicated linked worktree the
 host creates; questions, reviews, and investigations, and any consultation the
 host starts on its own, run read-only at the repository root. The host takes a
 git baseline before the run, computes the changes itself afterwards, reads the
-full diff, and reruns the brief's verification command. It never merges or
+full diff, and reruns the brief's verification command. On Claude and Codex,
+ordinary verification failures within the original task go back to the same peer automatically,
+with the same session and permissions; the host checks every follow-up. It never merges or
 pushes; the user decides what to keep. Codex and Claude can write and continue
 a session; Cursor is read-only. See `skills/delegate/SKILL.md` and the
 [Delegate guide](https://tkstang.github.io/skills/user-guide/consensus/delegate/).

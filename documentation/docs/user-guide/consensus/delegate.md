@@ -7,7 +7,7 @@ description: 'Use delegate to hand one task to another provider: code changes ru
 
 `delegate` hands one task to another provider-backed AI peer, such as "have
 Codex fix the flaky retry test" or "have Claude look into why the build is
-slow". The peer does the work in one provider turn. The host agent then checks
+slow". The peer does the work in a provider turn. The host agent then checks
 it: it computes the changes from its own git baseline, reads the full diff,
 and reruns the verification command itself. Nothing is merged or pushed. You
 decide what to keep.
@@ -61,11 +61,14 @@ Cursor accepts neither.
 4. It snapshots the worktree again and reports any new commits, staged,
    unstaged, and untracked changes, and the full change since the baseline,
    computed by git rather than taken from the peer.
-5. It reads the diff, reruns the verification command, and gives you the
-   result, its assessment, and a reason for anything it dismisses.
+5. It reads the diff and reruns the verification command. If it finds an
+   ordinary failure within the original task, it resumes the same peer to fix
+   it, then checks the new changes and reruns verification itself.
+6. Once verification passes or the work is blocked, it gives you the result,
+   its assessment, and a reason for anything it dismisses.
 
-The run ends there. You choose whether to commit, bring the branch into your
-work, continue with the peer, or discard the worktree; the host does those
+You choose whether to commit, bring the branch into your work, request further
+work, or discard the worktree; the host does those
 only when you ask.
 
 A read-only run uses the repository root as its working directory and skips
@@ -110,16 +113,26 @@ preflight error, is fixed and run again.
 
 ## Continuing
 
-When you ask for a follow-up, such as "have it fix the failing test", the host
-resumes the same Claude or Codex session with the same model, effort, and
-write policy. In write mode it first checks that the worktree has changed only
-in what the previous report recorded; any other change waits for your
-decision. Cursor has no continuation.
+After a completed turn with a usable reply, the host automatically sends an
+ordinary verification failure back to the same Claude or Codex session when
+the fix is within the original task. It includes the failing command or
+evidence, the expected result, and the original verification loop. It keeps
+the same model, effort, mode, and permission grants, and accounts for and
+verifies every follow-up itself. It stops when verification passes, progress
+stops, or the fix is blocked or outside the original task. It does not widen
+permissions or weaken verification.
+
+You can also request further work explicitly. Before each continued write
+turn, the host checks that the worktree has changed only in what the previous
+report recorded; any other change waits for your decision. Timeouts,
+interrupts, unknown execution, and unusable replies still stop for inspection
+and reporting. Cursor has no continuation, so the host reports its failed
+verification rather than starting another session.
 
 ## Limits
 
-- Delegate runs one provider turn per request. It does not merge, push, or
-  open pull requests.
+- Each provider turn runs once. Host verification can trigger follow-up turns
+  within the original task. Delegate does not merge, push, or open pull requests.
 - Do not put secrets or credentials in a brief. Provider CLIs can send prompt
   contents and files they read to their services.
 - Claude's write mode uses Claude Code permission rules, not an operating

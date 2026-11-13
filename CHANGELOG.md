@@ -4,6 +4,12 @@
 
 ### Changed
 
+- `consensus-delegate` 0.2.0, standalone `delegate` and `consensus:delegate`,
+  automatically resumes the same peer for ordinary host-verification failures
+  within the original task. Every turn keeps the same session and permissions
+  and is checked by the host. Timeouts, unknown execution, unusable replies,
+  blocked work, and lack of progress still stop for reporting.
+
 - Split the Consensus configuration reference into saved workflow configuration,
   provider setup, and provider run controls. Updated links and sidebar navigation.
   Corrected the trust-boundary diagram for text output and host verification;

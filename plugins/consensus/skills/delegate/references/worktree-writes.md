@@ -60,8 +60,11 @@ Both Claude and Codex keep the same write policy on a resumed turn.
 
 ## After the run
 
-The worktree stays as the peer left it, with the changes unstaged. Run only the
-step the user chooses:
+The worktree stays as the peer left it, with the changes unstaged. If host
+verification finds an ordinary failure within the original task, resume the
+same peer automatically under the skill's Continue rules, then account for and
+verify the next turn. Once verification passes or the work is blocked, run only
+the step the user chooses:
 
 - Commit in the worktree:
   `git -C <worktree-path> add -A && git -C <worktree-path> commit`.

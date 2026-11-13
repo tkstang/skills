@@ -98,7 +98,9 @@ git -C <worktree> diff <B.tree> <A.tree>        # the full diff to read
 
 ## Report
 
-Give the user:
+Save the report for every turn in the state directory, including turns followed
+automatically by a verification fix. Give the user a summary of those turns and
+the final report:
 
 - `ok` and `code`, and the terminal reason (`attempts.terminal_reason`, plus
   `diagnostics.termination` when present).
@@ -116,6 +118,11 @@ Give the user:
   own checkout.
 - Your verification command and its result, and your assessment of the diff,
   with a reason for anything you dismiss.
+
+For a write task with multiple turns, also report the full change from the
+first turn's baseline tree to the final closing tree, using
+`git -C <worktree> diff <first.tree> <final.tree>`. Summarize all peer commits
+and verification results across turns, so earlier changes remain visible.
 
 ## Continue
 
