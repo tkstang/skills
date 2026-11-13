@@ -7,6 +7,13 @@
 - Split the Consensus configuration reference into saved workflow configuration,
   provider setup, and provider run controls. Updated links and sidebar navigation.
 
+### Fixed
+
+- `agent-messaging` 1.0.26 uses private temporary worktree paths in its message
+  and log tests, with cleanup, so existing files under `/tmp` cannot break them.
+  Consensus provider fixtures now supply their own environment instead of
+  inheriting executable overrides or host-session settings from the shell.
+
 ### Added
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.10) composes
