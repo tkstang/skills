@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Split the Consensus configuration reference into saved workflow configuration,
+  provider setup, and provider run controls. Updated links and sidebar navigation.
+
 ### Added
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.10) composes

@@ -355,4 +355,6 @@ validation does not make their advice trustworthy or authorize following it.
 
 ### Reference
 
-- [Configuration](configuration.md) — Shared configuration: peer and panelist selection, provider floor, config paths, diagnostics, synthesizer, agency, and permissions.
+- [Configuration](configuration.md) — Saved workflow defaults, peer selection, synthesizer, and agency.
+- [Provider setup](provider-setup.md) — Inventory, readiness, diagnostics, provider programs, and authentication.
+- [Provider run controls](provider-run-controls.md) — Output modes, retries, timeouts, process cleanup, and write policies.
