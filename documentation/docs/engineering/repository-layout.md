@@ -27,6 +27,8 @@ infrastructure.
   including peer workflows plus local `observer` and `observer-collab` skills.
 - `skills/phone-a-friend/` — generated standalone advisory skill with its
   bundled provider helper and schema; the Consensus plugin also contains it.
+- `skills/delegate/` — generated standalone task delegation skill with its
+  bundled provider helper; also available as Consensus plugin-local `delegate`.
 - `plugins/session/` — generated complete session installation unit with local
   `messaging`, `retro`, `handoff`, `export-transcript`, `search`, `reorient`,
   `fork-to-destination`, `seshtk-cli`, `align`, `debrief`, `sitrep`,

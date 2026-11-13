@@ -20,8 +20,10 @@ discovery for the new standalone form remains unverified.
 
 Claude Code invokes the plugin form as
 `/consensus:delegate` and Codex as `$consensus:delegate`; Cursor's local plugin
-load exposes the local name. You can also just ask the host to hand a task to
-another model.
+load exposes the local name. The standalone form uses `/delegate` in Claude Code
+and `$delegate` in Codex, without the plugin namespace. These invocation names
+describe the declared payload; live discovery remains unverified. You can also
+just ask the host to hand a task to another model.
 
 Use [`phone-a-friend`](phone-a-friend.md) when you want an opinion for the host
 to weigh, and [`review`](review.md) when an independent reviewer should inspect
@@ -73,7 +75,7 @@ claims against the source before relying on them.
 ## What the peer can do
 
 The provider policies come from `consensus run`; see
-[Provider run controls](configuration.md#provider-run-controls) for the full
+[Provider run controls](provider-run-controls.md) for the full
 behaviour.
 
 | Peer   | Write mode                                          | Read-only mode                |
