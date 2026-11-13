@@ -334,8 +334,7 @@ describe('provider readiness probes', () => {
       const entry = await probeProviderReadiness(adapter('claude'), {
         runner: nodeProbeCommandRunner(
           {
-            ...process.env,
-            PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+            PATH: binDir,
           },
           {
             timeoutSec: 0.01,
@@ -371,8 +370,7 @@ describe('provider readiness probes', () => {
       const entry = await probeProviderReadiness(adapter('codex'), {
         runner: nodeProbeCommandRunner(
           {
-            ...process.env,
-            PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+            PATH: binDir,
           },
           {
             maxOutputBytes: 16,

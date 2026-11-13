@@ -54,7 +54,7 @@ describe('generated consensus provider CLI process contract', () => {
       'codex',
       '#!/bin/sh\nif [ "$1" = "--version" ]; then printf "codex 9.9.9\\n"; elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then printf "%s\\n" "--json --output-last-message --output-schema"; else exit 2; fi\n',
     );
-    const env = { ...process.env, PATH: binDir };
+    const env = { PATH: binDir };
 
     try {
       const inventoryResult = await runConsensusCli(
@@ -112,7 +112,7 @@ describe('generated consensus provider CLI process contract', () => {
   it('runs generated Claude and Codex argv against strict provider flag fixtures', async () => {
     const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-bin-'));
     const schemaPath = await writeSchemaFixture();
-    const env = { ...process.env, PATH: binDir };
+    const env = { PATH: binDir };
 
     await writeExecutableFixture(binDir, 'claude', strictClaudeFixture());
     await writeExecutableFixture(binDir, 'codex', strictCodexFixture());
@@ -210,7 +210,7 @@ describe('generated consensus provider CLI process contract', () => {
           '--allow-web-fetch-domain',
           'example.org',
         ],
-        { env: { ...process.env, PATH: binDir } },
+        { env: { PATH: binDir } },
       );
       expect(result.code).toBe(0);
       const envelope = parseSingleJsonDocument(result.stdout);
@@ -265,7 +265,7 @@ describe('generated consensus provider CLI process contract', () => {
     'runs the generated Claude provider-validated path with the shipped $name schema',
     async ({ schemaPath, response }) => {
       const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-bin-'));
-      const env = { ...process.env, PATH: binDir };
+      const env = { PATH: binDir };
       await writeExecutableFixture(
         binDir,
         'claude',
@@ -311,7 +311,7 @@ describe('generated consensus provider CLI process contract', () => {
     const schemaPath = await writeSchemaFixture({
       $schema: 'https://json-schema.org/draft/2020-12/schema',
     });
-    const env = { ...process.env, PATH: binDir };
+    const env = { PATH: binDir };
     await writeExecutableFixture(binDir, 'claude', strictClaudeFixture());
 
     try {
