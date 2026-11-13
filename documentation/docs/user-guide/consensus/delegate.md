@@ -12,7 +12,13 @@ it: it computes the changes from its own git baseline, reads the full diff,
 and reruns the verification command itself. Nothing is merged or pushed. You
 decide what to keep.
 
-It ships in the Consensus plugin as `delegate`. Claude Code invokes it as
+It ships standalone as `delegate` and in the Consensus plugin as `delegate`.
+Install the standalone form with `npx skills add tkstang/skills --skill delegate`,
+or follow [Installation](../installation.md) for the plugin. Both forms bundle
+the provider helper and need an authenticated provider CLI. Live provider
+discovery for the new standalone form remains unverified.
+
+Claude Code invokes the plugin form as
 `/consensus:delegate` and Codex as `$consensus:delegate`; Cursor's local plugin
 load exposes the local name. You can also just ask the host to hand a task to
 another model.

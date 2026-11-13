@@ -268,6 +268,8 @@ schema contract and manual QA walkthrough, see
 
 ### Delegate
 
+Also available standalone as `delegate`, with the same bundled provider helper.
+
 Hand one task to another provider and verify its work:
 
 ```bash

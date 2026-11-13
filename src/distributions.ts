@@ -158,6 +158,11 @@ export const distributions: readonly DistributionDeclaration[] = [
     allowedSourceRoots: ['src/plugins/consensus'],
     targets: [
       {
+        kind: 'standalone',
+        name: 'delegate',
+        output: 'skills/delegate',
+      },
+      {
         kind: 'plugin',
         plugin: 'consensus',
         name: 'delegate',

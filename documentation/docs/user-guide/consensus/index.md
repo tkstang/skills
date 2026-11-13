@@ -50,6 +50,7 @@ belong with consensus behavior.
 - **[`delegate`](delegate.md)** — hands one task to another provider: code
   changes run in a dedicated git worktree, questions and investigations run
   read-only, and the host verifies the diff before you decide what to keep.
+  It also ships standalone as `delegate`.
 - **`observer`** — plugin-local form of
   [`session-observer`](../skills/session-observer.md).
 - **`observer-collab`** — plugin-local form of
@@ -309,8 +310,8 @@ validation does not make their advice trustworthy or authorize following it.
 
 - The plugin ships `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`,
   `phone-a-friend`, `delegate`, `review`, `observer`, and `observer-collab`.
-  Phone and Review also have declared standalone forms; the two observer skills
-  use their full `session-*` names standalone. The other seven peer workflows
+  Phone, Review, and Delegate also have declared standalone forms; the two observer skills
+  use their full `session-*` names standalone. The other six peer workflows
   are plugin-only.
 - Remaining consensus-family skills are future work: `consensus-research`.
 - Three iteration modes ship (`alternating`, `parallel_revision`,

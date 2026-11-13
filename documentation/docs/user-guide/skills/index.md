@@ -14,6 +14,11 @@ are standalone only.
 
 Choose by what the next session needs:
 
+Consensus also offers standalone [Delegate](../consensus/delegate.md),
+[Phone-a-friend](../consensus/phone-a-friend.md), and
+[Review](../consensus/review.md). Choose the standalone or plugin form of a
+skill to avoid duplicate entries.
+
 | Goal                                                                          | Use                                                           | What carries forward                                                                                                                                                    |
 | ----------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Repair a PR until CI and reviews are green                                    | [Babysit PR](babysit-pr.md)                                   | Focused fixes, pushed commits, review responses, and readiness evidence; the PR stays open.                                                                             |

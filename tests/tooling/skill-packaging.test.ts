@@ -168,6 +168,74 @@ function documentedObserverPreflight(
 }
 
 describe('declared skill packaging', () => {
+  it('runs standalone delegate text output outside the repository', async () => {
+    const root = await fixtureRoot();
+    const installed = path.join(root, 'installed/delegate');
+    const project = path.join(root, 'project');
+    const home = path.join(root, 'home');
+    const bin = path.join(root, 'bin');
+    await Promise.all(
+      [project, home, bin].map((directory) =>
+        mkdir(directory, { recursive: true }),
+      ),
+    );
+    await cp(path.join(repositoryRoot, 'skills/delegate'), installed, {
+      recursive: true,
+    });
+    const instruction = await readFile(
+      path.join(installed, 'SKILL.md'),
+      'utf8',
+    );
+    expect(instruction).toMatch(/^name: delegate$/m);
+    await write(
+      root,
+      'bin/codex',
+      `#!${process.execPath}
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+if (args[0] !== 'exec' || args.includes('--output-schema')) process.exit(64);
+fs.writeFileSync(args[args.indexOf('--output-last-message') + 1], 'Checked the task.');
+process.stdout.write('{"type":"turn.completed"}\\n');
+`,
+    );
+    await chmod(path.join(bin, 'codex'), 0o755);
+    const result = await execFileAsync(
+      process.execPath,
+      [
+        path.join(installed, 'scripts/consensus.mjs'),
+        'run',
+        '--provider',
+        'codex',
+        '--output',
+        'text',
+        '--sandbox',
+        'read-only',
+        '--prompt',
+        'Inspect the task.',
+        '--max-attempts',
+        '1',
+        '--max-depth',
+        '1',
+        '--json',
+      ],
+      {
+        cwd: project,
+        env: {
+          HOME: home,
+          PATH: bin,
+          CONSENSUS_PARENT_HOST: 'claude',
+          CONSENSUS_DEPTH: '0',
+        },
+      },
+    );
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      output_kind: 'text',
+      text: 'Checked the task.',
+      json: null,
+    });
+  });
+
   it('runs the standalone Phone provider helper from an isolated install', async () => {
     const declaration = distributions.find(
       (entry) => entry.owner === 'phone-a-friend',

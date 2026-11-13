@@ -58,6 +58,7 @@ describe('repo-layout', () => {
       'complexity-review',
       'consensus-review',
       'debrief',
+      'delegate',
       'explain-options',
       'land-pr',
       'must-we',

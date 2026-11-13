@@ -24,6 +24,10 @@
 
 ### Added
 
+- `consensus-delegate` 0.1.1 also ships standalone as `delegate`, with its own
+  bundled consensus CLI and the same worktree accounting as `consensus:delegate`.
+  Provider discovery of the new standalone form remains unverified.
+
 - `consensus-delegate` 0.1.0, the Consensus plugin skill `delegate`
   (`consensus` plugin 0.2.11). It hands one task to another provider through
   `consensus run --output text` with a single attempt. A task that changes
