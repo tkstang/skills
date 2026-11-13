@@ -5,10 +5,13 @@ your own checkout, and it has one writer at a time.
 
 ## Create the worktree
 
-Create it from a commit, which gives a clean worktree on a new branch:
+First save and source the helpers in [accounting](accounting.md#snapshot).
+Use `delegate_git` for worktree operations so inherited Git location variables
+cannot redirect them. Create it from a commit, which gives a clean worktree on
+a new branch:
 
 ```bash
-git -C <repo-root> worktree add -b delegate/<slug> <worktree-path> <base>
+delegate_git -C <repo-root> worktree add -b delegate/<slug> <worktree-path> <base>
 ```
 
 - `<base>` defaults to `HEAD` of your checkout. Uncommitted changes in your
@@ -27,7 +30,8 @@ writer: do not edit the worktree yourself, and never start a second run in it.
 
 Codex, `--sandbox workspace-write --approval-policy never`:
 
-- It edits inside the worktree and is denied writes outside it and to `$HOME`.
+- It edits inside the worktree and can also write to `/tmp` and `$TMPDIR`.
+  Writes to other paths, including `$HOME`, are denied.
 - It cannot run `git add` or `git commit`. A linked worktree's index lives under
   the main checkout's `.git/worktrees/`, outside the writable root, so these
   fail with `Operation not permitted`. That is expected: the peer leaves its
@@ -50,7 +54,8 @@ Claude, `--permission-mode workspace-write`:
   - A granted command runs repository code the peer can edit, such as
     `package.json` scripts or tests, and that code is not confined to the
     worktree. The after-run procedure in [accounting](accounting.md) checks
-    your own checkout for this.
+    tracked and non-ignored untracked files in your own checkout. It does not
+    detect changes to ignored paths such as `.env` or build outputs.
 - An `--allow-bash` pattern, such as `git status:*`, is one line of at most 256
   characters with no parentheses or commas, and must name a command.
 
@@ -67,11 +72,11 @@ verify the next turn. Once verification passes or the work is blocked, run only
 the step the user chooses:
 
 - Commit in the worktree:
-  `git -C <worktree-path> add -A && git -C <worktree-path> commit`.
+  `delegate_git -C <worktree-path> add -A && delegate_git -C <worktree-path> commit`.
 - Bring the changes into their branch, for example by merging or cherry-picking
   `delegate/<slug>` once it has a commit.
 - Continue with the peer; see the skill's Continue section.
-- Discard: `git -C <repo-root> worktree remove --force <worktree-path>`, then
-  `git -C <repo-root> branch -D delegate/<slug>`.
+- Discard: `delegate_git -C <repo-root> worktree remove --force <worktree-path>`, then
+  `delegate_git -C <repo-root> branch -D delegate/<slug>`.
 
 Never merge or push on your own.

@@ -17,6 +17,12 @@
 
 ### Fixed
 
+- `consensus-delegate` 0.2.0 isolates accounting and worktree Git commands from
+  inherited repository-location variables and rejects initialized submodules
+  that snapshots cannot account for. Its guidance now states the ignored-file
+  and writable-temp limits and keeps read-only host verification out of the
+  user's checkout when a command may write.
+
 - The consensus CLI now requires Claude Code 2.1.259, the documented minimum
   for `--permission-prompts`, redacts Bash grant contents in diagnostics, and
   rejects text-plus-schema requests at the direct runner boundary. Provider

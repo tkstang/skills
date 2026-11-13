@@ -73,7 +73,9 @@ user may name any peer, including your own provider.
    never accept one silently.
 6. **Verify.** Read the full diff (write mode) or check the load-bearing claims
    against source (read-only). Rerun the brief's verification command yourself
-   in the same directory. Give a reason for every claim or change you dismiss.
+   in the same directory. In read-only mode, use a command that cannot write
+   to the checkout, or run it in a separate worktree. Give a reason for every
+   claim or change you dismiss.
    If verification finds an ordinary failure within the original task, follow
    [Continue](#continue) to have the same peer fix it automatically, then account
    for and verify that turn too.

@@ -43,7 +43,8 @@ pass.
 
 - Name one exact verification command. You rerun the same command after the
   peer finishes. For a read-only task, the verification can be "cite file:line
-  evidence for every claim".
+  evidence for every claim". Use a command that cannot write to the checkout;
+  run any verification that may write in a separate worktree.
 - A Claude write run can execute only the Bash commands you grant with
   `--allow-bash`, so grant the verification command. A Codex run may have no
   network, depending on the user's Codex sandbox configuration, so install

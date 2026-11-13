@@ -12,18 +12,34 @@ can write to both temp locations. For example, use
 
 ## Snapshot
 
-Write this function to `<state-dir>/snapshot.sh`. Each command tool call may
+Write these functions to `<state-dir>/snapshot.sh`. Each command tool call may
 start a fresh shell, so source the file in the same command that uses it:
 `. <state-dir>/snapshot.sh && delegate_snapshot <worktree> <out-dir>`. It works
-in `bash` and `zsh`.
+in `bash` and `zsh`. Source the same file before accounting or worktree setup
+and cleanup commands, and use `delegate_git` for those Git operations. Both
+helpers clear inherited Git repository and index variables in a subshell, so
+the explicit worktree path selects the repository and the caller keeps its
+environment.
 
 ```sh
-delegate_snapshot() { # delegate_snapshot <worktree> <out-dir>
-  local wt="$1" out="$2" idx
+delegate_snapshot() ( # delegate_snapshot <worktree> <out-dir>
+  local wt="$1" out="$2" idx submodules entry
+  delegate_clear_git_env || return 1
   mkdir -p "$out" && idx="$(cd "$out" && pwd)/tmp-index" || return 1
-  rm -f "$idx"
+  rm -f "$idx" "$out/head" "$out/index" "$out/tree"
+  submodules="$(git -C "$wt" submodule status --recursive)" || return 1
+  while IFS= read -r entry; do
+    case "$entry" in
+      ""|-*) ;;
+      *) printf '%s\n' 'Cannot snapshot an initialized submodule; deinitialize it or use another worktree.' >&2
+         return 1 ;;
+    esac
+  done <<EOF
+$submodules
+EOF
   if git -C "$wt" rev-parse --verify HEAD > "$out/head" &&
-    git -C "$wt" write-tree > "$out/index" &&
+    cp "$(git -C "$wt" rev-parse --path-format=absolute --git-path index)" "$idx" &&
+    GIT_INDEX_FILE="$idx" git -C "$wt" write-tree > "$out/index" &&
     GIT_INDEX_FILE="$idx" git -C "$wt" read-tree HEAD &&
     GIT_INDEX_FILE="$idx" git -C "$wt" add -A &&
     GIT_INDEX_FILE="$idx" git -C "$wt" write-tree > "$out/tree"; then
@@ -34,7 +50,21 @@ delegate_snapshot() { # delegate_snapshot <worktree> <out-dir>
     rm -f "$idx" "$out/head" "$out/index" "$out/tree"
     return 1
   fi
+)
+
+delegate_clear_git_env() {
+  local names name
+  names="$(git rev-parse --local-env-vars)" || return 1
+  while IFS= read -r name; do
+    unset "$name" || return 1
+  done <<EOF
+$names
+EOF
 }
+
+delegate_git() (
+  delegate_clear_git_env && git "$@"
+)
 ```
 
 It prints three IDs and saves them in `<out-dir>`:
@@ -49,6 +79,8 @@ It returns nonzero, with nothing saved, if any step fails, such as a missing
 worktree or an index with unmerged entries. The temporary index lives in
 `<out-dir>`, so the worktree's files and staged state are not changed. Ignored
 paths, such as `node_modules`, `.env`, or build output, are not accounted for.
+Initialized submodules are rejected because their tracked and untracked contents
+are not captured by the parent tree. Deinitialized submodule gitlinks are supported.
 
 Keep the printed IDs in your own notes and report: they are the baseline. The
 saved files make the commands below easier to write.
@@ -57,7 +89,7 @@ saved files make the commands below easier to write.
 
 Before the first turn, snapshot the worktree into `<state-dir>/turn-1-before`.
 A freshly created worktree is clean: `index` and `tree` both equal
-`git -C <worktree> rev-parse 'HEAD^{tree}'`. If setup added files that are not
+`delegate_git -C <worktree> rev-parse 'HEAD^{tree}'`. If setup added files that are not
 ignored, list them in the report as part of the baseline.
 
 For a Claude write run, also snapshot your own checkout into
@@ -72,13 +104,13 @@ succeeded, failed, or timed out. With `B` the turn's starting IDs and `A` the
 new ones:
 
 ```bash
-git -C <worktree> rev-list <B.head>..<A.head>   # new commits
-git -C <worktree> diff --cached --stat          # staged changes
-git -C <worktree> diff --stat                   # unstaged changes
-git -C <worktree> diff --raw --no-abbrev --no-renames --diff-filter=A <A.index> <A.tree>
+delegate_git -C <worktree> rev-list <B.head>..<A.head>   # new commits
+delegate_git -C <worktree> diff --cached --stat          # staged changes
+delegate_git -C <worktree> diff --stat                   # unstaged changes
+delegate_git -C <worktree> diff --raw --no-abbrev --no-renames --diff-filter=A <A.index> <A.tree>
                                                 # untracked files with hashes
-git -C <worktree> diff --stat <B.tree> <A.tree> # everything this turn changed
-git -C <worktree> diff <B.tree> <A.tree>        # the full diff to read
+delegate_git -C <worktree> diff --stat <B.tree> <A.tree> # everything this turn changed
+delegate_git -C <worktree> diff <B.tree> <A.tree>        # the full diff to read
 ```
 
 - Report every new commit by hash and subject; never accept one silently. If
@@ -88,7 +120,7 @@ git -C <worktree> diff <B.tree> <A.tree>        # the full diff to read
 - For a Claude write run, snapshot your own checkout into
   `<state-dir>/host-<n>-after` and compare its IDs with `host-<n>-before`.
   Report any difference, with
-  `git -C <repo-root> diff --stat <before.tree> <after.tree>`, noting that it
+  `delegate_git -C <repo-root> diff --stat <before.tree> <after.tree>`, noting that it
   may be the user's own edits during the run. If either host snapshot fails
   (for example, a merge in progress), report that the host check could not run.
 - If your own verification run then changes files that are not ignored, list
@@ -121,7 +153,7 @@ the final report:
 
 For a write task with multiple turns, also report the full change from the
 first turn's baseline tree to the final closing tree, using
-`git -C <worktree> diff <first.tree> <final.tree>`. Summarize all peer commits
+`delegate_git -C <worktree> diff <first.tree> <final.tree>`. Summarize all peer commits
 and verification results across turns, so earlier changes remain visible.
 
 ## Continue
@@ -131,5 +163,5 @@ Before a continued write turn, snapshot the worktree into
 all equal the previous turn's closing IDs, so the worktree has changed only in
 what that report recorded. That snapshot is then the new turn's baseline. If
 any ID differs, show the user
-`git -C <worktree> diff --stat <closing.tree> <current.tree>` and the `head`
+`delegate_git -C <worktree> diff --stat <closing.tree> <current.tree>` and the `head`
 change, and wait for their decision.
