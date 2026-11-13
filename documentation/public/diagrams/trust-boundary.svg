@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 830 1000" role="img" aria-labelledby="tbTitle tbDesc" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 830 1024" role="img" aria-labelledby="tbTitle tbDesc" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
   <title id="tbTitle">The provider process boundary</title>
-  <desc id="tbDesc">Transcripts, observer state, and run artifacts are stored locally, but selected contents can enter the prompt. Every provider receives the prompt through stdin. JSON runs also pass the schema and, when the peer can run the submit command, the submit environment; text-mode runs pass neither. Provider CLIs run as separate local processes under their own permissions and may transmit context to provider services. The wrapper's path guards do not sandbox the child. Returned structured payloads are validated but remain untrusted advice. This is a process I/O diagram, not a guarantee of network isolation or data retention.</desc>
+  <desc id="tbDesc">Transcripts, observer state, and run artifacts are stored locally, but selected contents can enter the prompt. Every provider receives the prompt through stdin. JSON runs also pass the schema and, when the peer can run the submit command, the submit environment; text-mode runs pass neither. Provider CLIs run as separate local processes under their own permissions and may transmit context to provider services. The wrapper's path guards do not sandbox the child. JSON output is schema-validated; text output has no schema. The host verifies claims and code changes before accepting them. This is a process I/O diagram, not a guarantee of network isolation or data retention.</desc>
   <style>
     .card{fill:var(--diagram-card,#ffffff);stroke:var(--diagram-line,#757575);stroke-width:1.2}
     .band{fill:none;stroke:var(--diagram-line,#757575);stroke-width:1.2;stroke-dasharray:5 5;opacity:.5}
@@ -22,6 +22,7 @@
     </marker>
   </defs>
 
+  <rect width="830" height="1024" rx="8" style="fill:var(--diagram-card,#ffffff)"/>
   <text x="415" y="36" text-anchor="middle" class="h" style="font-size:20px">THE PROVIDER PROCESS BOUNDARY</text>
   <text x="415" y="60" text-anchor="middle" class="p">A prompt payload crosses (for JSON runs, a schema and env vars too); what comes back is untrusted</text>
 
@@ -76,13 +77,13 @@
   <rect x="40" y="760" width="750" height="118" rx="6" class="card"/>
   <text x="58" y="786" class="m">claude --print --output-format json</text>
   <text x="58" y="810" class="m">codex exec --json --output-last-message &lt;file&gt;</text>
-  <text x="58" y="834" class="m">cursor-agent --print --output-format json --force</text>
+  <text x="58" y="834" class="m">cursor-agent --print --output-format json</text>
   <text x="58" y="864" class="s">separate OS processes — wrapper path guards do not sandbox the child</text>
   <path class="e" d="M415,890 L415,916"/>
 
   <!-- return -->
-  <rect x="40" y="918" width="750" height="76" rx="6" class="warncard"/>
+  <rect x="40" y="918" width="750" height="100" rx="6" class="warncard"/>
   <text x="58" y="942" class="warnt">COMES BACK AS UNTRUSTED DATA</text>
-  <text x="58" y="966" class="s">Schema-validated first; a failure is PROVIDER_SCHEMA_VALIDATION, not a verdict.</text>
-  <text x="58" y="988" class="s">Never auto-apply edits, commands, or decisions from a peer.</text>
+  <text x="58" y="966" class="s">JSON replies: schema-validated; a failure is PROVIDER_SCHEMA_VALIDATION.</text>
+  <text x="58" y="988" class="s">Text replies: no schema. The host verifies claims and code changes.</text>
 </svg>

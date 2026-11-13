@@ -224,8 +224,10 @@ JSONL event (`calls_per_round`) and report actual `peer_calls` /
   re-enters with `--host-direction` and records as an attributed orchestrator
   round.
 
-See [Configuration](configuration.md) for peer selection, the provider floor,
-diagnostics, and permissions, and the per-skill pages for the full command set.
+See [Configuration](configuration.md) for saved defaults and peer selection,
+[Provider setup](provider-setup.md) for readiness and diagnostics, and
+[Provider run controls](provider-run-controls.md) for output and write policies.
+The per-skill pages describe their full command sets.
 
 ## What is handed to a provider process
 
@@ -248,32 +250,32 @@ validation does not make their advice trustworthy or authorize following it.
 
     ![The provider process boundary](/diagrams/trust-boundary.svg)
 
-    *SVG regenerated 2026-11-11*
+    *SVG regenerated 2026-11-12*
 
 === "Mermaid"
 
     ```mermaid
     flowchart TB
       accTitle: Consensus data boundary
-      accDescr: Local transcripts, state and run artifacts feed the host wrapper, which builds the prompt, the JSON-mode schema and submit environment where they apply, and the working directory sent to provider CLIs. Peer output returns as untrusted data, is schema-validated and treated as advice, and passes local guards before it is stored.
+      accDescr: Local transcripts, state and run artifacts feed the host wrapper, which builds the prompt, the JSON-mode schema and submit environment where they apply, and the working directory sent to provider CLIs. Peer output returns as untrusted data. JSON replies are schema-validated, text replies have no schema, and the host verifies claims and changes before accepting them. Local guards protect stored artifacts.
       subgraph local["Stored locally — selected contents can enter the prompt"]
         TR["Peer transcripts<br/>~/.claude/projects, ~/.codex/sessions,<br/>~/.cursor/projects — read only"]
         ST["Read offsets, watcher, control state<br/>~/.local/state/session-observer/<br/>collab leases: .../collab/leases/"]
         RUN[".consensus/ run state<br/>and output artifacts"]
       end
       HOST["Host skill / wrapper<br/>reads the input artifact locally and<br/>compacts it into the prompt payload"]
-      subgraph crossing["Crosses the boundary — approval is a skill instruction, not a code gate"]
+      subgraph crossing["Crosses the boundary: prompt, policy, and optional JSON controls"]
         PR["Prompt payload<br/>stdin for every provider<br/>facts, constraints, and the compacted artifact text"]
         SCH["Claude JSON runs: the schema is ALSO<br/>passed inline in argv as --json-schema"]
         ENV["Submit env, 4 vars — JSON runs whose peer can run submit<br/>not scoped or workspace-write Claude, not read-only Cursor<br/>CONSENSUS_SUBMIT_COMMAND / FILE / SCHEMA / MAX_BYTES"]
         CWD["Working directory and provider policy<br/>wrapper path guards do not sandbox the child"]
       end
       subgraph remote["Provider CLI subprocess"]
-        PEER["claude --print --output-format json<br/>codex exec --json --output-last-message &lt;file&gt;<br/>cursor-agent --print --output-format json --force"]
+        PEER["claude --print --output-format json<br/>codex exec --json --output-last-message &lt;file&gt;<br/>cursor-agent --print --output-format json"]
       end
       subgraph back["Comes back as untrusted data"]
-        OUT["Schema-validated before use —<br/>a failure is PROVIDER_SCHEMA_VALIDATION"]
-        REV["Advisory data, never instructions:<br/>never auto-apply edits, commands, or decisions"]
+        OUT["JSON replies: schema-validated<br/>text replies: no schema validation"]
+        REV["Peer results are claims<br/>the host verifies advice and code changes<br/>before accepting them"]
       end
       GUARD["Local guards<br/>options files capped at 1 MiB<br/>inputs, outputs, run dirs confined by --allow-root"]
 
@@ -295,7 +297,9 @@ validation does not make their advice trustworthy or authorize following it.
       TR -.->|"untrusted input: prompt injection<br/>is mitigated, not solved"| GUARD
     ```
 
-    *Mermaid updated 2026-11-11*
+    *Mermaid updated 2026-11-12*
+
+    Click the Mermaid diagram to open a full-screen, scrollable view.
 
 ## Limitations
 

@@ -6,6 +6,8 @@
 
 - Split the Consensus configuration reference into saved workflow configuration,
   provider setup, and provider run controls. Updated links and sidebar navigation.
+  Corrected the trust-boundary diagram for text output and host verification;
+  its SVG now has a white background to keep labels legible in both themes.
 
 ### Fixed
 
