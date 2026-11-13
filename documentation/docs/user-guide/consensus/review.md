@@ -94,13 +94,16 @@ diagnostics and are not offered as completed review artifacts.
 
 ## Limits
 
+Malformed replies stop after 100 validation errors and are rejected. The host
+still validates every item of an otherwise-valid reply before truncating presentation.
+
 Review checks these limits before dispatch unless noted. `review.mjs --help`
 prints the same values.
 
 | Limit                 | Value                                                                                                                                                                                                                            | When exceeded                                                                                                                                  |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Changed files         | 100. A rename counts once; both paths and both versions stay in the evidence.                                                                                                                                                    | `scope_too_large` with the count, the five largest directories, and the workaround.                                                            |
-| Textual evidence      | 8 MiB, charged per path as the larger of its live and base versions. `evidence.json` can therefore retain up to 16 MiB.                                                                                                          | `scope_too_large` with the total and the five largest paths.                                                                                   |
+| Textual evidence      | 8 MiB, charged per path as the larger of its live and base versions. Retained unencoded text can reach 16 MiB; JSON escaping can make `evidence.json` larger.                                                                    | `scope_too_large` with the total and the five largest paths.                                                                                   |
 | One file or base blob | 8 MiB for text. A larger binary is skipped by hash instead.                                                                                                                                                                      | `scope_too_large` naming the path. A base blob that cannot be read is a scope error, never a recorded deletion.                                |
 | Binary files          | A file with a NUL byte; over 8 MiB, only the first 8000 bytes are checked. Skipped at any size, listed under limitations, and drift-checked by size and SHA-256.                                                                 | A scope with no textual change fails with `binary_scope_not_supported`.                                                                        |
 | Assembled prompt      | 64 KiB. The prompt carries the evidence path, the path count, and at most 20 paths; `evidence.json` holds the full manifest. Requests over 32 KiB are passed by file.                                                            | `review_prompt_too_large` naming the largest contributor.                                                                                      |

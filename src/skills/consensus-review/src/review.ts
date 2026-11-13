@@ -45,7 +45,7 @@ Options:
 Limits (checked before dispatch unless noted):
   100 changed files; a rename counts once, but both paths are kept.
   8 MiB of textual evidence, charged per path as the larger of its live and
-    base versions; evidence.json can therefore hold up to 16 MiB. A text
+    base versions; unencoded text can reach 16 MiB, plus JSON escaping. A text
     file or base blob over 8 MiB is rejected.
   Binary files of any size are skipped, listed under limitations, and
     drift-checked by hash; a scope with no textual change is rejected.
@@ -55,6 +55,7 @@ Limits (checked before dispatch unless noted):
   Reply caps: 100 findings, 100 checks, 50 questions, 50 limitations. The
     host validates the whole reply, derives the verdict from every finding
     and check, then truncates the stored report and records what it omitted.
+    Malformed replies stop after 100 validation errors and are rejected.
 Workarounds: narrow with --files, use a closer base, or pass
   base_branch=<sha>: an ancestor commit of HEAD selects exactly the tracked
   changes from that commit through the current worktree.

@@ -693,7 +693,7 @@ var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 var DEFAULT_TIMEOUT_SEC = 300;
 var DEFAULT_TERMINATION_GRACE_MS = 250;
 var DEFAULT_FINAL_RESOLUTION_MS = 1e3;
-var ARGV_TOO_LARGE_MESSAGE = "Provider arguments exceeded the operating-system limit (E2BIG): prompt too large for argv.";
+var ARGV_TOO_LARGE_MESSAGE = "Provider arguments or environment exceeded the operating-system limit (E2BIG). A prompt too large for argv is one possible cause.";
 function isReliableExternalInterrupt(input) {
   return input.code === "PROVIDER_EXIT" && input.signal !== null && input.exit_code === null;
 }

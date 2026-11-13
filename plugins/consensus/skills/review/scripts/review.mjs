@@ -228,7 +228,7 @@ var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 var DEFAULT_TIMEOUT_SEC = 300;
 var DEFAULT_TERMINATION_GRACE_MS = 250;
 var DEFAULT_FINAL_RESOLUTION_MS = 1e3;
-var ARGV_TOO_LARGE_MESSAGE = "Provider arguments exceeded the operating-system limit (E2BIG): prompt too large for argv.";
+var ARGV_TOO_LARGE_MESSAGE = "Provider arguments or environment exceeded the operating-system limit (E2BIG). A prompt too large for argv is one possible cause.";
 function isReliableExternalInterrupt(input) {
   return input.code === "PROVIDER_EXIT" && input.signal !== null && input.exit_code === null;
 }
@@ -3885,6 +3885,7 @@ function errorMessage(error) {
 // src/skills/consensus-review/src/run.ts
 var REVIEW_DEFAULT_MAX_OUTPUT_BYTES = 10 * 1024 * 1024;
 var PROVIDER_EVIDENCE_STREAM_MAX_BYTES = 2 * 1024 * 1024;
+var REVIEW_VALIDATION_MAX_ERRORS = 100;
 var REVIEW_REPLY_CAPS = {
   findings: 100,
   questions: 50,
@@ -3985,10 +3986,16 @@ async function runReview(input, dependencies = {}) {
     ...input.model ? { model: input.model } : {},
     ...input.effort ? { effort: input.effort } : {}
   };
+  let rawStdout;
   const envelope = await (dependencies.runTurn ?? runProviderTurn)(request, {
     registry,
     parentEnv: env,
-    transport: claimedTransport.options
+    transport: claimedTransport.options,
+    async runSubprocess(invocation2, options) {
+      const result = await (dependencies.runSubprocess ?? runProviderSubprocess)(invocation2, options);
+      rawStdout = result.stdout;
+      return result;
+    }
   });
   if (!envelope.ok) {
     return {
@@ -3997,14 +4004,16 @@ async function runReview(input, dependencies = {}) {
       invocation_count: envelope.attempts.cli_attempts,
       reason: envelope.code,
       message: envelope.message,
-      envelope
+      envelope,
+      ...rawStdout !== void 0 ? { rawStdout } : {}
     };
   }
   return {
     ok: true,
     status: "completed",
     invocation_count: envelope.attempts.cli_attempts,
-    envelope
+    envelope,
+    ...rawStdout !== void 0 ? { rawStdout } : {}
   };
 }
 async function executeBoundedReview(input, dependencies = {}) {
@@ -4325,40 +4334,67 @@ function validateReviewReply(value, scope) {
   if (!isRecord4(value)) {
     return { ok: false, errors: ["reply must be an object"] };
   }
-  assertKeys(
-    value,
-    [
-      "schema_version",
-      "scope_token",
-      "verdict",
-      "summary",
-      "findings",
-      "questions",
-      "limitations",
-      "coverage",
-      "inspected_context",
-      "checks",
-      "reviewer_identity"
-    ],
-    "reply",
-    errors
+  const validationLimit = new Error(
+    "review validation diagnostic limit reached"
   );
-  requireEqual(value.schema_version, "v1", "reply.schema_version", errors);
-  requireEqual(value.scope_token, scope.token, "reply.scope_token", errors);
-  requireEnum(
-    value.verdict,
-    ["pass", "changes_requested", "inconclusive"],
-    "reply.verdict",
-    errors
-  );
-  requireText(value.summary, "reply.summary", 1, errors);
-  validateFindings(value.findings, scope, errors);
-  validateTextArray(value.questions, "reply.questions", errors);
-  validateTextArray(value.limitations, "reply.limitations", errors);
-  validateTextArray(value.coverage, "reply.coverage", errors);
-  validateInspectedContext(value.inspected_context, errors);
-  validateChecks(value.checks, errors);
-  validateReviewerIdentity(value.reviewer_identity, errors);
+  const diagnostics = {
+    push(...messages) {
+      errors.push(
+        ...messages.slice(0, REVIEW_VALIDATION_MAX_ERRORS - errors.length)
+      );
+      if (errors.length >= REVIEW_VALIDATION_MAX_ERRORS) throw validationLimit;
+      return errors.length;
+    }
+  };
+  try {
+    assertKeys(
+      value,
+      [
+        "schema_version",
+        "scope_token",
+        "verdict",
+        "summary",
+        "findings",
+        "questions",
+        "limitations",
+        "coverage",
+        "inspected_context",
+        "checks",
+        "reviewer_identity"
+      ],
+      "reply",
+      diagnostics
+    );
+    requireEqual(
+      value.schema_version,
+      "v1",
+      "reply.schema_version",
+      diagnostics
+    );
+    requireEqual(
+      value.scope_token,
+      scope.token,
+      "reply.scope_token",
+      diagnostics
+    );
+    requireEnum(
+      value.verdict,
+      ["pass", "changes_requested", "inconclusive"],
+      "reply.verdict",
+      diagnostics
+    );
+    requireText(value.summary, "reply.summary", 1, diagnostics);
+    validateFindings(value.findings, scope, diagnostics);
+    validateTextArray(value.questions, "reply.questions", diagnostics);
+    validateTextArray(value.limitations, "reply.limitations", diagnostics);
+    validateTextArray(value.coverage, "reply.coverage", diagnostics);
+    validateInspectedContext(value.inspected_context, diagnostics);
+    validateChecks(value.checks, diagnostics);
+    validateReviewerIdentity(value.reviewer_identity, diagnostics);
+  } catch (error) {
+    if (error !== validationLimit) throw error;
+    errors[errors.length - 1] += `; validation stopped after ${REVIEW_VALIDATION_MAX_ERRORS} errors`;
+  }
   if (errors.length > 0) return { ok: false, errors };
   const reply = value;
   const blocking = reply.findings.filter(
@@ -4495,6 +4531,7 @@ async function persistDiagnosticFailure(input) {
 async function saveProviderEvidence(input) {
   const result = input.transportResult;
   const envelope = "envelope" in result ? result.envelope : void 0;
+  const rawStdout = "rawStdout" in result ? result.rawStdout : void 0;
   let codexLastMessage;
   if (input.codexCapturePath) {
     const capture = await readBoundedRegularFile(
@@ -4524,7 +4561,7 @@ async function saveProviderEvidence(input) {
         ...envelope.diagnostics ? { diagnostics: envelope.diagnostics } : {},
         ...envelope.continuation ? { continuation: envelope.continuation } : {}
       },
-      stdout: boundedText(envelope.stdout ?? ""),
+      stdout: boundedText(rawStdout ?? envelope.stdout ?? ""),
       stderr: boundedText(envelope.stderr ?? "")
     } : {},
     ...codexLastMessage ? { codex_last_message: codexLastMessage } : {}
@@ -5224,7 +5261,7 @@ Options:
 Limits (checked before dispatch unless noted):
   100 changed files; a rename counts once, but both paths are kept.
   8 MiB of textual evidence, charged per path as the larger of its live and
-    base versions; evidence.json can therefore hold up to 16 MiB. A text
+    base versions; unencoded text can reach 16 MiB, plus JSON escaping. A text
     file or base blob over 8 MiB is rejected.
   Binary files of any size are skipped, listed under limitations, and
     drift-checked by hash; a scope with no textual change is rejected.
@@ -5234,6 +5271,7 @@ Limits (checked before dispatch unless noted):
   Reply caps: 100 findings, 100 checks, 50 questions, 50 limitations. The
     host validates the whole reply, derives the verdict from every finding
     and check, then truncates the stored report and records what it omitted.
+    Malformed replies stop after 100 validation errors and are rejected.
 Workarounds: narrow with --files, use a closer base, or pass
   base_branch=<sha>: an ancestor commit of HEAD selects exactly the tracked
   changes from that commit through the current worktree.

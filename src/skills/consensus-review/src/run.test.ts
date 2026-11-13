@@ -16,6 +16,8 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { runProviderTurn } from '../../../plugins/consensus/provider-cli/structured-output.js';
+import type { RunProviderTurnDependencies } from '../../../plugins/consensus/provider-cli/structured-output.js';
 import type {
   ConsensusCliRunEnvelope,
   ProviderInventoryEntry,
@@ -1184,6 +1186,68 @@ describe('one bounded review transaction', () => {
     ).rejects.toThrow('ENOENT');
   });
 
+  it('preserves successful Codex JSONL stdout separately from the final reply', async () => {
+    const fixture = await gitReviewFixture();
+    const stdout =
+      '{"type":"session.started","id":"fixture-session"}\n{"type":"turn.completed"}\n';
+    let reply = '';
+    const runSubprocess: NonNullable<
+      RunProviderTurnDependencies['runSubprocess']
+    > = async (invocation) => {
+      reply = JSON.stringify({
+        ...validPassReply(scopeToken(invocation.stdin)),
+        reviewer_identity: { provider: 'codex' },
+      });
+      await writeFile(invocation.last_message_file!, reply);
+      return {
+        ok: true,
+        stdout,
+        stderr: '',
+        last_message: reply,
+        exit_code: 0,
+        signal: null,
+        diagnostics: {},
+      };
+    };
+    const result = await executeBoundedReview(
+      {
+        cwd: fixture.worktree,
+        scope: { kind: 'files', paths: ['reviewed.ts'] },
+        host: 'claude',
+        request: 'Review.',
+        hostSummary: '',
+        schemaPath: fixture.schema,
+        runId: 'codex-success-evidence-run',
+      },
+      {
+        env: { ...fixture.env, CONSENSUS_PARENT_HOST: 'claude' },
+        selection: { preflight: async () => readyProvider('codex') },
+        transportDependencies: {
+          async runTurn(request, dependencies) {
+            // The fallback keeps the external process mocked on pre-fix code too.
+            const envelope = await runProviderTurn(request, {
+              ...dependencies,
+              runSubprocess: dependencies.runSubprocess ?? runSubprocess,
+            });
+            expect(envelope.stdout).toBe(reply);
+            return envelope;
+          },
+          runSubprocess,
+        },
+      },
+    );
+
+    if (!result.ok || result.status !== 'completed') {
+      throw new Error(`expected completed review: ${JSON.stringify(result)}`);
+    }
+    const evidence = JSON.parse(
+      await readFile(result.aggregate.paths.provider_evidence!, 'utf8'),
+    );
+    expect(evidence.stdout.text).toBe(stdout);
+    expect(evidence.codex_last_message.text).toBe(reply);
+    expect(result.aggregate.reply.summary).toBe('The bounded fixture passes.');
+  });
+
   it('references the preserved Codex last-message capture when a Codex review fails', async () => {
     const fixture = await gitReviewFixture();
     const result = await executeBoundedReview(
@@ -1250,6 +1314,35 @@ describe('one bounded review transaction', () => {
 });
 
 describe('deep review reply validation', () => {
+  it('bounds malformed-reply diagnostics and stops before walking later items', async () => {
+    const fixture = await gitReviewFixture();
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'files', paths: ['reviewed.ts'] },
+    });
+    const findings = Array.from({ length: 1000 }, () => ({}));
+    let inspectedLast = false;
+    Object.defineProperty(findings, 999, {
+      get() {
+        inspectedLast = true;
+        return {};
+      },
+    });
+
+    const result = validateReviewReply(
+      { ...validPassReply(scope.token), findings },
+      scope,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected invalid review reply');
+    expect(result.errors).toHaveLength(100);
+    expect(result.errors[0]).toContain('reply.findings[0]');
+    expect(result.errors.at(-1)).toContain(
+      'validation stopped after 100 errors',
+    );
+    expect(inspectedLast).toBe(false);
+  });
+
   it('validates captured source versions, line ranges, anchors, and derives the verdict', async () => {
     const fixture = await gitReviewFixture();
     const scope = await captureReviewScope({

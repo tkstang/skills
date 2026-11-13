@@ -26,7 +26,10 @@
     verdict is kept as `claimed_verdict`, with a warning when it differs.
   - Provider stdout, stderr, the Codex last-message capture, and the transport
     result are saved to `provider-evidence.json` before any later check, and
-    every diagnostic references it.
+    every diagnostic references it. Successful Codex runs retain raw JSONL
+    stdout separately from the extracted last-message reply.
+  - Malformed replies stop validation after 100 diagnostic errors rather than
+    building an unbounded error list. Valid replies still receive full validation.
   - The skill and `--help` document the limits.
 
   The `v1` result gains additive fields: `claimed_verdict`, `warnings`,
@@ -86,8 +89,8 @@
 
 ### Fixed
 
-- The shared consensus provider CLI (`consensus` plugin 0.2.9) reports a
-  command line too long for the operating system (`E2BIG`) as
+- The shared consensus provider CLI (`consensus` plugin 0.2.9) reports
+  arguments or an environment too large for the operating system (`E2BIG`) as
   `PROVIDER_ARGV_TOO_LARGE` instead of `PROVIDER_MISSING` or an uncaught
   exception. `consensus-review` takes this with 0.2.0 above; the other skills
   that bundle it take version-only bumps:

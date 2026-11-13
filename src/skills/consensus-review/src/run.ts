@@ -19,7 +19,10 @@ import type {
   ProviderTurnTransportOptions,
   RunProviderTurnDependencies,
 } from '../../../plugins/consensus/provider-cli/structured-output.js';
-import { readBoundedRegularFile } from '../../../plugins/consensus/provider-cli/subprocess.js';
+import {
+  readBoundedRegularFile,
+  runProviderSubprocess,
+} from '../../../plugins/consensus/provider-cli/subprocess.js';
 import type {
   ConsensusCliRunEnvelope,
   ConsensusCliRunRequest,
@@ -49,6 +52,8 @@ import type {
 export const REVIEW_DEFAULT_MAX_OUTPUT_BYTES = 10 * 1024 * 1024;
 // Per-stream bound for provider evidence saved after the transport returns.
 const PROVIDER_EVIDENCE_STREAM_MAX_BYTES = 2 * 1024 * 1024;
+const REVIEW_VALIDATION_MAX_ERRORS = 100;
+type ValidationErrors = Pick<string[], 'push'>;
 // Presentation caps for the stored report. schemas/review.schema.json leaves
 // them out: Claude and Codex both shorten a reply to fit schema caps, which
 // would let the reviewer, not the host, choose what to drop. Validation covers
@@ -102,6 +107,7 @@ export interface ReviewRunDependencies {
     request: ConsensusCliRunRequest,
     dependencies: RunProviderTurnDependencies,
   ) => Promise<ConsensusCliRunEnvelope>;
+  runSubprocess?: RunProviderTurnDependencies['runSubprocess'];
   scanScopeState?: typeof captureScopeState;
 }
 
@@ -112,6 +118,7 @@ export type ReviewRunResult =
       status: 'completed';
       invocation_count: number;
       envelope: Extract<ConsensusCliRunEnvelope, { ok: true }>;
+      rawStdout?: string;
     }
   | {
       ok: false;
@@ -120,6 +127,7 @@ export type ReviewRunResult =
       reason: string;
       message: string;
       envelope?: ConsensusCliRunEnvelope;
+      rawStdout?: string;
     };
 
 /**
@@ -235,10 +243,18 @@ export async function runReview(
     ...(input.model ? { model: input.model } : {}),
     ...(input.effort ? { effort: input.effort } : {}),
   };
+  let rawStdout: string | undefined;
   const envelope = await (dependencies.runTurn ?? runProviderTurn)(request, {
     registry,
     parentEnv: env,
     transport: claimedTransport.options,
+    async runSubprocess(invocation, options) {
+      const result = await (
+        dependencies.runSubprocess ?? runProviderSubprocess
+      )(invocation, options);
+      rawStdout = result.stdout;
+      return result;
+    },
   });
   if (!envelope.ok) {
     return {
@@ -248,6 +264,7 @@ export async function runReview(
       reason: envelope.code,
       message: envelope.message,
       envelope,
+      ...(rawStdout !== undefined ? { rawStdout } : {}),
     };
   }
   return {
@@ -255,6 +272,7 @@ export async function runReview(
     status: 'completed',
     invocation_count: envelope.attempts.cli_attempts,
     envelope,
+    ...(rawStdout !== undefined ? { rawStdout } : {}),
   };
 }
 
@@ -815,40 +833,70 @@ export function validateReviewReply(
   if (!isRecord(value)) {
     return { ok: false, errors: ['reply must be an object'] };
   }
-  assertKeys(
-    value,
-    [
-      'schema_version',
-      'scope_token',
-      'verdict',
-      'summary',
-      'findings',
-      'questions',
-      'limitations',
-      'coverage',
-      'inspected_context',
-      'checks',
-      'reviewer_identity',
-    ],
-    'reply',
-    errors,
+  // Helpers only append diagnostics. Stop the malformed-input walk rather than
+  // building an unbounded error list and truncating it after the allocation.
+  const validationLimit = new Error(
+    'review validation diagnostic limit reached',
   );
-  requireEqual(value.schema_version, 'v1', 'reply.schema_version', errors);
-  requireEqual(value.scope_token, scope.token, 'reply.scope_token', errors);
-  requireEnum(
-    value.verdict,
-    ['pass', 'changes_requested', 'inconclusive'],
-    'reply.verdict',
-    errors,
-  );
-  requireText(value.summary, 'reply.summary', 1, errors);
-  validateFindings(value.findings, scope, errors);
-  validateTextArray(value.questions, 'reply.questions', errors);
-  validateTextArray(value.limitations, 'reply.limitations', errors);
-  validateTextArray(value.coverage, 'reply.coverage', errors);
-  validateInspectedContext(value.inspected_context, errors);
-  validateChecks(value.checks, errors);
-  validateReviewerIdentity(value.reviewer_identity, errors);
+  const diagnostics: ValidationErrors = {
+    push(...messages) {
+      errors.push(
+        ...messages.slice(0, REVIEW_VALIDATION_MAX_ERRORS - errors.length),
+      );
+      if (errors.length >= REVIEW_VALIDATION_MAX_ERRORS) throw validationLimit;
+      return errors.length;
+    },
+  };
+  try {
+    assertKeys(
+      value,
+      [
+        'schema_version',
+        'scope_token',
+        'verdict',
+        'summary',
+        'findings',
+        'questions',
+        'limitations',
+        'coverage',
+        'inspected_context',
+        'checks',
+        'reviewer_identity',
+      ],
+      'reply',
+      diagnostics,
+    );
+    requireEqual(
+      value.schema_version,
+      'v1',
+      'reply.schema_version',
+      diagnostics,
+    );
+    requireEqual(
+      value.scope_token,
+      scope.token,
+      'reply.scope_token',
+      diagnostics,
+    );
+    requireEnum(
+      value.verdict,
+      ['pass', 'changes_requested', 'inconclusive'],
+      'reply.verdict',
+      diagnostics,
+    );
+    requireText(value.summary, 'reply.summary', 1, diagnostics);
+    validateFindings(value.findings, scope, diagnostics);
+    validateTextArray(value.questions, 'reply.questions', diagnostics);
+    validateTextArray(value.limitations, 'reply.limitations', diagnostics);
+    validateTextArray(value.coverage, 'reply.coverage', diagnostics);
+    validateInspectedContext(value.inspected_context, diagnostics);
+    validateChecks(value.checks, diagnostics);
+    validateReviewerIdentity(value.reviewer_identity, diagnostics);
+  } catch (error) {
+    if (error !== validationLimit) throw error;
+    errors[errors.length - 1] +=
+      `; validation stopped after ${REVIEW_VALIDATION_MAX_ERRORS} errors`;
+  }
   if (errors.length > 0) return { ok: false, errors };
 
   const reply = value as unknown as ReviewReply;
@@ -1055,6 +1103,7 @@ async function saveProviderEvidence(input: {
 }): Promise<SavedProviderEvidence> {
   const result = input.transportResult;
   const envelope = 'envelope' in result ? result.envelope : undefined;
+  const rawStdout = 'rawStdout' in result ? result.rawStdout : undefined;
   let codexLastMessage: Record<string, unknown> | undefined;
   if (input.codexCapturePath) {
     const capture = await readBoundedRegularFile(
@@ -1093,7 +1142,7 @@ async function saveProviderEvidence(input: {
               ? { continuation: envelope.continuation }
               : {}),
           },
-          stdout: boundedText(envelope.stdout ?? ''),
+          stdout: boundedText(rawStdout ?? envelope.stdout ?? ''),
           stderr: boundedText(envelope.stderr ?? ''),
         }
       : {}),
@@ -1311,7 +1360,7 @@ async function persistPrivateJson(
 function validateFindings(
   value: unknown,
   scope: CapturedReviewScope,
-  errors: string[],
+  errors: ValidationErrors,
 ): void {
   if (!Array.isArray(value)) {
     errors.push('reply.findings must be an array');
@@ -1375,7 +1424,7 @@ function validateLocation(
   value: unknown,
   scope: CapturedReviewScope,
   findingLabel: string,
-  errors: string[],
+  errors: ValidationErrors,
 ): void {
   const label = `${findingLabel}.location`;
   if (!isRecord(value)) {
@@ -1457,7 +1506,10 @@ function capturedLineCount(version: object, text: string): number {
   return count;
 }
 
-function validateInspectedContext(value: unknown, errors: string[]): void {
+function validateInspectedContext(
+  value: unknown,
+  errors: ValidationErrors,
+): void {
   if (!Array.isArray(value)) {
     errors.push('reply.inspected_context must be an array');
     return;
@@ -1480,7 +1532,7 @@ function validateInspectedContext(value: unknown, errors: string[]): void {
   });
 }
 
-function validateChecks(value: unknown, errors: string[]): void {
+function validateChecks(value: unknown, errors: ValidationErrors): void {
   if (!Array.isArray(value)) {
     errors.push('reply.checks must be an array');
     return;
@@ -1508,7 +1560,7 @@ function validateChecks(value: unknown, errors: string[]): void {
 function validateTextArray(
   value: unknown,
   label: string,
-  errors: string[],
+  errors: ValidationErrors,
 ): void {
   if (!Array.isArray(value)) {
     errors.push(`${label} must be an array`);
@@ -1525,7 +1577,7 @@ function requireText(
   value: unknown,
   label: string,
   minLength: number,
-  errors: string[],
+  errors: ValidationErrors,
 ): void {
   if (typeof value !== 'string' || value.length < minLength) {
     errors.push(
@@ -1534,7 +1586,10 @@ function requireText(
   }
 }
 
-function validateReviewerIdentity(value: unknown, errors: string[]): void {
+function validateReviewerIdentity(
+  value: unknown,
+  errors: ValidationErrors,
+): void {
   if (!isRecord(value)) {
     errors.push('reply.reviewer_identity must be an object');
     return;
@@ -1571,7 +1626,7 @@ function validateStringArray(
   label: string,
   maxItems: number,
   maxLength: number,
-  errors: string[],
+  errors: ValidationErrors,
 ): void {
   if (!Array.isArray(value)) {
     errors.push(`${label} must be an array`);
@@ -1590,7 +1645,7 @@ function assertKeys(
   value: Record<string, unknown>,
   keys: string[],
   label: string,
-  errors: string[],
+  errors: ValidationErrors,
 ): void {
   const allowed = new Set(keys);
   for (const key of Object.keys(value)) {
@@ -1611,7 +1666,7 @@ function requireString(
   label: string,
   minLength: number,
   maxLength: number,
-  errors: string[],
+  errors: ValidationErrors,
 ): void {
   if (
     typeof value !== 'string' ||
@@ -1628,7 +1683,7 @@ function requireEnum(
   value: unknown,
   allowed: readonly string[],
   label: string,
-  errors: string[],
+  errors: ValidationErrors,
 ): void {
   if (typeof value !== 'string' || !allowed.includes(value)) {
     errors.push(`${label} must be one of ${allowed.join(', ')}`);
@@ -1639,7 +1694,7 @@ function requireEqual(
   value: unknown,
   expected: string,
   label: string,
-  errors: string[],
+  errors: ValidationErrors,
 ): void {
   if (value !== expected) errors.push(`${label} must equal ${expected}`);
 }
