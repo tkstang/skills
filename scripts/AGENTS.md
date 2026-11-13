@@ -9,6 +9,21 @@ This scope inherits the root `AGENTS.md`. Run commands below from the repository
 - Preserve staged validation and owned-output replacement when editing `build-generated.ts` or `lib/packaging.ts`. Change canonical owners and declarations, then regenerate outputs; do not edit committed `skills/` or `plugins/*/skills/` payloads directly.
 - Add focused tooling tests under `tests/tooling/` or the existing source owner. Verify the changed boundary with the relevant test and `pnpm run build:check` when distribution output is involved.
 
+## Session Toolkit CI selection
+
+- `select-session-toolkit-checks.ts` is the archive/installed-consumer selector.
+  The workflow checks out its explicit event revision with full history, then
+  sets up Node 26 for PRs before invoking it directly. It must remain dependency-free
+  and use erasable TypeScript; dependency installation is conditional on its
+  result. Repository `type-check` checks this script separately from execution.
+- Preserve exact PR SHA validation, merge-base comparison, NUL-delimited paths
+  and rename classification on both sides. Git/input failures fail the job
+  without writing an output; unknown paths run full proof. The thin workflow
+  bridge emits `relevant=true` for non-PR events without invoking the helper,
+  preserving retries from historical tags that do not contain this script.
+- Keep selector behavior tests in `tests/tooling/`. This developer helper is not
+  a generated installation unit and does not require skill/plugin version bumps.
+
 ## Session Toolkit release tooling
 
 - `session-toolkit-package.ts` owns archive inventory/dependency inspection and

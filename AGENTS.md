@@ -125,6 +125,11 @@ symlinked product entry automatically.
   guidance, the separate documentation app and Markdown PJM notes. The selector
   validates the exact PR base/head and classifies both sides of renames; unknown
   paths run full. Main, package-tag and manual release gates always run in full.
+  `scripts/select-session-toolkit-checks.ts` runs dependency-free with native
+  TypeScript on an explicit PR-only Node 26 bootstrap after the full checkout. Its
+  runtime is separate from archive verification and installed-consumer minima.
+  Non-PR events emit `relevant=true` in the workflow without the helper so manual
+  retries can validate historical tags that predate it.
 - Agent instructions are still true: update or create covering instructions in the same PR when changing commands, directories, conventions, workflows, version pins, or known footguns; follow **Keeping instructions current**.
 - Update relevant human docs describing changed behavior in the same PR: `README.md`, `CONTRIBUTING.md`, `RELEASING.md`, and the relevant pages under `documentation/docs/` as applicable.
 
