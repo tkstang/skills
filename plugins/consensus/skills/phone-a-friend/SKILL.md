@@ -46,7 +46,7 @@ does not install anything. If it reports `missing`, `auth_required`, `unavailabl
 or `unsupported`, stop before the provider call and relay the provider-neutral
 diagnostic. Do not fetch installers, probe another provider's auth, or retry blindly.
 
-Provider `run` failures are reported in JSON envelopes. Terminal provider failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; do not treat `$?` as success. Parse the envelope fields (`ok`, `code`, `retryable`, and `attempts.terminal_reason`) and report the structured failure. CLI usage failures (`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` command is different: schema or capture failures exit nonzero so the peer can self-correct in-turn.
+Provider `run` failures are reported in JSON envelopes. Completed provider failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; do not treat `$?` as success. Parse the envelope fields (`ok`, `code`, `retryable`, and `attempts.terminal_reason`) and report the structured failure. CLI usage failures (`CONSENSUS_CLI_USAGE`) exit `2`. An interrupted CLI re-raises the signal and exits by it. The peer-facing `consensus submit` command is different: schema or capture failures exit nonzero so the peer can self-correct in-turn.
 
 ## Workflow
 

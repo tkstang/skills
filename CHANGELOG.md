@@ -11,6 +11,12 @@
 
 ### Fixed
 
+- The consensus CLI now requires Claude Code 2.1.259, the documented minimum
+  for `--permission-prompts`, redacts Bash grant contents in diagnostics, and
+  rejects text-plus-schema requests at the direct runner boundary. Provider
+  fixtures verify exact multiline stdin and clean up the CLI even when
+  readiness fails. Interrupted runs are documented as signal exits.
+
 - `agent-messaging` 1.0.26 uses private temporary worktree paths in its message
   and log tests, with cleanup, so existing files under `/tmp` cannot break them.
   Consensus provider fixtures now supply their own environment instead of

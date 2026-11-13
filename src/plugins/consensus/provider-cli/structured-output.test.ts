@@ -978,6 +978,30 @@ describe('text output', () => {
     throw new Error('text mode must not read a schema');
   };
 
+  it('rejects a schema on a direct text request before reading or spawning', async () => {
+    const subprocess = fakeSubprocess([]);
+    let schemaRead = false;
+
+    const envelope = await runProviderTurn(
+      textRequest('claude', { schema_path: 'unexpected-schema.json' }),
+      {
+        readSchema: async () => {
+          schemaRead = true;
+          return schema();
+        },
+        runSubprocess: subprocess.run,
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'CONSENSUS_CLI_USAGE',
+      continuation: { turn: 'not_started' },
+    });
+    expect(schemaRead).toBe(false);
+    expect(subprocess.invocations).toHaveLength(0);
+  });
+
   it('returns Claude result text unchanged with the prompt untouched', async () => {
     const stdout = claudeResult({ result: 'The change looks correct.\n' });
     const subprocess = fakeSubprocess([processSuccess(stdout)]);

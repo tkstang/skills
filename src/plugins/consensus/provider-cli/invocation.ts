@@ -132,11 +132,13 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
     permission_profile: {
       mode: permission.mode ?? 'provider_default',
       ...(permission.tools ? { tools: [...permission.tools] } : {}),
-      // File paths stay out of diagnostics, as they do in redacted_command.
+      // Grant contents stay out of diagnostics, as they do in redacted_command.
       ...(permission.allowed_tools.length > 0
         ? {
             allowed_tools: permission.allowed_tools.map((rule) =>
-              rule.replace(/^(Read|Edit)\(.*\)$/s, '$1(<path>)'),
+              rule
+                .replace(/^(Read|Edit)\(.*\)$/s, '$1(<path>)')
+                .replace(/^Bash\(.*\)$/s, 'Bash(<pattern>)'),
             ),
           }
         : {}),

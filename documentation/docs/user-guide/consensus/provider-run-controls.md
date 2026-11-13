@@ -107,8 +107,9 @@ has no leading or trailing whitespace, contains no parentheses, commas, or
 control characters (so it is one line), and must name a command rather than
 only wildcards.
 The envelope's `diagnostics.permission_profile` records the Claude mode, tool
-list, and allow list that the run applied; file grants appear there as
-`Read(<path>)` and `Edit(<path>)`, so private paths stay out of diagnostics.
+list, and allow list that the run applied; Read/Edit paths and Bash patterns
+appear as `Read(<path>)`, `Edit(<path>)`, and `Bash(<pattern>)`, so private
+paths and command arguments stay out of diagnostics.
 
 These are Claude Code permission rules, not an operating-system sandbox. An
 authorized live check (Claude Code 2.1.322, 2026-11-11, linked worktree) found

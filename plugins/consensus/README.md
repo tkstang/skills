@@ -90,7 +90,7 @@ node plugins/consensus/scripts/consensus.mjs preflight --json --provider <select
 
 In an installed plugin environment, the same provider CLI may be exposed as `consensus`, for example `consensus provider ls --json` and `consensus preflight --json --provider <selected-provider-id> --capability run`. The `consensus submit --json -` command is an internal provider-turn command; wrappers inject its exact path through `CONSENSUS_SUBMIT_COMMAND`.
 
-Provider `run` envelopes are the command contract. Terminal provider failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; callers must parse the JSON envelope instead of treating `$?` as success. CLI usage failures (`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` subcommand is different: validation or capture failures exit nonzero so the peer can self-correct during its turn.
+Provider `run` envelopes are the command contract. Completed provider failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_INVALID_JSON`, or `PROVIDER_SCHEMA_VALIDATION` still exit process `0`; callers must parse the JSON envelope instead of treating `$?` as success. CLI usage failures (`CONSENSUS_CLI_USAGE`) exit `2`. An interrupted CLI re-raises the signal and exits by it. The peer-facing `consensus submit` subcommand is different: validation or capture failures exit nonzero so the peer can self-correct during its turn.
 
 ## Usage
 

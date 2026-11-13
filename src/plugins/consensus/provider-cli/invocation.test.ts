@@ -171,11 +171,11 @@ describe('provider invocation builders', () => {
         'workspace-write with Bash grants',
         {
           permission_mode: 'workspace-write',
-          bash_patterns: ['git status:*', 'pnpm run test'],
+          bash_patterns: ['git status /private/client', 'pnpm run test'],
         },
         [
           '--allowedTools',
-          'Bash(git status:*)',
+          'Bash(git status /private/client)',
           'Bash(pnpm run test)',
           '--tools',
           'Read,Glob,Grep,Edit,Write,Bash',
@@ -188,7 +188,7 @@ describe('provider invocation builders', () => {
         {
           mode: 'acceptEdits',
           tools: ['Read', 'Glob', 'Grep', 'Edit', 'Write', 'Bash'],
-          allowed_tools: ['Bash(git status:*)', 'Bash(pnpm run test)'],
+          allowed_tools: ['Bash(<pattern>)', 'Bash(<pattern>)'],
         },
       ],
     ],

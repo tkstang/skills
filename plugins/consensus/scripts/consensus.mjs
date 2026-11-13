@@ -900,10 +900,10 @@ var buildClaudeInvocation = (request, options = {}) => {
     permission_profile: {
       mode: permission.mode ?? "provider_default",
       ...permission.tools ? { tools: [...permission.tools] } : {},
-      // File paths stay out of diagnostics, as they do in redacted_command.
+      // Grant contents stay out of diagnostics, as they do in redacted_command.
       ...permission.allowed_tools.length > 0 ? {
         allowed_tools: permission.allowed_tools.map(
-          (rule) => rule.replace(/^(Read|Edit)\(.*\)$/s, "$1(<path>)")
+          (rule) => rule.replace(/^(Read|Edit)\(.*\)$/s, "$1(<path>)").replace(/^Bash\(.*\)$/s, "Bash(<pattern>)")
         )
       } : {}
     }
@@ -1599,9 +1599,9 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     }),
     probe: {
       version_args: ["--version"],
-      // Release verification established the provider-validated run surface at
-      // Claude Code 2.1.185 (RELEASING.md).
-      minimum_version: "2.1.185",
+      // Restricted profiles use --permission-prompts, introduced in 2.1.259:
+      // https://code.claude.com/docs/en/cli-reference#cli-flags
+      minimum_version: "2.1.259",
       capabilities: {
         run: {
           args: ["--help"],
@@ -3699,6 +3699,14 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
   }
   const textMode = request.output === "text";
   const schemaPath = request.schema_path;
+  if (textMode && schemaPath !== void 0) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "CONSENSUS_CLI_USAGE",
+      message: "Text output does not accept a schema path.",
+      terminalReason: "schema_with_text_output"
+    });
+  }
   let schema;
   let inlineJsonSchema;
   if (!textMode) {

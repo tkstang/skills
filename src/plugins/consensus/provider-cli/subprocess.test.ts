@@ -332,8 +332,10 @@ setInterval(() => {}, 1000);
         );
         await chmod(provider, 0o755);
         const pids: number[] = [];
+        let parent: ReturnType<typeof spawn> | undefined;
+        let exited: Promise<NodeJS.Signals | null> | undefined;
         try {
-          const parent = spawn(
+          parent = spawn(
             process.execPath,
             [
               path.join(repoRoot, 'plugins/consensus/scripts/consensus.mjs'),
@@ -352,8 +354,8 @@ setInterval(() => {}, 1000);
               stdio: 'ignore',
             },
           );
-          const exited = new Promise<NodeJS.Signals | null>((resolve) => {
-            parent.on('exit', (_code, exitSignal) => resolve(exitSignal));
+          exited = new Promise<NodeJS.Signals | null>((resolve) => {
+            parent!.on('exit', (_code, exitSignal) => resolve(exitSignal));
           });
           pids.push(...(await waitForPids(pidFile)));
 
@@ -364,6 +366,12 @@ setInterval(() => {}, 1000);
             await expect(waitForExit(pid)).resolves.toBe(true);
           }
         } finally {
+          if (parent && exited) {
+            if (parent.exitCode === null && parent.signalCode === null) {
+              parent.kill('SIGTERM');
+            }
+            await exited;
+          }
           pids.forEach(killQuietly);
           await rm(dir, { recursive: true, force: true });
         }
@@ -666,7 +674,7 @@ setInterval(() => {}, 1000);
       ok: false,
       code: 'PROVIDER_ARGV_TOO_LARGE',
       retryable: false,
-      message: expect.stringContaining('too large for argv'),
+      message: expect.stringContaining('arguments or environment'),
     });
 
     const missing = await runProviderSubprocess(

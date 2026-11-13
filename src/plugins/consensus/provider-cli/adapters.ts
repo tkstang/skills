@@ -160,9 +160,9 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     }),
     probe: {
       version_args: ['--version'],
-      // Release verification established the provider-validated run surface at
-      // Claude Code 2.1.185 (RELEASING.md).
-      minimum_version: '2.1.185',
+      // Restricted profiles use --permission-prompts, introduced in 2.1.259:
+      // https://code.claude.com/docs/en/cli-reference#cli-flags
+      minimum_version: '2.1.259',
       capabilities: {
         run: {
           args: ['--help'],

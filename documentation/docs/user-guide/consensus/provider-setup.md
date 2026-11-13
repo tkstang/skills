@@ -21,6 +21,11 @@ consensus provider ls --json
 consensus preflight --json --provider claude --capability run
 ```
 
+Claude Code must be at least 2.1.259. Restricted permission profiles use
+`--permission-prompts none`, which the [Claude CLI reference](https://code.claude.com/docs/en/cli-reference#cli-flags)
+documents as requiring that version. Older versions fail preflight rather than
+being advertised as ready for unsupported profiles.
+
 From a repository checkout the same provider CLI lives at
 `plugins/consensus/scripts/consensus.mjs` and can be run with `node`:
 
@@ -31,7 +36,10 @@ node plugins/consensus/scripts/consensus.mjs preflight --json --provider <select
 
 ### Readiness states
 
-Readiness is a state machine, not a boolean. `consensus run` is a separate command that never probes; its terminal failures still exit 0 inside a JSON envelope, with usage errors (exit 2) the only exception.
+Readiness is a state machine, not a boolean. `consensus run` is a separate
+command that never probes. Completed success and provider-failure envelopes
+exit 0; usage errors exit 2. An interrupted CLI re-raises the signal and exits
+by that signal.
 
 ```mermaid
 stateDiagram-v2
@@ -66,7 +74,7 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
   accTitle: consensus run outcomes
-  accDescr: consensus run never probes readiness. It ends with an ok envelope and exit 0, a failed envelope that still exits 0, or a usage error that is the one exit 2 case.
+  accDescr: consensus run never probes readiness. Completed success and failure envelopes exit 0, usage errors exit 2, and interrupted runs exit by the forwarded signal.
   direction TB
   [*] --> run: consensus run
   run: a separate command
@@ -79,13 +87,17 @@ stateDiagram-v2
   run_failed: PROVIDER_SCHEMA_VALIDATION
   run_failed: still exit 0 — parse the envelope
   run --> usage_error: CONSENSUS_CLI_USAGE
-  usage_error: the one nonzero case — exit 2
+  usage_error: exit 2
+  run --> interrupted: interrupt received
+  interrupted: signal is re-raised
+  interrupted: exits by signal
   run_ok --> [*]
   run_failed --> [*]
   usage_error --> [*]
+  interrupted --> [*]
 ```
 
-_Mermaid updated 2026-09-16_
+_Mermaid updated 2026-11-13_
 
 ## Diagnostics
 
@@ -100,12 +112,13 @@ used:
 - `PROVIDER_CAPABILITY_MISSING`
 - `PROVIDER_UNSUPPORTED_OPTION`
 
-Provider `run` results are machine-readable envelopes. Terminal provider
+Completed provider `run` results are machine-readable envelopes. Provider
 failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_ARGV_TOO_LARGE`,
 `PROVIDER_INVALID_JSON`, `PROVIDER_SCHEMA_VALIDATION`, `PROVIDER_EMPTY_OUTPUT`,
 or `PROVIDER_MALFORMED_RESULT` still exit process `0`; shell callers must parse
 the JSON envelope instead of checking `$?`. CLI usage failures
-(`CONSENSUS_CLI_USAGE`) exit `2`. The peer-facing `consensus submit` subcommand
+(`CONSENSUS_CLI_USAGE`) exit `2`. Interrupts re-raise the signal and exit by it;
+they are not covered by the completed-envelope exit-0 guarantee. The peer-facing `consensus submit` subcommand
 uses ordinary nonzero exit codes for validation or capture failures so the peer
 can correct the verdict in-turn.
 

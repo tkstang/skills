@@ -313,6 +313,14 @@ async function runStructuredTurn(
   // adds nothing to the prompt and validates nothing.
   const textMode = request.output === 'text';
   const schemaPath = request.schema_path;
+  if (textMode && schemaPath !== undefined) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: 'CONSENSUS_CLI_USAGE',
+      message: 'Text output does not accept a schema path.',
+      terminalReason: 'schema_with_text_output',
+    });
+  }
   let schema: unknown;
   let inlineJsonSchema: string | undefined;
   if (!textMode) {
