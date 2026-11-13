@@ -107,7 +107,7 @@ prints the same values.
 | One file or base blob | 8 MiB for text. A larger binary is skipped by hash instead.                                                                                                                                                                      | `scope_too_large` naming the path. A base blob that cannot be read is a scope error, never a recorded deletion.                                |
 | Binary files          | A file with a NUL byte; over 8 MiB, only the first 8000 bytes are checked. Skipped at any size, listed under limitations, and drift-checked by size and SHA-256.                                                                 | A scope with no textual change fails with `binary_scope_not_supported`.                                                                        |
 | Assembled prompt      | 64 KiB. The prompt carries the evidence path, the path count, and at most 20 paths; `evidence.json` holds the full manifest. Requests over 32 KiB are passed by file.                                                            | `review_prompt_too_large` naming the largest contributor.                                                                                      |
-| Provider output       | `--max-output-bytes`, an integer from 65,536 through 67,108,864, default 10 MiB. Combined stdout and stderr are counted during the run.                                                                                          | The provider is stopped and the run is incomplete; the first 2 MiB of each stream is saved.                                                    |
+| Provider output       | `--max-output-bytes`, an integer from 65,536 through 67,108,864, default 10 MiB. Combined stdout and stderr are counted during the run.                                                                                          | The provider is stopped and the run is incomplete; up to 2 MiB per captured stream is saved, subject to the combined transport cap.            |
 | Reply presentation    | 100 findings, 100 checks, 50 questions, 50 limitations, 200 coverage and inspected-context entries; the summary and finding text at 8192 characters. The reviewer's schema omits these caps, so the full reply reaches the host. | Cut after validation, most severe findings and failed checks first; the report records `truncated: true` and the omitted count per collection. |
 
 To stay inside the file and evidence limits, narrow the scope with `--files`,
@@ -127,8 +127,9 @@ warns when the two differ. When findings must be truncated, critical and high
 findings are kept first.
 
 As soon as the provider returns, Review writes `provider-evidence.json` to the
-run directory: bounded stdout and stderr (2 MiB each), the Codex last-message
-capture, and the transport result. Every later diagnostic references it, so a
+run directory: captured stdout and stderr, each retained up to 2 MiB, the Codex
+last-message capture, and the transport result. The transport cap limits stdout
+and stderr combined, so less than 2 MiB of either stream may be available. Every later diagnostic references it, so a
 drift, validation, or persistence failure no longer loses the reviewer's
 output. If that file cannot be written, the original failure status is kept and
 the save error is recorded.

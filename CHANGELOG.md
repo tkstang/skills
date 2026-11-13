@@ -27,7 +27,8 @@
   - Provider stdout, stderr, the Codex last-message capture, and the transport
     result are saved to `provider-evidence.json` before any later check, and
     every diagnostic references it. Successful Codex runs retain raw JSONL
-    stdout separately from the extracted last-message reply.
+    stdout separately from the extracted last-message reply. Retention is at most
+    2 MiB per captured stream, subject to the combined transport cap.
   - Malformed replies stop validation after 100 diagnostic errors rather than
     building an unbounded error list. Valid replies still receive full validation.
   - The skill and `--help` document the limits.
