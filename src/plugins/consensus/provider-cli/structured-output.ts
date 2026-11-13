@@ -12,7 +12,11 @@ import {
   reconstructedContinuationPrompt,
 } from './continuation.js';
 import type { ProviderTurnTrace } from './continuation.js';
-import { failureEnvelope, successEnvelope } from './envelope.js';
+import {
+  failureEnvelope,
+  successEnvelope,
+  textSuccessEnvelope,
+} from './envelope.js';
 import { resolveProviderExecutable } from './executable.js';
 import { evaluateHostGuard } from './host-guard.js';
 import { buildProviderInvocation } from './invocation.js';
@@ -32,13 +36,18 @@ import {
 } from './submit-capture.js';
 import { readBoundedRegularFile, runProviderSubprocess } from './subprocess.js';
 import type { RunProviderSubprocessOptions } from './subprocess.js';
-import type { ProviderProcessResult } from './subprocess.js';
+import type {
+  ProviderProcessResult,
+  ProviderProcessSuccess,
+} from './subprocess.js';
 import type {
   ConsensusCliRunEnvelope,
   ConsensusCliRunRequest,
   ContinuationMode,
   ProviderDiagnostics,
   ProviderErrorCode,
+  ProviderId,
+  RunOutputKind,
   StructuredOutputStrategy,
 } from './types.js';
 
@@ -64,10 +73,13 @@ export interface ProviderTurnTransportOptions {
 export function selectStructuredOutputStrategy(
   adapter: ProviderAdapter,
   options: {
+    output?: RunOutputKind;
     submitCaptureEnabled?: boolean;
     strategy?: StructuredOutputStrategy;
   } = {},
 ): StructuredOutputStrategy {
+  // Text mode has no schema, so no structured strategy applies to it.
+  if (options.output === 'text') return 'text';
   if (options.strategy) return options.strategy;
   if (
     options.submitCaptureEnabled &&
@@ -297,26 +309,49 @@ async function runStructuredTurn(
     });
   }
 
-  const readSchema = dependencies.readSchema ?? readJsonSchema;
-  let schema: unknown;
-  try {
-    schema = await readSchema(request.schema_path);
-  } catch (error) {
+  // Text mode returns the provider's reply as text: it reads no schema,
+  // adds nothing to the prompt and validates nothing.
+  const textMode = request.output === 'text';
+  const schemaPath = request.schema_path;
+  if (textMode && schemaPath !== undefined) {
     return preInvocationFailure({
       provider: request.provider,
       code: 'CONSENSUS_CLI_USAGE',
-      message: `Could not read schema: ${error instanceof Error ? error.message : String(error)}`,
-      terminalReason: 'schema_read_failed',
+      message: 'Text output does not accept a schema path.',
+      terminalReason: 'schema_with_text_output',
     });
   }
-  const inlineJsonSchema = JSON.stringify(schema);
-  if (inlineJsonSchema === undefined) {
-    return preInvocationFailure({
-      provider: request.provider,
-      code: 'CONSENSUS_CLI_USAGE',
-      message: 'Schema must be JSON-serializable.',
-      terminalReason: 'schema_read_failed',
-    });
+  let schema: unknown;
+  let inlineJsonSchema: string | undefined;
+  if (!textMode) {
+    if (!schemaPath) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: 'CONSENSUS_CLI_USAGE',
+        message: 'JSON output requires a schema path.',
+        terminalReason: 'schema_missing',
+      });
+    }
+    const readSchema = dependencies.readSchema ?? readJsonSchema;
+    try {
+      schema = await readSchema(schemaPath);
+    } catch (error) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: 'CONSENSUS_CLI_USAGE',
+        message: `Could not read schema: ${error instanceof Error ? error.message : String(error)}`,
+        terminalReason: 'schema_read_failed',
+      });
+    }
+    inlineJsonSchema = JSON.stringify(schema);
+    if (inlineJsonSchema === undefined) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: 'CONSENSUS_CLI_USAGE',
+        message: 'Schema must be JSON-serializable.',
+        terminalReason: 'schema_read_failed',
+      });
+    }
   }
 
   const effectiveRequest: ConsensusCliRunRequest = {
@@ -325,22 +360,30 @@ async function runStructuredTurn(
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
   // Peers that cannot run a shell command cannot call `consensus submit`, so
-  // they answer through the final message instead.
+  // they answer through the final message instead. Claude's scoped and
+  // workspace-write profiles allow no Bash beyond explicit grants. Text mode
+  // has no verdict to submit.
   const submitCaptureEnabled =
+    !textMode &&
     (dependencies.transport?.submitCaptureEnabled ?? true) &&
     !(
       request.provider === 'claude' &&
-      hasScopedToolAccess(request.runtime_policy)
+      (hasScopedToolAccess(request.runtime_policy) ||
+        request.runtime_policy?.permission_mode === 'workspace-write')
     ) &&
     !(
       request.provider === 'cursor' &&
       request.runtime_policy?.permission_mode === 'read-only'
     );
   const strategy = selectStructuredOutputStrategy(adapter, {
+    output: request.output,
     submitCaptureEnabled,
     strategy: dependencies.transport?.strategy,
   });
-  if (!adapter.capabilities.schema_strategies.includes(strategy)) {
+  if (
+    !adapter.capabilities.schema_strategies.includes(strategy) ||
+    (!textMode && strategy === 'text')
+  ) {
     return preInvocationFailure({
       provider: request.provider,
       code: 'PROVIDER_UNSUPPORTED_OPTION',
@@ -371,12 +414,15 @@ async function runStructuredTurn(
     request: effectiveRequest,
     hostEnv: {
       ...hostGuard.child_env,
-      ...(submitCaptureEnabled && submitCommand && submitCapturePath
+      ...(submitCaptureEnabled &&
+      submitCommand &&
+      submitCapturePath &&
+      schemaPath
         ? {
             CONSENSUS_SUBMIT_COMMAND: submitCommand,
             CONSENSUS_SUBMIT_FILE: submitCapturePath,
             [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-            CONSENSUS_SUBMIT_SCHEMA: path.resolve(request.schema_path),
+            CONSENSUS_SUBMIT_SCHEMA: path.resolve(schemaPath),
           }
         : {}),
     },
@@ -392,14 +438,17 @@ async function runStructuredTurn(
       }
       const invocationRequest = {
         ...effectiveRequest,
-        prompt: promptForStrategy({
-          prompt: request.prompt,
-          strategy,
-          inlineJsonSchema,
-          submitCaptureEnabled,
-          submitCommand,
-          validationFeedback,
-        }),
+        prompt:
+          textMode || inlineJsonSchema === undefined
+            ? request.prompt
+            : promptForStrategy({
+                prompt: request.prompt,
+                strategy,
+                inlineJsonSchema,
+                submitCaptureEnabled,
+                submitCommand,
+                validationFeedback,
+              }),
       };
       const invocation = buildProviderInvocation(adapter, invocationRequest, {
         strategy,
@@ -423,6 +472,9 @@ async function runStructuredTurn(
           strategy_used: strategy,
           output_mode: invocation.output_mode,
           redacted_command: invocation.redacted_command,
+          ...(invocation.permission_profile
+            ? { permission_profile: invocation.permission_profile }
+            : {}),
         },
         hostGuard.diagnostics,
         processResult.diagnostics,
@@ -454,6 +506,43 @@ async function runStructuredTurn(
             terminal_reason: classification.terminal_reason,
           },
           diagnostics: failureDiagnostics,
+        });
+      }
+
+      if (textMode) {
+        // Extraction failures are terminal: a reply that arrived but cannot
+        // be read is not a transient process failure, so it is not retried.
+        const extracted = extractProviderText(
+          invocation,
+          processResult,
+          request.provider,
+        );
+        if (!extracted.ok) {
+          return failureEnvelope({
+            provider: request.provider,
+            code: extracted.code,
+            message: extracted.message,
+            retryable: false,
+            stdout: processResult.stdout,
+            stderr: processResult.stderr,
+            attempts: {
+              cli_attempts: attempt,
+              terminal_reason: extracted.terminal_reason,
+            },
+            diagnostics,
+          });
+        }
+        return textSuccessEnvelope({
+          provider: request.provider,
+          args: invocation.redacted_command,
+          stdout: extracted.raw,
+          stderr: processResult.stderr,
+          text: extracted.text,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: 'success',
+          },
+          diagnostics,
         });
       }
 
@@ -673,6 +762,79 @@ function extractProviderOutput(
     ok: false,
     message: 'Provider did not write a last-message file response.',
   };
+}
+
+type ExtractTextResult =
+  | { ok: true; raw: string; text: string }
+  | {
+      ok: false;
+      code: 'PROVIDER_EMPTY_OUTPUT' | 'PROVIDER_MALFORMED_RESULT';
+      message: string;
+      terminal_reason: 'empty_output' | 'malformed_result';
+    };
+
+// Strict text extraction: a reply is either the provider's own final text or
+// a failure. Malformed or error-shaped output never becomes raw-text success.
+function extractProviderText(
+  invocation: ProviderInvocation,
+  result: ProviderProcessSuccess,
+  provider: ProviderId,
+): ExtractTextResult {
+  const empty = (message: string): ExtractTextResult => ({
+    ok: false,
+    code: 'PROVIDER_EMPTY_OUTPUT',
+    message,
+    terminal_reason: 'empty_output',
+  });
+  const malformed = (message: string): ExtractTextResult => ({
+    ok: false,
+    code: 'PROVIDER_MALFORMED_RESULT',
+    message,
+    terminal_reason: 'malformed_result',
+  });
+
+  if (invocation.output_mode === 'last_message_file') {
+    const lastMessage = result.last_message;
+    if (lastMessage === undefined) {
+      return empty('Provider did not write a last-message file response.');
+    }
+    if (!lastMessage.trim()) {
+      return empty('Provider wrote a blank last-message file response.');
+    }
+    return { ok: true, raw: lastMessage, text: lastMessage };
+  }
+
+  if (!result.stdout.trim()) {
+    return empty('Provider produced no output.');
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(result.stdout.trim());
+  } catch {
+    return malformed('Provider output is not a JSON result object.');
+  }
+  if (!isRecord(parsed)) {
+    return malformed('Provider output is not a JSON result object.');
+  }
+  if (parsed.is_error === true) {
+    return malformed('Provider reported an error result.');
+  }
+  const subtype = parsed.subtype;
+  if (
+    (provider === 'claude' && subtype !== 'success') ||
+    (subtype !== undefined && subtype !== 'success')
+  ) {
+    return malformed(
+      `Provider result subtype is ${typeof subtype === 'string' ? subtype : 'missing'}, not success.`,
+    );
+  }
+  if (typeof parsed.result !== 'string') {
+    return malformed('Provider result object has no text result.');
+  }
+  if (!parsed.result.trim()) {
+    return empty('Provider returned a blank text result.');
+  }
+  return { ok: true, raw: result.stdout, text: parsed.result };
 }
 
 function parseProviderJson(stdout: string): ParseResult {

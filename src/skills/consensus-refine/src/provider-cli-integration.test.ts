@@ -47,7 +47,7 @@ function scrubHostEnv(env: NodeJS.ProcessEnv) {
 
 async function writeProviderExecutable(binDir: string, name: string) {
   const providerPath = path.join(binDir, name);
-  const version = name === 'claude' ? '2.1.185' : '0.142.5';
+  const version = name === 'claude' ? '2.1.259' : '0.142.5';
   const help =
     name === 'claude'
       ? '--print --output-format'

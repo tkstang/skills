@@ -80,6 +80,7 @@ describe('review transport runner', () => {
           return {
             schema_version: 'v1',
             ok: true,
+            output_kind: 'json',
             provider: 'codex',
             args: ['codex', 'exec'],
             stdout: '{"verdict":"pass"}',
@@ -1592,6 +1593,7 @@ function successEnvelope(
   return {
     schema_version: 'v1',
     ok: true,
+    output_kind: 'json',
     provider: 'claude',
     args: ['claude'],
     stdout: JSON.stringify(json),

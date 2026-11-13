@@ -2,7 +2,8 @@ import type {
   AttemptSummary,
   ConsensusCliRunEnvelope,
   ConsensusCliRunFailure,
-  ConsensusCliRunSuccess,
+  ConsensusCliRunJsonSuccess,
+  ConsensusCliRunTextSuccess,
   ProviderDiagnostics,
   ProviderErrorCode,
   ProviderId,
@@ -16,6 +17,13 @@ export interface SuccessEnvelopeInput {
   json: unknown;
   attempts?: Partial<AttemptSummary>;
   diagnostics?: ProviderDiagnostics;
+}
+
+export interface TextSuccessEnvelopeInput extends Omit<
+  SuccessEnvelopeInput,
+  'json'
+> {
+  text: string;
 }
 
 export interface FailureEnvelopeInput {
@@ -32,14 +40,36 @@ export interface FailureEnvelopeInput {
 
 export function successEnvelope(
   input: SuccessEnvelopeInput,
-): ConsensusCliRunSuccess {
-  const envelope: ConsensusCliRunSuccess = {
+): ConsensusCliRunJsonSuccess {
+  const envelope: ConsensusCliRunJsonSuccess = {
     schema_version: 'v1',
     ok: true,
     provider: input.provider,
     args: input.args,
     stdout: input.stdout,
+    output_kind: 'json',
     json: input.json,
+    attempts: buildAttemptSummary(input.attempts, false),
+  };
+
+  if (input.stderr !== undefined) envelope.stderr = input.stderr;
+  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
+
+  return envelope;
+}
+
+export function textSuccessEnvelope(
+  input: TextSuccessEnvelopeInput,
+): ConsensusCliRunTextSuccess {
+  const envelope: ConsensusCliRunTextSuccess = {
+    schema_version: 'v1',
+    ok: true,
+    provider: input.provider,
+    args: input.args,
+    stdout: input.stdout,
+    output_kind: 'text',
+    text: input.text,
+    json: null,
     attempts: buildAttemptSummary(input.attempts, false),
   };
 

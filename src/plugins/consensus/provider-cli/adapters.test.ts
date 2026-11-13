@@ -68,6 +68,7 @@ describe('provider adapter registry', () => {
     expect(registry.get('cursor')?.capabilities.schema_strategies).toEqual([
       'prompt_only',
       'submit_tool_candidate',
+      'text',
     ]);
     expect(registry.get('cursor')?.capabilities.supports_submit_tool).toBe(
       false,

@@ -38,15 +38,34 @@ records and host or user direction when resuming an in-flight section.
 Peer execution crosses two child-process boundaries: a wrapper/core process
 invokes the generated consensus CLI, and that CLI invokes the selected provider
 executable. Provider adapters hide incompatible command shapes behind one run
-request. Claude receives prompt/output flags and optional inline schema flags;
+request. Claude receives output flags and optional inline schema flags;
 Codex uses `exec`, a last-message file, and optional output-schema/config flags;
-Cursor uses its own JSON output flags. Every provider invocation sets
-`shell: false`.
+Cursor uses its own JSON output flags. Every provider reads the prompt from
+stdin, so a large prompt never reaches argv; an oversized argument such as
+Claude's inline schema fails as `PROVIDER_ARGV_TOO_LARGE`. Every provider
+invocation sets `shell: false`.
+
+The [subprocess runner](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/subprocess.ts)
+spawns the provider detached on POSIX, so it leads its own process group. A
+timeout or output-cap breach sends SIGTERM to the group and keeps the SIGKILL
+escalation running after the leader exits, until the group is gone (`ESRCH`)
+or the settlement bound expires; `diagnostics.termination` records the steps.
+A normal exit never signals the group. While a run is active, SIGINT, SIGTERM,
+and SIGHUP received by the CLI are forwarded to that run's group through the
+same escalation (a repeat escalates to SIGKILL at once). The interrupted run
+is never retried, and the signal is re-raised on the CLI after the run settles
+when no other listener remains.
+Windows keeps single-process termination.
 
 The normalized envelope keeps the loop provider-neutral. It carries success or
 failure, structured output, redacted arguments, diagnostics, and attempt data.
 The loop then applies its own verdict rules rather than trusting provider exit
-status or provider-specific response syntax as a consensus decision.
+status or provider-specific response syntax as a consensus decision. Every
+in-repo caller, including the loop, runs in JSON mode (`output_kind: "json"`).
+`consensus run --output text` is a schema-free surface for free-form replies:
+it turns submit capture off, strips `CONSENSUS_SUBMIT_*` from the child
+environment, and fails unreadable output as `PROVIDER_EMPTY_OUTPUT` or
+`PROVIDER_MALFORMED_RESULT` rather than returning raw text.
 
 ## Guardrails, not isolation
 

@@ -15,7 +15,10 @@ export interface ProviderOptionValidationSuccess {
 
 export interface ProviderOptionValidationFailure {
   ok: false;
-  code: Extract<ProviderErrorCode, 'PROVIDER_UNSUPPORTED_OPTION'>;
+  code: Extract<
+    ProviderErrorCode,
+    'PROVIDER_UNSUPPORTED_OPTION' | 'CONSENSUS_CLI_USAGE'
+  >;
   option: string;
   message: string;
 }
@@ -120,11 +123,43 @@ export function validateProviderOptions(
       'Scoped tool grants are supported only by the Claude provider.',
     );
   }
-  if (hasScopedTools && policy.permission_mode !== 'non-interactive') {
+  // Every Cursor profile except read-only reaches `--print ... --force`, which
+  // auto-approves commands, so the text surface accepts only read-only.
+  if (
+    request.output === 'text' &&
+    request.provider === 'cursor' &&
+    policy.permission_mode !== 'read-only'
+  ) {
     return unsupported(
       'runtime_policy.permission_mode',
-      'Scoped Claude tool grants require non-interactive permission mode.',
+      'Cursor text-mode runs require --permission-mode read-only.',
     );
+  }
+  if (request.provider === 'claude') {
+    const composition = composeClaudePermissionProfile(policy);
+    if (!composition.ok) {
+      return unsupported(composition.option, composition.message);
+    }
+  }
+  if (
+    (request.max_attempts ?? 1) > 1 &&
+    !isProvenReadOnlyProfile(request.provider, policy)
+  ) {
+    return {
+      ok: false,
+      code: 'CONSENSUS_CLI_USAGE',
+      option: 'max_attempts',
+      message:
+        'More than one attempt is allowed only for a proven read-only profile: Codex with --sandbox read-only, Claude with --permission-mode read-only and no edit or Bash grant, or Cursor with --permission-mode read-only. A retried turn could repeat its side effects.',
+    };
+  }
+  for (const pattern of policy.bash_patterns ?? []) {
+    if (!isExactBashPattern(pattern)) {
+      return unsupported(
+        'runtime_policy.bash_patterns',
+        'Bash grants require a single-line command pattern without parentheses or commas, naming a command rather than only wildcards.',
+      );
+    }
   }
   for (const [field, paths] of [
     ['read_paths', policy.read_paths],
@@ -187,12 +222,168 @@ export function validateProviderOptions(
   return { ok: true };
 }
 
+// Only these profiles may retry a turn: each is explicitly read-only, so a
+// resubmitted turn cannot repeat writes. An omitted Codex sandbox, Claude's
+// unscoped non-interactive mode (which installs no restrictions), any Bash or
+// edit grant, and every write profile run once.
+export function isProvenReadOnlyProfile(
+  provider: string,
+  policy: ProviderRuntimePolicy,
+) {
+  if (provider === 'codex') return policy.sandbox === 'read-only';
+  if (provider === 'claude') {
+    return (
+      policy.permission_mode === 'read-only' &&
+      !policy.edit_paths?.length &&
+      !policy.bash_patterns?.length
+    );
+  }
+  if (provider === 'cursor') return policy.permission_mode === 'read-only';
+  return false;
+}
+
 export function hasScopedToolAccess(policy: ProviderRuntimePolicy = {}) {
   return Boolean(
     policy.read_paths?.length ||
     policy.edit_paths?.length ||
+    policy.bash_patterns?.length ||
     policy.web_search ||
     policy.web_fetch_domains?.length,
+  );
+}
+
+// Claude's permission flags for one effective runtime policy.
+// `restricted` adds `--permission-prompts none --strict-mcp-config`.
+export interface ClaudePermissionComposition {
+  ok: true;
+  // Claude `--permission-mode` value; undefined keeps the provider default.
+  mode?: 'plan' | 'dontAsk' | 'acceptEdits';
+  tools?: string[];
+  allowed_tools: string[];
+  restricted: boolean;
+}
+
+export interface ClaudePermissionCompositionFailure {
+  ok: false;
+  option: string;
+  message: string;
+}
+
+// The accepted Claude mode and grant pairings are documented in "Claude
+// permission profiles" (documentation/docs/user-guide/consensus/configuration.md);
+// every other pairing is rejected.
+export function composeClaudePermissionProfile(
+  policy: ProviderRuntimePolicy,
+): ClaudePermissionComposition | ClaudePermissionCompositionFailure {
+  const mode = policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode;
+  const readPaths = policy.read_paths ?? [];
+  const editPaths = policy.edit_paths ?? [];
+  const bashPatterns = policy.bash_patterns ?? [];
+  const webFetchDomains = policy.web_fetch_domains ?? [];
+  const webSearch = Boolean(policy.web_search);
+  const readRules = readPaths.map((filePath) => `Read(/${filePath})`);
+
+  if (mode === 'read-only') {
+    if (
+      editPaths.length > 0 ||
+      bashPatterns.length > 0 ||
+      webSearch ||
+      webFetchDomains.length > 0
+    ) {
+      return compositionFailure(
+        'Claude read-only accepts only --allow-read grants; use non-interactive for edit or web grants and workspace-write for Bash grants.',
+      );
+    }
+    if (readPaths.length === 0) {
+      return { ok: true, mode: 'plan', allowed_tools: [], restricted: false };
+    }
+    return {
+      ok: true,
+      mode: 'dontAsk',
+      tools: ['Read', 'Glob', 'Grep'],
+      allowed_tools: readRules,
+      restricted: true,
+    };
+  }
+
+  if (mode === 'non-interactive') {
+    if (bashPatterns.length > 0) {
+      return compositionFailure(
+        'Claude Bash grants require --permission-mode workspace-write.',
+      );
+    }
+    const allowedTools = [
+      ...readRules,
+      ...editPaths.map((filePath) => `Edit(/${filePath})`),
+      ...(webSearch ? ['WebSearch'] : []),
+      ...webFetchDomains.map((domain) => `WebFetch(domain:${domain})`),
+    ];
+    if (allowedTools.length === 0) {
+      return { ok: true, allowed_tools: [], restricted: false };
+    }
+    return {
+      ok: true,
+      mode: 'dontAsk',
+      tools: [
+        ...(readPaths.length > 0 ? ['Read'] : []),
+        ...(editPaths.length > 0 ? ['Edit', 'Write'] : []),
+        ...(webSearch ? ['WebSearch'] : []),
+        ...(webFetchDomains.length > 0 ? ['WebFetch'] : []),
+      ],
+      allowed_tools: allowedTools,
+      restricted: true,
+    };
+  }
+
+  if (mode === 'workspace-write') {
+    if (
+      readPaths.length > 0 ||
+      editPaths.length > 0 ||
+      webSearch ||
+      webFetchDomains.length > 0
+    ) {
+      return compositionFailure(
+        'Claude workspace-write accepts only --allow-bash grants; its file tools already cover the working directory.',
+      );
+    }
+    return {
+      ok: true,
+      mode: 'acceptEdits',
+      tools: [
+        'Read',
+        'Glob',
+        'Grep',
+        'Edit',
+        'Write',
+        ...(bashPatterns.length > 0 ? ['Bash'] : []),
+      ],
+      allowed_tools: bashPatterns.map((pattern) => `Bash(${pattern})`),
+      restricted: true,
+    };
+  }
+
+  return compositionFailure(`Unsupported Claude permission mode: ${mode}.`);
+}
+
+function compositionFailure(
+  message: string,
+): ClaudePermissionCompositionFailure {
+  return { ok: false, option: 'runtime_policy.permission_mode', message };
+}
+
+// One Claude `Bash(<pattern>)` rule: a single line, no rule delimiters, and
+// at least one character that names a command rather than a wildcard.
+function isExactBashPattern(pattern: string) {
+  return (
+    pattern.length > 0 &&
+    pattern.length <= 256 &&
+    pattern.trim() === pattern &&
+    !/[(),]/.test(pattern) &&
+    ![...pattern].some((character) => {
+      const code = character.charCodeAt(0);
+      return code < 0x20 || code === 0x7f;
+    }) &&
+    /[^\s*:]/.test(pattern)
   );
 }
 
@@ -209,6 +400,7 @@ export function defaultRuntimePolicy(
     ...(policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {}),
     ...(policy.read_paths ? { read_paths: policy.read_paths } : {}),
     ...(policy.edit_paths ? { edit_paths: policy.edit_paths } : {}),
+    ...(policy.bash_patterns ? { bash_patterns: policy.bash_patterns } : {}),
     ...(policy.web_search ? { web_search: true } : {}),
     ...(policy.web_fetch_domains
       ? { web_fetch_domains: policy.web_fetch_domains }
@@ -238,11 +430,18 @@ export function buildChildEnvironment({
     if (value !== undefined) childEnv[name] = value;
   }
 
-  return {
-    ...childEnv,
-    ...hostEnv,
-  };
+  const env = { ...childEnv, ...hostEnv };
+  // Text mode has no verdict to submit, so no reserved submit variable may
+  // reach the provider, even one named in env_allowlist.
+  if (request.output === 'text') {
+    for (const name of Object.keys(env)) {
+      if (name.startsWith(RESERVED_SUBMIT_ENV_PREFIX)) delete env[name];
+    }
+  }
+  return env;
 }
+
+const RESERVED_SUBMIT_ENV_PREFIX = 'CONSENSUS_SUBMIT_';
 
 export function buildProviderProbeEnvironment({
   parentEnv,

@@ -2,7 +2,55 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Split the Consensus configuration reference into saved workflow configuration,
+  provider setup, and provider run controls. Updated links and sidebar navigation.
+  Corrected the trust-boundary diagram for text output and host verification;
+  its SVG now has a white background to keep labels legible in both themes.
+
+### Fixed
+
+- The consensus CLI now requires Claude Code 2.1.259, the documented minimum
+  for `--permission-prompts`, redacts Bash grant contents in diagnostics, and
+  rejects text-plus-schema requests at the direct runner boundary. Provider
+  fixtures verify exact multiline stdin and clean up the CLI even when
+  readiness fails. Interrupted runs are documented as signal exits.
+
+- `agent-messaging` 1.0.26 uses private temporary worktree paths in its message
+  and log tests, with cleanup, so existing files under `/tmp` cannot break them.
+  Consensus provider fixtures now supply their own environment instead of
+  inheriting executable overrides or host-session settings from the shell.
+
 ### Added
+
+- The shared consensus provider CLI (`consensus` plugin 0.2.10) composes
+  Claude's permission flags from an explicit table. A new
+  `--permission-mode workspace-write` runs Claude in `acceptEdits` with
+  `--tools Read,Glob,Grep,Edit,Write` and, through the new repeatable
+  `--allow-bash <pattern>` grant (`runtime_policy.bash_patterns`), `Bash` with
+  one `Bash(<pattern>)` rule per grant. `read-only` now also accepts
+  `--allow-read` grants (`dontAsk` with `Read,Glob,Grep`). Every other pairing
+  of mode and grants is rejected before spawn, and unknown Claude modes are no
+  longer passed through. Diagnostics gain the additive `permission_profile`
+  field (mode, tool list, and allow list, with file paths redacted). The
+  configuration guide documents the table, the live-checked Claude and Codex
+  write behaviour, and its limits; a resumed write turn repeats the same policy
+  flags.
+
+- `consensus run --output text|json` (`consensus` plugin 0.2.10).
+  `--output text` (request JSON `output: "text"`) returns the provider's final
+  reply as free-form text without a schema; `--output json`, the default,
+  still requires `--schema`, and passing a schema with text output is a usage
+  error. Text mode
+  turns submit capture off and strips every `CONSENSUS_SUBMIT_*` variable from
+  the provider environment, even when allowlisted. Extraction is strict, with
+  two new failure codes, `PROVIDER_EMPTY_OUTPUT` and
+  `PROVIDER_MALFORMED_RESULT`, which the loop maps to the data exit code.
+  Cursor text mode accepts only `--permission-mode read-only`. Success
+  envelopes gain the additive `output_kind` field (`"json"` or `"text"`), and a
+  text success adds `text` with `json: null`; `schema_path` is now optional in
+  the request type.
 
 - `consensus-review` 0.2.0 (`consensus` plugin 0.2.9) completes large reviews
   and keeps every completed review's output (#146 item 1, #133):
@@ -88,7 +136,52 @@
 
 - Session Toolkit 0.1.0: stateless raw-evidence search and estimates with tiered widening, explicit scan authorization, redaction and optional accelerators.
 
+### Changed
+
+- The shared consensus provider CLI (`consensus` plugin 0.2.10) sends
+  Claude's prompt on stdin instead of as a positional argument, as it already
+  did for Codex and Cursor, so a large prompt can no longer exceed the
+  operating-system argv limit. Claude's inline `--json-schema` stays in argv;
+  an oversized one still fails as `PROVIDER_ARGV_TOO_LARGE`, whose message
+  now names the argument rather than the prompt. The skills that bundle the
+  CLI take version-only bumps for this and every other `consensus` plugin
+  0.2.10 entry in this release:
+  - `consensus-create` 0.1.24
+  - `consensus-decide` 0.1.24
+  - `consensus-evaluate` 0.1.28
+  - `consensus-panel` 0.1.21
+  - `consensus-plan` 0.1.24
+  - `consensus-refine` 0.1.27
+  - `consensus-review` 0.2.1
+  - `phone-a-friend` 0.3.3
+  - `session-observer` 1.1.5
+  - `session-observer-collab` 1.0.83
+  - `session-fork-to-destination` 0.3.10 (`session` plugin 0.8.3)
+
+- `consensus run` (`consensus` plugin 0.2.10) accepts `--max-attempts`
+  above 1 only for an explicitly read-only profile: Codex with
+  `--sandbox read-only`, Claude with `--permission-mode read-only` and no edit
+  or Bash grant, or Cursor with `--permission-mode read-only`. Any other
+  profile, including an omitted Codex sandbox and Claude's default
+  non-interactive mode, now fails with `CONSENSUS_CLI_USAGE` instead of
+  possibly repeating a turn's writes. No in-repo caller requested retries.
+
 ### Fixed
+
+- The shared consensus provider CLI (`consensus` plugin 0.2.10) stops a
+  timed-out or output-capped provider's whole process group on macOS and
+  Linux. The provider is spawned as a group leader; SIGTERM goes to the group,
+  and the SIGKILL escalation keeps running after the leader exits, so a
+  descendant that ignores SIGTERM no longer survives the run. A group that is
+  already gone (`ESRCH`) settles at once, settlement stays time-bounded, and
+  the additive `diagnostics.termination` field records the signals sent and
+  the step that ended the run. Normal exits are never signalled. SIGINT,
+  SIGTERM, or SIGHUP sent to the consensus CLI, such as Ctrl-C, is forwarded to
+  the provider's group and escalates to SIGKILL after the grace period (at once
+  on a repeated signal). The interrupted run is never retried, and the CLI
+  then re-raises the signal and exits by it unless another listener in the
+  process owns it, so interrupting a run no longer orphans the provider or a
+  descendant that ignores the signal. Windows is unchanged.
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.9) reports
   arguments or an environment too large for the operating system (`E2BIG`) as

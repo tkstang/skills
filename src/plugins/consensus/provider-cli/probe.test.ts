@@ -14,6 +14,33 @@ import {
 } from '../provider-cli/probe.js';
 
 describe('provider readiness probes', () => {
+  it.each([
+    ['2.1.258', 'unavailable'],
+    ['2.1.259', 'ready'],
+  ])(
+    'requires Claude permission-prompt support at %s',
+    async (version, status) => {
+      const entry = await probeProviderReadiness(adapter('claude'), {
+        runner: fakeRunner({
+          executables: { claude: '/fixture/claude' },
+          results: {
+            'claude --version': {
+              code: 0,
+              stdout: `Claude Code ${version}\n`,
+              stderr: '',
+            },
+          },
+        }),
+      });
+      expect(entry.status).toBe(status);
+      if (status === 'unavailable') {
+        expect(entry.diagnostics?.warnings?.join(' ')).toContain(
+          'PROVIDER_VERSION_UNSUPPORTED',
+        );
+      }
+    },
+  );
+
   it('maps a missing executable to a missing provider entry', async () => {
     const entry = await probeProviderReadiness(adapter('claude'), {
       runner: fakeRunner({ executables: {} }),
@@ -334,8 +361,7 @@ describe('provider readiness probes', () => {
       const entry = await probeProviderReadiness(adapter('claude'), {
         runner: nodeProbeCommandRunner(
           {
-            ...process.env,
-            PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+            PATH: binDir,
           },
           {
             timeoutSec: 0.01,
@@ -371,8 +397,7 @@ describe('provider readiness probes', () => {
       const entry = await probeProviderReadiness(adapter('codex'), {
         runner: nodeProbeCommandRunner(
           {
-            ...process.env,
-            PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+            PATH: binDir,
           },
           {
             maxOutputBytes: 16,

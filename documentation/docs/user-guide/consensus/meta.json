@@ -17,6 +17,8 @@
     "[Observer](/user-guide/skills/session-observer)",
     "[Collaborative Observer](/user-guide/skills/session-observer-collab)",
     "---Reference---",
-    "configuration"
+    "configuration",
+    "provider-setup",
+    "provider-run-controls"
   ]
 }

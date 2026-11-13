@@ -27,6 +27,7 @@ import path from "node:path";
 // src/plugins/consensus/provider-cli/types.ts
 var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
 var PROVIDER_PREFLIGHT_CAPABILITIES = ["run"];
+var RUN_OUTPUT_KINDS = ["json", "text"];
 var CONTINUATION_MODES = [
   "new",
   "native-resume",
@@ -481,7 +482,351 @@ function assertNever(value) {
 // src/plugins/consensus/provider-cli/invocation.ts
 import { randomUUID as randomUUID2 } from "node:crypto";
 import { tmpdir } from "node:os";
+import path4 from "node:path";
+
+// src/plugins/consensus/provider-cli/runtime-policy.ts
+import { realpathSync, statSync } from "node:fs";
+import path3 from "node:path";
+
+// src/plugins/consensus/provider-cli/executable.ts
 import path2 from "node:path";
+var PROVIDER_EXECUTABLE_ENV = {
+  claude: "CONSENSUS_CLAUDE_EXECUTABLE",
+  codex: "CONSENSUS_CODEX_EXECUTABLE",
+  cursor: "CONSENSUS_CURSOR_EXECUTABLE"
+};
+function resolveProviderExecutable(adapter, env) {
+  const variable = PROVIDER_EXECUTABLE_ENV[adapter.id];
+  const value = env[variable];
+  if (value === void 0 || value === "") {
+    return { ok: true, executable: adapter.executable };
+  }
+  if (!path2.isAbsolute(value)) {
+    return {
+      ok: false,
+      message: `${variable} must be an absolute path to an executable, not ${JSON.stringify(value)}.`
+    };
+  }
+  return { ok: true, executable: value };
+}
+
+// src/plugins/consensus/provider-cli/runtime-policy.ts
+var DEFAULT_RUNTIME_POLICY = {
+  permission_mode: "non-interactive"
+};
+var BASE_ENV_ALLOWLIST = [
+  "PATH",
+  "HOME",
+  "TMPDIR",
+  "TEMP",
+  "TMP",
+  "USER",
+  "LOGNAME",
+  "SHELL",
+  "LANG"
+];
+var PROVIDER_ENV_ALLOWLIST = [
+  ["claude", ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]],
+  ["codex", ["OPENAI_API_KEY"]],
+  ["cursor", ["CURSOR_API_KEY"]]
+];
+function validateProviderOptions(request, capabilities) {
+  if (request.model && !capabilities.options.model) {
+    return unsupported("model", "Provider does not support model selection.");
+  }
+  if (request.effort && capabilities.options.effort === null) {
+    return unsupported("effort", "Provider does not support effort selection.");
+  }
+  const policy = defaultRuntimePolicy(request.runtime_policy);
+  const runtimeCapabilities = capabilities.options.runtime_policy;
+  const permissionResult = validateOptionValue(
+    "runtime_policy.permission_mode",
+    policy.permission_mode,
+    runtimeCapabilities.permission_modes
+  );
+  if (permissionResult) return permissionResult;
+  const sandboxResult = validateOptionValue(
+    "runtime_policy.sandbox",
+    policy.sandbox,
+    runtimeCapabilities.sandboxes
+  );
+  if (sandboxResult) return sandboxResult;
+  const approvalResult = validateOptionValue(
+    "runtime_policy.approval_policy",
+    policy.approval_policy,
+    runtimeCapabilities.approval_policies
+  );
+  if (approvalResult) return approvalResult;
+  if (policy.env_allowlist && policy.env_allowlist.length > 0 && !runtimeCapabilities.env_allowlist) {
+    return unsupported(
+      "runtime_policy.env_allowlist",
+      "Provider does not support child environment allowlist extension."
+    );
+  }
+  const hasScopedTools = hasScopedToolAccess(policy);
+  if (hasScopedTools && request.provider !== "claude") {
+    return unsupported(
+      "runtime_policy.scoped_tools",
+      "Scoped tool grants are supported only by the Claude provider."
+    );
+  }
+  if (request.output === "text" && request.provider === "cursor" && policy.permission_mode !== "read-only") {
+    return unsupported(
+      "runtime_policy.permission_mode",
+      "Cursor text-mode runs require --permission-mode read-only."
+    );
+  }
+  if (request.provider === "claude") {
+    const composition = composeClaudePermissionProfile(policy);
+    if (!composition.ok) {
+      return unsupported(composition.option, composition.message);
+    }
+  }
+  if ((request.max_attempts ?? 1) > 1 && !isProvenReadOnlyProfile(request.provider, policy)) {
+    return {
+      ok: false,
+      code: "CONSENSUS_CLI_USAGE",
+      option: "max_attempts",
+      message: "More than one attempt is allowed only for a proven read-only profile: Codex with --sandbox read-only, Claude with --permission-mode read-only and no edit or Bash grant, or Cursor with --permission-mode read-only. A retried turn could repeat its side effects."
+    };
+  }
+  for (const pattern of policy.bash_patterns ?? []) {
+    if (!isExactBashPattern(pattern)) {
+      return unsupported(
+        "runtime_policy.bash_patterns",
+        "Bash grants require a single-line command pattern without parentheses or commas, naming a command rather than only wildcards."
+      );
+    }
+  }
+  for (const [field, paths] of [
+    ["read_paths", policy.read_paths],
+    ["edit_paths", policy.edit_paths]
+  ]) {
+    for (const filePath of paths ?? []) {
+      if (!path3.isAbsolute(filePath) || path3.normalize(filePath) !== filePath || filePath.split(path3.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires exact absolute paths without parent traversal or glob characters.`
+        );
+      }
+      try {
+        const target = statSync(filePath, { throwIfNoEntry: false });
+        if (target) {
+          if (!target.isFile() || realpathSync(filePath) !== filePath) {
+            return unsupported(
+              `runtime_policy.${field}`,
+              `${field} requires canonical regular-file targets, not directories or symlinks.`
+            );
+          }
+        } else if (field === "read_paths" || realpathSync(path3.dirname(filePath)) !== path3.dirname(filePath)) {
+          return unsupported(
+            `runtime_policy.${field}`,
+            `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
+          );
+        }
+      } catch {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
+        );
+      }
+    }
+  }
+  for (const domain of policy.web_fetch_domains ?? []) {
+    if (domain.length > 253 || !/^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
+      domain
+    )) {
+      return unsupported(
+        "runtime_policy.web_fetch_domains",
+        "WebFetch grants require exact domain names without schemes, ports, or wildcards."
+      );
+    }
+  }
+  return { ok: true };
+}
+function isProvenReadOnlyProfile(provider, policy) {
+  if (provider === "codex") return policy.sandbox === "read-only";
+  if (provider === "claude") {
+    return policy.permission_mode === "read-only" && !policy.edit_paths?.length && !policy.bash_patterns?.length;
+  }
+  if (provider === "cursor") return policy.permission_mode === "read-only";
+  return false;
+}
+function hasScopedToolAccess(policy = {}) {
+  return Boolean(
+    policy.read_paths?.length || policy.edit_paths?.length || policy.bash_patterns?.length || policy.web_search || policy.web_fetch_domains?.length
+  );
+}
+function composeClaudePermissionProfile(policy) {
+  const mode = policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode;
+  const readPaths = policy.read_paths ?? [];
+  const editPaths = policy.edit_paths ?? [];
+  const bashPatterns = policy.bash_patterns ?? [];
+  const webFetchDomains = policy.web_fetch_domains ?? [];
+  const webSearch = Boolean(policy.web_search);
+  const readRules = readPaths.map((filePath) => `Read(/${filePath})`);
+  if (mode === "read-only") {
+    if (editPaths.length > 0 || bashPatterns.length > 0 || webSearch || webFetchDomains.length > 0) {
+      return compositionFailure(
+        "Claude read-only accepts only --allow-read grants; use non-interactive for edit or web grants and workspace-write for Bash grants."
+      );
+    }
+    if (readPaths.length === 0) {
+      return { ok: true, mode: "plan", allowed_tools: [], restricted: false };
+    }
+    return {
+      ok: true,
+      mode: "dontAsk",
+      tools: ["Read", "Glob", "Grep"],
+      allowed_tools: readRules,
+      restricted: true
+    };
+  }
+  if (mode === "non-interactive") {
+    if (bashPatterns.length > 0) {
+      return compositionFailure(
+        "Claude Bash grants require --permission-mode workspace-write."
+      );
+    }
+    const allowedTools = [
+      ...readRules,
+      ...editPaths.map((filePath) => `Edit(/${filePath})`),
+      ...webSearch ? ["WebSearch"] : [],
+      ...webFetchDomains.map((domain) => `WebFetch(domain:${domain})`)
+    ];
+    if (allowedTools.length === 0) {
+      return { ok: true, allowed_tools: [], restricted: false };
+    }
+    return {
+      ok: true,
+      mode: "dontAsk",
+      tools: [
+        ...readPaths.length > 0 ? ["Read"] : [],
+        ...editPaths.length > 0 ? ["Edit", "Write"] : [],
+        ...webSearch ? ["WebSearch"] : [],
+        ...webFetchDomains.length > 0 ? ["WebFetch"] : []
+      ],
+      allowed_tools: allowedTools,
+      restricted: true
+    };
+  }
+  if (mode === "workspace-write") {
+    if (readPaths.length > 0 || editPaths.length > 0 || webSearch || webFetchDomains.length > 0) {
+      return compositionFailure(
+        "Claude workspace-write accepts only --allow-bash grants; its file tools already cover the working directory."
+      );
+    }
+    return {
+      ok: true,
+      mode: "acceptEdits",
+      tools: [
+        "Read",
+        "Glob",
+        "Grep",
+        "Edit",
+        "Write",
+        ...bashPatterns.length > 0 ? ["Bash"] : []
+      ],
+      allowed_tools: bashPatterns.map((pattern) => `Bash(${pattern})`),
+      restricted: true
+    };
+  }
+  return compositionFailure(`Unsupported Claude permission mode: ${mode}.`);
+}
+function compositionFailure(message) {
+  return { ok: false, option: "runtime_policy.permission_mode", message };
+}
+function isExactBashPattern(pattern) {
+  return pattern.length > 0 && pattern.length <= 256 && pattern.trim() === pattern && !/[(),]/.test(pattern) && ![...pattern].some((character) => {
+    const code = character.charCodeAt(0);
+    return code < 32 || code === 127;
+  }) && /[^\s*:]/.test(pattern);
+}
+function defaultRuntimePolicy(policy = {}) {
+  return {
+    permission_mode: policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode,
+    ...policy.sandbox ? { sandbox: policy.sandbox } : {},
+    ...policy.approval_policy ? { approval_policy: policy.approval_policy } : {},
+    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {},
+    ...policy.read_paths ? { read_paths: policy.read_paths } : {},
+    ...policy.edit_paths ? { edit_paths: policy.edit_paths } : {},
+    ...policy.bash_patterns ? { bash_patterns: policy.bash_patterns } : {},
+    ...policy.web_search ? { web_search: true } : {},
+    ...policy.web_fetch_domains ? { web_fetch_domains: policy.web_fetch_domains } : {}
+  };
+}
+function buildChildEnvironment({
+  parentEnv,
+  request,
+  hostEnv
+}) {
+  const allowedNames = /* @__PURE__ */ new Set([
+    ...BASE_ENV_ALLOWLIST,
+    ...providerEnvAllowlist(request.provider),
+    ...request.runtime_policy?.env_allowlist ?? []
+  ]);
+  for (const name of Object.values(PROVIDER_EXECUTABLE_ENV)) {
+    allowedNames.delete(name);
+  }
+  const childEnv = {};
+  for (const name of allowedNames) {
+    const value = parentEnv[name];
+    if (value !== void 0) childEnv[name] = value;
+  }
+  const env = { ...childEnv, ...hostEnv };
+  if (request.output === "text") {
+    for (const name of Object.keys(env)) {
+      if (name.startsWith(RESERVED_SUBMIT_ENV_PREFIX)) delete env[name];
+    }
+  }
+  return env;
+}
+var RESERVED_SUBMIT_ENV_PREFIX = "CONSENSUS_SUBMIT_";
+function buildProviderProbeEnvironment({
+  parentEnv,
+  provider
+}) {
+  const allowedNames = /* @__PURE__ */ new Set([
+    ...BASE_ENV_ALLOWLIST,
+    ...providerEnvAllowlist(provider)
+  ]);
+  const probeEnv = {};
+  for (const name of allowedNames) {
+    const value = parentEnv[name];
+    if (value !== void 0) probeEnv[name] = value;
+  }
+  return probeEnv;
+}
+function providerEnvAllowlist(provider) {
+  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
+}
+function redactedRuntimePolicyDiagnostics(policy = {}) {
+  const effectivePolicy = defaultRuntimePolicy(policy);
+  return {
+    permission_mode: effectivePolicy.permission_mode,
+    ...effectivePolicy.sandbox ? { sandbox: effectivePolicy.sandbox } : {},
+    ...effectivePolicy.approval_policy ? { approval_policy: effectivePolicy.approval_policy } : {},
+    ...effectivePolicy.env_allowlist ? { env_allowlist: [...effectivePolicy.env_allowlist] } : {}
+  };
+}
+function validateOptionValue(option, value, supportedValues) {
+  if (!value) return void 0;
+  if (supportedValues?.includes(value)) return void 0;
+  return unsupported(
+    option,
+    supportedValues ? `Unsupported ${option}: ${value}.` : `Provider does not support ${option}.`
+  );
+}
+function unsupported(option, message) {
+  return {
+    ok: false,
+    code: "PROVIDER_UNSUPPORTED_OPTION",
+    option,
+    message
+  };
+}
+
+// src/plugins/consensus/provider-cli/invocation.ts
 function buildProviderInvocation(adapter, request, options = {}) {
   return adapter.buildInvocation(request, {
     strategy: options.strategy ?? defaultStrategy(adapter),
@@ -513,67 +858,56 @@ var buildClaudeInvocation = (request, options = {}) => {
     argv.push("--effort", request.effort);
     redactedArgv.push("--effort", request.effort);
   }
-  const claudePermissionMode = mapClaudePermissionMode(
-    request.runtime_policy?.permission_mode
+  const permission = composeClaudePermissionProfile(
+    request.runtime_policy ?? {}
   );
-  if (claudePermissionMode) {
-    argv.push("--permission-mode", claudePermissionMode);
-    redactedArgv.push("--permission-mode", claudePermissionMode);
+  if (!permission.ok) {
+    throw new Error(permission.message);
+  }
+  if (permission.allowed_tools.length > 0) {
+    argv.push("--allowedTools", ...permission.allowed_tools);
+    redactedArgv.push("--allowedTools", "<scoped-tool-rules>");
+  }
+  if (permission.tools) {
+    argv.push("--tools", permission.tools.join(","));
+    redactedArgv.push("--tools", permission.tools.join(","));
+  }
+  if (permission.restricted) {
+    argv.push("--permission-prompts", "none");
+    redactedArgv.push("--permission-prompts", "none");
+  }
+  if (permission.mode) {
+    argv.push("--permission-mode", permission.mode);
+    redactedArgv.push("--permission-mode", permission.mode);
+  }
+  if (permission.restricted) {
+    argv.push("--strict-mcp-config");
+    redactedArgv.push("--strict-mcp-config");
   }
   if (options.resumeSessionId) {
     argv.push("--resume", options.resumeSessionId);
     redactedArgv.push("--resume", options.resumeSessionId);
   }
-  const policy = request.runtime_policy;
-  const scopedTools = [
-    ...(policy?.read_paths ?? []).map((filePath) => `Read(/${filePath})`),
-    ...(policy?.edit_paths ?? []).map((filePath) => `Edit(/${filePath})`),
-    ...policy?.web_search ? ["WebSearch"] : [],
-    ...(policy?.web_fetch_domains ?? []).map(
-      (domain) => `WebFetch(domain:${domain})`
-    )
-  ];
-  if (scopedTools.length > 0) {
-    const availableTools = [
-      ...policy?.read_paths?.length ? ["Read"] : [],
-      ...policy?.edit_paths?.length ? ["Edit", "Write"] : [],
-      ...policy?.web_search ? ["WebSearch"] : [],
-      ...policy?.web_fetch_domains?.length ? ["WebFetch"] : []
-    ];
-    argv.push(
-      "--allowedTools",
-      ...scopedTools,
-      "--tools",
-      availableTools.join(","),
-      "--permission-prompts",
-      "none",
-      "--permission-mode",
-      "dontAsk",
-      "--strict-mcp-config"
-    );
-    redactedArgv.push(
-      "--allowedTools",
-      "<scoped-tool-rules>",
-      "--tools",
-      availableTools.join(","),
-      "--permission-prompts",
-      "none",
-      "--permission-mode",
-      "dontAsk",
-      "--strict-mcp-config"
-    );
-  }
-  argv.push(request.prompt);
-  redactedArgv.push("<prompt>");
-  return invocation({
-    executable: options.executable ?? "claude",
-    argv,
-    redactedArgv,
-    request,
-    strategy,
-    outputMode: "stdout_json",
-    stdin: ""
-  });
+  return {
+    ...invocation({
+      executable: options.executable ?? "claude",
+      argv,
+      redactedArgv,
+      request,
+      strategy,
+      outputMode: "stdout_json"
+    }),
+    permission_profile: {
+      mode: permission.mode ?? "provider_default",
+      ...permission.tools ? { tools: [...permission.tools] } : {},
+      // Grant contents stay out of diagnostics, as they do in redacted_command.
+      ...permission.allowed_tools.length > 0 ? {
+        allowed_tools: permission.allowed_tools.map(
+          (rule) => rule.replace(/^(Read|Edit)\(.*\)$/s, "$1(<path>)").replace(/^Bash\(.*\)$/s, "Bash(<pattern>)")
+        )
+      } : {}
+    }
+  };
 };
 var buildCodexInvocation = (request, options = {}) => {
   const strategy = options.strategy ?? "prompt_only";
@@ -587,6 +921,9 @@ var buildCodexInvocation = (request, options = {}) => {
     lastMessageFile
   ];
   if (strategy === "constrained_native") {
+    if (!request.schema_path) {
+      throw new Error("Codex constrained-native invocation requires a schema.");
+    }
     argv.push("--output-schema", request.schema_path);
   }
   if (request.model) argv.push("--model", request.model);
@@ -662,20 +999,11 @@ function invocation(input) {
     shell: false
   };
 }
-function mapClaudePermissionMode(permissionMode) {
-  if (!permissionMode || permissionMode === "non-interactive") {
-    return void 0;
-  }
-  if (permissionMode === "read-only") {
-    return "plan";
-  }
-  return permissionMode;
-}
 function codexConfigOverride(key, value) {
   return `${key}=${JSON.stringify(value)}`;
 }
 function codexLastMessageFile() {
-  return path2.join(
+  return path4.join(
     tmpdir(),
     `consensus-codex-last-message-${randomUUID2()}.txt`
   );
@@ -693,7 +1021,9 @@ var DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
 var DEFAULT_TIMEOUT_SEC = 300;
 var DEFAULT_TERMINATION_GRACE_MS = 250;
 var DEFAULT_FINAL_RESOLUTION_MS = 1e3;
-var ARGV_TOO_LARGE_MESSAGE = "Provider arguments or environment exceeded the operating-system limit (E2BIG). A prompt too large for argv is one possible cause.";
+var USE_PROCESS_GROUP = process.platform !== "win32";
+var FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
+var ARGV_TOO_LARGE_MESSAGE = "Provider arguments or environment exceeded the operating-system limit (E2BIG). Reduce the environment or argument sizes, such as the inline JSON schema.";
 function isReliableExternalInterrupt(input) {
   return input.code === "PROVIDER_EXIT" && input.signal !== null && input.exit_code === null;
 }
@@ -702,7 +1032,14 @@ function runProviderSubprocess(invocation2, options = {}) {
   const timeoutSec = options.timeoutSec ?? DEFAULT_TIMEOUT_SEC;
   const terminationGraceMs = options.terminationGraceMs ?? DEFAULT_TERMINATION_GRACE_MS;
   const finalResolutionMs = options.finalResolutionMs ?? DEFAULT_FINAL_RESOLUTION_MS;
-  return new Promise((resolve) => {
+  return new Promise((resolvePromise) => {
+    let interruptSignal;
+    const resolve = (result) => {
+      resolvePromise(result);
+      if (interruptSignal && process.listenerCount(interruptSignal) === 0) {
+        process.kill(process.pid, interruptSignal);
+      }
+    };
     let stdout = "";
     let stderr = "";
     let stdoutBytes = 0;
@@ -712,12 +1049,15 @@ function runProviderSubprocess(invocation2, options = {}) {
     let exitSignal = null;
     let settled = false;
     let terminal;
+    let termination;
+    let leaderClosed = false;
     let child;
     try {
       child = spawn(invocation2.executable, invocation2.argv, {
         cwd: invocation2.cwd,
         env: options.env,
         shell: false,
+        detached: USE_PROCESS_GROUP,
         stdio: ["pipe", "pipe", "pipe"]
       });
     } catch (error) {
@@ -746,6 +1086,13 @@ function runProviderSubprocess(invocation2, options = {}) {
       );
       return;
     }
+    const provider = child;
+    const forwardsInterrupts = USE_PROCESS_GROUP && provider.pid !== void 0;
+    if (forwardsInterrupts) {
+      for (const signal of FORWARDED_SIGNALS) {
+        process.on(signal, forwardInterrupt);
+      }
+    }
     let killEscalation;
     let finalResolution;
     const timeout = setTimeout(() => {
@@ -767,26 +1114,120 @@ function runProviderSubprocess(invocation2, options = {}) {
       terminal = terminal ?? "spawn_error";
       void finish();
     });
-    child.on("close", (exitCode2, signal) => {
-      void finish(exitCode2, signal);
+    child.on("exit", (code, signal) => {
+      exitCode = code;
+      exitSignal = signal;
+    });
+    child.on("close", (code, signal) => {
+      leaderClosed = true;
+      exitCode = code;
+      exitSignal = signal;
+      if (!termination) {
+        void finish(code, signal);
+        return;
+      }
+      if (termination.scope === "process") {
+        settle("leader_exit");
+        return;
+      }
+      if (termination.signals.includes("SIGKILL")) {
+        settle("sigkill");
+        return;
+      }
+      if (!processGroupAlive()) {
+        settle(firstSignalSettlement());
+        return;
+      }
     });
     child.stdin.on("error", () => {
     });
     child.stdin.end(invocation2.stdin);
-    function terminate(reason) {
-      terminal = terminal ?? reason;
+    function terminate(reason, firstSignal = "SIGTERM") {
+      if (reason !== "interrupt") terminal = terminal ?? reason;
       if (reason === "output_cap") {
         closeOutputCapture();
       }
-      child.kill("SIGTERM");
-      if (!killEscalation) {
-        killEscalation = setTimeout(() => {
-          child.kill("SIGKILL");
-          finalResolution = setTimeout(() => {
-            void finish(null, "SIGKILL");
-          }, finalResolutionMs);
-        }, terminationGraceMs);
+      if (termination) return;
+      termination = {
+        reason,
+        scope: USE_PROCESS_GROUP ? "process_group" : "process",
+        signals: [],
+        settled_by: "settlement_timeout"
+      };
+      const firstDelivery = signalProvider(firstSignal);
+      if (firstDelivery === "sent") termination.signals.push(firstSignal);
+      if (firstDelivery === "gone") {
+        settle("group_gone");
+        return;
       }
+      killEscalation = setTimeout(escalate, terminationGraceMs);
+    }
+    function escalate() {
+      if (killEscalation) clearTimeout(killEscalation);
+      killEscalation = void 0;
+      if (settled || finalResolution) return;
+      const delivery = signalProvider("SIGKILL");
+      if (delivery === "sent") termination?.signals.push("SIGKILL");
+      if (delivery === "gone") {
+        settle(firstSignalSettlement());
+        return;
+      }
+      if (leaderClosed) {
+        settle("sigkill");
+        return;
+      }
+      finalResolution = setTimeout(() => {
+        settle("settlement_timeout");
+      }, finalResolutionMs);
+    }
+    function firstSignalSettlement() {
+      return termination?.reason === "interrupt" ? "forwarded_signal" : "sigterm";
+    }
+    function forwardInterrupt(signal) {
+      interruptSignal = interruptSignal ?? signal;
+      clearTimeout(timeout);
+      if (termination) {
+        escalate();
+        return;
+      }
+      terminate("interrupt", signal);
+    }
+    function stopForwardingInterrupts() {
+      if (!forwardsInterrupts) return;
+      for (const signal of FORWARDED_SIGNALS) {
+        process.removeListener(signal, forwardInterrupt);
+      }
+    }
+    function signalProvider(signal) {
+      if (!USE_PROCESS_GROUP || provider.pid === void 0) {
+        provider.kill(signal);
+        return "sent";
+      }
+      try {
+        process.kill(-provider.pid, signal);
+        return "sent";
+      } catch (error) {
+        if (error.code === "ESRCH") return "gone";
+        provider.kill(signal);
+        return "sent";
+      }
+    }
+    function processGroupAlive() {
+      if (provider.pid === void 0) return false;
+      try {
+        process.kill(-provider.pid, 0);
+        return true;
+      } catch (error) {
+        return error.code !== "ESRCH";
+      }
+    }
+    function settle(settledBy) {
+      if (settled || !termination) return;
+      termination.settled_by = settledBy;
+      closeOutputCapture();
+      provider.stdin.destroy();
+      const forcedWithoutExit = settledBy === "settlement_timeout" && exitCode === null && exitSignal === null;
+      void finish(exitCode, forcedWithoutExit ? "SIGKILL" : exitSignal);
     }
     function captureOutput(stream, chunk) {
       if (outputCaptureClosed) return;
@@ -824,6 +1265,7 @@ function runProviderSubprocess(invocation2, options = {}) {
     async function finish(closeExitCode = exitCode, closeSignal = exitSignal) {
       if (settled) return;
       settled = true;
+      stopForwardingInterrupts();
       exitCode = closeExitCode;
       exitSignal = closeSignal;
       clearTimeout(timeout);
@@ -836,7 +1278,8 @@ function runProviderSubprocess(invocation2, options = {}) {
         maxOutputBytes,
         timeoutSec,
         exitCode,
-        signal: exitSignal
+        signal: exitSignal,
+        termination
       });
       if (terminal === "spawn_error") {
         await cleanupInvocationFiles(invocation2);
@@ -876,6 +1319,22 @@ function runProviderSubprocess(invocation2, options = {}) {
           failure({
             code: "PROVIDER_OUTPUT_CAP_EXCEEDED",
             message: `Provider subprocess exceeded output cap of ${maxOutputBytes} bytes.`,
+            retryable: false,
+            stdout,
+            stderr,
+            exitCode,
+            signal: exitSignal,
+            diagnostics
+          })
+        );
+        return;
+      }
+      if (termination?.reason === "interrupt") {
+        await cleanupInvocationFiles(invocation2);
+        resolve(
+          failure({
+            code: "PROVIDER_EXIT",
+            message: `Provider run was interrupted by ${interruptSignal ?? "a signal"} sent to consensus.`,
             retryable: false,
             stdout,
             stderr,
@@ -1028,6 +1487,12 @@ function takeUtf8Prefix(input, maxBytes) {
 }
 function diagnosticsFor(input) {
   return {
+    ...input.termination ? {
+      termination: {
+        ...input.termination,
+        signals: [...input.termination.signals]
+      }
+    } : {},
     strategy_used: input.invocation.strategy,
     output_mode: input.invocation.output_mode,
     redacted_command: input.invocation.redacted_command,
@@ -1134,9 +1599,9 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     }),
     probe: {
       version_args: ["--version"],
-      // Release verification established the provider-validated run surface at
-      // Claude Code 2.1.185 (RELEASING.md).
-      minimum_version: "2.1.185",
+      // Restricted profiles use --permission-prompts, introduced in 2.1.259:
+      // https://code.claude.com/docs/en/cli-reference#cli-flags
+      minimum_version: "2.1.259",
       capabilities: {
         run: {
           args: ["--help"],
@@ -1147,13 +1612,13 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
     },
     capabilities: {
-      schema_strategies: ["provider_validated", "prompt_only"],
+      schema_strategies: ["provider_validated", "prompt_only", "text"],
       output_modes: ["stdout_json"],
       options: {
         model: true,
         effort: "effort",
         runtime_policy: {
-          permission_modes: ["non-interactive", "read-only"],
+          permission_modes: ["non-interactive", "read-only", "workspace-write"],
           env_allowlist: true
         }
       },
@@ -1163,8 +1628,20 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       continuation: {
         native_resume: "verified",
         session_id_source: "stdout_json.session_id",
-        evidence: "Live same-session smoke 2026-09-28 with Claude Code 2.1.284: `--print --output-format json --json-schema --resume <uuid>` recalled an unseen marker, preserved session_id, model, and schema. `--resume` also accepts a session title, so the wrapper requires a UUID."
+        evidence: "Live same-session smoke 2026-09-28 with Claude Code 2.1.284: `--print --output-format json --json-schema --resume <uuid>` recalled an unseen marker, preserved session_id, model, and schema. `--resume` also accepts a session title, so the wrapper requires a UUID. Write-mode resume, raw CLI 2026-11-11 with Claude Code 2.1.322 in a linked worktree: `--resume <uuid>` with the full workspace-write flag set kept the session_id, the acceptEdits mode, the explicit tool set (WebFetch absent), and the Bash allowlist; a write outside the worktree and an ungranted `python3` were still denied and a granted `git status` ran."
       }
+      // Workspace-write composition, raw CLI 2026-11-11 with Claude Code
+      // 2.1.322 in a linked worktree (`--permission-mode acceptEdits --tools
+      // Read,Glob,Grep,Edit,Write,Bash --allowedTools 'Bash(git status:*)'
+      // --permission-prompts none --strict-mcp-config`): Write-tool and Bash
+      // redirection writes outside the worktree and an ungranted `python3 -c`
+      // write were denied (listed in permission_denials); the granted
+      // `git status` ran. acceptEdits still auto-approves simple filesystem
+      // commands such as `touch` inside the working directory, and the user's
+      // own allow rules (for example `Bash(node:*)`) still apply.
+      // Prompt on stdin, same date and version: `--print --output-format json
+      // --permission-mode plan --json-schema` with the prompt on stdin
+      // returned a `success` result with the expected structured_output.
     }
   },
   {
@@ -1202,7 +1679,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
     },
     capabilities: {
-      schema_strategies: ["constrained_native", "prompt_only"],
+      schema_strategies: ["constrained_native", "prompt_only", "text"],
       output_modes: ["last_message_file"],
       options: {
         model: true,
@@ -1220,8 +1697,18 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       continuation: {
         native_resume: "verified",
         session_id_source: "jsonl.thread.started.thread_id",
-        evidence: "Live same-session smoke 2026-09-28 with codex-cli 0.157.1: `exec resume --json --output-schema -c sandbox_mode=... <uuid> -` recalled an unseen marker with read-only sandbox and approval never. `exec resume` rejects `--sandbox`, and a non-UUID that matches no thread name silently starts a new thread, so the wrapper requires a UUID and verifies the returned thread_id."
+        evidence: 'Live same-session smoke 2026-09-28 with codex-cli 0.157.1: `exec resume --json --output-schema -c sandbox_mode=... <uuid> -` recalled an unseen marker with read-only sandbox and approval never. `exec resume` rejects `--sandbox`, and a non-UUID that matches no thread name silently starts a new thread, so the wrapper requires a UUID and verifies the returned thread_id. Write-mode resume, raw CLI 2026-11-11 with codex-cli 0.166.0 in a linked worktree: `exec resume <uuid> -c sandbox_mode="workspace-write" -c approval_policy="never"` returned the same thread_id, edited inside the worktree, and was denied writing outside it and to $HOME, although the ambient config set sandbox_mode="danger-full-access"; the override, not ambient config, applies.'
       }
+      // Workspace-write in a linked worktree, raw CLI 2026-11-11 with
+      // codex-cli 0.166.0 (`exec --sandbox workspace-write -c
+      // approval_policy="never"`): edits inside the worktree worked and writes
+      // outside it were denied ("operation not permitted"). `git add` and
+      // `git commit` failed, because the linked worktree's index lock lives
+      // under the main checkout's `.git/worktrees/<name>/`, outside the
+      // writable root. The adapter never widens the sandbox for this: the
+      // peer leaves changes unstaged and the host commits. Network access is
+      // whatever the sandbox configuration says; the invocation does not
+      // override it.
     }
   },
   {
@@ -1261,7 +1748,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       unavailable_patterns: COMMON_UNAVAILABLE_PATTERNS
     },
     capabilities: {
-      schema_strategies: ["prompt_only", "submit_tool_candidate"],
+      schema_strategies: ["prompt_only", "submit_tool_candidate", "text"],
       output_modes: ["stdout_json"],
       options: {
         model: false,
@@ -1296,6 +1783,15 @@ function providerRegistry(adapters = DEFAULT_PROVIDER_ADAPTERS) {
 }
 function defaultRunFailureClassifier(patterns) {
   return (failure2) => {
+    if (failure2.diagnostics?.termination?.reason === "interrupt") {
+      return {
+        code: failure2.code,
+        message: failure2.message,
+        retryable: false,
+        terminal_reason: "provider_run_interrupted",
+        exit_classification: "terminal"
+      };
+    }
     if (failure2.code !== "PROVIDER_EXIT") {
       return {
         code: failure2.code,
@@ -1576,9 +2072,11 @@ async function normalizeRunRequest(command, io) {
   if (!command.provider) {
     throw new ConsensusCliUsageError("Missing required --provider");
   }
-  if (!command.schemaPath) {
-    throw new ConsensusCliUsageError("Missing required --schema");
-  }
+  const output = command.output ?? "json";
+  assertOutputSchemaPairing(output, command.schemaPath, {
+    schema: "--schema",
+    output: "--output text"
+  });
   if (!command.promptSource) {
     throw new ConsensusCliUsageError(
       "Missing prompt source: use -, --prompt, --prompt-file, or --request-json"
@@ -1588,7 +2086,8 @@ async function normalizeRunRequest(command, io) {
   const request = {
     schema_version: "v1",
     provider: command.provider,
-    schema_path: command.schemaPath,
+    ...command.output ? { output: command.output } : {},
+    ...command.schemaPath ? { schema_path: command.schemaPath } : {},
     prompt
   };
   if (command.cwd) request.cwd = command.cwd;
@@ -1842,6 +2341,7 @@ function parseRunCommand(tokens) {
     allowedFlags: /* @__PURE__ */ new Set([
       "--json",
       "--provider",
+      "--output",
       "--schema",
       "--prompt",
       "--prompt-file",
@@ -1858,6 +2358,7 @@ function parseRunCommand(tokens) {
       "--env-allow",
       "--allow-read",
       "--allow-edit",
+      "--allow-bash",
       "--allow-web-search",
       "--allow-web-fetch-domain",
       "--max-depth",
@@ -1871,6 +2372,7 @@ function parseRunCommand(tokens) {
     ]),
     valueFlags: /* @__PURE__ */ new Set([
       "--provider",
+      "--output",
       "--schema",
       "--prompt",
       "--prompt-file",
@@ -1887,6 +2389,7 @@ function parseRunCommand(tokens) {
       "--env-allow",
       "--allow-read",
       "--allow-edit",
+      "--allow-bash",
       "--allow-web-fetch-domain",
       "--max-depth",
       "--resume",
@@ -1904,6 +2407,8 @@ function parseRunCommand(tokens) {
     json: true
   };
   assignIfDefined(command, "provider", singleValue(parsed.flags, "--provider"));
+  const output = singleValue(parsed.flags, "--output");
+  if (output !== void 0) command.output = parseRunOutput(output);
   assignIfDefined(command, "schemaPath", singleValue(parsed.flags, "--schema"));
   assignIfDefined(
     command,
@@ -1930,6 +2435,8 @@ function parseRunCommand(tokens) {
   if (readPaths.length > 0) command.readPaths = readPaths;
   const editPaths = valuesFor(parsed.flags, "--allow-edit");
   if (editPaths.length > 0) command.editPaths = editPaths;
+  const bashPatterns = valuesFor(parsed.flags, "--allow-bash");
+  if (bashPatterns.length > 0) command.bashPatterns = bashPatterns;
   if (parsed.flags.has("--allow-web-search")) command.webSearch = true;
   const webFetchDomains = valuesFor(parsed.flags, "--allow-web-fetch-domain");
   if (webFetchDomains.length > 0) command.webFetchDomains = webFetchDomains;
@@ -2022,6 +2529,26 @@ function parseRunContinuation(flags) {
   assignIfDefined(continuation, "fallbackPromptFile", fallbackPromptFile);
   return continuation;
 }
+function parseRunOutput(value) {
+  if (RUN_OUTPUT_KINDS.includes(value)) {
+    return value;
+  }
+  throw new ConsensusCliUsageError(
+    `Invalid --output: ${value} (expected ${RUN_OUTPUT_KINDS.join(", ")})`
+  );
+}
+function assertOutputSchemaPairing(output, schemaPath, labels) {
+  if (output === "json" && !schemaPath) {
+    throw new ConsensusCliUsageError(
+      `Missing required ${labels.schema} (JSON output is schema-validated; use ${labels.output} for free-form text)`
+    );
+  }
+  if (output === "text" && schemaPath !== void 0) {
+    throw new ConsensusCliUsageError(
+      `${labels.schema} cannot be combined with ${labels.output}`
+    );
+  }
+}
 function parseContinuationMode(value) {
   if (CONTINUATION_MODES.includes(value)) {
     return value;
@@ -2076,6 +2603,7 @@ function parseSubmitCommand(tokens) {
 function assertNoRequestJsonConflicts(command, positionalCount) {
   const conflicts = [
     command.provider ? "--provider" : void 0,
+    command.output ? "--output" : void 0,
     command.schemaPath ? "--schema" : void 0,
     command.promptSource ? "prompt source" : void 0,
     command.maxAttempts !== void 0 ? "--max-attempts" : void 0,
@@ -2090,6 +2618,7 @@ function assertNoRequestJsonConflicts(command, positionalCount) {
     command.envAllow && command.envAllow.length > 0 ? "--env-allow" : void 0,
     command.readPaths ? "--allow-read" : void 0,
     command.editPaths ? "--allow-edit" : void 0,
+    command.bashPatterns ? "--allow-bash" : void 0,
     command.webSearch ? "--allow-web-search" : void 0,
     command.webFetchDomains ? "--allow-web-fetch-domain" : void 0,
     command.maxDepth !== void 0 ? "--max-depth" : void 0,
@@ -2116,6 +2645,9 @@ function normalizeRuntimePolicy(command) {
   }
   if (command.readPaths) runtimePolicy.read_paths = command.readPaths;
   if (command.editPaths) runtimePolicy.edit_paths = command.editPaths;
+  if (command.bashPatterns) {
+    runtimePolicy.bash_patterns = command.bashPatterns;
+  }
   if (command.webSearch) runtimePolicy.web_search = true;
   if (command.webFetchDomains) {
     runtimePolicy.web_fetch_domains = command.webFetchDomains;
@@ -2171,11 +2703,21 @@ function parseRequestJson(contents) {
   if (typeof parsed.provider !== "string" || parsed.provider.length === 0) {
     throw new ConsensusCliUsageError("Request JSON provider must be a string");
   }
-  if (typeof parsed.schema_path !== "string" || parsed.schema_path.length === 0) {
+  if (parsed.output !== void 0 && !RUN_OUTPUT_KINDS.includes(parsed.output)) {
+    throw new ConsensusCliUsageError(
+      `Request JSON output must be one of: ${RUN_OUTPUT_KINDS.join(", ")}`
+    );
+  }
+  if (parsed.schema_path !== void 0 && (typeof parsed.schema_path !== "string" || parsed.schema_path.length === 0)) {
     throw new ConsensusCliUsageError(
       "Request JSON schema_path must be a string"
     );
   }
+  assertOutputSchemaPairing(
+    parsed.output ?? "json",
+    parsed.schema_path,
+    { schema: "Request JSON schema_path", output: 'output "text"' }
+  );
   if (typeof parsed.prompt !== "string") {
     throw new ConsensusCliUsageError("Request JSON prompt must be a string");
   }
@@ -2233,6 +2775,7 @@ function validateRuntimePolicy(value) {
   for (const field of [
     "read_paths",
     "edit_paths",
+    "bash_patterns",
     "web_fetch_domains"
   ]) {
     if (value[field] !== void 0 && !isStringArray(value[field])) {
@@ -2430,7 +2973,24 @@ function successEnvelope(input) {
     provider: input.provider,
     args: input.args,
     stdout: input.stdout,
+    output_kind: "json",
     json: input.json,
+    attempts: buildAttemptSummary(input.attempts, false)
+  };
+  if (input.stderr !== void 0) envelope.stderr = input.stderr;
+  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
+  return envelope;
+}
+function textSuccessEnvelope(input) {
+  const envelope = {
+    schema_version: "v1",
+    ok: true,
+    provider: input.provider,
+    args: input.args,
+    stdout: input.stdout,
+    output_kind: "text",
+    text: input.text,
+    json: null,
     attempts: buildAttemptSummary(input.attempts, false)
   };
   if (input.stderr !== void 0) envelope.stderr = input.stderr;
@@ -2489,228 +3049,6 @@ function buildAttemptSummary(attempts, retryable) {
 import { constants } from "node:fs";
 import { access as access2 } from "node:fs/promises";
 import path5 from "node:path";
-
-// src/plugins/consensus/provider-cli/executable.ts
-import path3 from "node:path";
-var PROVIDER_EXECUTABLE_ENV = {
-  claude: "CONSENSUS_CLAUDE_EXECUTABLE",
-  codex: "CONSENSUS_CODEX_EXECUTABLE",
-  cursor: "CONSENSUS_CURSOR_EXECUTABLE"
-};
-function resolveProviderExecutable(adapter, env) {
-  const variable = PROVIDER_EXECUTABLE_ENV[adapter.id];
-  const value = env[variable];
-  if (value === void 0 || value === "") {
-    return { ok: true, executable: adapter.executable };
-  }
-  if (!path3.isAbsolute(value)) {
-    return {
-      ok: false,
-      message: `${variable} must be an absolute path to an executable, not ${JSON.stringify(value)}.`
-    };
-  }
-  return { ok: true, executable: value };
-}
-
-// src/plugins/consensus/provider-cli/runtime-policy.ts
-import { realpathSync, statSync } from "node:fs";
-import path4 from "node:path";
-var DEFAULT_RUNTIME_POLICY = {
-  permission_mode: "non-interactive"
-};
-var BASE_ENV_ALLOWLIST = [
-  "PATH",
-  "HOME",
-  "TMPDIR",
-  "TEMP",
-  "TMP",
-  "USER",
-  "LOGNAME",
-  "SHELL",
-  "LANG"
-];
-var PROVIDER_ENV_ALLOWLIST = [
-  ["claude", ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]],
-  ["codex", ["OPENAI_API_KEY"]],
-  ["cursor", ["CURSOR_API_KEY"]]
-];
-function validateProviderOptions(request, capabilities) {
-  if (request.model && !capabilities.options.model) {
-    return unsupported("model", "Provider does not support model selection.");
-  }
-  if (request.effort && capabilities.options.effort === null) {
-    return unsupported("effort", "Provider does not support effort selection.");
-  }
-  const policy = defaultRuntimePolicy(request.runtime_policy);
-  const runtimeCapabilities = capabilities.options.runtime_policy;
-  const permissionResult = validateOptionValue(
-    "runtime_policy.permission_mode",
-    policy.permission_mode,
-    runtimeCapabilities.permission_modes
-  );
-  if (permissionResult) return permissionResult;
-  const sandboxResult = validateOptionValue(
-    "runtime_policy.sandbox",
-    policy.sandbox,
-    runtimeCapabilities.sandboxes
-  );
-  if (sandboxResult) return sandboxResult;
-  const approvalResult = validateOptionValue(
-    "runtime_policy.approval_policy",
-    policy.approval_policy,
-    runtimeCapabilities.approval_policies
-  );
-  if (approvalResult) return approvalResult;
-  if (policy.env_allowlist && policy.env_allowlist.length > 0 && !runtimeCapabilities.env_allowlist) {
-    return unsupported(
-      "runtime_policy.env_allowlist",
-      "Provider does not support child environment allowlist extension."
-    );
-  }
-  const hasScopedTools = hasScopedToolAccess(policy);
-  if (hasScopedTools && request.provider !== "claude") {
-    return unsupported(
-      "runtime_policy.scoped_tools",
-      "Scoped tool grants are supported only by the Claude provider."
-    );
-  }
-  if (hasScopedTools && policy.permission_mode !== "non-interactive") {
-    return unsupported(
-      "runtime_policy.permission_mode",
-      "Scoped Claude tool grants require non-interactive permission mode."
-    );
-  }
-  for (const [field, paths] of [
-    ["read_paths", policy.read_paths],
-    ["edit_paths", policy.edit_paths]
-  ]) {
-    for (const filePath of paths ?? []) {
-      if (!path4.isAbsolute(filePath) || path4.normalize(filePath) !== filePath || filePath.split(path4.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
-        return unsupported(
-          `runtime_policy.${field}`,
-          `${field} requires exact absolute paths without parent traversal or glob characters.`
-        );
-      }
-      try {
-        const target = statSync(filePath, { throwIfNoEntry: false });
-        if (target) {
-          if (!target.isFile() || realpathSync(filePath) !== filePath) {
-            return unsupported(
-              `runtime_policy.${field}`,
-              `${field} requires canonical regular-file targets, not directories or symlinks.`
-            );
-          }
-        } else if (field === "read_paths" || realpathSync(path4.dirname(filePath)) !== path4.dirname(filePath)) {
-          return unsupported(
-            `runtime_policy.${field}`,
-            `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
-          );
-        }
-      } catch {
-        return unsupported(
-          `runtime_policy.${field}`,
-          `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
-        );
-      }
-    }
-  }
-  for (const domain of policy.web_fetch_domains ?? []) {
-    if (domain.length > 253 || !/^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
-      domain
-    )) {
-      return unsupported(
-        "runtime_policy.web_fetch_domains",
-        "WebFetch grants require exact domain names without schemes, ports, or wildcards."
-      );
-    }
-  }
-  return { ok: true };
-}
-function hasScopedToolAccess(policy = {}) {
-  return Boolean(
-    policy.read_paths?.length || policy.edit_paths?.length || policy.web_search || policy.web_fetch_domains?.length
-  );
-}
-function defaultRuntimePolicy(policy = {}) {
-  return {
-    permission_mode: policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode,
-    ...policy.sandbox ? { sandbox: policy.sandbox } : {},
-    ...policy.approval_policy ? { approval_policy: policy.approval_policy } : {},
-    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {},
-    ...policy.read_paths ? { read_paths: policy.read_paths } : {},
-    ...policy.edit_paths ? { edit_paths: policy.edit_paths } : {},
-    ...policy.web_search ? { web_search: true } : {},
-    ...policy.web_fetch_domains ? { web_fetch_domains: policy.web_fetch_domains } : {}
-  };
-}
-function buildChildEnvironment({
-  parentEnv,
-  request,
-  hostEnv
-}) {
-  const allowedNames = /* @__PURE__ */ new Set([
-    ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(request.provider),
-    ...request.runtime_policy?.env_allowlist ?? []
-  ]);
-  for (const name of Object.values(PROVIDER_EXECUTABLE_ENV)) {
-    allowedNames.delete(name);
-  }
-  const childEnv = {};
-  for (const name of allowedNames) {
-    const value = parentEnv[name];
-    if (value !== void 0) childEnv[name] = value;
-  }
-  return {
-    ...childEnv,
-    ...hostEnv
-  };
-}
-function buildProviderProbeEnvironment({
-  parentEnv,
-  provider
-}) {
-  const allowedNames = /* @__PURE__ */ new Set([
-    ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(provider)
-  ]);
-  const probeEnv = {};
-  for (const name of allowedNames) {
-    const value = parentEnv[name];
-    if (value !== void 0) probeEnv[name] = value;
-  }
-  return probeEnv;
-}
-function providerEnvAllowlist(provider) {
-  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
-}
-function redactedRuntimePolicyDiagnostics(policy = {}) {
-  const effectivePolicy = defaultRuntimePolicy(policy);
-  return {
-    permission_mode: effectivePolicy.permission_mode,
-    ...effectivePolicy.sandbox ? { sandbox: effectivePolicy.sandbox } : {},
-    ...effectivePolicy.approval_policy ? { approval_policy: effectivePolicy.approval_policy } : {},
-    ...effectivePolicy.env_allowlist ? { env_allowlist: [...effectivePolicy.env_allowlist] } : {}
-  };
-}
-function validateOptionValue(option, value, supportedValues) {
-  if (!value) return void 0;
-  if (supportedValues?.includes(value)) return void 0;
-  return unsupported(
-    option,
-    supportedValues ? `Unsupported ${option}: ${value}.` : `Provider does not support ${option}.`
-  );
-}
-function unsupported(option, message) {
-  return {
-    ok: false,
-    code: "PROVIDER_UNSUPPORTED_OPTION",
-    option,
-    message
-  };
-}
-
-// src/plugins/consensus/provider-cli/probe.ts
 var DEFAULT_PROBE_TIMEOUT_SEC = 10;
 var DEFAULT_PROBE_MAX_OUTPUT_BYTES = 64 * 1024;
 async function probeProviderRegistry({
@@ -3190,6 +3528,7 @@ function submitCaptureFilePath(cwd, id = randomUUID4()) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 function selectStructuredOutputStrategy(adapter, options = {}) {
+  if (options.output === "text") return "text";
   if (options.strategy) return options.strategy;
   if (options.submitCaptureEnabled && adapter.capabilities.schema_strategies.includes("constrained_native") && adapter.capabilities.schema_strategies.includes("prompt_only")) {
     return "prompt_only";
@@ -3358,38 +3697,60 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       diagnostics: hostGuard.diagnostics
     });
   }
-  const readSchema = dependencies.readSchema ?? readJsonSchema;
-  let schema;
-  try {
-    schema = await readSchema(request.schema_path);
-  } catch (error) {
+  const textMode = request.output === "text";
+  const schemaPath = request.schema_path;
+  if (textMode && schemaPath !== void 0) {
     return preInvocationFailure({
       provider: request.provider,
       code: "CONSENSUS_CLI_USAGE",
-      message: `Could not read schema: ${error instanceof Error ? error.message : String(error)}`,
-      terminalReason: "schema_read_failed"
+      message: "Text output does not accept a schema path.",
+      terminalReason: "schema_with_text_output"
     });
   }
-  const inlineJsonSchema = JSON.stringify(schema);
-  if (inlineJsonSchema === void 0) {
-    return preInvocationFailure({
-      provider: request.provider,
-      code: "CONSENSUS_CLI_USAGE",
-      message: "Schema must be JSON-serializable.",
-      terminalReason: "schema_read_failed"
-    });
+  let schema;
+  let inlineJsonSchema;
+  if (!textMode) {
+    if (!schemaPath) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: "JSON output requires a schema path.",
+        terminalReason: "schema_missing"
+      });
+    }
+    const readSchema = dependencies.readSchema ?? readJsonSchema;
+    try {
+      schema = await readSchema(schemaPath);
+    } catch (error) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: `Could not read schema: ${error instanceof Error ? error.message : String(error)}`,
+        terminalReason: "schema_read_failed"
+      });
+    }
+    inlineJsonSchema = JSON.stringify(schema);
+    if (inlineJsonSchema === void 0) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: "Schema must be JSON-serializable.",
+        terminalReason: "schema_read_failed"
+      });
+    }
   }
   const effectiveRequest = {
     ...request,
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
-  const submitCaptureEnabled = (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && hasScopedToolAccess(request.runtime_policy)) && !(request.provider === "cursor" && request.runtime_policy?.permission_mode === "read-only");
+  const submitCaptureEnabled = !textMode && (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && (hasScopedToolAccess(request.runtime_policy) || request.runtime_policy?.permission_mode === "workspace-write")) && !(request.provider === "cursor" && request.runtime_policy?.permission_mode === "read-only");
   const strategy = selectStructuredOutputStrategy(adapter, {
+    output: request.output,
     submitCaptureEnabled,
     strategy: dependencies.transport?.strategy
   });
-  if (!adapter.capabilities.schema_strategies.includes(strategy)) {
+  if (!adapter.capabilities.schema_strategies.includes(strategy) || !textMode && strategy === "text") {
     return preInvocationFailure({
       provider: request.provider,
       code: "PROVIDER_UNSUPPORTED_OPTION",
@@ -3416,11 +3777,11 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     request: effectiveRequest,
     hostEnv: {
       ...hostGuard.child_env,
-      ...submitCaptureEnabled && submitCommand && submitCapturePath ? {
+      ...submitCaptureEnabled && submitCommand && submitCapturePath && schemaPath ? {
         CONSENSUS_SUBMIT_COMMAND: submitCommand,
         CONSENSUS_SUBMIT_FILE: submitCapturePath,
         [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path8.resolve(request.schema_path)
+        CONSENSUS_SUBMIT_SCHEMA: path8.resolve(schemaPath)
       } : {}
     }
   });
@@ -3434,7 +3795,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       }
       const invocationRequest = {
         ...effectiveRequest,
-        prompt: promptForStrategy({
+        prompt: textMode || inlineJsonSchema === void 0 ? request.prompt : promptForStrategy({
           prompt: request.prompt,
           strategy,
           inlineJsonSchema,
@@ -3463,7 +3824,8 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         {
           strategy_used: strategy,
           output_mode: invocation2.output_mode,
-          redacted_command: invocation2.redacted_command
+          redacted_command: invocation2.redacted_command,
+          ...invocation2.permission_profile ? { permission_profile: invocation2.permission_profile } : {}
         },
         hostGuard.diagnostics,
         processResult.diagnostics,
@@ -3493,6 +3855,40 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
             terminal_reason: classification.terminal_reason
           },
           diagnostics: failureDiagnostics
+        });
+      }
+      if (textMode) {
+        const extracted = extractProviderText(
+          invocation2,
+          processResult,
+          request.provider
+        );
+        if (!extracted.ok) {
+          return failureEnvelope({
+            provider: request.provider,
+            code: extracted.code,
+            message: extracted.message,
+            retryable: false,
+            stdout: processResult.stdout,
+            stderr: processResult.stderr,
+            attempts: {
+              cli_attempts: attempt,
+              terminal_reason: extracted.terminal_reason
+            },
+            diagnostics
+          });
+        }
+        return textSuccessEnvelope({
+          provider: request.provider,
+          args: invocation2.redacted_command,
+          stdout: extracted.raw,
+          stderr: processResult.stderr,
+          text: extracted.text,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "success"
+          },
+          diagnostics
         });
       }
       const submittedVerdict = submitCapturePath ? await readSubmittedVerdict(submitCapturePath, schema, maxSubmitBytes) : { ok: false };
@@ -3665,6 +4061,58 @@ function extractProviderOutput(invocation2, result) {
     message: "Provider did not write a last-message file response."
   };
 }
+function extractProviderText(invocation2, result, provider) {
+  const empty = (message) => ({
+    ok: false,
+    code: "PROVIDER_EMPTY_OUTPUT",
+    message,
+    terminal_reason: "empty_output"
+  });
+  const malformed = (message) => ({
+    ok: false,
+    code: "PROVIDER_MALFORMED_RESULT",
+    message,
+    terminal_reason: "malformed_result"
+  });
+  if (invocation2.output_mode === "last_message_file") {
+    const lastMessage = result.last_message;
+    if (lastMessage === void 0) {
+      return empty("Provider did not write a last-message file response.");
+    }
+    if (!lastMessage.trim()) {
+      return empty("Provider wrote a blank last-message file response.");
+    }
+    return { ok: true, raw: lastMessage, text: lastMessage };
+  }
+  if (!result.stdout.trim()) {
+    return empty("Provider produced no output.");
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout.trim());
+  } catch {
+    return malformed("Provider output is not a JSON result object.");
+  }
+  if (!isRecord4(parsed)) {
+    return malformed("Provider output is not a JSON result object.");
+  }
+  if (parsed.is_error === true) {
+    return malformed("Provider reported an error result.");
+  }
+  const subtype = parsed.subtype;
+  if (provider === "claude" && subtype !== "success" || subtype !== void 0 && subtype !== "success") {
+    return malformed(
+      `Provider result subtype is ${typeof subtype === "string" ? subtype : "missing"}, not success.`
+    );
+  }
+  if (typeof parsed.result !== "string") {
+    return malformed("Provider result object has no text result.");
+  }
+  if (!parsed.result.trim()) {
+    return empty("Provider returned a blank text result.");
+  }
+  return { ok: true, raw: result.stdout, text: parsed.result };
+}
 function parseProviderJson(stdout) {
   try {
     return { ok: true, value: JSON.parse(stdout.trim()) };
@@ -3828,11 +4276,14 @@ Commands:
   provider ls --json
   preflight --json --provider <id> --capability run [--capability <name>] [--max-depth <n>]
   submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
-  run --provider <id> --schema <path> --json [-|--prompt <text>|--prompt-file <path>]
+  run --provider <id> (--schema <path> [--output json] | --output text) --json
+      [-|--prompt <text>|--prompt-file <path>]
       [--model <name>] [--effort <level>]
       [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
-      [--allow-read <absolute-file>] [--allow-edit <absolute-file>]
-      [--allow-web-search] [--allow-web-fetch-domain <domain>] (Claude only; repeat grants)
+      Claude-only grants, each repeatable except --allow-web-search:
+        [--allow-read <absolute-file>] [--allow-edit <absolute-file>]
+        [--allow-bash <command-pattern>]
+        [--allow-web-search] [--allow-web-fetch-domain <domain>]
       [--env-allow <name>] [--max-attempts <n>] [--timeout-sec <n>]
       [--max-output-bytes <n>] [--cwd <path>] [--max-depth <n>]
       [--consultation-id <id>] [--round <n>]

@@ -20,6 +20,7 @@ describe('provider CLI model types', () => {
       'provider_validated',
       'prompt_only',
       'submit_tool_candidate',
+      'text',
     ]);
   });
 
@@ -33,6 +34,8 @@ describe('provider CLI model types', () => {
       'PROVIDER_EXIT',
       'PROVIDER_INVALID_JSON',
       'PROVIDER_SCHEMA_VALIDATION',
+      'PROVIDER_EMPTY_OUTPUT',
+      'PROVIDER_MALFORMED_RESULT',
       'PROVIDER_TIMEOUT',
       'PROVIDER_OUTPUT_CAP_EXCEEDED',
       'PROVIDER_ARGV_TOO_LARGE',

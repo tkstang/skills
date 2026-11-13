@@ -3,6 +3,7 @@ import {
   CONTINUATION_MODES,
   PROVIDER_PREFLIGHT_CAPABILITIES,
   RESUME_FALLBACK_POLICIES,
+  RUN_OUTPUT_KINDS,
 } from './types.js';
 import type {
   ConsensusCliRunRequest,
@@ -11,6 +12,7 @@ import type {
   ResumeFallbackPolicy,
   ProviderId,
   ProviderPreflightCapability,
+  RunOutputKind,
 } from './types.js';
 
 export class ConsensusCliUsageError extends Error {
@@ -106,6 +108,7 @@ export interface ParsedRunCommand {
   kind: 'run';
   json: true;
   provider?: ProviderId;
+  output?: RunOutputKind;
   schemaPath?: string;
   promptSource?: PromptSource;
   requestJson?: string;
@@ -122,6 +125,7 @@ export interface ParsedRunCommand {
   envAllow?: string[];
   readPaths?: string[];
   editPaths?: string[];
+  bashPatterns?: string[];
   webSearch?: boolean;
   webFetchDomains?: string[];
   continuation?: ParsedRunContinuation;
@@ -205,9 +209,11 @@ export async function normalizeRunRequest(
   if (!command.provider) {
     throw new ConsensusCliUsageError('Missing required --provider');
   }
-  if (!command.schemaPath) {
-    throw new ConsensusCliUsageError('Missing required --schema');
-  }
+  const output = command.output ?? 'json';
+  assertOutputSchemaPairing(output, command.schemaPath, {
+    schema: '--schema',
+    output: '--output text',
+  });
   if (!command.promptSource) {
     throw new ConsensusCliUsageError(
       'Missing prompt source: use -, --prompt, --prompt-file, or --request-json',
@@ -218,7 +224,8 @@ export async function normalizeRunRequest(
   const request: ConsensusCliRunRequest = {
     schema_version: 'v1',
     provider: command.provider,
-    schema_path: command.schemaPath,
+    ...(command.output ? { output: command.output } : {}),
+    ...(command.schemaPath ? { schema_path: command.schemaPath } : {}),
     prompt,
   };
 
@@ -532,6 +539,7 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
     allowedFlags: new Set([
       '--json',
       '--provider',
+      '--output',
       '--schema',
       '--prompt',
       '--prompt-file',
@@ -548,6 +556,7 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
       '--env-allow',
       '--allow-read',
       '--allow-edit',
+      '--allow-bash',
       '--allow-web-search',
       '--allow-web-fetch-domain',
       '--max-depth',
@@ -561,6 +570,7 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
     ]),
     valueFlags: new Set([
       '--provider',
+      '--output',
       '--schema',
       '--prompt',
       '--prompt-file',
@@ -577,6 +587,7 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
       '--env-allow',
       '--allow-read',
       '--allow-edit',
+      '--allow-bash',
       '--allow-web-fetch-domain',
       '--max-depth',
       '--resume',
@@ -596,6 +607,8 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
   };
 
   assignIfDefined(command, 'provider', singleValue(parsed.flags, '--provider'));
+  const output = singleValue(parsed.flags, '--output');
+  if (output !== undefined) command.output = parseRunOutput(output);
   assignIfDefined(command, 'schemaPath', singleValue(parsed.flags, '--schema'));
   assignIfDefined(
     command,
@@ -622,6 +635,8 @@ function parseRunCommand(tokens: readonly string[]): ParsedRunCommand {
   if (readPaths.length > 0) command.readPaths = readPaths;
   const editPaths = valuesFor(parsed.flags, '--allow-edit');
   if (editPaths.length > 0) command.editPaths = editPaths;
+  const bashPatterns = valuesFor(parsed.flags, '--allow-bash');
+  if (bashPatterns.length > 0) command.bashPatterns = bashPatterns;
   if (parsed.flags.has('--allow-web-search')) command.webSearch = true;
   const webFetchDomains = valuesFor(parsed.flags, '--allow-web-fetch-domain');
   if (webFetchDomains.length > 0) command.webFetchDomains = webFetchDomains;
@@ -731,6 +746,33 @@ function parseRunContinuation(
   return continuation;
 }
 
+function parseRunOutput(value: string): RunOutputKind {
+  if (RUN_OUTPUT_KINDS.includes(value as RunOutputKind)) {
+    return value as RunOutputKind;
+  }
+  throw new ConsensusCliUsageError(
+    `Invalid --output: ${value} (expected ${RUN_OUTPUT_KINDS.join(', ')})`,
+  );
+}
+
+// JSON output needs a schema; text output must not carry one.
+function assertOutputSchemaPairing(
+  output: RunOutputKind,
+  schemaPath: string | undefined,
+  labels: { schema: string; output: string },
+) {
+  if (output === 'json' && !schemaPath) {
+    throw new ConsensusCliUsageError(
+      `Missing required ${labels.schema} (JSON output is schema-validated; use ${labels.output} for free-form text)`,
+    );
+  }
+  if (output === 'text' && schemaPath !== undefined) {
+    throw new ConsensusCliUsageError(
+      `${labels.schema} cannot be combined with ${labels.output}`,
+    );
+  }
+}
+
 function parseContinuationMode(value: string): ContinuationMode {
   if (CONTINUATION_MODES.includes(value as ContinuationMode)) {
     return value as ContinuationMode;
@@ -797,6 +839,7 @@ function assertNoRequestJsonConflicts(
 ) {
   const conflicts = [
     command.provider ? '--provider' : undefined,
+    command.output ? '--output' : undefined,
     command.schemaPath ? '--schema' : undefined,
     command.promptSource ? 'prompt source' : undefined,
     command.maxAttempts !== undefined ? '--max-attempts' : undefined,
@@ -811,6 +854,7 @@ function assertNoRequestJsonConflicts(
     command.envAllow && command.envAllow.length > 0 ? '--env-allow' : undefined,
     command.readPaths ? '--allow-read' : undefined,
     command.editPaths ? '--allow-edit' : undefined,
+    command.bashPatterns ? '--allow-bash' : undefined,
     command.webSearch ? '--allow-web-search' : undefined,
     command.webFetchDomains ? '--allow-web-fetch-domain' : undefined,
     command.maxDepth !== undefined ? '--max-depth' : undefined,
@@ -840,6 +884,9 @@ function normalizeRuntimePolicy(command: ParsedRunCommand) {
   }
   if (command.readPaths) runtimePolicy.read_paths = command.readPaths;
   if (command.editPaths) runtimePolicy.edit_paths = command.editPaths;
+  if (command.bashPatterns) {
+    runtimePolicy.bash_patterns = command.bashPatterns;
+  }
   if (command.webSearch) runtimePolicy.web_search = true;
   if (command.webFetchDomains) {
     runtimePolicy.web_fetch_domains = command.webFetchDomains;
@@ -923,13 +970,26 @@ function parseRequestJson(contents: string): ConsensusCliRunRequest {
     throw new ConsensusCliUsageError('Request JSON provider must be a string');
   }
   if (
-    typeof parsed.schema_path !== 'string' ||
-    parsed.schema_path.length === 0
+    parsed.output !== undefined &&
+    !RUN_OUTPUT_KINDS.includes(parsed.output as RunOutputKind)
+  ) {
+    throw new ConsensusCliUsageError(
+      `Request JSON output must be one of: ${RUN_OUTPUT_KINDS.join(', ')}`,
+    );
+  }
+  if (
+    parsed.schema_path !== undefined &&
+    (typeof parsed.schema_path !== 'string' || parsed.schema_path.length === 0)
   ) {
     throw new ConsensusCliUsageError(
       'Request JSON schema_path must be a string',
     );
   }
+  assertOutputSchemaPairing(
+    (parsed.output as RunOutputKind | undefined) ?? 'json',
+    parsed.schema_path as string | undefined,
+    { schema: 'Request JSON schema_path', output: 'output "text"' },
+  );
   if (typeof parsed.prompt !== 'string') {
     throw new ConsensusCliUsageError('Request JSON prompt must be a string');
   }
@@ -994,6 +1054,7 @@ function validateRuntimePolicy(value: unknown) {
   for (const field of [
     'read_paths',
     'edit_paths',
+    'bash_patterns',
     'web_fetch_domains',
   ] as const) {
     if (value[field] !== undefined && !isStringArray(value[field])) {

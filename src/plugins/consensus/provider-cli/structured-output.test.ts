@@ -71,6 +71,11 @@ describe('structured provider output coordinator', () => {
       attempts: { terminal_reason: 'success' },
       diagnostics: {
         permission_denials: { count: 2, tools: ['Read', 'WebSearch'] },
+        permission_profile: {
+          mode: 'dontAsk',
+          tools: ['Read', 'WebSearch'],
+          allowed_tools: ['Read(<path>)', 'WebSearch'],
+        },
         warnings: [expect.stringContaining('verify task completeness')],
       },
     });
@@ -96,7 +101,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('{"verdict":"accept"}'),
     ]);
 
-    const envelope = await runProviderTurn(request(), {
+    const envelope = await runProviderTurn(readOnlyRetryRequest('claude'), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -118,7 +123,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('{"verdict":"accept"}'),
     ]);
 
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runProviderTurn(readOnlyRetryRequest('cursor'), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -171,7 +176,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('{"verdict":"accept"}'),
     ]);
 
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runProviderTurn(readOnlyRetryRequest('cursor'), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -218,6 +223,42 @@ describe('structured provider output coordinator', () => {
     expect(subprocess.prompts[0]).toContain('CONSENSUS_SUBMIT_SCHEMA');
     expect(subprocess.prompts[0]).toContain('CONSENSUS_SUBMIT_FILE');
     expect(subprocess.prompts[0]).toContain('final-message JSON fallback');
+  });
+
+  // Without a Bash grant a workspace-write Claude peer cannot run the submit
+  // command, so it must answer through the final message.
+  it('answers Claude workspace-write JSON turns through the final message, not submit', async () => {
+    const subprocess = fakeSubprocess([
+      processSuccess(
+        JSON.stringify({
+          type: 'result',
+          subtype: 'success',
+          is_error: false,
+          structured_output: { verdict: 'accept' },
+        }),
+      ),
+    ]);
+
+    const envelope = await runProviderTurn(
+      request({
+        provider: 'claude',
+        runtime_policy: { permission_mode: 'workspace-write' },
+      }),
+      { readSchema: async () => schema(), runSubprocess: subprocess.run },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      output_kind: 'json',
+      json: { verdict: 'accept' },
+      diagnostics: { verdict_source: 'final_message' },
+    });
+    expect(
+      Object.keys(subprocess.envs[0] ?? {}).filter((name) =>
+        name.startsWith('CONSENSUS_SUBMIT_'),
+      ),
+    ).toEqual([]);
+    expect(subprocess.prompts[0]).not.toContain('Verdict submission:');
   });
 
   it('answers read-only Cursor turns through the final message, not submit', async () => {
@@ -364,7 +405,7 @@ describe('structured provider output coordinator', () => {
     ]);
 
     await expect(
-      runProviderTurn(request({ provider: 'codex' }), {
+      runProviderTurn(readOnlyRetryRequest('codex'), {
         readSchema: async () => schema(),
         runSubprocess: subprocess.run,
       }),
@@ -374,7 +415,7 @@ describe('structured provider output coordinator', () => {
     });
 
     await expect(
-      runProviderTurn(request({ provider: 'codex' }), {
+      runProviderTurn(readOnlyRetryRequest('codex'), {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
           processFailure('PROVIDER_TIMEOUT', false),
@@ -388,9 +429,48 @@ describe('structured provider output coordinator', () => {
     });
   });
 
+  // The shape runProviderSubprocess returns when consensus itself was
+  // interrupted and stopped the provider group: a signal exit that would
+  // otherwise look like an external, retryable interrupt.
+  it('never retries a run that consensus interrupted', async () => {
+    const subprocess = fakeSubprocess([
+      processFailure('PROVIDER_EXIT', false, {
+        message: 'Provider run was interrupted by SIGINT sent to consensus.',
+        exit_code: null,
+        signal: 'SIGINT',
+        diagnostics: {
+          termination: {
+            reason: 'interrupt',
+            scope: 'process_group',
+            signals: ['SIGINT'],
+            settled_by: 'forwarded_signal',
+          },
+        },
+      }),
+      processSuccess('{"verdict":"accept"}'),
+    ]);
+
+    const envelope = await runProviderTurn(readOnlyRetryRequest('codex'), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_EXIT',
+      retryable: false,
+      message: 'Provider run was interrupted by SIGINT sent to consensus.',
+      attempts: {
+        cli_attempts: 1,
+        terminal_reason: 'provider_run_interrupted',
+      },
+    });
+    expect(subprocess.invocations).toHaveLength(1);
+  });
+
   it('does not retry adapter-classified terminal provider exits', async () => {
     await expect(
-      runProviderTurn(request({ provider: 'claude' }), {
+      runProviderTurn(readOnlyRetryRequest('claude'), {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
           processFailure('PROVIDER_EXIT', true, {
@@ -409,7 +489,7 @@ describe('structured provider output coordinator', () => {
     });
 
     await expect(
-      runProviderTurn(request({ provider: 'codex' }), {
+      runProviderTurn(readOnlyRetryRequest('codex'), {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
           processFailure('PROVIDER_EXIT', true, {
@@ -428,7 +508,7 @@ describe('structured provider output coordinator', () => {
     });
 
     await expect(
-      runProviderTurn(request({ provider: 'cursor' }), {
+      runProviderTurn(readOnlyRetryRequest('cursor'), {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
           processFailure('PROVIDER_EXIT', true, {
@@ -456,7 +536,7 @@ describe('structured provider output coordinator', () => {
     ]);
 
     const envelope = await runProviderTurn(
-      request({ provider: 'cursor', max_attempts: 3 }),
+      readOnlyRetryRequest('cursor', { max_attempts: 3 }),
       {
         readSchema: async () => schema(),
         runSubprocess: subprocess.run,
@@ -476,7 +556,7 @@ describe('structured provider output coordinator', () => {
 
   it('records which exit classification fired in diagnostics', async () => {
     const transientEnvelope = await runProviderTurn(
-      request({ provider: 'cursor' }),
+      readOnlyRetryRequest('cursor'),
       {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
@@ -496,7 +576,7 @@ describe('structured provider output coordinator', () => {
     });
 
     const unknownEnvelope = await runProviderTurn(
-      request({ provider: 'cursor', max_attempts: 3 }),
+      readOnlyRetryRequest('cursor', { max_attempts: 3 }),
       {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
@@ -882,6 +962,305 @@ describe('structured provider output coordinator', () => {
       },
     });
     expect(processExitForEnvelope(envelope)).toBe(0);
+  });
+});
+
+describe('text output', () => {
+  const claudeResult = (fields: Record<string, unknown>) =>
+    JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      is_error: false,
+      result: 'The change looks correct.',
+      ...fields,
+    });
+  const noSchema = async (): Promise<unknown> => {
+    throw new Error('text mode must not read a schema');
+  };
+
+  it('rejects a schema on a direct text request before reading or spawning', async () => {
+    const subprocess = fakeSubprocess([]);
+    let schemaRead = false;
+
+    const envelope = await runProviderTurn(
+      textRequest('claude', { schema_path: 'unexpected-schema.json' }),
+      {
+        readSchema: async () => {
+          schemaRead = true;
+          return schema();
+        },
+        runSubprocess: subprocess.run,
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'CONSENSUS_CLI_USAGE',
+      continuation: { turn: 'not_started' },
+    });
+    expect(schemaRead).toBe(false);
+    expect(subprocess.invocations).toHaveLength(0);
+  });
+
+  it('returns Claude result text unchanged with the prompt untouched', async () => {
+    const stdout = claudeResult({ result: 'The change looks correct.\n' });
+    const subprocess = fakeSubprocess([processSuccess(stdout)]);
+
+    const envelope = await runProviderTurn(textRequest('claude'), {
+      readSchema: noSchema,
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      output_kind: 'text',
+      text: 'The change looks correct.\n',
+      json: null,
+      stdout,
+      diagnostics: { strategy_used: 'text' },
+    });
+    expect(subprocess.prompts).toEqual(['Reply in prose.']);
+    expect(subprocess.invocations[0]?.argv).not.toContain('--json-schema');
+  });
+
+  // A read-only Claude profile may retry, so a single invocation also shows
+  // that an unreadable reply is terminal rather than retried.
+  it.each<[string, string, string, string]>([
+    [
+      'an error result',
+      claudeResult({ is_error: true, subtype: 'success' }),
+      'PROVIDER_MALFORMED_RESULT',
+      'malformed_result',
+    ],
+    [
+      'a non-success subtype',
+      claudeResult({ subtype: 'error_max_turns' }),
+      'PROVIDER_MALFORMED_RESULT',
+      'malformed_result',
+    ],
+    [
+      'a missing subtype',
+      claudeResult({ subtype: undefined }),
+      'PROVIDER_MALFORMED_RESULT',
+      'malformed_result',
+    ],
+    [
+      'a missing result',
+      claudeResult({ result: undefined }),
+      'PROVIDER_MALFORMED_RESULT',
+      'malformed_result',
+    ],
+    [
+      'a non-string result',
+      claudeResult({ result: { text: 'hi' } }),
+      'PROVIDER_MALFORMED_RESULT',
+      'malformed_result',
+    ],
+    [
+      'whitespace-only text',
+      claudeResult({ result: ' \n\t' }),
+      'PROVIDER_EMPTY_OUTPUT',
+      'empty_output',
+    ],
+    [
+      'malformed stdout',
+      'The change looks correct.',
+      'PROVIDER_MALFORMED_RESULT',
+      'malformed_result',
+    ],
+    ['empty stdout', '  \n', 'PROVIDER_EMPTY_OUTPUT', 'empty_output'],
+  ])(
+    'fails Claude %s without retrying',
+    async (_label, stdout, code, terminalReason) => {
+      const subprocess = fakeSubprocess([
+        processSuccess(stdout),
+        processSuccess(claudeResult({})),
+      ]);
+
+      const envelope = await runProviderTurn(
+        textRequest('claude', {
+          max_attempts: 2,
+          runtime_policy: { permission_mode: 'read-only' },
+        }),
+        { readSchema: noSchema, runSubprocess: subprocess.run },
+      );
+
+      expect(envelope).toMatchObject({
+        ok: false,
+        code,
+        retryable: false,
+        attempts: { cli_attempts: 1, terminal_reason: terminalReason },
+      });
+      expect(subprocess.invocations).toHaveLength(1);
+    },
+  );
+
+  it('returns the Codex last-message file as text', async () => {
+    const subprocess = fakeSubprocess([
+      processSuccess('{"type":"turn.completed"}', {
+        last_message: 'No blocking issues.',
+      }),
+    ]);
+
+    const envelope = await runProviderTurn(textRequest('codex'), {
+      readSchema: noSchema,
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      output_kind: 'text',
+      text: 'No blocking issues.',
+      stdout: 'No blocking issues.',
+      json: null,
+    });
+    expect(subprocess.invocations[0]?.argv).not.toContain('--output-schema');
+    expect(subprocess.prompts).toEqual(['Reply in prose.']);
+  });
+
+  it.each<[string, string | undefined]>([
+    ['missing', undefined],
+    ['blank', ' \n'],
+  ])(
+    'fails a %s Codex last-message file as empty output',
+    async (_label, lastMessage) => {
+      const envelope = await runProviderTurn(textRequest('codex'), {
+        readSchema: noSchema,
+        // The real subprocess omits last_message when the file is absent.
+        runSubprocess: async () =>
+          ({
+            ...processSuccess('{"type":"turn.completed"}'),
+            ...(lastMessage === undefined ? {} : { last_message: lastMessage }),
+          }) as ProviderProcessResult,
+      });
+
+      expect(envelope).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_EMPTY_OUTPUT',
+        attempts: { terminal_reason: 'empty_output' },
+      });
+    },
+  );
+
+  it('returns the Cursor result text on a read-only profile', async () => {
+    const stdout = JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      is_error: false,
+      result: 'Plan is sound.',
+    });
+    const subprocess = fakeSubprocess([processSuccess(stdout)]);
+
+    const envelope = await runProviderTurn(textRequest('cursor'), {
+      readSchema: noSchema,
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      output_kind: 'text',
+      text: 'Plan is sound.',
+      json: null,
+    });
+    expect(subprocess.invocations[0]?.argv).toContain('--trust');
+    expect(subprocess.invocations[0]?.argv).not.toContain('--force');
+  });
+
+  it('accepts a Cursor result that carries no subtype', async () => {
+    const envelope = await runProviderTurn(textRequest('cursor'), {
+      readSchema: noSchema,
+      runSubprocess: fakeSubprocess([
+        processSuccess(JSON.stringify({ type: 'result', result: 'Fine.' })),
+      ]).run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      output_kind: 'text',
+      text: 'Fine.',
+    });
+  });
+
+  it('never exposes submit capture, even when its variables are allowlisted', async () => {
+    const cwd = await mkdtemp(path.join(tmpdir(), 'consensus-text-mode-'));
+    try {
+      const subprocess = fakeSubprocess([
+        processSuccess('{"type":"turn.completed"}', { last_message: 'Done.' }),
+      ]);
+
+      const envelope = await runProviderTurn(
+        textRequest('codex', {
+          cwd,
+          runtime_policy: {
+            env_allowlist: ['CONSENSUS_SUBMIT_FILE', 'CONSENSUS_SUBMIT_SCHEMA'],
+          },
+        }),
+        {
+          readSchema: noSchema,
+          runSubprocess: subprocess.run,
+          parentEnv: {
+            PATH: '/usr/bin',
+            CONSENSUS_SUBMIT_FILE: path.join(cwd, 'ambient.json'),
+            CONSENSUS_SUBMIT_SCHEMA: path.join(cwd, 'schema.json'),
+          },
+        },
+      );
+
+      expect(envelope.ok).toBe(true);
+      expect(
+        Object.keys(subprocess.envs[0] ?? {}).filter((name) =>
+          name.startsWith('CONSENSUS_SUBMIT_'),
+        ),
+      ).toEqual([]);
+      expect(subprocess.prompts[0]).not.toContain('Verdict submission:');
+      expect(spawnSync('ls', ['-A', cwd], { encoding: 'utf8' }).stdout).toBe(
+        '',
+      );
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('selects the text strategy over any requested transport strategy', () => {
+    const adapter = providerRegistry().get('codex')!;
+    expect(
+      selectStructuredOutputStrategy(adapter, {
+        output: 'text',
+        strategy: 'constrained_native',
+      }),
+    ).toBe('text');
+  });
+
+  it('refuses the text strategy for a JSON-mode turn', async () => {
+    const subprocess = fakeSubprocess([]);
+
+    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+      transport: { strategy: 'text' },
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_UNSUPPORTED_OPTION',
+      attempts: { terminal_reason: 'structured_output_strategy' },
+    });
+    expect(subprocess.invocations).toHaveLength(0);
+  });
+
+  it('marks JSON-mode success envelopes with output_kind json', async () => {
+    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([processSuccess('{"verdict":"accept"}')])
+        .run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      output_kind: 'json',
+      json: { verdict: 'accept' },
+    });
+    expect(envelope).not.toHaveProperty('text');
   });
 });
 
@@ -1287,9 +1666,43 @@ function request(
     provider: 'claude',
     schema_path: 'schema.json',
     prompt: 'Return JSON.',
-    max_attempts: 2,
+    max_attempts: 1,
     ...overrides,
   };
+}
+
+// A text-mode request; Cursor text mode requires the read-only profile.
+function textRequest(
+  provider: 'claude' | 'codex' | 'cursor',
+  overrides: Partial<ConsensusCliRunRequest> = {},
+): ConsensusCliRunRequest {
+  return {
+    schema_version: 'v1',
+    provider,
+    output: 'text',
+    prompt: 'Reply in prose.',
+    max_attempts: 1,
+    ...(provider === 'cursor'
+      ? { runtime_policy: { permission_mode: 'read-only' } }
+      : {}),
+    ...overrides,
+  };
+}
+
+// The read-only profile that may retry a turn, per provider.
+function readOnlyRetryRequest(
+  provider: 'claude' | 'codex' | 'cursor',
+  overrides: Partial<ConsensusCliRunRequest> = {},
+): ConsensusCliRunRequest {
+  return request({
+    provider,
+    max_attempts: 2,
+    runtime_policy:
+      provider === 'codex'
+        ? { sandbox: 'read-only', approval_policy: 'never' }
+        : { permission_mode: 'read-only' },
+    ...overrides,
+  });
 }
 
 function schema() {

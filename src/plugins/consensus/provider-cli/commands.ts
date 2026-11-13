@@ -178,11 +178,14 @@ Commands:
   provider ls --json
   preflight --json --provider <id> --capability run [--capability <name>] [--max-depth <n>]
   submit --json [-|--verdict-file <path>] [--schema <path>] [--out <path>]
-  run --provider <id> --schema <path> --json [-|--prompt <text>|--prompt-file <path>]
+  run --provider <id> (--schema <path> [--output json] | --output text) --json
+      [-|--prompt <text>|--prompt-file <path>]
       [--model <name>] [--effort <level>]
       [--permission-mode <mode>] [--sandbox <name>] [--approval-policy <policy>]
-      [--allow-read <absolute-file>] [--allow-edit <absolute-file>]
-      [--allow-web-search] [--allow-web-fetch-domain <domain>] (Claude only; repeat grants)
+      Claude-only grants, each repeatable except --allow-web-search:
+        [--allow-read <absolute-file>] [--allow-edit <absolute-file>]
+        [--allow-bash <command-pattern>]
+        [--allow-web-search] [--allow-web-fetch-domain <domain>]
       [--env-allow <name>] [--max-attempts <n>] [--timeout-sec <n>]
       [--max-output-bytes <n>] [--cwd <path>] [--max-depth <n>]
       [--consultation-id <id>] [--round <n>]

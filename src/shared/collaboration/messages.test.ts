@@ -1,11 +1,11 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test } from 'vitest';
 
 import {
   joinCollaboration,
@@ -21,8 +21,18 @@ import {
   sendMessage,
 } from './messages.js';
 
+const fixtureRoots: string[] = [];
+afterEach(async () => {
+  await Promise.all(
+    fixtureRoots
+      .splice(0)
+      .map((root) => rm(root, { recursive: true, force: true })),
+  );
+});
+
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-mail-'));
+  fixtureRoots.push(root);
   const collaborationId = crypto.randomUUID();
   const driver = { runtime: 'codex' as const, sessionId: 'driver' };
   const reviewer = { runtime: 'claude-code' as const, sessionId: 'reviewer' };
@@ -31,7 +41,7 @@ async function fixture() {
     collaborationId,
     alias: 'driver',
     pin: driver,
-    worktree: '/tmp/a',
+    worktree: path.join(root, 'driver-worktree'),
     label: 'mail',
     task: 'test',
   });
@@ -40,7 +50,7 @@ async function fixture() {
     collaborationId,
     alias: 'reviewer',
     pin: reviewer,
-    worktree: '/tmp/b',
+    worktree: path.join(root, 'reviewer-worktree'),
   });
   return { root, collaborationId, driver, reviewer };
 }
@@ -71,7 +81,7 @@ describe('addressed messages and acknowledgments', () => {
       ...f,
       alias: 'implementer',
       pin: implementer,
-      worktree: '/tmp/c',
+      worktree: path.join(f.root, 'c-worktree'),
     });
     await Promise.all([
       sendMessage({
@@ -194,7 +204,7 @@ describe('addressed messages and acknowledgments', () => {
       pin: successor,
       expectedPreviousPin: f.reviewer,
       reason: 'human directed',
-      worktree: '/tmp/new',
+      worktree: path.join(f.root, 'new-worktree'),
     });
     await expect(
       acknowledgeMessage({ ...f, pin: f.reviewer, messageId: id }),
@@ -274,7 +284,7 @@ describe('addressed messages and acknowledgments', () => {
             pin: successor,
             expectedPreviousPin: takeover.reviewer,
             reason: 'race',
-            worktree: '/tmp/successor',
+            worktree: path.join(takeover.root, 'successor-worktree'),
           });
         },
       },
@@ -303,7 +313,7 @@ describe('addressed messages and acknowledgments', () => {
       pin: successor,
       expectedPreviousPin: f.reviewer,
       reason: 'resume pending work',
-      worktree: '/tmp/replay',
+      worktree: path.join(f.root, 'replay-worktree'),
     });
     expect(
       (await listInbox({ ...f, pin: successor })).messages[0],
@@ -342,7 +352,7 @@ describe('addressed messages and acknowledgments', () => {
       ...f,
       alias: 'implementer',
       pin: implementer,
-      worktree: '/tmp/process-impl',
+      worktree: path.join(f.root, 'process-impl-worktree'),
     });
     const helper = fileURLToPath(
       new URL('./process-fixture.ts', import.meta.url),

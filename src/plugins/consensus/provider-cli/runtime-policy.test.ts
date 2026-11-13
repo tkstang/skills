@@ -6,6 +6,10 @@ import { describe, expect, it } from 'vitest';
 
 import { providerRegistry } from '../provider-cli/adapters.js';
 import {
+  normalizeRunRequest,
+  parseConsensusCliArgs,
+} from '../provider-cli/args.js';
+import {
   buildChildEnvironment,
   buildProviderProbeEnvironment,
   defaultRuntimePolicy,
@@ -15,6 +19,7 @@ import {
 import type {
   ConsensusCliRunRequest,
   ProviderCapabilities,
+  ProviderRuntimePolicy,
 } from '../provider-cli/types.js';
 
 describe('provider runtime policy validation', () => {
@@ -118,6 +123,332 @@ describe('provider runtime policy validation', () => {
     ).toMatchObject({ ok: false, option: 'runtime_policy.permission_mode' });
   });
 
+  describe('attempt budget', () => {
+    const readPath = realpathSync(fileURLToPath(import.meta.url));
+
+    it.each<[string, Partial<ConsensusCliRunRequest>]>([
+      [
+        'Codex with an explicit read-only sandbox',
+        { provider: 'codex', runtime_policy: { sandbox: 'read-only' } },
+      ],
+      [
+        'Claude read-only',
+        {
+          provider: 'claude',
+          runtime_policy: { permission_mode: 'read-only' },
+        },
+      ],
+      [
+        'Claude read-only with a read grant',
+        {
+          provider: 'claude',
+          runtime_policy: {
+            permission_mode: 'read-only',
+            read_paths: [readPath],
+          },
+        },
+      ],
+      [
+        'Cursor read-only',
+        {
+          provider: 'cursor',
+          runtime_policy: { permission_mode: 'read-only' },
+        },
+      ],
+    ])('allows retries for %s', (_label, overrides) => {
+      expect(
+        validateProviderOptions(
+          request({ ...overrides, max_attempts: 3 }),
+          capabilities(overrides.provider as 'claude' | 'codex' | 'cursor'),
+        ),
+      ).toEqual({ ok: true });
+    });
+
+    it.each<[string, Partial<ConsensusCliRunRequest>]>([
+      ['Codex with an omitted sandbox', { provider: 'codex' }],
+      [
+        'Codex workspace-write',
+        { provider: 'codex', runtime_policy: { sandbox: 'workspace-write' } },
+      ],
+      ['unscoped Claude non-interactive', { provider: 'claude' }],
+      [
+        'Claude non-interactive with an edit grant',
+        {
+          provider: 'claude',
+          runtime_policy: {
+            permission_mode: 'non-interactive',
+            edit_paths: [path.join(path.dirname(readPath), 'out.md')],
+          },
+        },
+      ],
+      [
+        'Claude workspace-write with a Bash grant',
+        {
+          provider: 'claude',
+          runtime_policy: {
+            permission_mode: 'workspace-write',
+            bash_patterns: ['git status:*'],
+          },
+        },
+      ],
+      [
+        'Claude workspace-write',
+        {
+          provider: 'claude',
+          runtime_policy: { permission_mode: 'workspace-write' },
+        },
+      ],
+      ['Cursor non-interactive', { provider: 'cursor' }],
+    ])('rejects retries for %s', (_label, overrides) => {
+      const id = overrides.provider as 'claude' | 'codex' | 'cursor';
+      expect(
+        validateProviderOptions(
+          request({ ...overrides, max_attempts: 2 }),
+          capabilities(id),
+        ),
+      ).toMatchObject({
+        ok: false,
+        code: 'CONSENSUS_CLI_USAGE',
+        option: 'max_attempts',
+      });
+      expect(
+        validateProviderOptions(
+          request({ ...overrides, max_attempts: 1 }),
+          capabilities(id),
+        ),
+      ).toEqual({ ok: true });
+    });
+  });
+
+  describe('Cursor text mode', () => {
+    const textIo = (stdin = '') => ({
+      cwd: '/workspace',
+      readFile: async (filePath: string): Promise<string> => {
+        throw new Error(`Unexpected file read: ${filePath}`);
+      },
+      readStdin: async () => stdin,
+    });
+    const fromFlags = (policyFlags: string[]) =>
+      normalizeRunRequest(
+        parseConsensusCliArgs([
+          'run',
+          '--provider',
+          'cursor',
+          '--output',
+          'text',
+          ...policyFlags,
+          '--json',
+          '--prompt',
+          'Reply in prose.',
+        ]),
+        textIo(),
+      );
+    const fromRequestJson = (runtimePolicy?: ProviderRuntimePolicy) =>
+      normalizeRunRequest(
+        parseConsensusCliArgs(['run', '--request-json', '-', '--json']),
+        textIo(
+          JSON.stringify({
+            schema_version: 'v1',
+            provider: 'cursor',
+            output: 'text',
+            prompt: 'Reply in prose.',
+            ...(runtimePolicy ? { runtime_policy: runtimePolicy } : {}),
+          }),
+        ),
+      );
+
+    // Each of these would otherwise reach `--print ... --force`. Cursor does
+    // not advertise workspace-write, so the mode list rejects it before the
+    // text-mode guard; the other rows are the text-mode guard's own.
+    const textModeOnly =
+      'Cursor text-mode runs require --permission-mode read-only.';
+    const unadvertised =
+      'Unsupported runtime_policy.permission_mode: workspace-write.';
+    it.each<[string, () => Promise<ConsensusCliRunRequest>, string]>([
+      ['an omitted policy through flags', () => fromFlags([]), textModeOnly],
+      [
+        'non-interactive through flags',
+        () => fromFlags(['--permission-mode', 'non-interactive']),
+        textModeOnly,
+      ],
+      [
+        'workspace-write through flags',
+        () => fromFlags(['--permission-mode', 'workspace-write']),
+        unadvertised,
+      ],
+      [
+        'an omitted policy through request JSON',
+        () => fromRequestJson(),
+        textModeOnly,
+      ],
+      [
+        'non-interactive through request JSON',
+        () => fromRequestJson({ permission_mode: 'non-interactive' }),
+        textModeOnly,
+      ],
+      [
+        'workspace-write through request JSON',
+        () => fromRequestJson({ permission_mode: 'workspace-write' }),
+        unadvertised,
+      ],
+    ])('rejects %s', async (_label, build, message) => {
+      expect(
+        validateProviderOptions(await build(), capabilities('cursor')),
+      ).toEqual({
+        ok: false,
+        code: 'PROVIDER_UNSUPPORTED_OPTION',
+        option: 'runtime_policy.permission_mode',
+        message,
+      });
+    });
+
+    it('accepts read-only through flags and request JSON', async () => {
+      for (const built of [
+        await fromFlags(['--permission-mode', 'read-only']),
+        await fromRequestJson({ permission_mode: 'read-only' }),
+      ]) {
+        expect(validateProviderOptions(built, capabilities('cursor'))).toEqual({
+          ok: true,
+        });
+      }
+    });
+
+    it('leaves JSON-mode Cursor profiles unchanged', () => {
+      expect(
+        validateProviderOptions(
+          request({ provider: 'cursor' }),
+          capabilities('cursor'),
+        ),
+      ).toEqual({ ok: true });
+    });
+  });
+
+  describe('Claude permission composition', () => {
+    const readPath = realpathSync(fileURLToPath(import.meta.url));
+    const editPath = path.join(path.dirname(readPath), 'new-output.md');
+
+    it.each<[string, ProviderRuntimePolicy]>([
+      ['read-only without grants', { permission_mode: 'read-only' }],
+      [
+        'read-only with read grants',
+        { permission_mode: 'read-only', read_paths: [readPath] },
+      ],
+      [
+        'non-interactive without grants',
+        { permission_mode: 'non-interactive' },
+      ],
+      [
+        'non-interactive with read, edit, and web grants',
+        {
+          permission_mode: 'non-interactive',
+          read_paths: [readPath],
+          edit_paths: [editPath],
+          web_search: true,
+          web_fetch_domains: ['example.org'],
+        },
+      ],
+      [
+        'workspace-write without grants',
+        { permission_mode: 'workspace-write' },
+      ],
+      [
+        'workspace-write with Bash grants',
+        {
+          permission_mode: 'workspace-write',
+          bash_patterns: ['git status:*', 'pnpm run test'],
+        },
+      ],
+    ])('accepts %s', (_label, runtimePolicy) => {
+      expect(
+        validateProviderOptions(
+          request({ provider: 'claude', runtime_policy: runtimePolicy }),
+          capabilities('claude'),
+        ),
+      ).toEqual({ ok: true });
+    });
+
+    it.each<[string, ProviderRuntimePolicy]>([
+      ['read-only', { edit_paths: [editPath] }],
+      ['read-only', { bash_patterns: ['git status:*'] }],
+      ['read-only', { web_search: true }],
+      ['read-only', { web_fetch_domains: ['example.org'] }],
+      ['non-interactive', { bash_patterns: ['git status:*'] }],
+      ['workspace-write', { read_paths: [readPath] }],
+      ['workspace-write', { edit_paths: [editPath] }],
+      ['workspace-write', { web_search: true }],
+      ['workspace-write', { web_fetch_domains: ['example.org'] }],
+    ])('rejects %s with %j', (mode, grants) => {
+      expect(
+        validateProviderOptions(
+          request({
+            provider: 'claude',
+            runtime_policy: { permission_mode: mode, ...grants },
+          }),
+          capabilities('claude'),
+        ),
+      ).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_UNSUPPORTED_OPTION',
+        option: 'runtime_policy.permission_mode',
+      });
+    });
+
+    it('rejects raw Claude modes that the adapter does not advertise', () => {
+      for (const mode of ['plan', 'acceptEdits', 'bypassPermissions']) {
+        expect(
+          validateProviderOptions(
+            request({
+              provider: 'claude',
+              runtime_policy: { permission_mode: mode },
+            }),
+            capabilities('claude'),
+          ),
+        ).toMatchObject({
+          ok: false,
+          option: 'runtime_policy.permission_mode',
+          message: `Unsupported runtime_policy.permission_mode: ${mode}.`,
+        });
+      }
+    });
+
+    it('rejects Bash grants that are not one exact command pattern', () => {
+      for (const pattern of [
+        '*',
+        ':*',
+        ' git status',
+        'git status)',
+        'git (status)',
+        'git status,rm -rf',
+        'git status\nrm -rf /',
+      ]) {
+        expect(
+          validateProviderOptions(
+            request({
+              provider: 'claude',
+              runtime_policy: {
+                permission_mode: 'workspace-write',
+                bash_patterns: [pattern],
+              },
+            }),
+            capabilities('claude'),
+          ),
+        ).toMatchObject({ ok: false, option: 'runtime_policy.bash_patterns' });
+      }
+    });
+
+    it('rejects Bash grants for providers other than Claude', () => {
+      expect(
+        validateProviderOptions(
+          request({
+            provider: 'codex',
+            runtime_policy: { bash_patterns: ['git status:*'] },
+          }),
+          capabilities('codex'),
+        ),
+      ).toMatchObject({ ok: false, option: 'runtime_policy.scoped_tools' });
+    });
+  });
+
   it('rejects directory grants while allowing a file and a new file in a canonical parent', () => {
     const testFile = realpathSync(fileURLToPath(import.meta.url));
     const directory = path.dirname(testFile);
@@ -191,6 +522,43 @@ describe('provider runtime policy validation', () => {
       expect(env).not.toHaveProperty('SECRET_TOKEN');
     },
   );
+
+  it('strips reserved submit variables in text mode even when allowlisted', () => {
+    const submitEnv = {
+      CONSENSUS_SUBMIT_FILE: '/workspace/.consensus/submit/x.json',
+      CONSENSUS_SUBMIT_SCHEMA: '/workspace/schema.json',
+      CONSENSUS_SUBMIT_COMMAND: 'consensus submit',
+    };
+    const build = (output: 'json' | 'text') =>
+      buildChildEnvironment({
+        parentEnv: { PATH: '/usr/bin', ...submitEnv },
+        request: request({
+          provider: 'codex',
+          output,
+          runtime_policy: { env_allowlist: Object.keys(submitEnv) },
+        }),
+        hostEnv: {
+          CONSENSUS_RUN_ID: 'run-123',
+          CONSENSUS_SUBMIT_FILE: '/host/submit.json',
+        },
+      });
+
+    const textEnv = build('text');
+    expect(
+      Object.keys(textEnv).filter((name) =>
+        name.startsWith('CONSENSUS_SUBMIT_'),
+      ),
+    ).toEqual([]);
+    expect(textEnv).toMatchObject({
+      PATH: '/usr/bin',
+      CONSENSUS_RUN_ID: 'run-123',
+    });
+    // JSON mode keeps today's allowlist behaviour.
+    expect(build('json')).toMatchObject({
+      CONSENSUS_SUBMIT_SCHEMA: '/workspace/schema.json',
+      CONSENSUS_SUBMIT_FILE: '/host/submit.json',
+    });
+  });
 
   it('allows explicit env allowlist variables even when unrelated to the selected provider', () => {
     const env = buildChildEnvironment({

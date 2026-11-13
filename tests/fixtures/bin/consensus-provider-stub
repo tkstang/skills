@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 
 process.stdin.setEncoding('utf8');
@@ -80,6 +81,64 @@ process.stdin.on('end', () => {
       return;
     }
     writeFileSync(outputPath, 'x'.repeat(Number(size ?? 1024)));
+    return;
+  }
+
+  // Process-group fixtures. The grandchild ignores SIGTERM and does not hold
+  // this process's stdio, so only a signal to the whole group can stop it.
+  // The leader prints `grandchild:<pid>` once the grandchild's trap is set,
+  // then waits for SIGTERM (`wait`), floods output (`flood`), or exits (`exit`).
+  if (mode === 'sigterm-grandchild') {
+    const grandchild = spawn(
+      '/bin/sh',
+      ['-c', 'trap "" TERM; echo ready; exec sleep 30'],
+      { stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+    grandchild.stdout.once('data', () => {
+      process.stdout.write(`grandchild:${grandchild.pid}\n`);
+      if (args[0] === 'flood') {
+        process.stdout.on('error', () => {});
+        const chunk = 'x'.repeat(4096);
+        setInterval(() => process.stdout.write(chunk), 1);
+        return;
+      }
+      if (args[0] === 'exit') {
+        grandchild.stdout.destroy();
+        grandchild.unref();
+        return;
+      }
+      setInterval(() => {}, 1000);
+    });
+    return;
+  }
+
+  // A grandchild in its own process group keeps this process's stdout and
+  // stderr open after the leader exits, so the leader's group is already gone
+  // (ESRCH) when the runner signals it.
+  if (mode === 'escaped-grandchild') {
+    const grandchild = spawn(
+      process.execPath,
+      ['-e', 'setTimeout(() => {}, 10000)'],
+      { detached: true, stdio: ['ignore', 'inherit', 'inherit'] },
+    );
+    process.stdout.write(`grandchild:${grandchild.pid}\n`);
+    grandchild.unref();
+    return;
+  }
+
+  // A SIGTERM-ignoring leader whose grandchild, in another process group,
+  // holds the output pipes: group SIGKILL ends the leader, but the pipes stay
+  // open, so only the bounded settlement can end the run.
+  if (mode === 'escaped-grandchild-holds-pipes') {
+    process.on('SIGTERM', () => {});
+    const grandchild = spawn(
+      process.execPath,
+      ['-e', 'setTimeout(() => {}, 10000)'],
+      { detached: true, stdio: ['ignore', 'inherit', 'inherit'] },
+    );
+    process.stdout.write(`grandchild:${grandchild.pid}\n`);
+    grandchild.unref();
+    setInterval(() => {}, 1000);
     return;
   }
 

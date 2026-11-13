@@ -54,7 +54,7 @@ describe('generated consensus provider CLI process contract', () => {
       'codex',
       '#!/bin/sh\nif [ "$1" = "--version" ]; then printf "codex 9.9.9\\n"; elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then printf "%s\\n" "--json --output-last-message --output-schema"; else exit 2; fi\n',
     );
-    const env = { ...process.env, PATH: binDir };
+    const env = { PATH: binDir };
 
     try {
       const inventoryResult = await runConsensusCli(
@@ -112,9 +112,15 @@ describe('generated consensus provider CLI process contract', () => {
   it('runs generated Claude and Codex argv against strict provider flag fixtures', async () => {
     const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-bin-'));
     const schemaPath = await writeSchemaFixture();
-    const env = { ...process.env, PATH: binDir };
+    const env = { PATH: binDir };
+    const stdinCapturePath = path.join(binDir, 'claude-stdin');
+    const claudePrompt = 'Return JSON.\n\nKeep this line intact.\n';
 
-    await writeExecutableFixture(binDir, 'claude', strictClaudeFixture());
+    await writeExecutableFixture(
+      binDir,
+      'claude',
+      strictClaudeFixture(undefined, stdinCapturePath),
+    );
     await writeExecutableFixture(binDir, 'codex', strictCodexFixture());
 
     try {
@@ -126,8 +132,10 @@ describe('generated consensus provider CLI process contract', () => {
           '--schema',
           schemaPath,
           '--json',
+          '--permission-mode',
+          'workspace-write',
           '--prompt',
-          'Return JSON.',
+          claudePrompt,
         ],
         { env },
       );
@@ -146,6 +154,7 @@ describe('generated consensus provider CLI process contract', () => {
         },
       });
       expect(JSON.stringify(claudeEnvelope)).not.toContain('"properties"');
+      expect(await readFile(stdinCapturePath, 'utf8')).toBe(claudePrompt);
 
       const codexResult = await runConsensusCli(
         [
@@ -210,7 +219,7 @@ describe('generated consensus provider CLI process contract', () => {
           '--allow-web-fetch-domain',
           'example.org',
         ],
-        { env: { ...process.env, PATH: binDir } },
+        { env: { PATH: binDir } },
       );
       expect(result.code).toBe(0);
       const envelope = parseSingleJsonDocument(result.stdout);
@@ -265,7 +274,7 @@ describe('generated consensus provider CLI process contract', () => {
     'runs the generated Claude provider-validated path with the shipped $name schema',
     async ({ schemaPath, response }) => {
       const binDir = await mkdtemp(path.join(os.tmpdir(), 'consensus-bin-'));
-      const env = { ...process.env, PATH: binDir };
+      const env = { PATH: binDir };
       await writeExecutableFixture(
         binDir,
         'claude',
@@ -311,7 +320,7 @@ describe('generated consensus provider CLI process contract', () => {
     const schemaPath = await writeSchemaFixture({
       $schema: 'https://json-schema.org/draft/2020-12/schema',
     });
-    const env = { ...process.env, PATH: binDir };
+    const env = { PATH: binDir };
     await writeExecutableFixture(binDir, 'claude', strictClaudeFixture());
 
     try {
@@ -708,13 +717,19 @@ async function writeExecutableFixture(
   return executablePath;
 }
 
-function strictClaudeFixture(response: unknown = { verdict: 'accept' }) {
+function strictClaudeFixture(
+  response: unknown = { verdict: 'accept' },
+  stdinCapturePath?: string,
+) {
   const providerEnvelope = JSON.stringify({
     type: 'result',
     subtype: 'success',
     is_error: false,
     result: JSON.stringify(response),
   });
+  const captureStdin = stdinCapturePath
+    ? `printf '%s' "$prompt" > '${stdinCapturePath.replaceAll("'", "'\\''")}'`
+    : '';
   return `#!/bin/sh
 seen_schema=0
 prompt=''
@@ -725,6 +740,17 @@ while [ "$#" -gt 0 ]; do
       ;;
     --output-format|--model|--effort)
       shift 2
+      ;;
+    --tools)
+      [ "$2" = 'Read,Glob,Grep,Edit,Write' ] || exit 64
+      shift 2
+      ;;
+    --permission-prompts)
+      [ "$2" = 'none' ] || exit 64
+      shift 2
+      ;;
+    --strict-mcp-config)
+      shift
       ;;
     --json-schema)
       case "$2" in
@@ -774,17 +800,25 @@ while [ "$#" -gt 0 ]; do
       exit 64
       ;;
     *)
-      prompt="$1"
-      shift
+      printf 'unexpected positional argument; the prompt must arrive on stdin\\n' >&2
+      exit 64
       ;;
   esac
 done
+# PATH holds only the fixture directory, so read stdin with shell builtins.
+prompt=''
+while IFS= read -r line; do
+  prompt="$prompt$line
+"
+done
+prompt="$prompt$line"
+${captureStdin}
 if [ "$seen_schema" != "1" ]; then
   printf 'missing --json-schema\\n' >&2
   exit 64
 fi
 if [ -z "$prompt" ]; then
-  printf 'missing prompt argument\\n' >&2
+  printf 'missing stdin prompt\\n' >&2
   exit 64
 fi
 printf '%s\\n' '${providerEnvelope}'

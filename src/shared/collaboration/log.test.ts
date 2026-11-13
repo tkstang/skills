@@ -3,6 +3,7 @@ import {
   mkdtemp,
   readFile,
   rename,
+  rm,
   symlink,
   unlink,
   writeFile,
@@ -10,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test } from 'vitest';
 
 import {
   appendLogEntry,
@@ -20,8 +21,18 @@ import {
 } from './log.js';
 import { openCollaboration } from './membership.js';
 
+const fixtureRoots: string[] = [];
+afterEach(async () => {
+  await Promise.all(
+    fixtureRoots
+      .splice(0)
+      .map((root) => rm(root, { recursive: true, force: true })),
+  );
+});
+
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(), 'agent-messaging-log-'));
+  fixtureRoots.push(root);
   const collaborationId = crypto.randomUUID();
   const pin = { runtime: 'codex' as const, sessionId: 'driver' };
   await openCollaboration({
@@ -29,7 +40,7 @@ async function fixture() {
     collaborationId,
     alias: 'driver',
     pin,
-    worktree: '/tmp/a',
+    worktree: path.join(root, 'driver-worktree'),
     label: 'log',
     task: 'test',
   });
@@ -176,6 +187,7 @@ describe('authoritative collaboration log', () => {
     const external = await mkdtemp(
       path.join(tmpdir(), 'agent-messaging-external-'),
     );
+    fixtureRoots.push(external);
     const moved = path.join(external, 'collaborations');
     await rename(collaborations, moved);
     await symlink(moved, collaborations);
