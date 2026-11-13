@@ -324,6 +324,7 @@ describe('release-versioning', () => {
       'src/skills/complexity-review/SKILL.md',
       'src/skills/consensus-create/SKILL.md',
       'src/skills/consensus-decide/SKILL.md',
+      'src/skills/consensus-delegate/SKILL.md',
       'src/skills/consensus-evaluate/SKILL.md',
       'src/skills/consensus-panel/SKILL.md',
       'src/skills/consensus-plan/SKILL.md',

@@ -4,7 +4,7 @@ Scoped guidance for `plugins/consensus/`. Inherits the root `AGENTS.md`; this fi
 
 ## Architecture
 
-`plugins/consensus/` is a self-contained plugin: provider CLI-backed AI peers create, decide, plan, refine, evaluate, answer panel questions, provide one-shot advisory takes, and observe coding-agent sessions with an audit trail. It currently ships nine skills: `create`, `decide`, `plan`, `refine`, `evaluate`, `panel`, `phone-a-friend`, `observer`, and `observer-collab`. See `README.md` for the iteration modes (`--iteration`: `parallel_synthesized` default for create/decide/plan, `alternating` default for refine, `parallel_revision` default for evaluate), the synthesizer/escalation/agency flags, panel/advisory behavior, session observation, and install paths.
+`plugins/consensus/` is a self-contained plugin: provider CLI-backed AI peers create, decide, plan, refine, evaluate, review, answer panel questions, provide advisory takes, carry out delegated tasks for the host to verify, and observe coding-agent sessions with an audit trail. It currently ships eleven skills: `create`, `decide`, `plan`, `refine`, `evaluate`, `review`, `panel`, `phone-a-friend`, `delegate`, `observer`, and `observer-collab`. See `README.md` for the iteration modes (`--iteration`: `parallel_synthesized` default for create/decide/plan, `alternating` default for refine, `parallel_revision` default for evaluate), the synthesizer/escalation/agency flags, panel/advisory behavior, session observation, and install paths.
 
 ## Non-Negotiables
 
@@ -12,7 +12,7 @@ Scoped guidance for `plugins/consensus/`. Inherits the root `AGENTS.md`; this fi
 - **Generated runtime output is not source.** Canonical consensus plugin code lives under `src/plugins/consensus/`; canonical member-skill instructions, wrappers, and tests live under `src/skills/<name>/`. The committed files under `plugins/consensus/skills/*/` are generated installation payloads; regenerate them with `pnpm run build` and verify with `pnpm run build:check` instead of hand-editing them.
 - **Route source changes to the canonical owner.** Read [source instructions](../../src/AGENTS.md) before editing wrappers, CLI/core code, or colocated tests. Plugin manifests and package docs are maintained surfaces; do not replace the entire plugin root as though every file were generated.
 - **Preserve the relevant operation's filesystem safeguards.** Create, decide, plan, refine, and evaluate wrappers own confinement/path-resolution helpers and bounded input reads. Use the helper and cap in that operation's canonical source; do not write to arbitrary paths or read unbounded input.
-- **Deliberation I/O is schema-bound.** Read the relevant skill owner's `schemas/` and wrapper before changing its output; refine/evaluate schemas are not universal contracts for the other operations. `consensus run --output text` is a separate free-form surface for task delegation; deliberation skills keep JSON mode and never use it.
+- **Deliberation I/O is schema-bound.** Read the relevant skill owner's `schemas/` and wrapper before changing its output; refine/evaluate schemas are not universal contracts for the other operations. `consensus run --output text` is a separate free-form surface for task delegation, used by `delegate`; deliberation skills keep JSON mode and never use it.
 
 ## References
 

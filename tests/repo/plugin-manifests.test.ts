@@ -8,12 +8,13 @@ const repoRoot = new URL('../..', import.meta.url);
 const plugins = [
   {
     name: 'consensus',
-    version: '0.2.10',
+    version: '0.2.11',
     description:
-      'Consensus create, decide, plan, refine, evaluate, review, panel, phone-a-friend, observer, and observer-collab skills for deliberation, bounded review, consultation, and observation.',
+      'Consensus create, decide, plan, refine, evaluate, review, panel, phone-a-friend, delegate, observer, and observer-collab skills for deliberation, bounded review, consultation, task delegation, and observation.',
     skills: [
       'create',
       'decide',
+      'delegate',
       'evaluate',
       'observer',
       'observer-collab',
@@ -119,6 +120,26 @@ describe('plugin-manifests', () => {
         ).toMatch(plugin.permissionEvidence);
         expect(JSON.stringify(manifest.metadata)).not.toMatch(
           /provisional|before v0\.1 tagging|release_checklist/i,
+        );
+      }
+    }
+  });
+
+  // Codex ignores a default prompt longer than 128 characters and accepts at
+  // most three (root AGENTS.md).
+  it('keeps every Codex default prompt within the Codex limits', async () => {
+    for (const plugin of plugins) {
+      const manifest = await readJson(
+        `plugins/${plugin.name}/.codex-plugin/plugin.json`,
+      );
+      const prompts = (manifest.interface?.defaultPrompt ?? [])
+        .map((prompt: string) => prompt.replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+
+      expect(prompts.length, plugin.name).toBeLessThanOrEqual(3);
+      for (const prompt of prompts) {
+        expect(prompt.length, `${plugin.name}: ${prompt}`).toBeLessThanOrEqual(
+          128,
         );
       }
     }

@@ -4,12 +4,24 @@
 
 ### Changed
 
+- `consensus-delegate` 0.2.0, standalone `delegate` and `consensus:delegate`,
+  automatically resumes the same peer for ordinary host-verification failures
+  within the original task. Every turn keeps the same session and permissions
+  and is checked by the host. Timeouts, unknown execution, unusable replies,
+  blocked work, and lack of progress still stop for reporting.
+
 - Split the Consensus configuration reference into saved workflow configuration,
   provider setup, and provider run controls. Updated links and sidebar navigation.
   Corrected the trust-boundary diagram for text output and host verification;
   its SVG now has a white background to keep labels legible in both themes.
 
 ### Fixed
+
+- `consensus-delegate` 0.2.0 isolates accounting and worktree Git commands from
+  inherited repository-location variables and rejects initialized submodules
+  that snapshots cannot account for. Its guidance now states the ignored-file
+  and writable-temp limits and keeps read-only host verification out of the
+  user's checkout when a command may write.
 
 - The consensus CLI now requires Claude Code 2.1.259, the documented minimum
   for `--permission-prompts`, redacts Bash grant contents in diagnostics, and
@@ -23,6 +35,22 @@
   inheriting executable overrides or host-session settings from the shell.
 
 ### Added
+
+- `consensus-delegate` 0.1.1 also ships standalone as `delegate`, with its own
+  bundled consensus CLI and the same worktree accounting as `consensus:delegate`.
+  Provider discovery of the new standalone form remains unverified.
+
+- `consensus-delegate` 0.1.0, the Consensus plugin skill `delegate`
+  (`consensus` plugin 0.2.11). It hands one task to another provider through
+  `consensus run --output text` with a single attempt. A task that changes
+  code runs in write mode in a dedicated linked worktree the host creates
+  (Codex `workspace-write` with approval `never`, or Claude
+  `workspace-write` with `--allow-bash` grants); questions, reviews,
+  investigations, and host-initiated consultations run read-only. The host
+  computes every change from its own git baseline, reports any peer commit,
+  reads the full diff, and reruns the brief's verification command. Claude and
+  Codex sessions can be continued; Cursor is read-only. The skill never merges
+  or pushes. The plugin manifests, README, and docs list the new skill.
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.10) composes
   Claude's permission flags from an explicit table. A new
@@ -167,6 +195,10 @@
   possibly repeating a turn's writes. No in-repo caller requested retries.
 
 ### Fixed
+
+- The Consensus plugin's Codex `interface.defaultPrompt` entries (`consensus`
+  plugin 0.2.11) now fit the 128-character limit. All three were longer, so
+  Codex ignored them; they now also mention `delegate`.
 
 - The shared consensus provider CLI (`consensus` plugin 0.2.10) stops a
   timed-out or output-capped provider's whole process group on macOS and

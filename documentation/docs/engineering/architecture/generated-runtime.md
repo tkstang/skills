@@ -73,6 +73,7 @@ plugin by itself.
 | `src/skills/consensus-create`, `consensus-decide`, `consensus-plan`, `consensus-refine`, `consensus-evaluate`, `consensus-panel` | Matching plugin-only `plugins/consensus/skills/<short-name>/` payloads                  |
 | `src/skills/phone-a-friend`                                                                                                      | `skills/phone-a-friend/` and `plugins/consensus/skills/phone-a-friend/`                 |
 | `src/skills/consensus-review`                                                                                                    | `skills/consensus-review/` and `plugins/consensus/skills/review/`                       |
+| `src/skills/consensus-delegate`                                                                                                  | `skills/delegate/` and `plugins/consensus/skills/delegate/`                             |
 | `src/skills/session-observer`                                                                                                    | `skills/session-observer/` and `plugins/consensus/skills/observer/`                     |
 | `src/skills/session-observer-collab`                                                                                             | `skills/session-observer-collab/` and `plugins/consensus/skills/observer-collab/`       |
 | `src/skills/session-handoff`                                                                                                     | `skills/session-handoff/` and `plugins/session/skills/handoff/`                         |
@@ -158,7 +159,8 @@ plugin unit; they do not import the standalone `skills/` tree at runtime.
 
 The standalone `phone-a-friend` unit bundles its provider helper and advisory
 schema. It does not require the Consensus plugin or a helper under the user's
-home directory. The plugin's six converging and panel workflows remain
+home directory. Standalone `delegate` bundles the same provider helper for
+text-mode task runs. The plugin's six converging and panel workflows remain
 plugin-only; Review carries its own bundled review runtime in both declared
 forms.
 

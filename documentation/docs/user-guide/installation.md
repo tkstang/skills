@@ -103,8 +103,9 @@ availability claim.
   [Seshtk CLI guide](skills/seshtk-cli.md#prerequisites) for the pinned npm command.
 - Consensus plugin workflows: the generated consensus CLI from the plugin,
   used for provider inventory, preflight, and peer invocation. Standalone
-  `phone-a-friend` bundles its own helper; standalone `consensus-review` carries
-  its own review runtime. Neither standalone skill needs the plugin installed.
+  `phone-a-friend` and `delegate` each bundle their own helper; standalone
+  `consensus-review` carries its own review runtime. These standalone skills do
+  not need the plugin installed.
 - Provider-backed workflows: authenticated local provider CLIs for the selected
   peers. The first supported provider floor is `claude`, `codex`, and `cursor`;
   these external CLIs are not bundled.
@@ -297,12 +298,13 @@ under `skills/`:
 | `session-search`                  | session `search`              | [standalone source](https://github.com/tkstang/skills/tree/main/skills/session-search)              |
 | `complexity-review`               | none                          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/complexity-review)           |
 | `phone-a-friend`                  | consensus `phone-a-friend`    | [standalone source](https://github.com/tkstang/skills/tree/main/skills/phone-a-friend)              |
+| `delegate`                        | consensus `delegate`          | [standalone source](https://github.com/tkstang/skills/tree/main/skills/delegate)                    |
 | `consensus-review`                | consensus `review`            | [standalone source](https://github.com/tkstang/skills/tree/main/skills/consensus-review)            |
 
 Qualified invocation syntax depends on the host. Claude Code and Codex include
 the plugin namespace; Cursor's local `--plugin-dir` load exposes the local name
-without a universal namespace promise. Standalone `phone-a-friend` uses the
-same name as its plugin-local form, but no plugin namespace.
+without a universal namespace promise. Standalone `phone-a-friend` and
+`delegate` use the same names as their plugin-local forms, but no plugin namespace.
 
 ## Updating an install
 
@@ -524,11 +526,11 @@ on the branch you expect to be installed.
 ## Standalone consensus recovery
 
 This shared-helper recovery applies to copied plugin wrappers that depend on
-the plugin tree. Standalone `phone-a-friend` bundles
-`<skill-dir>/scripts/consensus.mjs` and its advisory schema; standalone
-`consensus-review` has its own bundled review runtime. For either declared
-standalone skill, compare an incomplete installation with its generated
-`skills/<name>/` payload and update that skill. Neither uses the shared helper
+the plugin tree. Standalone `phone-a-friend` and `delegate` each bundle
+`<skill-dir>/scripts/consensus.mjs`; Phone also bundles its advisory schema.
+Standalone `consensus-review` has its own bundled review runtime. For these
+standalone skills, compare an incomplete installation with its generated
+`skills/<name>/` payload and update that skill. None uses the shared helper
 under `~/.consensus/`.
 
 For a copied plugin wrapper that looks for `~/.consensus/consensus.mjs`,

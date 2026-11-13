@@ -218,3 +218,11 @@ nor an advisory take should be described as a consensus-loop outcome. See
 [Phone-a-friend](../../user-guide/consensus/phone-a-friend.md) for their user
 contracts; see [Create](../../user-guide/consensus/create.md) and
 [Refine](../../user-guide/consensus/refine.md) for converging workflow usage.
+
+`delegate` is outside the consensus loop too. Each `consensus run --output text`
+turn has a single attempt, after which the host computes the changes from its
+own git baseline and verifies them. Ordinary verification failures within the
+original task trigger a host-authored follow-up in the same Claude or Codex
+session with the same permissions. The host accounts for and verifies each
+turn; the transport never retries a write turn. See
+[Delegate](../../user-guide/consensus/delegate.md).
