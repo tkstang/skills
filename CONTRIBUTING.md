@@ -36,6 +36,9 @@ layouts and provider adapters.
 
 ## Verification
 
+Use current Node 22 LTS or newer for development and tests. The native TypeScript
+selector tests need built-in type stripping; the shipped consumer floor stays 22.0.0.
+
 Run:
 
 ```bash
@@ -58,7 +61,7 @@ output before running the suite; build first for scoped CLI tests. Read
 Node 22.0.0 consumer floor is separate from Node 24 release tooling.
 
 The workflow step "Select archive and installed-consumer checks from PR inputs"
-sets `relevant=true|false` before toolchain setup. That output gates archive
+sets `relevant=true|false` before dependency installation. That output gates archive
 verification and the installed-consumer jobs. PR archive selection skips only root `README.md`, `CONTRIBUTING.md` and
 `AGENTS.md`, the separate `documentation/` app, and Markdown notes under
 `.oat/repo/`. Every other path runs the full archive and installed-consumer

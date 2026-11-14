@@ -9,6 +9,18 @@ This scope inherits the root `AGENTS.md`. Run commands below from the repository
 - Preserve staged validation and owned-output replacement when editing `build-generated.ts` or `lib/packaging.ts`. Change canonical owners and declarations, then regenerate outputs; do not edit committed `skills/` or `plugins/*/skills/` payloads directly.
 - Add focused tooling tests under `tests/tooling/` or the existing source owner. Verify the changed boundary with the relevant test and `pnpm run build:check` when distribution output is involved.
 
+## Session Toolkit CI selection
+
+- `select-session-toolkit-checks.ts` runs on a PR-only Node 26 setup after a full
+  checkout, before dependency installation. Keep it dependency-free and erasable;
+  `pnpm run type-check` checks its types separately.
+- Preserve exact SHA validation, merge-base comparison and NUL-delimited paths
+  covering both sides of renames. Unknown paths run full checks; failures write
+  no output. Non-PR events emit `relevant=true` without the helper so historical
+  tags remain retryable.
+- Run `pnpm exec vitest run tests/tooling/session-toolkit-selection.test.ts`.
+  This helper requires no skill/plugin version bump.
+
 ## Session Toolkit release tooling
 
 - `session-toolkit-package.ts` owns archive inventory/dependency inspection and

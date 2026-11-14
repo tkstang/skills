@@ -76,6 +76,32 @@ Always pass an explicit resolvable base to the validation command. Missing or
 shallow history fails closed instead of fetching or silently skipping the
 comparison.
 
+## Session Toolkit CI selection
+
+The archive job in `.github/workflows/session-toolkit.yml` runs
+`scripts/select-session-toolkit-checks.ts` after its full checkout and an explicit
+PR-only Node 26 setup. The helper uses native TypeScript and Node standard library APIs,
+so selection needs no dependency installation. `pnpm run type-check` checks it
+separately; native execution does not type-check. The archive verification runtime
+and installed-consumer minimum remain separate workflow settings.
+
+For PRs, the selector validates exact base/head commit SHAs and compares the
+merge-base with the PR head. NUL-delimited paths preserve unusual filenames;
+rename detection is disabled so both old and new paths are classified. Only
+`README.md`, `CONTRIBUTING.md`, `AGENTS.md`, `documentation/` and Markdown files
+under `.oat/repo/` can skip archive and installed-consumer checks. Unknown paths
+run them. Invalid revisions or failed Git operations fail selection without
+writing a skip result. Main pushes, package tags and manual retries run full
+proof regardless of paths. A short workflow bridge emits that result without
+invoking the helper for non-PR events, so manual retries can check out historical
+release tags that predate this helper.
+
+Run the focused CLI behavior tests with:
+
+```bash
+pnpm run test:vitest tests/tooling/session-toolkit-selection.test.ts
+```
+
 ## Worktrees
 
 After `git worktree add`, run `pnpm run worktree:init` in the new worktree to copy
