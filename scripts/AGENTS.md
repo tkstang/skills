@@ -11,18 +11,15 @@ This scope inherits the root `AGENTS.md`. Run commands below from the repository
 
 ## Session Toolkit CI selection
 
-- `select-session-toolkit-checks.ts` is the archive/installed-consumer selector.
-  The workflow checks out its explicit event revision with full history, then
-  sets up Node 26 for PRs before invoking it directly. It must remain dependency-free
-  and use erasable TypeScript; dependency installation is conditional on its
-  result. Repository `type-check` checks this script separately from execution.
-- Preserve exact PR SHA validation, merge-base comparison, NUL-delimited paths
-  and rename classification on both sides. Git/input failures fail the job
-  without writing an output; unknown paths run full proof. The thin workflow
-  bridge emits `relevant=true` for non-PR events without invoking the helper,
-  preserving retries from historical tags that do not contain this script.
-- Keep selector behavior tests in `tests/tooling/`. This developer helper is not
-  a generated installation unit and does not require skill/plugin version bumps.
+- `select-session-toolkit-checks.ts` runs on a PR-only Node 26 setup after a full
+  checkout, before dependency installation. Keep it dependency-free and erasable;
+  `pnpm run type-check` checks its types separately.
+- Preserve exact SHA validation, merge-base comparison and NUL-delimited paths
+  covering both sides of renames. Unknown paths run full checks; failures write
+  no output. Non-PR events emit `relevant=true` without the helper so historical
+  tags remain retryable.
+- Run `pnpm exec vitest run tests/tooling/session-toolkit-selection.test.ts`.
+  This helper requires no skill/plugin version bump.
 
 ## Session Toolkit release tooling
 
