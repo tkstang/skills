@@ -53,7 +53,8 @@
   [author-skill](src/skills/author-skill/SKILL.md). It is the canonical authoring
   guide; this repository's source, build, version, and verification conventions
   below supply its repository-specific requirements.
-- Use Node >=22 for runtime and test scripts.
+- Shipped runtime supports Node >=22. Use current Node 22 LTS or newer for
+  development/tests; the selector tests need native TypeScript support.
 - Keep shipped runtime plugin code dependency-free and use Node standard library APIs. Bundled skills/plugins run with no dependency install step; provider CLI subprocesses are their external execution boundary. The instruction-only `seshtk-cli` skill uses the separately installed `@tkstang/session-toolkit` CLI for execution and must check that prerequisite before use; it does not bundle or automatically install it. **Developer tooling** (git hooks, commit linting, future formatters) may take dependencies.
 - Developer dependencies use **pnpm** (`packageManager` is pinned in `package.json`; `pnpm-lock.yaml` is committed). Install with `pnpm install`; CI runs `pnpm install --frozen-lockfile`. Never add runtime dependencies to shipped skills.
 - Do not document provider support, marketplace availability, or skills.sh discovery as complete until the release checklist verifies the live provider path.
