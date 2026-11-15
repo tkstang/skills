@@ -16,25 +16,27 @@ The standalone skill is `consensus-review`; the Consensus plugin-local skill is
 
 ## Choose exactly one scope
 
-The v1 release supports exactly three selectors:
+Review supports exactly four selectors:
 
 1. **Branch diff** — `base_branch=<ref>` captures tracked changes from the
    merge base through the current tracked worktree, including staged and
    unstaged changes. Untracked files are not implicit.
-2. **Selected files** — `--files <paths...>` captures the current bytes of the
+2. **Committed range** — `range=<base>..<head>` compares two resolved commit
+   trees directly, excluding staged, unstaged, and untracked changes.
+3. **Selected files** — `--files <paths...>` captures the current bytes of the
    named repository files, including explicitly named untracked files.
-3. **Document or plan** — `--document <path>` captures one bounded repository
+4. **Document or plan** — `--document <path>` captures one bounded repository
    or external text document. Materialized conversation context uses this
    selector too.
 
 When no scope was supplied in conversation, the host agent presents those
-three choices, collects the base ref or paths, and waits. It does not guess or
+four choices, collects the refs or paths, and waits. It does not guess or
 dispatch after cancellation. An unambiguous supplied scope needs no repeat
 question. The executable itself never prompts or reads a menu from stdin:
 missing scope exits 2, lists the options, and invokes no provider.
 
-Staged-only, unstaged-only, and committed-range selectors are deliberately
-deferred; the CLI rejects them instead of approximating them.
+Staged-only and unstaged-only selectors are not supported. Both range endpoints
+are required; triple-dot ranges are rejected.
 
 ## Run a review
 
@@ -42,6 +44,7 @@ From either installed skill directory:
 
 ```bash
 node ./scripts/review.mjs base_branch=origin/main --host codex
+node ./scripts/review.mjs range=origin/main..HEAD --host codex
 node ./scripts/review.mjs --files src/example.ts docs/example.md --host codex
 node ./scripts/review.mjs --document docs/design.md --host codex
 ```
@@ -100,21 +103,30 @@ still validates every item of an otherwise-valid reply before truncating present
 Review checks these limits before dispatch unless noted. `review.mjs --help`
 prints the same values.
 
-| Limit                 | Value                                                                                                                                                                                                                            | When exceeded                                                                                                                                  |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Changed files         | 100. A rename counts once; both paths and both versions stay in the evidence.                                                                                                                                                    | `scope_too_large` with the count, the five largest directories, and the workaround.                                                            |
-| Textual evidence      | 8 MiB, charged per path as the larger of its live and base versions. Retained unencoded text can reach 16 MiB; JSON escaping can make `evidence.json` larger.                                                                    | `scope_too_large` with the total and the five largest paths.                                                                                   |
-| One file or base blob | 8 MiB for text. A larger binary is skipped by hash instead.                                                                                                                                                                      | `scope_too_large` naming the path. A base blob that cannot be read is a scope error, never a recorded deletion.                                |
-| Binary files          | A file with a NUL byte; over 8 MiB, only the first 8000 bytes are checked. Skipped at any size, listed under limitations, and drift-checked by size and SHA-256.                                                                 | A scope with no textual change fails with `binary_scope_not_supported`.                                                                        |
-| Assembled prompt      | 64 KiB. The prompt carries the evidence path, the path count, and at most 20 paths; `evidence.json` holds the full manifest. Requests over 32 KiB are passed by file.                                                            | `review_prompt_too_large` naming the largest contributor.                                                                                      |
-| Provider output       | `--max-output-bytes`, an integer from 65,536 through 67,108,864, default 10 MiB. Combined stdout and stderr are counted during the run.                                                                                          | The provider is stopped and the run is incomplete; up to 2 MiB per captured stream is saved, subject to the combined transport cap.            |
-| Reply presentation    | 100 findings, 100 checks, 50 questions, 50 limitations, 200 coverage and inspected-context entries; the summary and finding text at 8192 characters. The reviewer's schema omits these caps, so the full reply reaches the host. | Cut after validation, most severe findings and failed checks first; the report records `truncated: true` and the omitted count per collection. |
+| Limit                | Value                                                                                                                                                                                                                            | When exceeded                                                                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Changed files        | 100. A rename counts once; both paths and both versions stay in the evidence.                                                                                                                                                    | `scope_too_large` with the count, the five largest directories, and the workaround.                                                            |
+| Textual evidence     | 8 MiB, charged per path as the larger of its target and base versions. Retained unencoded text can reach 16 MiB; JSON escaping can make `evidence.json` larger.                                                                  | `scope_too_large` with the total and the five largest paths.                                                                                   |
+| One file or Git blob | 8 MiB for text. A larger binary is skipped by hash instead.                                                                                                                                                                      | `scope_too_large` naming the path. A base blob that cannot be read is a scope error, never a recorded deletion.                                |
+| Binary files         | A file with a NUL byte; over 8 MiB, only the first 8000 bytes are checked. Skipped at any size, listed under limitations, and drift-checked by size and SHA-256.                                                                 | A scope with no textual change fails with `binary_scope_not_supported`.                                                                        |
+| Assembled prompt     | 64 KiB. The prompt carries the evidence path, the path count, and at most 20 paths; `evidence.json` holds the full manifest. Requests over 32 KiB are passed by file.                                                            | `review_prompt_too_large` naming the largest contributor.                                                                                      |
+| Provider output      | `--max-output-bytes`, an integer from 65,536 through 67,108,864, default 10 MiB. Combined stdout and stderr are counted during the run.                                                                                          | The provider is stopped and the run is incomplete; up to 2 MiB per captured stream is saved, subject to the combined transport cap.            |
+| Reply presentation   | 100 findings, 100 checks, 50 questions, 50 limitations, 200 coverage and inspected-context entries; the summary and finding text at 8192 characters. The reviewer's schema omits these caps, so the full reply reaches the host. | Cut after validation, most severe findings and failed checks first; the report records `truncated: true` and the omitted count per collection. |
 
 To stay inside the file and evidence limits, narrow the scope with `--files`,
 use a closer base, or pass `base_branch=<sha>`. When the SHA is an ancestor of
 `HEAD`, its merge base is that commit, so the review covers exactly the tracked
-changes from it through the current worktree. This is the range selector to use
-after a branch has merged a newer base.
+changes from it through the current worktree, including dirty changes.
+
+For a committed-only comparison after merging upstream, use an exact range such
+as `range=origin/develop..HEAD`. Resolve or fetch the intended upstream ref first.
+Review resolves both refs once and records their SHAs; `base` and `head` versions
+in `evidence.json` come from those commit trees. This is a tree comparison, with
+no implicit merge-base or first-parent filter. An older base intentionally
+includes intervening upstream changes. A historical target is allowed, while
+the current workspace HEAD, index, status, and selected live paths remain
+monitored for reviewer side effects. Selected current paths must still pass
+existing filesystem safety checks, even when they differ from captured commits.
 
 ### Verdict derivation and lost output
 
@@ -145,6 +157,27 @@ and effort. Invocation values replace project, user, and built-in lists as a
 whole. Automatic selection excludes the host and skips unsupported or unready
 candidates before dispatch; a pinned reviewer fails instead of falling back.
 There is no repair call or post-dispatch alternate provider.
+
+## Requested, passed, and reported identity
+
+Markdown displays the raw requested reviewer selection and the resolved model
+and effort passed to the provider. These settings remain separate from both the
+reviewer's self-reported identity and provider output evidence.
+
+The host-owned `result.json` uses schema `v2`: `reviewer.observed.models` is an
+array of exact provider-reported strings.
+An empty array means unobserved. Multiple model labels remain a set; the report
+does not select an arbitrary model as the identity of the whole run.
+
+Claude's result model-usage keys describe aggregate usage over the provider's
+reported scope. A reported label does not independently attest the backend
+behind an alias, router, or proxy. Effort remains unobserved without its own
+output evidence. Codex `exec --json` omits the human-mode model/effort header,
+so the wrapper does not parse that nonexistent header or promote requested
+settings into observations. The [Codex JSONL processor](https://github.com/openai/codex/blob/08a3b12b3298577534a28b62ed976acf8de66eda/codex-rs/exec/src/event_processor_with_jsonl_output.rs#L608)
+emits the thread ID from its configuration-summary path in version 0.167.2.
+Codex rollout `turn_context` records configuration, which is a different kind
+of evidence. No private transcript is searched to fill missing observations.
 
 ## State, retention, and detection limits
 

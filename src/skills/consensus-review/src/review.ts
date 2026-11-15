@@ -24,6 +24,7 @@ export { buildReviewPrompt, resolveReviewer } from './selection.js';
 const USAGE = `Usage: review <exactly one scope> --host <runtime> [options]
 
 Scopes (exactly one):
+  range=<base>..<head>    Review exactly two committed trees, excluding worktree/index changes
   base_branch=<ref>       Review tracked changes from the merge base through the current worktree
   --files <path...>       Review explicitly named repository files; named untracked files are allowed
   --document <path>       Review one repository or external document/plan
@@ -44,9 +45,9 @@ Options:
 
 Limits (checked before dispatch unless noted):
   100 changed files; a rename counts once, but both paths are kept.
-  8 MiB of textual evidence, charged per path as the larger of its live and
+  8 MiB of textual evidence, charged per path as the larger of its target and
     base versions; unencoded text can reach 16 MiB, plus JSON escaping. A text
-    file or base blob over 8 MiB is rejected.
+    file or endpoint blob over 8 MiB is rejected.
   Binary files of any size are skipped, listed under limitations, and
     drift-checked by hash; a scope with no textual change is rejected.
   64 KiB assembled prompt. The prompt lists at most 20 paths; evidence.json
@@ -56,9 +57,9 @@ Limits (checked before dispatch unless noted):
     host validates the whole reply, derives the verdict from every finding
     and check, then truncates the stored report and records what it omitted.
     Malformed replies stop after 100 validation errors and are rejected.
-Workarounds: narrow with --files, use a closer base, or pass
-  base_branch=<sha>: an ancestor commit of HEAD selects exactly the tracked
-  changes from that commit through the current worktree.
+Workarounds: narrow with --files, use a closer base, or use
+  range=<base>..<head> for committed-only evidence after merging upstream.
+  base_branch=<sha> includes tracked worktree changes from that ancestor.
 
 Exit 0: completed review or empty-scope no-op. Exit 1: incomplete, defective,
 or output failure. Exit 2: usage or pre-dispatch argument error.`;
@@ -302,7 +303,9 @@ export function renderReviewMarkdown(aggregate: ReviewAggregate): string {
     `**Verdict:** ${escapeMarkdown(aggregate.reply.verdict)}${aggregate.claimed_verdict === aggregate.reply.verdict ? '' : ` (reviewer claimed ${escapeMarkdown(aggregate.claimed_verdict)})`}`,
     `**Worktree:** ${inlineCode(aggregate.worktree_root)}`,
     `**Scope token:** ${inlineCode(aggregate.scope.token)}`,
-    `**Reviewer:** ${escapeMarkdown(aggregate.reviewer.observed.provider)} (model ${escapeMarkdown(aggregate.reviewer.observed.model ?? 'unobserved')}, effort ${escapeMarkdown(aggregate.reviewer.observed.effort ?? 'unobserved')})`,
+    `**Requested reviewer:** ${escapeMarkdown(aggregate.reviewer.requested.reviewer ?? 'automatic')} (model ${escapeMarkdown(aggregate.reviewer.requested.model ?? 'unspecified')}, effort ${escapeMarkdown(aggregate.reviewer.requested.effort ?? 'unspecified')})`,
+    `**Passed to provider:** ${escapeMarkdown(aggregate.reviewer.passed.provider)} (model ${escapeMarkdown(aggregate.reviewer.passed.model ?? 'unspecified')}, effort ${escapeMarkdown(aggregate.reviewer.passed.effort ?? 'unspecified')})`,
+    `**Reviewer:** ${escapeMarkdown(aggregate.reviewer.observed.provider)} (reported models ${aggregate.reviewer.observed.models.length ? aggregate.reviewer.observed.models.map(escapeMarkdown).join(', ') : 'unobserved'}, effort ${escapeMarkdown(aggregate.reviewer.observed.effort ?? 'unobserved')})`,
     `**Findings:** ${findings.critical.length} critical, ${findings.high.length} high, ${findings.medium.length} medium, ${findings.low.length} low${aggregate.truncation.omitted.findings > 0 ? ` shown; ${aggregate.truncation.omitted.findings} more omitted, lowest severity first` : ''}`,
     '',
     ...(aggregate.warnings.length > 0
@@ -327,6 +330,12 @@ export function renderReviewMarkdown(aggregate: ReviewAggregate): string {
     `- Requested paths: ${aggregate.scope.selectedPaths.length > 0 ? aggregate.scope.selectedPaths.map(inlineCode).join(', ') : 'none'}`,
     `- External documents: ${aggregate.scope.externalDocuments.length > 0 ? aggregate.scope.externalDocuments.map(inlineCode).join(', ') : 'none'}`,
     `- Captured evidence: ${aggregate.scope.evidenceBytes} bytes`,
+    ...(aggregate.scope.request.kind === 'range'
+      ? [
+          `- Resolved committed range: ${inlineCode(`${aggregate.scope.resolvedBaseRef}..${aggregate.scope.resolvedHeadRef}`)}`,
+          '- Staged, unstaged, and untracked content is excluded from the captured range evidence.',
+        ]
+      : []),
     `- Reviewer claim: ${escapeMarkdown(JSON.stringify(aggregate.reviewer.claimed))}`,
     `- Observed reviewer evidence: ${escapeMarkdown(aggregate.reviewer.observed.evidence)}`,
     `- Diversity: ${escapeMarkdown(aggregate.diversity.classification)} — ${escapeMarkdown(aggregate.diversity.evidence)}`,
@@ -408,6 +417,7 @@ async function parseReviewArgs(
   fileSystem: ReviewCliFileSystem,
 ): Promise<ParsedReviewArgs> {
   let baseRef: string | undefined;
+  let range: Extract<ReviewScopeRequest, { kind: 'range' }> | undefined;
   let files: string[] | undefined;
   let document: string | undefined;
   let host: KnownHostRuntime | undefined;
@@ -434,11 +444,35 @@ async function parseReviewArgs(
         throw new UsageError('scope_required', 'base_branch requires a ref');
       continue;
     }
+    if (argument.startsWith('range=')) {
+      if (range !== undefined)
+        throw new UsageError('selector_duplicate', 'range was repeated');
+      const value = argument.slice('range='.length);
+      const endpoints = value.split('..');
+      if (
+        value.includes('...') ||
+        endpoints.length !== 2 ||
+        endpoints.some(
+          (ref) => !ref || ref.startsWith('-') || /[\s\p{Cc}]/u.test(ref),
+        )
+      ) {
+        throw new UsageError(
+          'range_invalid',
+          'range requires two explicit commit refs: range=<base>..<head>',
+        );
+      }
+      range = { kind: 'range', baseRef: endpoints[0]!, headRef: endpoints[1]! };
+      continue;
+    }
     if (argument === '--files') {
       const values: string[] = [];
       while (argv[index + 1] && !argv[index + 1]!.startsWith('--')) {
         const candidate = argv[index + 1]!;
-        if (candidate.startsWith('base_branch=')) break;
+        if (
+          candidate.startsWith('base_branch=') ||
+          candidate.startsWith('range=')
+        )
+          break;
         values.push(candidate);
         index += 1;
       }
@@ -461,7 +495,7 @@ async function parseReviewArgs(
     if (['--staged', '--unstaged', '--commits', '--range'].includes(argument)) {
       throw new UsageError(
         'selector_deferred',
-        `${argument} is not supported; use base_branch=<ref>, --files, or --document`,
+        `${argument} is not supported; use base_branch=<ref>, range=<base>..<head>, --files, or --document`,
       );
     }
     const option = optionValue(argv, index, argument);
@@ -517,19 +551,20 @@ async function parseReviewArgs(
 
   const selectors = [
     baseRef !== undefined,
+    range !== undefined,
     files !== undefined,
     document !== undefined,
   ].filter(Boolean).length;
   if (selectors === 0) {
     throw new UsageError(
       'scope_required',
-      'Choose Branch diff, Selected files, or Document or plan before dispatch',
+      'Choose Branch diff, Committed range, Selected files, or Document or plan before dispatch',
     );
   }
   if (selectors !== 1) {
     throw new UsageError(
       'selector_conflict',
-      'Exactly one of base_branch=<ref>, --files, or --document is allowed',
+      'Exactly one of base_branch=<ref>, range=<base>..<head>, --files, or --document is allowed',
     );
   }
   if (!host) throw new UsageError('host_required', '--host is required');
@@ -554,11 +589,13 @@ async function parseReviewArgs(
   if (requestFile) {
     request = await readBoundedText(path.resolve(cwd, requestFile), fileSystem);
   }
-  const scope: ReviewScopeRequest = baseRef
-    ? { kind: 'base_branch', ref: baseRef }
-    : files
-      ? { kind: 'files', paths: files }
-      : { kind: 'document', path: document! };
+  const scope: ReviewScopeRequest =
+    range ??
+    (baseRef
+      ? { kind: 'base_branch', ref: baseRef }
+      : files
+        ? { kind: 'files', paths: files }
+        : { kind: 'document', path: document! });
   return {
     scope,
     host,
@@ -603,6 +640,8 @@ function optionValue(
 }
 
 function defaultRequest(scope: ReviewScopeRequest): string {
+  if (scope.kind === 'range')
+    return `Review the exact committed tree diff ${scope.baseRef}..${scope.headRef} for correctness, regressions, missing requirements, and verification gaps. Staged and unstaged worktree changes are outside the scope.`;
   if (scope.kind === 'base_branch') {
     return `Review the bounded branch diff against ${scope.ref} for correctness, regressions, missing requirements, and verification gaps.`;
   }
@@ -660,6 +699,7 @@ function usageOutcome(error: UsageError, json: boolean): ReviewCliOutcome {
     invocation_count: 0,
     supported_scopes: [
       'base_branch=<ref>',
+      'range=<base>..<head>',
       '--files <paths...>',
       '--document <path>',
     ],
@@ -908,6 +948,7 @@ function renderChecks(checks: ReviewAggregate['reply']['checks']): string[] {
 
 function scopeDescription(aggregate: ReviewAggregate): string {
   const scope = aggregate.scope.request;
+  if (scope.kind === 'range') return `range=${scope.baseRef}..${scope.headRef}`;
   if (scope.kind === 'base_branch') return `base_branch=${scope.ref}`;
   if (scope.kind === 'files') return `files=${scope.paths.join(',')}`;
   return `document=${scope.path}`;

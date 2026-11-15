@@ -10,11 +10,11 @@ const fixtureRoot = new URL(
 
 const canonicalFixtureHashes = {
   'clean-review.md':
-    '993fa5f02a283d74f73a17ce48c3636febad61695a8833791b966520e7eabfe9',
+    '84dd1ad054650a0e0ac37066a54bb36fc15960f0a6266601990583c62bcc266d',
   'diagnostic.json':
     'fd63fabd0d2912811b8ae4c1e7752510c2214d4a16def988d626ef28f12009cf',
   'findings-review.md':
-    'a118afba0cebcecbe32f40a2c728bf1c550baf1186954c393fe97b4e0d1d2c3c',
+    'c1a522a0972122eebfb247441a6668efb1ec4451e736e26b102d8e3c48b43e82',
 } as const;
 
 async function fixtureText(

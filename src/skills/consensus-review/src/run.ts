@@ -384,7 +384,7 @@ export type ExecuteReviewResult =
     };
 
 export interface ReviewAggregate {
-  schema_version: 'v1';
+  schema_version: 'v2';
   run_id: string;
   status: 'complete';
   worktree_root: string;
@@ -407,7 +407,8 @@ export interface ReviewAggregate {
     skipped: ResolvedReviewer['skipped'];
     observed: {
       provider: string;
-      model: string | null;
+      // Exact provider-reported strings, never inferred from selection or peer text.
+      models: string[];
       effort: string | null;
       evidence: string;
     };
@@ -730,7 +731,7 @@ export async function executeBoundedReview(
   }
 
   const aggregate: ReviewAggregate = {
-    schema_version: 'v1',
+    schema_version: 'v2',
     run_id: runState.runId,
     status: 'complete',
     worktree_root: scope.canonicalWorktree,
@@ -753,10 +754,13 @@ export async function executeBoundedReview(
       skipped: selected.skipped,
       observed: {
         provider: String(transportResult.envelope.provider),
-        model: null,
+        models: [
+          ...(transportResult.envelope.continuation?.observed_models ?? []),
+        ],
         effort: null,
-        evidence:
-          'The provider envelope identifies the provider only; model and effort were not independently observed.',
+        evidence: transportResult.envelope.continuation?.observed_models?.length
+          ? 'Provider continuation.observed_models contains result-aggregate model metadata over the provider-reported scope. It does not attest a backend, one model for every response, or reasoning effort.'
+          : 'The provider envelope identifies the provider only; model and effort were not independently observed. Requested/passed settings and reviewer claims are separate.',
       },
       claimed: validation.value.reviewer_identity,
     },

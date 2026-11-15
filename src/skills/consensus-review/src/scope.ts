@@ -19,7 +19,7 @@ const execFileAsync = promisify(execFile);
 export const REVIEW_SCOPE_LIMITS = {
   // A rename or copy counts once.
   maxSelectedFiles: 100,
-  // Charged per path as max(live, base) textual bytes, so evidence.json can
+  // Charged per path as max(target, base) textual bytes, so evidence.json can
   // retain up to twice this when both versions of every path are large.
   maxEvidenceBytes: 8 * 1024 * 1024,
   // One git call returns at most one blob, so it shares the evidence bound
@@ -28,15 +28,16 @@ export const REVIEW_SCOPE_LIMITS = {
 } as const;
 
 const REVIEW_SCOPE_WORKAROUND =
-  'Narrow the scope with --files <paths...>, use a closer base_branch=<ref>, or pass base_branch=<sha> naming the commit your branch actually starts from.';
+  'Narrow the scope with --files <paths...>, use a closer base_branch=<ref>, or use range=<base>..<head> for committed-only evidence. After merging upstream, choose its intended current tip as the range base; an older base includes intervening upstream changes.';
 
 export type ReviewScopeRequest =
   | { kind: 'base_branch'; ref: string }
+  | { kind: 'range'; baseRef: string; headRef: string }
   | { kind: 'files'; paths: string[] }
   | { kind: 'document'; path: string };
 
 export interface CapturedFileVersion {
-  source: 'live' | 'base';
+  source: 'live' | 'base' | 'head';
   path: string;
   // `binary_skipped` keeps the size and hash for drift checks but no text.
   kind: 'file' | 'symlink' | 'deleted' | 'binary_skipped';
@@ -53,13 +54,14 @@ export interface CapturedReviewScope {
   canonicalWorktree: string;
   head: string | null;
   resolvedBaseRef?: string;
+  resolvedHeadRef?: string;
   mergeBase?: string;
   selectedPaths: string[];
   externalDocuments: string[];
   versions: CapturedFileVersion[];
-  // Textual bytes actually retained in the evidence (live plus base).
+  // Textual bytes actually retained in the evidence (target plus base).
   evidenceBytes: number;
-  // Bytes charged against maxEvidenceBytes: max(live, base) per path.
+  // Bytes charged against maxEvidenceBytes: max(target, base) per path.
   chargedBytes: number;
   captureState: ScopeStateSnapshot;
 }
@@ -103,12 +105,57 @@ export async function captureReviewScope(input: {
   const canonicalWorktree = await canonicalGitWorktree(input.cwd);
   const head = await gitOptionalHead(canonicalWorktree);
   let resolvedBaseRef: string | undefined;
+  let resolvedHeadRef: string | undefined;
   let mergeBase: string | undefined;
   let selectedPaths: string[] = [];
   let externalDocuments: string[] = [];
   const versions: CapturedFileVersion[] = [];
+  let rangeCaptureState: ScopeStateSnapshot | undefined;
 
-  if (input.request.kind === 'base_branch') {
+  if (input.request.kind === 'range') {
+    resolvedBaseRef = await resolveCommitRef(
+      canonicalWorktree,
+      input.request.baseRef,
+      'base',
+    );
+    resolvedHeadRef = await resolveCommitRef(
+      canonicalWorktree,
+      input.request.headRef,
+      'head',
+    );
+    const changed = await changedTrackedPaths(
+      canonicalWorktree,
+      resolvedBaseRef,
+      resolvedHeadRef,
+    );
+    selectedPaths = changed.paths;
+    enforceFileCount(selectedPaths, changed.countedFiles);
+    // Endpoint bytes are immutable evidence. Current selected paths are read
+    // separately for filesystem safety and before/after workspace drift checks.
+    rangeCaptureState = await captureScopeState({
+      canonicalWorktree,
+      selectedPaths,
+      externalDocuments,
+    });
+    for (const relativePath of selectedPaths) {
+      versions.push(
+        await captureGitVersion(
+          canonicalWorktree,
+          resolvedHeadRef,
+          relativePath,
+          'head',
+        ),
+      );
+      versions.push(
+        await captureGitVersion(
+          canonicalWorktree,
+          resolvedBaseRef,
+          relativePath,
+        ),
+      );
+      enforceEvidenceBudget(versions, 'partial');
+    }
+  } else if (input.request.kind === 'base_branch') {
     if (head === null) {
       throw new Error('base_scope_requires_head');
     }
@@ -182,6 +229,7 @@ export async function captureReviewScope(input: {
     canonicalWorktree,
     head,
     ...(resolvedBaseRef ? { resolvedBaseRef } : {}),
+    ...(resolvedHeadRef ? { resolvedHeadRef } : {}),
     ...(mergeBase ? { mergeBase } : {}),
     selectedPaths,
     externalDocuments,
@@ -191,7 +239,10 @@ export async function captureReviewScope(input: {
   };
   const captureState = await captureScopeState(scopeWithoutState);
   const captureComparison = compareCapturedScopeToState(
-    scopeWithoutState,
+    {
+      ...scopeWithoutState,
+      ...(rangeCaptureState ? { captureState: rangeCaptureState } : {}),
+    },
     captureState,
   );
   if (!captureComparison.stable) {
@@ -304,9 +355,19 @@ export function compareCapturedScopeToState(
     | 'selectedPaths'
     | 'externalDocuments'
     | 'versions'
-  >,
+    | 'request'
+  > &
+    Partial<Pick<CapturedReviewScope, 'captureState'>>,
   state: ScopeStateSnapshot,
 ): ScopeComparison {
+  if (scope.request.kind === 'range') {
+    // Resolved endpoint blobs need not match the checked-out or dirty files.
+    // Compare the live snapshots to each other, retaining the original HEAD.
+    return compareScopeState(
+      { ...(scope.captureState ?? state), head: scope.head },
+      state,
+    );
+  }
   const expected: ScopeStateSnapshot = {
     head: scope.head,
     index: state.index,
@@ -399,7 +460,8 @@ async function canonicalGitWorktree(cwd: string): Promise<string> {
 
 async function changedTrackedPaths(
   cwd: string,
-  mergeBase: string,
+  baseRevision: string,
+  headRevision?: string,
 ): Promise<{ paths: string[]; countedFiles: number }> {
   const output = await gitBytes(cwd, [
     'diff',
@@ -407,7 +469,8 @@ async function changedTrackedPaths(
     '-z',
     '--find-renames',
     '--no-ext-diff',
-    mergeBase,
+    baseRevision,
+    ...(headRevision ? [headRevision] : []),
     '--',
   ]);
   const fields = splitNul(output);
@@ -505,6 +568,7 @@ async function captureGitVersion(
   root: string,
   revision: string,
   relativePath: string,
+  source: 'base' | 'head' = 'base',
 ): Promise<CapturedFileVersion> {
   const normalized = normalizeRepositoryPath(relativePath);
   const tree = await gitBytes(root, [
@@ -514,7 +578,7 @@ async function captureGitVersion(
     '--',
     normalized,
   ]);
-  if (tree.length === 0) return deletedVersion(normalized, 'base');
+  if (tree.length === 0) return deletedVersion(normalized, source);
   const header = tree.toString('utf8').split('\t', 1)[0];
   const [mode, kind, blobId] = header.split(' ');
   if (
@@ -524,39 +588,43 @@ async function captureGitVersion(
   ) {
     throw new Error(`unsupported_git_entry: ${normalized}`);
   }
-  // Only an empty tree listing above means the path is absent at the base.
+  // Only an empty tree listing above means the path is absent at this endpoint.
   // A failed or oversized read is a scope error, never deletion evidence.
   const size = Number(
     await gitText(root, ['cat-file', '-s', blobId]).catch((error) => {
       throw new Error(
-        `scope_base_unreadable: ${normalized}: ${fsMessage(error)}`,
+        `scope_${source}_unreadable: ${normalized}: ${fsMessage(error)}`,
         { cause: error },
       );
     }),
   );
   if (!Number.isSafeInteger(size) || size < 0) {
-    throw new Error(`scope_base_unreadable: ${normalized}: invalid blob size`);
+    throw new Error(
+      `scope_${source}_unreadable: ${normalized}: invalid blob size`,
+    );
   }
   let bytes: Buffer | LargeBinary;
   if (size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-    bytes = await hashLargeGitBlob(root, blobId, normalized, size);
+    bytes = await hashLargeGitBlob(root, blobId, normalized, size, source);
   } else {
     try {
       bytes = await gitBytes(root, ['cat-file', 'blob', blobId]);
     } catch (error) {
       throw new Error(
-        `scope_base_unreadable: ${normalized}: ${fsMessage(error)}`,
+        `scope_${source}_unreadable: ${normalized}: ${fsMessage(error)}`,
         { cause: error },
       );
     }
     if (bytes.length !== size) {
-      throw new Error(`scope_base_unreadable: ${normalized}: short blob read`);
+      throw new Error(
+        `scope_${source}_unreadable: ${normalized}: short blob read`,
+      );
     }
   }
   const symlink = mode === '120000';
   return versionFromBytes(
     normalized,
-    'base',
+    source,
     symlink ? 0o120000 : Number.parseInt(mode, 8) & 0o777,
     bytes,
     true,
@@ -686,13 +754,14 @@ async function hashLargeBinary(
   return { size, sha256: hash.digest('hex') };
 }
 
-// Streams an oversized base blob through the same binary check and hash
+// Streams an oversized endpoint blob through the same binary check and hash
 // without holding it in memory.
 function hashLargeGitBlob(
   root: string,
   blobId: string,
   filePath: string,
   size: number,
+  source: 'base' | 'head',
 ): Promise<LargeBinary> {
   return new Promise((resolve, reject) => {
     const child = spawn('git', ['cat-file', 'blob', blobId], {
@@ -720,7 +789,7 @@ function hashLargeGitBlob(
     });
     child.on('error', (error) => {
       failure ??= new Error(
-        `scope_base_unreadable: ${filePath}: ${fsMessage(error)}`,
+        `scope_${source}_unreadable: ${filePath}: ${fsMessage(error)}`,
         { cause: error },
       );
     });
@@ -729,7 +798,7 @@ function hashLargeGitBlob(
       // short read is never mistaken for an oversized text file.
       if (!failure && (code !== 0 || received !== size)) {
         failure = new Error(
-          `scope_base_unreadable: ${filePath}: short blob read`,
+          `scope_${source}_unreadable: ${filePath}: short blob read`,
         );
       }
       if (!failure && !sniffed) failure = oversizedFile(filePath, size);
@@ -852,9 +921,24 @@ async function gitBytes(cwd: string, args: string[]): Promise<Buffer> {
   return result.stdout as Buffer;
 }
 
-function assertRef(ref: string): void {
+async function resolveCommitRef(
+  root: string,
+  ref: string,
+  source: 'base' | 'head',
+): Promise<string> {
+  assertRef(ref, source);
+  return await gitText(root, [
+    'rev-parse',
+    '--verify',
+    `${ref}^{commit}`,
+  ]).catch(() => {
+    throw new Error(`${source}_ref_invalid: could not resolve ${ref}`);
+  });
+}
+
+function assertRef(ref: string, source: 'base' | 'head' = 'base'): void {
   if (!ref.trim() || ref.startsWith('-') || ref.includes('\0')) {
-    throw new Error(`base_ref_invalid: ${ref}`);
+    throw new Error(`${source}_ref_invalid: ${ref}`);
   }
 }
 
@@ -926,7 +1010,7 @@ function enforceEvidenceBudget(
     throw new Error(
       `scope_too_large: selected textual evidence is ${
         extent === 'partial' ? 'at least ' : ''
-      }${chargedBytes} bytes, over the ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes}-byte limit (each path is charged the larger of its live and base versions). Largest${
+      }${chargedBytes} bytes, over the ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes}-byte limit (each path is charged the larger of its target and base versions). Largest${
         extent === 'partial' ? ' read so far' : ''
       }: ${largestOffenders(
         [...charges.entries()].map(([name, bytes]) => ({
@@ -960,8 +1044,8 @@ function chargedBytesByPath(
 }
 
 // Binary files are skipped individually, but the scope still needs a change
-// the reviewer can read: a textual live version, or a deleted path whose base
-// was textual. Base text whose live version is binary does not count.
+// the reviewer can read: a textual target version, or a deleted path whose base
+// was textual. Base text whose target version is binary does not count.
 function rejectBinaryOnlyScope(versions: CapturedFileVersion[]): void {
   const binaries = versions.filter(
     (version) => version.kind === 'binary_skipped',
@@ -969,10 +1053,10 @@ function rejectBinaryOnlyScope(versions: CapturedFileVersion[]): void {
   if (binaries.length === 0) return;
   const textual = (version: CapturedFileVersion) =>
     version.kind === 'file' || version.kind === 'symlink';
-  const deletedLive = new Set(
+  const deletedTarget = new Set(
     versions
       .filter(
-        (version) => version.source === 'live' && version.kind === 'deleted',
+        (version) => version.source !== 'base' && version.kind === 'deleted',
       )
       .map((version) => version.path),
   );
@@ -980,7 +1064,7 @@ function rejectBinaryOnlyScope(versions: CapturedFileVersion[]): void {
     versions.some(
       (version) =>
         textual(version) &&
-        (version.source === 'live' || deletedLive.has(version.path)),
+        (version.source !== 'base' || deletedTarget.has(version.path)),
     )
   ) {
     return;

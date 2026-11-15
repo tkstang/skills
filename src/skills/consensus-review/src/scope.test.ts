@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   captureReviewScope,
   captureScopeState,
+  compareCapturedScopeToState,
   compareScopeState,
   createReviewRunState,
   REVIEW_SCOPE_LIMITS,
@@ -30,6 +31,278 @@ afterEach(async () => {
 });
 
 describe('review scope capture', () => {
+  it('captures only committed endpoints with dirty staged, unstaged, and untracked bytes, while retaining live drift detection', async () => {
+    const fixture = await gitFixture();
+    await writeFile(
+      path.join(fixture.worktree, 'tracked.txt'),
+      'committed target\n',
+    );
+    git(fixture.worktree, ['add', 'tracked.txt']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'target']);
+    const target = git(fixture.worktree, ['rev-parse', 'HEAD']).trim();
+    await writeFile(
+      path.join(fixture.worktree, 'tracked.txt'),
+      'staged secret\n',
+    );
+    await writeFile(path.join(fixture.worktree, 'other.txt'), 'staged only\n');
+    git(fixture.worktree, ['add', 'tracked.txt', 'other.txt']);
+    await writeFile(
+      path.join(fixture.worktree, 'tracked.txt'),
+      'unstaged secret\n',
+    );
+    await writeFile(
+      path.join(fixture.worktree, 'unstaged.txt'),
+      'unstaged only\n',
+    );
+    await writeFile(
+      path.join(fixture.worktree, 'untracked.txt'),
+      'untracked secret\n',
+    );
+
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'range', baseRef: fixture.base, headRef: 'HEAD' },
+    });
+
+    expect(scope.resolvedBaseRef).toBe(fixture.base);
+    expect(scope.resolvedHeadRef).toBe(target);
+    expect(scope.mergeBase).toBeUndefined();
+    expect(scope.selectedPaths).toEqual(['tracked.txt']);
+    expect(
+      scope.versions.map(({ source, text }) => ({ source, text })),
+    ).toEqual([
+      { source: 'head', text: 'committed target\n' },
+      { source: 'base', text: 'tracked\n' },
+    ]);
+    expect(scope.captureState.selected[0].sha256).toBe(
+      createHash('sha256').update('unstaged secret\n').digest('hex'),
+    );
+    expect(compareCapturedScopeToState(scope, scope.captureState).stable).toBe(
+      true,
+    );
+    await writeFile(
+      path.join(fixture.worktree, 'tracked.txt'),
+      'different dirty bytes\n',
+    );
+    const after = await captureScopeState(scope);
+    expect(after.status).toBe(scope.captureState.status);
+    expect(compareScopeState(scope.captureState, after)).toMatchObject({
+      stable: false,
+      differences: ['selected path changed: worktree:tracked.txt'],
+    });
+    expect(compareCapturedScopeToState(scope, after).stable).toBe(false);
+  });
+
+  it('compares the supplied base tree after merging upstream instead of expanding to the merge base', async () => {
+    const fixture = await gitFixture();
+    git(fixture.worktree, ['branch', 'upstream']);
+    await writeFile(
+      path.join(fixture.worktree, 'tracked.txt'),
+      'branch delta\n',
+    );
+    git(fixture.worktree, ['add', 'tracked.txt']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'branch delta']);
+    const branch = git(fixture.worktree, ['branch', '--show-current']).trim();
+    git(fixture.worktree, ['checkout', '-q', 'upstream']);
+    await writeFile(
+      path.join(fixture.worktree, 'other.txt'),
+      'upstream delta\n',
+    );
+    git(fixture.worktree, ['add', 'other.txt']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'upstream delta']);
+    git(fixture.worktree, ['checkout', '-q', branch]);
+    git(fixture.worktree, [
+      'merge',
+      '-q',
+      '--no-ff',
+      'upstream',
+      '-m',
+      'merge upstream',
+    ]);
+    const mergedBase = git(fixture.worktree, ['rev-parse', 'upstream']).trim();
+
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'range', baseRef: 'upstream', headRef: 'HEAD' },
+    });
+    expect(scope.resolvedBaseRef).toBe(mergedBase);
+    expect(scope.selectedPaths).toEqual(['tracked.txt']);
+    expect(scope.versions.map((entry) => entry.text)).toEqual([
+      'branch delta\n',
+      'tracked\n',
+    ]);
+  });
+
+  it('captures a non-HEAD target with rename, deletion, and symlink endpoint evidence', async () => {
+    const fixture = await gitFixture();
+    git(fixture.worktree, ['mv', 'rename-old.txt', 'rename-new.txt']);
+    git(fixture.worktree, ['rm', '-q', 'delete.txt']);
+    await symlink('missing-target', path.join(fixture.worktree, 'link'));
+    git(fixture.worktree, ['add', 'link']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'target rename and deletion']);
+    const target = git(fixture.worktree, ['rev-parse', 'HEAD']).trim();
+    await writeFile(
+      path.join(fixture.worktree, 'later.txt'),
+      'outside range\n',
+    );
+    await writeFile(
+      path.join(fixture.worktree, 'rename-new.txt'),
+      'later bytes\n',
+    );
+    git(fixture.worktree, ['add', '.']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'later']);
+    const currentHead = git(fixture.worktree, ['rev-parse', 'HEAD']).trim();
+    const currentBranch = git(fixture.worktree, [
+      'branch',
+      '--show-current',
+    ]).trim();
+    git(fixture.worktree, [
+      'checkout',
+      '-q',
+      '-b',
+      'sibling-base',
+      fixture.base,
+    ]);
+    await writeFile(
+      path.join(fixture.worktree, 'other.txt'),
+      'sibling base bytes\n',
+    );
+    git(fixture.worktree, ['add', 'other.txt']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'sibling base']);
+    const siblingBase = git(fixture.worktree, ['rev-parse', 'HEAD']).trim();
+    git(fixture.worktree, ['checkout', '-q', currentBranch]);
+
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'range', baseRef: 'sibling-base', headRef: target },
+    });
+    expect(scope.head).toBe(currentHead);
+    expect(scope.resolvedBaseRef).toBe(siblingBase);
+    expect(scope.resolvedHeadRef).toBe(target);
+    expect(scope.selectedPaths).toEqual([
+      'delete.txt',
+      'link',
+      'other.txt',
+      'rename-new.txt',
+      'rename-old.txt',
+    ]);
+    expect(scope.versions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'delete.txt',
+          source: 'head',
+          kind: 'deleted',
+        }),
+        expect.objectContaining({
+          path: 'delete.txt',
+          source: 'base',
+          text: 'delete\n',
+        }),
+        expect.objectContaining({
+          path: 'rename-old.txt',
+          source: 'head',
+          kind: 'deleted',
+        }),
+        expect.objectContaining({
+          path: 'rename-new.txt',
+          source: 'head',
+          text: 'rename\n',
+        }),
+        expect.objectContaining({
+          path: 'other.txt',
+          source: 'base',
+          text: 'sibling base bytes\n',
+        }),
+        expect.objectContaining({
+          path: 'other.txt',
+          source: 'head',
+          text: 'other\n',
+        }),
+        expect.objectContaining({
+          path: 'link',
+          source: 'head',
+          kind: 'symlink',
+          mode: 0o120000,
+          text: 'missing-target',
+        }),
+      ]),
+    );
+    expect(scope.versions.every((entry) => entry.source !== 'live')).toBe(true);
+  });
+
+  it('rejects unsupported current directory shapes even when committed endpoints are regular files', async () => {
+    const fixture = await gitFixture();
+    await writeFile(path.join(fixture.worktree, 'tracked.txt'), 'target\n');
+    git(fixture.worktree, ['add', 'tracked.txt']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'target']);
+    await rm(path.join(fixture.worktree, 'tracked.txt'));
+    await mkdir(path.join(fixture.worktree, 'tracked.txt'));
+    await expect(
+      captureReviewScope({
+        cwd: fixture.worktree,
+        request: { kind: 'range', baseRef: fixture.base, headRef: 'HEAD' },
+      }),
+    ).rejects.toThrow('scope_path_not_regular: tracked.txt');
+  });
+
+  it.each([
+    { baseRef: 'missing-ref', headRef: 'HEAD', error: 'base_ref_invalid' },
+    { baseRef: 'HEAD', headRef: 'missing-ref', error: 'head_ref_invalid' },
+    { baseRef: 'HEAD', headRef: '--all', error: 'head_ref_invalid' },
+  ])(
+    'rejects invalid committed endpoints: $baseRef to $headRef',
+    async ({ baseRef, headRef, error }) => {
+      const fixture = await gitFixture();
+      await expect(
+        captureReviewScope({
+          cwd: fixture.worktree,
+          request: { kind: 'range', baseRef, headRef },
+        }),
+      ).rejects.toThrow(error);
+    },
+  );
+
+  it('uses target text to decide binary-only ranges, including textual deletions', async () => {
+    const fixture = await gitFixture();
+    await writeFile(
+      path.join(fixture.worktree, 'tracked.txt'),
+      Buffer.from([0, 1, 2]),
+    );
+    git(fixture.worktree, ['add', 'tracked.txt']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'binary target']);
+    await expect(
+      captureReviewScope({
+        cwd: fixture.worktree,
+        request: { kind: 'range', baseRef: fixture.base, headRef: 'HEAD' },
+      }),
+    ).rejects.toThrow('binary_scope_not_supported');
+    git(fixture.worktree, ['rm', '-q', 'delete.txt']);
+    git(fixture.worktree, ['commit', '-q', '-m', 'textual deletion']);
+    const scope = await captureReviewScope({
+      cwd: fixture.worktree,
+      request: { kind: 'range', baseRef: fixture.base, headRef: 'HEAD' },
+    });
+    expect(scope.versions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'tracked.txt',
+          source: 'head',
+          kind: 'binary_skipped',
+        }),
+        expect.objectContaining({
+          path: 'delete.txt',
+          source: 'head',
+          kind: 'deleted',
+        }),
+        expect.objectContaining({
+          path: 'delete.txt',
+          source: 'base',
+          text: 'delete\n',
+        }),
+      ]),
+    );
+  });
+
   it('captures committed, staged, unstaged, renamed, and deleted branch paths with separate base bytes', async () => {
     const fixture = await gitFixture();
     await writeFile(
@@ -384,7 +657,7 @@ describe('review scope limits', () => {
         request: { kind: 'files', paths },
       }),
     ).rejects.toThrow(
-      /scope_too_large: 101 changed files selected, over the 100-file limit.*a\/ \(60 files\), b\/ \(41 files\).*--files.*base_branch=<sha>/u,
+      /scope_too_large: 101 changed files selected, over the 100-file limit.*a\/ \(60 files\), b\/ \(41 files\).*--files.*range=<base>\.\.<head>.*After merging upstream/u,
     );
   });
 
