@@ -238,6 +238,7 @@ export const buildCursorInvocation: ProviderInvocationBuilder = (
           'enabled',
         ]
       : ['--print', '--output-format', 'json', '--force'];
+  if (request.model) argv.push('--model', request.model);
 
   return invocation({
     executable: options.executable ?? 'cursor-agent',

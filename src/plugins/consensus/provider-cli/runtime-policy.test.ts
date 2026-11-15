@@ -42,18 +42,18 @@ describe('provider runtime policy validation', () => {
     expect(result).toEqual({ ok: true });
   });
 
-  it('rejects unsupported model, effort, and runtime policy options', () => {
+  it('accepts Cursor model selection', () => {
     expect(
       validateProviderOptions(
         request({ provider: 'cursor', model: 'cursor-model' }),
         capabilities('cursor'),
       ),
     ).toMatchObject({
-      ok: false,
-      code: 'PROVIDER_UNSUPPORTED_OPTION',
-      option: 'model',
+      ok: true,
     });
+  });
 
+  it('rejects unsupported effort and runtime policy options', () => {
     expect(
       validateProviderOptions(
         request({ provider: 'cursor', effort: 'high' }),

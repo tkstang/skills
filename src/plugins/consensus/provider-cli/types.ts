@@ -256,6 +256,7 @@ export const PROVIDER_ERROR_CODES = [
   'PROVIDER_UNSUPPORTED',
   'PROVIDER_UNSUPPORTED_OPTION',
   'PROVIDER_EXIT',
+  'PROVIDER_LIMIT_REACHED',
   'PROVIDER_INVALID_JSON',
   'PROVIDER_SCHEMA_VALIDATION',
   'PROVIDER_EMPTY_OUTPUT',
@@ -271,7 +272,7 @@ export const PROVIDER_ERROR_CODES = [
 
 export type ProviderErrorCode = (typeof PROVIDER_ERROR_CODES)[number];
 
-// `not_started`: the provider never received the turn. `completed`: the
+// `not_started`: the provider rejected the turn before model work. `completed`: the
 // provider process finished the turn (its output may still be unusable).
 // `unknown`: the process started but ended ambiguously (timeout, signal,
 // nonzero exit); do not resubmit before checking whether the turn landed.

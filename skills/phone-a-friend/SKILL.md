@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: ["<question or topic>"] [--peer <provider-id>]
 metadata:
   author: Thomas Stang
-  version: "0.3.3"
+  version: '0.3.4'
 ---
 
 # Phone a Friend

@@ -173,17 +173,21 @@ expecting an older install to ignore it.
 These are the capabilities of this plugin's adapters, not a claim about every
 feature of the upstream provider CLI:
 
-| Provider | Model forwarding            | Effort forwarding                   |
-| -------- | --------------------------- | ----------------------------------- |
-| `claude` | `--model <value>`           | `--effort <value>`                  |
-| `codex`  | `--model <value>`           | `-c model_reasoning_effort=<value>` |
-| `cursor` | Unsupported by this adapter | Unsupported by this adapter         |
+| Provider | Model forwarding  | Effort forwarding                   |
+| -------- | ----------------- | ----------------------------------- |
+| `claude` | `--model <value>` | `--effort <value>`                  |
+| `codex`  | `--model <value>` | `-c model_reasoning_effort=<value>` |
+| `cursor` | `--model <value>` | Unsupported by this adapter         |
 
 When a workflow forwards them, omitted fields leave the corresponding provider
 options unset. The provider CLI supplies its own defaults. Model availability
 and allowed effort values depend on the provider, selected model, and account;
-successful config parsing does not prove those values are usable. Passing either
-option to this plugin's Cursor adapter yields `PROVIDER_UNSUPPORTED_OPTION`.
+successful config parsing does not prove those values are usable. Passing an
+effort option to this plugin's Cursor adapter yields `PROVIDER_UNSUPPORTED_OPTION`.
+Cursor model IDs come from `cursor-agent --list-models`, for example `composer-2.5`.
+Both the default and read-only profiles forward the selected model. The continuation
+receipt records it as `requested_model`; Cursor's inspected JSON result does not
+report the model actually used, so `observed_models` remains absent.
 
 A peer whose configured model or effort the selected provider cannot honor
 fails with `PROVIDER_UNSUPPORTED_OPTION` rather than running with the option

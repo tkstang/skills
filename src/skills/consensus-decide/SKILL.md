@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: --options <options.md>
 metadata:
   author: Thomas Stang
-  version: '0.1.24'
+  version: '0.1.25'
 ---
 
 # Decide

@@ -22,6 +22,10 @@ export interface ProviderAdapter {
   executable: string;
   probe: ProviderProbeDefinition;
   classifyRunFailure: ProviderRunFailureClassifier;
+  // Provider-owned error output can be returned even with exit status zero.
+  classifyReportedFailure?: (
+    stdout: string,
+  ) => ProviderRunFailureClassification | undefined;
   buildInvocation: ProviderInvocationBuilder;
   extractSession: ProviderSessionExtractor;
   capabilities: ProviderCapabilities;
@@ -67,6 +71,7 @@ export interface ProviderRunFailureClassification {
   retryable: boolean;
   terminal_reason: string;
   exit_classification: ProviderExitClassification;
+  turn?: 'not_started' | 'unknown';
 }
 
 export type ProviderRunFailureClassifier = (
@@ -106,8 +111,6 @@ const CODEX_SESSION_NOT_FOUND_PATTERNS = [
 ] as const;
 
 const COMMON_TRANSIENT_EXIT_PATTERNS = [
-  /\b429\b/i,
-  /rate limit/i,
   /temporar(?:y|ily) unavailable/i,
   /try again/i,
   /econnreset/i,
@@ -124,7 +127,6 @@ const CLAUDE_TRANSIENT_EXIT_PATTERNS = [
 const CODEX_TRANSIENT_EXIT_PATTERNS = [
   // Evidence: installed codex-cli 0.142.5 binary strings include these
   // rate-limit and overload messages in provider-facing error paths.
-  /rate limiter has requested a/i,
   /failed to fetch codex rate limits/i,
   /unknown rate limit reached type/i,
   /dropping overload response for connection/i,
@@ -144,6 +146,7 @@ const CURSOR_TRANSIENT_EXIT_PATTERNS = [
 export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   {
     id: 'claude',
+    classifyReportedFailure: classifyClaudeLimit,
     display_name: 'Claude',
     executable: 'claude',
     buildInvocation: buildClaudeInvocation,
@@ -208,6 +211,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   },
   {
     id: 'codex',
+    classifyReportedFailure: classifyCodexLimit,
     display_name: 'Codex',
     executable: 'codex',
     buildInvocation: buildCodexInvocation,
@@ -314,7 +318,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       schema_strategies: ['prompt_only', 'submit_tool_candidate', 'text'],
       output_modes: ['stdout_json'],
       options: {
-        model: false,
+        model: true,
         effort: null,
         runtime_policy: {
           permission_modes: ['non-interactive', 'read-only'],
@@ -452,6 +456,19 @@ function defaultRunFailureClassifier(
       };
     }
 
+    // Provider diagnostics, never model-authored stdout. A 429 or an explicit
+    // rate-limit rejection is terminal within this run, regardless of retry budget.
+    if (
+      /\b429\b|\brate limit (?:exceeded|reached)\b|rate limiter has requested a/i.test(
+        failure.stderr,
+      )
+    ) {
+      return limitFailure(
+        firstNonEmptyLine(failure.stderr) ?? failure.message,
+        'unknown',
+      );
+    }
+
     if (matchesAny(output, patterns.transient_exit_patterns)) {
       return {
         code: 'PROVIDER_EXIT',
@@ -470,6 +487,94 @@ function defaultRunFailureClassifier(
       exit_classification: 'unknown',
     };
   };
+}
+
+// Evidence: captured Claude Code weekly-limit result, 2026-11-14. Inspect
+// metadata only: a successful model reply quoting a limit is not an API error.
+function classifyClaudeLimit(
+  stdout: string,
+): ProviderRunFailureClassification | undefined {
+  const result = parseJsonRecord(stdout);
+  if (!result || result.type !== 'result' || result.is_error !== true)
+    return undefined;
+  if (
+    result.api_error_status !== 429 &&
+    result.api_error !== 'usage_limit_reached'
+  )
+    return undefined;
+  const usage = isRecord(result.usage) ? result.usage : undefined;
+  // The aggregate counters and first-turn marker establish that no earlier
+  // model/tool work preceded this rejection. Missing counters prove nothing.
+  const noWork =
+    result.num_turns === 1 &&
+    usage?.input_tokens === 0 &&
+    usage.output_tokens === 0 &&
+    (!isRecord(result.modelUsage) ||
+      Object.keys(result.modelUsage).length === 0);
+  return limitFailure(
+    typeof result.result === 'string' && result.result.trim()
+      ? result.result
+      : 'Provider usage or rate limit reached.',
+    noWork ? 'not_started' : 'unknown',
+  );
+}
+
+// Evidence: codex-cli 0.167.2 provider error strings, inspected 2026-11-14.
+// exec --json emits provider failures as error / turn.failed events. Never
+// match item.completed agent_message text or assume an internal error enum
+// survives serialization. These events do not prove no earlier work happened.
+function classifyCodexLimit(
+  stdout: string,
+): ProviderRunFailureClassification | undefined {
+  let failure: ProviderRunFailureClassification | undefined;
+  for (const line of stdout.split(/\r?\n/)) {
+    const event = parseJsonRecord(line);
+    if (!event) continue;
+    // A provider can recover internally after an error event. Its later
+    // terminal event decides whether that error is still a failure.
+    if (event.type === 'turn.completed' || event.type === 'turn.failed')
+      failure = undefined;
+    const message =
+      event.type === 'turn.failed' && isRecord(event.error)
+        ? event.error.message
+        : event.type === 'error'
+          ? event.message
+          : undefined;
+    if (typeof message !== 'string') continue;
+    if (
+      /^You've hit your usage limit[. ]/.test(message) ||
+      message.startsWith(
+        'Quota exceeded. Check your plan and billing details.',
+      ) ||
+      message.startsWith('rate limit exceeded: ')
+    ) {
+      failure = limitFailure(message, 'unknown');
+    }
+  }
+  return failure;
+}
+
+function limitFailure(
+  message: string,
+  turn: 'not_started' | 'unknown',
+): ProviderRunFailureClassification {
+  return {
+    code: 'PROVIDER_LIMIT_REACHED',
+    message,
+    retryable: false,
+    terminal_reason: 'provider_limit_reached',
+    exit_classification: 'terminal',
+    turn,
+  };
+}
+
+function parseJsonRecord(value: string): Record<string, unknown> | undefined {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return isRecord(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function extractJsonResultSession(

@@ -17,6 +17,14 @@
 
 ### Fixed
 
+- `consensus` 0.2.12 forwards Cursor `--model` in default and read-only profiles.
+  Provider-reported usage, quota, and rate limits now return
+  `PROVIDER_LIMIT_REACHED` without retries within the run and surface the human
+  message. Claude's captured zero-token first-turn rejection reports
+  `turn: not_started`; missing or prior work remains `unknown`. Delegate stops
+  and reports exhaustion. Cursor model observation stays absent without output
+  evidence. The shared runtime refresh bumps `consensus-create` 0.1.25, `consensus-decide` 0.1.25, `consensus-plan` 0.1.25, `consensus-refine` 0.1.28, `consensus-evaluate` 0.1.29, `consensus-review` 0.2.2, `consensus-panel` 0.1.22, `consensus-delegate` 0.2.1, `phone-a-friend` 0.3.4, `session-observer` 1.1.6, `session-observer-collab` 1.0.84, and `session-fork-to-destination` 0.3.11.
+
 - `consensus-delegate` 0.2.0 isolates accounting and worktree Git commands from
   inherited repository-location variables and rejects initialized submodules
   that snapshots cannot account for. Its guidance now states the ignored-file

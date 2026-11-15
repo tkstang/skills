@@ -113,7 +113,10 @@ The host reads the JSON envelope, not the exit code. If the peer timed out,
 was interrupted, or ended in an unknown turn state, it may still have changed
 files: the host inspects the worktree and reports what it finds, and never
 resends the brief. A failure before the turn started, such as a usage or
-preflight error, is fixed and run again.
+preflight error, is fixed and run again. `PROVIDER_LIMIT_REACHED` stops the run
+and reports the provider's human message without retrying or switching providers.
+If its turn state is `unknown`, the host still accounts for possible file changes;
+a limit does not by itself prove that nothing ran.
 
 ## Continuing
 

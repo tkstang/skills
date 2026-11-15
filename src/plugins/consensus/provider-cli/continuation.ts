@@ -139,6 +139,7 @@ export function reconstructedContinuationPrompt(
 
 export function turnStateFor(trace: ProviderTurnTrace): ContinuationTurnState {
   if (!trace.process) return 'not_started';
+  if (trace.turn) return trace.turn;
   if (trace.process.ok) return 'completed';
   // Any provider stdout (a session event, a partial result, or unparseable
   // output) means the turn may have been accepted, whatever the failure text
@@ -156,6 +157,7 @@ export function turnStateFor(trace: ProviderTurnTrace): ContinuationTurnState {
 export interface ProviderTurnTrace {
   process?: { ok: boolean; stdout: string };
   failure_code?: ProviderErrorCode;
+  turn?: ContinuationTurnState;
 }
 
 export function continuationReceipt(input: {

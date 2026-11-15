@@ -83,6 +83,162 @@ describe('structured provider output coordinator', () => {
     expect(subprocess.prompts[0]).not.toContain('Verdict submission:');
   });
 
+  // Captured Claude weekly-limit shape from consensus:delegate, 2026-11-14.
+  it.each([
+    ['text', false, 0, 'not_started'],
+    ['json', true, 0, 'not_started'],
+    ['text', false, 12, 'unknown'],
+    ['text', true, 12, 'unknown'],
+    ['text', false, undefined, 'unknown'],
+  ] as const)(
+    'stops a Claude limit result in %s mode (exit success %s, output tokens %s)',
+    async (output, processOk, outputTokens, turn) => {
+      const message =
+        "You've hit your weekly limit · resets Nov 16 at 11am (America/Chicago)";
+      const stdout = JSON.stringify({
+        type: 'result',
+        is_error: true,
+        api_error_status: 429,
+        api_error: 'usage_limit_reached',
+        terminal_reason: 'api_error',
+        num_turns: 1,
+        ...(outputTokens === undefined
+          ? {}
+          : { usage: { input_tokens: 0, output_tokens: outputTokens } }),
+        result: message,
+      });
+      const subprocess = fakeSubprocess([
+        processOk
+          ? processSuccess(stdout)
+          : processFailure('PROVIDER_EXIT', true, { stdout }),
+      ]);
+      const envelope = await runProviderTurn(
+        readOnlyRetryRequest('claude', {
+          output,
+          ...(output === 'text' ? { schema_path: undefined } : {}),
+        }),
+        {
+          readSchema: async () => schema(),
+          runSubprocess: subprocess.run,
+        },
+      );
+      expect(envelope).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_LIMIT_REACHED',
+        message,
+        retryable: false,
+        attempts: {
+          cli_attempts: 1,
+          terminal_reason: 'provider_limit_reached',
+          retryable: false,
+        },
+        continuation: { turn },
+      });
+      expect(subprocess.invocations).toHaveLength(1);
+    },
+  );
+
+  it('does not erase an earlier attempt when the last attempt hits a pre-turn limit', async () => {
+    const stdout = JSON.stringify({
+      type: 'result',
+      is_error: true,
+      api_error_status: 429,
+      num_turns: 1,
+      usage: { input_tokens: 0, output_tokens: 0 },
+      result: 'Rate limited',
+    });
+    const subprocess = fakeSubprocess([
+      processSuccess('not json'),
+      processFailure('PROVIDER_EXIT', true, { stdout }),
+    ]);
+    const envelope = await runProviderTurn(readOnlyRetryRequest('claude'), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_LIMIT_REACHED',
+      attempts: { cli_attempts: 2 },
+      continuation: { turn: 'unknown' },
+    });
+  });
+
+  it.each([
+    { type: 'error', message: 'rate limit exceeded: request rejected' },
+    {
+      type: 'turn.failed',
+      error: { message: "You've hit your usage limit. Check your plan." },
+    },
+  ])(
+    'stops on a Codex provider error event $type without inferring no prior work',
+    async (event) => {
+      const subprocess = fakeSubprocess([
+        processFailure('PROVIDER_EXIT', true, {
+          stdout: JSON.stringify(event),
+        }),
+      ]);
+      const envelope = await runProviderTurn(readOnlyRetryRequest('codex'), {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      });
+      expect(envelope).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_LIMIT_REACHED',
+        message: event.message ?? event.error?.message,
+        attempts: { cli_attempts: 1 },
+        continuation: { turn: 'unknown' },
+      });
+      expect(subprocess.invocations).toHaveLength(1);
+    },
+  );
+
+  it('accepts a Codex turn that recovered internally from a rate limit', async () => {
+    const stdout = [
+      JSON.stringify({
+        type: 'error',
+        message: 'rate limit exceeded: request rejected',
+      }),
+      JSON.stringify({
+        type: 'turn.completed',
+        usage: { input_tokens: 10, output_tokens: 5 },
+      }),
+    ].join('\n');
+    const subprocess = fakeSubprocess([
+      processSuccess(stdout, { last_message: 'Recovered reply.' }),
+    ]);
+    const envelope = await runProviderTurn(textRequest('codex'), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+    expect(envelope).toMatchObject({
+      ok: true,
+      text: 'Recovered reply.',
+      continuation: { turn: 'completed' },
+    });
+  });
+
+  it('does not classify model-authored limit text as a provider rejection', async () => {
+    const registry = providerRegistry();
+    expect(
+      registry.get('claude')!.classifyReportedFailure!(
+        JSON.stringify({
+          type: 'result',
+          is_error: false,
+          result: "You've hit your weekly limit",
+          api_error_status: 429,
+        }),
+      ),
+    ).toBeUndefined();
+    expect(
+      registry.get('codex')!.classifyReportedFailure!(
+        JSON.stringify({
+          type: 'item.completed',
+          item: { type: 'agent_message', text: "You've hit your usage limit." },
+        }),
+      ),
+    ).toBeUndefined();
+  });
+
   it('keeps submit-tool candidate reserved and unselected by default', () => {
     const cursor = providerRegistry().get('cursor')!;
 
@@ -1151,17 +1307,22 @@ describe('text output', () => {
     });
     const subprocess = fakeSubprocess([processSuccess(stdout)]);
 
-    const envelope = await runProviderTurn(textRequest('cursor'), {
-      readSchema: noSchema,
-      runSubprocess: subprocess.run,
-    });
+    const envelope = await runProviderTurn(
+      textRequest('cursor', { model: 'composer-2.5' }),
+      {
+        readSchema: noSchema,
+        runSubprocess: subprocess.run,
+      },
+    );
 
     expect(envelope).toMatchObject({
       ok: true,
       output_kind: 'text',
       text: 'Plan is sound.',
       json: null,
+      continuation: { requested_model: 'composer-2.5', turn: 'completed' },
     });
+    expect(envelope.continuation).not.toHaveProperty('observed_models');
     expect(subprocess.invocations[0]?.argv).toContain('--trust');
     expect(subprocess.invocations[0]?.argv).not.toContain('--force');
   });

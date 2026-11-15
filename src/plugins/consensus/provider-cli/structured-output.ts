@@ -467,6 +467,7 @@ async function runStructuredTurn(
       });
       trace.process = processResult;
       trace.failure_code = undefined;
+      trace.turn = undefined;
       const diagnostics = mergeDiagnostics(
         {
           strategy_used: strategy,
@@ -482,8 +483,24 @@ async function runStructuredTurn(
         exitClassificationDiagnostics(exitClassification),
       );
 
-      if (!processResult.ok) {
-        const classification = adapter.classifyRunFailure(processResult);
+      const reportedFailure =
+        processResult.ok ||
+        (processResult.code === 'PROVIDER_EXIT' &&
+          !processResult.signal &&
+          !processResult.diagnostics?.termination)
+          ? adapter.classifyReportedFailure?.(processResult.stdout)
+          : undefined;
+      if (!processResult.ok || reportedFailure) {
+        const classification = processResult.ok
+          ? reportedFailure!
+          : (reportedFailure ?? adapter.classifyRunFailure(processResult));
+        // A last-attempt rejection cannot erase earlier potentially executed
+        // attempts. Exhaustion is terminal even on read-only profiles.
+        trace.turn = classification.turn
+          ? attempt === 1
+            ? classification.turn
+            : 'unknown'
+          : undefined;
         trace.failure_code = classification.code;
         exitClassification = classification.exit_classification;
         const failureDiagnostics = mergeDiagnostics(
