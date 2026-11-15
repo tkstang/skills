@@ -509,6 +509,10 @@ function classifyClaudeLimit(
     result.num_turns === 1 &&
     usage?.input_tokens === 0 &&
     usage.output_tokens === 0 &&
+    (usage.cache_read_input_tokens === undefined ||
+      usage.cache_read_input_tokens === 0) &&
+    (usage.cache_creation_input_tokens === undefined ||
+      usage.cache_creation_input_tokens === 0) &&
     (!isRecord(result.modelUsage) ||
       Object.keys(result.modelUsage).length === 0);
   return limitFailure(

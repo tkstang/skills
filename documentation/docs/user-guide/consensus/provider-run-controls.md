@@ -79,7 +79,8 @@ provider rejection.
 
 A limit can occur after work has started. `continuation.turn` is `not_started`
 only when a first-attempt Claude rejection reports `num_turns: 1`, zero aggregate
-input/output tokens, and no model-usage entries. Missing counters, prior output,
+input/output tokens, absent or zero cache-read/cache-creation counters, and no
+model-usage entries. Missing input/output counters, prior output,
 and prior attempts leave it `unknown`; inspect possible file changes before
 resubmitting. Exit status zero does not turn a recognized error into success.
 

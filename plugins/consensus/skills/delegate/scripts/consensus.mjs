@@ -1881,7 +1881,7 @@ function classifyClaudeLimit(stdout) {
   if (result.api_error_status !== 429 && result.api_error !== "usage_limit_reached")
     return void 0;
   const usage = isRecord2(result.usage) ? result.usage : void 0;
-  const noWork = result.num_turns === 1 && usage?.input_tokens === 0 && usage.output_tokens === 0 && (!isRecord2(result.modelUsage) || Object.keys(result.modelUsage).length === 0);
+  const noWork = result.num_turns === 1 && usage?.input_tokens === 0 && usage.output_tokens === 0 && (usage.cache_read_input_tokens === void 0 || usage.cache_read_input_tokens === 0) && (usage.cache_creation_input_tokens === void 0 || usage.cache_creation_input_tokens === 0) && (!isRecord2(result.modelUsage) || Object.keys(result.modelUsage).length === 0);
   return limitFailure(
     typeof result.result === "string" && result.result.trim() ? result.result : "Provider usage or rate limit reached.",
     noWork ? "not_started" : "unknown"

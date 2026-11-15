@@ -85,14 +85,55 @@ describe('structured provider output coordinator', () => {
 
   // Captured Claude weekly-limit shape from consensus:delegate, 2026-11-14.
   it.each([
-    ['text', false, 0, 'not_started'],
-    ['json', true, 0, 'not_started'],
-    ['text', false, 12, 'unknown'],
-    ['text', true, 12, 'unknown'],
-    ['text', false, undefined, 'unknown'],
+    ['text', false, 0, {}, 'not_started'],
+    ['json', true, 0, {}, 'not_started'],
+    ['text', false, 12, {}, 'unknown'],
+    ['text', true, 12, {}, 'unknown'],
+    ['text', false, undefined, {}, 'unknown'],
+    ['text', false, 0, { num_turns: 2 }, 'unknown'],
+    [
+      'text',
+      false,
+      0,
+      { usage: { input_tokens: 10, output_tokens: 0 } },
+      'unknown',
+    ],
+    [
+      'text',
+      false,
+      0,
+      { modelUsage: { haiku: { inputTokens: 0, outputTokens: 0 } } },
+      'unknown',
+    ],
+    [
+      'text',
+      false,
+      0,
+      {
+        usage: {
+          input_tokens: 0,
+          output_tokens: 0,
+          cache_read_input_tokens: 4000,
+        },
+      },
+      'unknown',
+    ],
+    [
+      'text',
+      false,
+      0,
+      {
+        usage: {
+          input_tokens: 0,
+          output_tokens: 0,
+          cache_creation_input_tokens: 1000,
+        },
+      },
+      'unknown',
+    ],
   ] as const)(
     'stops a Claude limit result in %s mode (exit success %s, output tokens %s)',
-    async (output, processOk, outputTokens, turn) => {
+    async (output, processOk, outputTokens, overrides, turn) => {
       const message =
         "You've hit your weekly limit · resets Nov 16 at 11am (America/Chicago)";
       const stdout = JSON.stringify({
@@ -106,6 +147,7 @@ describe('structured provider output coordinator', () => {
           ? {}
           : { usage: { input_tokens: 0, output_tokens: outputTokens } }),
         result: message,
+        ...overrides,
       });
       const subprocess = fakeSubprocess([
         processOk
