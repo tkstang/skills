@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: ["<question or topic>"] [--peer <provider-id>]
 metadata:
   author: Thomas Stang
-  version: "0.3.3"
+  version: '0.3.4'
 ---
 
 # Phone a Friend
@@ -177,11 +177,11 @@ node <skill-dir>/scripts/consensus.mjs run --provider <peer> <peer-controls> \
 
 `<peer-controls>` are the same provider-specific controls every round, including round 1:
 
-| Provider | Controls                                                                                                    |
-| -------- | ----------------------------------------------------------------------------------------------------------- |
-| Codex    | `--model <model> --effort <effort> --sandbox read-only`                                                     |
-| Claude   | `--model <model> --effort <effort> --permission-mode read-only`                                             |
-| Cursor   | `--permission-mode read-only`; the adapter accepts no model or effort, so the account default model answers |
+| Provider | Controls                                                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Codex    | `--model <model> --effort <effort> --sandbox read-only`                                                                  |
+| Claude   | `--model <model> --effort <effort> --permission-mode read-only`                                                          |
+| Cursor   | `--permission-mode read-only`; supports `--model <id>`; effort is unsupported; an omitted model uses the account default |
 
 The default non-interactive policy is not read-only, so pass the read-only control on every round. Start round 1 with `--consultation-id <id> --round 1` so every receipt carries the same consultation label.
 

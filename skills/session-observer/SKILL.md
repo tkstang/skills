@@ -9,7 +9,7 @@ user-invocable: true
 allowed-tools: Bash, Read, AskUserQuestion
 metadata:
   author: Thomas Stang
-  version: '1.1.5'
+  version: '1.1.6'
 ---
 
 # session-observer

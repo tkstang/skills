@@ -395,26 +395,33 @@ describe('provider invocation builders', () => {
     );
   });
 
-  it('keeps Cursor on prompt-only argv shape unless submit-tool is explicitly implemented later', () => {
-    const invocation = buildInvocation('cursor', 'prompt_only', {
-      model: 'ignored-model',
-      effort: 'ignored-effort',
-    });
+  it.each([undefined, 'read-only'] as const)(
+    'forwards a Cursor model with permission mode %s',
+    (permission_mode) => {
+      const invocation = buildInvocation('cursor', 'prompt_only', {
+        model: 'composer-2.5',
+        effort: 'ignored-effort',
+        runtime_policy: { permission_mode },
+      });
 
-    expect(invocation).toMatchObject({
-      executable: 'cursor-agent',
-      output_mode: 'stdout_json',
-      strategy: 'prompt_only',
-    });
-    expect(invocation.argv).toEqual([
-      '--print',
-      '--output-format',
-      'json',
-      '--force',
-    ]);
-    expect(invocation.argv.join(' ')).not.toContain('ignored-model');
-    expect(invocation.argv.join(' ')).not.toContain('ignored-effort');
-  });
+      expect(invocation).toMatchObject({
+        executable: 'cursor-agent',
+        output_mode: 'stdout_json',
+        strategy: 'prompt_only',
+      });
+      expect(invocation.argv).toEqual([
+        '--print',
+        '--output-format',
+        'json',
+        ...(permission_mode === 'read-only'
+          ? ['--trust', '--mode', 'ask', '--sandbox', 'enabled']
+          : ['--force']),
+        '--model',
+        'composer-2.5',
+      ]);
+      expect(invocation.argv.join(' ')).not.toContain('ignored-effort');
+    },
+  );
 
   it('resumes an exact Codex thread with stdin prompt and config-override sandbox', () => {
     const invocation = buildInvocation(

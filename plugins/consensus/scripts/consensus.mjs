@@ -975,6 +975,7 @@ var buildCursorInvocation = (request, options = {}) => {
     "--sandbox",
     "enabled"
   ] : ["--print", "--output-format", "json", "--force"];
+  if (request.model) argv.push("--model", request.model);
   return invocation({
     executable: options.executable ?? "cursor-agent",
     argv,
@@ -1549,8 +1550,6 @@ var CODEX_SESSION_NOT_FOUND_PATTERNS = [
   /no rollout found for thread id/i
 ];
 var COMMON_TRANSIENT_EXIT_PATTERNS = [
-  /\b429\b/i,
-  /rate limit/i,
   /temporar(?:y|ily) unavailable/i,
   /try again/i,
   /econnreset/i,
@@ -1565,7 +1564,6 @@ var CLAUDE_TRANSIENT_EXIT_PATTERNS = [
 var CODEX_TRANSIENT_EXIT_PATTERNS = [
   // Evidence: installed codex-cli 0.142.5 binary strings include these
   // rate-limit and overload messages in provider-facing error paths.
-  /rate limiter has requested a/i,
   /failed to fetch codex rate limits/i,
   /unknown rate limit reached type/i,
   /dropping overload response for connection/i,
@@ -1583,6 +1581,7 @@ var CURSOR_TRANSIENT_EXIT_PATTERNS = [
 var DEFAULT_PROVIDER_ADAPTERS = [
   {
     id: "claude",
+    classifyReportedFailure: classifyClaudeLimit,
     display_name: "Claude",
     executable: "claude",
     buildInvocation: buildClaudeInvocation,
@@ -1646,6 +1645,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
   },
   {
     id: "codex",
+    classifyReportedFailure: classifyCodexLimit,
     display_name: "Codex",
     executable: "codex",
     buildInvocation: buildCodexInvocation,
@@ -1751,7 +1751,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       schema_strategies: ["prompt_only", "submit_tool_candidate", "text"],
       output_modes: ["stdout_json"],
       options: {
-        model: false,
+        model: true,
         effort: null,
         runtime_policy: {
           permission_modes: ["non-interactive", "read-only"],
@@ -1850,6 +1850,14 @@ ${failure2.message}`;
         exit_classification: "terminal"
       };
     }
+    if (/\b429\b|\brate limit (?:exceeded|reached)\b|rate limiter has requested a/i.test(
+      failure2.stderr
+    )) {
+      return limitFailure(
+        firstNonEmptyLine(failure2.stderr) ?? failure2.message,
+        "unknown"
+      );
+    }
     if (matchesAny(output, patterns.transient_exit_patterns)) {
       return {
         code: "PROVIDER_EXIT",
@@ -1867,6 +1875,54 @@ ${failure2.message}`;
       exit_classification: "unknown"
     };
   };
+}
+function classifyClaudeLimit(stdout) {
+  const result = parseJsonRecord(stdout);
+  if (!result || result.type !== "result" || result.is_error !== true)
+    return void 0;
+  if (result.api_error_status !== 429 && result.api_error !== "usage_limit_reached")
+    return void 0;
+  const usage = isRecord2(result.usage) ? result.usage : void 0;
+  const noWork = result.num_turns === 1 && usage?.input_tokens === 0 && usage.output_tokens === 0 && (usage.cache_read_input_tokens === void 0 || usage.cache_read_input_tokens === 0) && (usage.cache_creation_input_tokens === void 0 || usage.cache_creation_input_tokens === 0) && (!isRecord2(result.modelUsage) || Object.keys(result.modelUsage).length === 0);
+  return limitFailure(
+    typeof result.result === "string" && result.result.trim() ? result.result : "Provider usage or rate limit reached.",
+    noWork ? "not_started" : "unknown"
+  );
+}
+function classifyCodexLimit(stdout) {
+  let failure2;
+  for (const line of stdout.split(/\r?\n/)) {
+    const event = parseJsonRecord(line);
+    if (!event) continue;
+    if (event.type === "turn.completed" || event.type === "turn.failed")
+      failure2 = void 0;
+    const message = event.type === "turn.failed" && isRecord2(event.error) ? event.error.message : event.type === "error" ? event.message : void 0;
+    if (typeof message !== "string") continue;
+    if (/^You've hit your usage limit[. ]/.test(message) || message.startsWith(
+      "Quota exceeded. Check your plan and billing details."
+    ) || message.startsWith("rate limit exceeded: ")) {
+      failure2 = limitFailure(message, "unknown");
+    }
+  }
+  return failure2;
+}
+function limitFailure(message, turn) {
+  return {
+    code: "PROVIDER_LIMIT_REACHED",
+    message,
+    retryable: false,
+    terminal_reason: "provider_limit_reached",
+    exit_classification: "terminal",
+    turn
+  };
+}
+function parseJsonRecord(value) {
+  try {
+    const parsed = JSON.parse(value);
+    return isRecord2(parsed) ? parsed : void 0;
+  } catch {
+    return void 0;
+  }
 }
 function extractJsonResultSession(stdout) {
   let parsed;
@@ -3441,6 +3497,7 @@ function reconstructedContinuationPrompt(packet, fallbackReason) {
 }
 function turnStateFor(trace) {
   if (!trace.process) return "not_started";
+  if (trace.turn) return trace.turn;
   if (trace.process.ok) return "completed";
   if (trace.process.stdout.trim() === "" && trace.failure_code && NOT_STARTED_FAILURE_CODES.includes(trace.failure_code)) {
     return "not_started";
@@ -3820,6 +3877,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       });
       trace.process = processResult;
       trace.failure_code = void 0;
+      trace.turn = void 0;
       const diagnostics = mergeDiagnostics(
         {
           strategy_used: strategy,
@@ -3832,8 +3890,10 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         permissionDenialDiagnostics(request.provider, processResult.stdout),
         exitClassificationDiagnostics(exitClassification)
       );
-      if (!processResult.ok) {
-        const classification = adapter.classifyRunFailure(processResult);
+      const reportedFailure = processResult.ok || processResult.code === "PROVIDER_EXIT" && !processResult.signal && !processResult.diagnostics?.termination ? adapter.classifyReportedFailure?.(processResult.stdout) : void 0;
+      if (!processResult.ok || reportedFailure) {
+        const classification = processResult.ok ? reportedFailure : reportedFailure ?? adapter.classifyRunFailure(processResult);
+        trace.turn = classification.turn ? attempt === 1 ? classification.turn : "unknown" : void 0;
         trace.failure_code = classification.code;
         exitClassification = classification.exit_classification;
         const failureDiagnostics = mergeDiagnostics(

@@ -37,7 +37,8 @@ raw-text success:
 - Claude and Cursor: stdout must be the provider's JSON result object with a
   non-blank string `result`. Unparseable output, a result without a string
   `result`, `is_error: true`, or a `subtype` other than `success` (for Claude, a
-  missing `subtype` too) fails with `PROVIDER_MALFORMED_RESULT`.
+  missing `subtype` too) fails with `PROVIDER_MALFORMED_RESULT`, unless it is a
+  recognized provider limit error as described below.
 - Codex: the `--output-last-message` file must exist and hold non-blank text.
 - Empty output or whitespace-only text fails with `PROVIDER_EMPTY_OUTPUT`.
 
@@ -63,6 +64,25 @@ Every other profile runs once, and a higher value is rejected as
 Claude's default `non-interactive` mode (which installs no restrictions), any
 Bash or edit grant, and `workspace-write`. Native resume is always a single
 attempt.
+
+Recognized usage, quota, and rate-limit rejections return
+`PROVIDER_LIMIT_REACHED`, `retryable: false`, and
+`attempts.terminal_reason: "provider_limit_reached"`. They stop this run even
+when attempts remain. The envelope's `message` contains the provider's human
+message, including Claude's reset time when supplied.
+
+Detection uses Claude API-error metadata, grounded Codex provider error-event
+messages, and explicit 429 or rate-limit rejections on stderr. Cursor's internal
+quota codes are not exposed by its headless CLI in a stable form, so they are
+not matched speculatively. A successful peer reply quoting a limit is not a
+provider rejection.
+
+A limit can occur after work has started. `continuation.turn` is `not_started`
+only when a first-attempt Claude rejection reports `num_turns: 1`, zero aggregate
+input/output tokens, absent or zero cache-read/cache-creation counters, and no
+model-usage entries. Missing input/output counters, prior output,
+and prior attempts leave it `unknown`; inspect possible file changes before
+resubmitting. Exit status zero does not turn a recognized error into success.
 
 ## Timeouts and process cleanup
 

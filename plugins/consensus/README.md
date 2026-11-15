@@ -355,6 +355,17 @@ consensus preflight --json --provider claude --capability run
 
 The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_VERSION_UNPARSEABLE`, `PROVIDER_VERSION_UNSUPPORTED`, `PROVIDER_CAPABILITY_MISSING`, and `PROVIDER_UNSUPPORTED_OPTION`.
 
+Cursor accepts `--model <id>` in both default and read-only profiles, for example
+`--model composer-2.5`; list IDs with `cursor-agent --list-models`. Effort remains
+unsupported. Continuation receipts record `requested_model`; the inspected Cursor
+JSON result does not report an observed model.
+
+Recognized provider usage, quota, and rate-limit rejections return
+`PROVIDER_LIMIT_REACHED` without retries within the run. The envelope surfaces the
+provider's human message. `turn: not_started` requires evidence of no model work;
+missing counters or earlier work leave it `unknown`. See
+[provider run controls](../../documentation/docs/user-guide/consensus/provider-run-controls.md#attempts-and-retries).
+
 Provider exits are classified conservatively. Unknown exits are terminal by default; reliable external interrupts can retry; timeout and output-cap failures remain terminal; provider-specific transient signatures are evidence-backed and redacted in diagnostics through `exit_classification`.
 
 Verdict submission is enabled through an injected submit command and environment: `CONSENSUS_SUBMIT_COMMAND`, `CONSENSUS_SUBMIT_SCHEMA`, `CONSENSUS_SUBMIT_FILE`, and `CONSENSUS_SUBMIT_MAX_BYTES`. Peers submit schema-valid verdict JSON with the injected command. Successful submit sidecars are preferred and reported with `verdict_source: "submit"`; when no valid sidecar exists, wrappers fall back to final-message parsing and report `verdict_source: "final_message"`. Submit-enabled Codex turns avoid native `--output-schema`, so strict-output rejection does not block the peer before it can run the submit command. Submit capture paths are generated under the provider turn's `.consensus/submit/` workspace directory rather than the process tmpdir, so Codex `--sandbox read-only` no longer depends on tmpdir writes for the sidecar path.

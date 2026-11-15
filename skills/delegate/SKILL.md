@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(git:*), Read, Write
 argument-hint: '"<task>" [--peer <provider-id>] [--model <model>] [--effort <effort>]'
 metadata:
   author: Thomas Stang
-  version: '0.2.0'
+  version: '0.2.1'
 ---
 
 # Delegate
@@ -100,7 +100,7 @@ node <skill-dir>/scripts/consensus.mjs run --provider <peer> \
 | Input         | Default                                     | Notes                                                             |
 | ------------- | ------------------------------------------- | ----------------------------------------------------------------- |
 | `peer`        | a ready provider other than you             | `--provider`; the user may name any peer                          |
-| `model`       | provider default                            | `--model`, only when asked; Cursor takes none                     |
+| `model`       | provider default                            | `--model`, only when asked                                        |
 | `effort`      | provider default                            | `--effort`, only when asked; Cursor takes none                    |
 | `brief`       | required                                    | `--prompt-file`                                                   |
 | `mode`        | by [Choose the mode](#choose-the-mode)      | `<mode-flags>` below                                              |
@@ -146,6 +146,9 @@ A success has `ok: true`, `output_kind: "text"`, and the peer's final reply in
 - Authentication, setup, or `HOST_RECURSION_BLOCKED` failures stop the run,
   even when `turn` is `not_started`. Report them; do not switch providers on
   your own.
+- `PROVIDER_LIMIT_REACHED`: report the provider's message and stop. Do not
+  retry within this run or switch providers. If `turn` is `unknown`, inspect
+  the worktree as below; the limit may have followed earlier work.
 - Any other `turn: not_started`, or a usage or preflight error: nothing reached
   the peer. Fix the cause and run again.
 - `PROVIDER_TIMEOUT`, an interrupt, or `turn: unknown`: the peer may have

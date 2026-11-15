@@ -53,7 +53,7 @@ describe('provider adapter registry', () => {
       'last_message_file',
     ]);
     expect(registry.get('cursor')?.capabilities.options).toMatchObject({
-      model: false,
+      model: true,
       effort: null,
       runtime_policy: {
         permission_modes: ['non-interactive', 'read-only'],
@@ -196,10 +196,10 @@ describe('provider adapter registry', () => {
         }),
       ),
     ).toMatchObject({
-      code: 'PROVIDER_EXIT',
-      retryable: true,
-      terminal_reason: 'provider_exit_transient',
-      exit_classification: 'transient',
+      code: 'PROVIDER_LIMIT_REACHED',
+      retryable: false,
+      terminal_reason: 'provider_limit_reached',
+      exit_classification: 'terminal',
     });
 
     expect(
@@ -322,7 +322,7 @@ describe('provider adapter registry', () => {
 describe.each(['claude', 'codex', 'cursor'] as const)(
   'exit classification: %s',
   (id) => {
-    it('classifies shared transient signatures as retryable within budget', () => {
+    it('classifies a provider-reported 429 as terminal within the run', () => {
       const adapter = providerRegistry().get(id)!;
 
       expect(
@@ -330,10 +330,10 @@ describe.each(['claude', 'codex', 'cursor'] as const)(
           providerExitFailure({ stderr: 'HTTP 429 Too Many Requests' }),
         ),
       ).toMatchObject({
-        code: 'PROVIDER_EXIT',
-        retryable: true,
-        terminal_reason: 'provider_exit_transient',
-        exit_classification: 'transient',
+        code: 'PROVIDER_LIMIT_REACHED',
+        retryable: false,
+        terminal_reason: 'provider_limit_reached',
+        exit_classification: 'terminal',
       });
     });
 
