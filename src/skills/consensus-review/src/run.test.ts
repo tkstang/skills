@@ -676,6 +676,7 @@ describe('one bounded review transaction', () => {
             covered_paths: ['second.ts'],
           },
         ],
+        schema_version: 'v2',
         reviewer: {
           requested: {
             reviewer: 'claude',
@@ -689,13 +690,66 @@ describe('one bounded review transaction', () => {
           },
           observed: {
             provider: 'claude',
-            model: null,
+            models: [],
             effort: null,
           },
         },
       },
     });
   });
+
+  it.each([['reported-a'], ['reported-a', 'reported-b']])(
+    'preserves the provider-reported model set %j without inferring effort',
+    async (...models) => {
+      const fixture = await gitReviewFixture();
+      const result = await executeBoundedReview(
+        {
+          cwd: fixture.worktree,
+          scope: { kind: 'files', paths: ['reviewed.ts'] },
+          host: 'codex',
+          request: 'Review.',
+          hostSummary: 'Review.',
+          schemaPath: fixture.schema,
+          reviewer: 'claude',
+          model: 'requested-model',
+          effort: 'high',
+        },
+        reviewExecutionDependencies(fixture, async (request) => ({
+          ...successEnvelope({
+            ...validPassReply(scopeToken(request.prompt)),
+            reviewer_identity: {
+              provider: 'claude',
+              model: 'claimed-model',
+              effort: 'high',
+            },
+          }),
+          continuation: {
+            mode: 'new',
+            provider: 'claude',
+            consultation_id: 'fixture',
+            cwd: fixture.worktree,
+            runtime_policy: {},
+            turn: 'completed',
+            observed_models: models,
+          },
+        })),
+      );
+      expect(result).toMatchObject({
+        ok: true,
+        aggregate: {
+          reviewer: {
+            passed: { model: 'requested-model', effort: 'high' },
+            observed: { provider: 'claude', models, effort: null },
+            claimed: { model: 'claimed-model', effort: 'high' },
+          },
+        },
+      });
+      if (result.ok && result.status === 'completed')
+        expect(result.aggregate.reviewer.observed.evidence).toContain(
+          'result-aggregate',
+        );
+    },
+  );
 
   it('rejects drift between evidence capture and the first baseline before provider selection', async () => {
     const fixture = await gitReviewFixture();

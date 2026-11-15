@@ -14,6 +14,14 @@ Scoped guidance for `plugins/consensus/`. Inherits the root `AGENTS.md`; this fi
 - **Preserve the relevant operation's filesystem safeguards.** Create, decide, plan, refine, and evaluate wrappers own confinement/path-resolution helpers and bounded input reads. Use the helper and cap in that operation's canonical source; do not write to arbitrary paths or read unbounded input.
 - **Deliberation I/O is schema-bound.** Read the relevant skill owner's `schemas/` and wrapper before changing its output; refine/evaluate schemas are not universal contracts for the other operations. `consensus run --output text` is a separate free-form surface for task delegation, used by `delegate`; deliberation skills keep JSON mode and never use it.
 
+## Review scope and identity
+
+Review's `range=<base>..<head>` captures exact committed trees; `base_branch=<ref>`
+includes tracked worktree changes. Keep committed `head` evidence separate from
+live paths monitored for drift. Host result schema `v2` stores the full reported
+model set in `reviewer.observed.models`; requested/passed settings and peer claims
+are separate evidence, and missing observations must remain unknown.
+
 ## References
 
 - `README.md` — plugin scope, install paths, iteration modes, flags.

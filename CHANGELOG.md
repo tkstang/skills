@@ -4,6 +4,14 @@
 
 ### Changed
 
+- `consensus-review` 0.3.0 (`consensus` 0.2.13) adds exact committed-tree review
+  via `range=<base>..<head>`, with immutable endpoint evidence and workspace
+  drift checks. Reports now show requested and passed reviewer settings and
+  preserve provider-reported model sets without inferring effort or backend
+  identity. Host-owned result schema `v2` replaces `reviewer.observed.model`
+  with `reviewer.observed.models`. Verdict derivation and saved provider evidence
+  from PR #159 remain in effect. Addresses #146.
+
 - `consensus-delegate` 0.2.0, standalone `delegate` and `consensus:delegate`,
   automatically resumes the same peer for ordinary host-verification failures
   within the original task. Every turn keeps the same session and permissions

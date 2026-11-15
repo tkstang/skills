@@ -1,13 +1,13 @@
 ---
 name: review
-description: Use when an independent provider-backed reviewer should inspect an explicitly bounded branch, file set, or document without modifying it.
+description: Use when an independent provider-backed reviewer should inspect an explicitly bounded branch change, committed range, file set, or document without modifying it.
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+ and a supported provider CLI.
 allowed-tools: Bash(node:*), Read
-argument-hint: base_branch=<ref> | --files <paths...> | --document <path> --host <runtime>
+argument-hint: base_branch=<ref> | range=<base>..<head> | --files <paths...> | --document <path> --host <runtime>
 metadata:
   author: Thomas Stang
-  version: '0.2.2'
+  version: '0.3.0'
 ---
 
 # Consensus Review
@@ -27,14 +27,16 @@ again. Otherwise present exactly these choices and wait for the answer:
    merge base through the current tracked worktree. Tracked symlinks are
    captured as their unfollowed link text with Git mode `120000`; their targets
    are never read through.
-2. **Selected files** — ask for explicit repository paths; named untracked
+2. **Committed range** — ask for both refs; `range=<base>..<head>` compares
+   their resolved commit trees directly. It excludes staged, unstaged, and
+   untracked changes and keeps captured endpoint bytes authoritative.
+3. **Selected files** — ask for explicit repository paths; named untracked
    files and symlinks are allowed. Selected symlinks use the same unfollowed
    link-text treatment as branch diffs.
-3. **Document or plan** — ask for one repository or external document path.
+4. **Document or plan** — ask for one repository or external document path.
 
 Do not guess a scope, dispatch while details are missing, or treat cancellation
-as approval. Staged-only, unstaged-only, and committed-range selectors are not
-supported in this release.
+as approval. Staged-only and unstaged-only selectors are not supported.
 
 ## Invoke the installed executable
 
@@ -43,6 +45,7 @@ standalone and Consensus plugin forms contain the same skill-owned executable:
 
 ```bash
 node ./scripts/review.mjs base_branch=origin/main --host codex
+node ./scripts/review.mjs range=origin/main..HEAD --host codex
 node ./scripts/review.mjs --files src/example.ts docs/example.md --host codex
 node ./scripts/review.mjs --document docs/design.md --host codex
 node ./scripts/review.mjs --files src/example.ts --host codex --timeout-sec 1200
@@ -71,7 +74,7 @@ shell fails with `unknown_host`, while an explicit mismatch or mixed ambient
 evidence fails with `contradictory_host`; both stop before provider dispatch.
 
 The executable is intentionally non-interactive. Missing or conflicting scope
-returns usage exit 2, lists the three selectors, and invokes no provider; never
+returns usage exit 2, lists the four selectors, and invokes no provider; never
 pipe a menu answer to stdin. Exit 0 means a completed valid review (including
 findings) or an explicitly labeled empty-scope no-op. Exit 1 means incomplete,
 defective, or output failure. Parse the returned status, not only the exit code.
@@ -81,20 +84,25 @@ defective, or output failure. Parse the returned status, not only the exit code.
 These limits are checked before dispatch unless noted. `--help` prints the same
 values.
 
-| Limit                 | Value                                                                                                                                | When exceeded                                                                                  |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| Changed files         | 100; a rename counts once and keeps both paths                                                                                       | `scope_too_large` with the count, the largest directories, and the workaround                  |
-| Textual evidence      | 8 MiB, charged per path as the larger of its live and base versions; up to 16 MiB of unencoded text, with JSON escaping adding bytes | `scope_too_large` with the total and the largest paths                                         |
-| One file or base blob | 8 MiB for text; a larger binary is skipped                                                                                           | `scope_too_large` naming the path; never recorded as a deletion                                |
-| Binary files          | Skipped at any size, listed under limitations, drift-checked by hash                                                                 | A scope with no textual change fails with `binary_scope_not_supported`                         |
-| Assembled prompt      | 64 KiB; it lists at most 20 paths and points at `evidence.json`                                                                      | `review_prompt_too_large` naming the largest contributor                                       |
-| Provider output       | `--max-output-bytes`, default 10 MiB (65536 through 67108864)                                                                        | The run stops; up to 2 MiB per captured stream is saved, subject to the combined transport cap |
-| Reply presentation    | 100 findings, 100 checks, 50 questions, 50 limitations                                                                               | Truncated after full validation; the report records what was omitted                           |
+| Limit                | Value                                                                                                                                  | When exceeded                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Changed files        | 100; a rename counts once and keeps both paths                                                                                         | `scope_too_large` with the count, the largest directories, and the workaround                  |
+| Textual evidence     | 8 MiB, charged per path as the larger of its target and base versions; up to 16 MiB of unencoded text, with JSON escaping adding bytes | `scope_too_large` with the total and the largest paths                                         |
+| One file or Git blob | 8 MiB for text; a larger binary is skipped                                                                                             | `scope_too_large` naming the path; never recorded as a deletion                                |
+| Binary files         | Skipped at any size, listed under limitations, drift-checked by hash                                                                   | A scope with no textual change fails with `binary_scope_not_supported`                         |
+| Assembled prompt     | 64 KiB; it lists at most 20 paths and points at `evidence.json`                                                                        | `review_prompt_too_large` naming the largest contributor                                       |
+| Provider output      | `--max-output-bytes`, default 10 MiB (65536 through 67108864)                                                                          | The run stops; up to 2 MiB per captured stream is saved, subject to the combined transport cap |
+| Reply presentation   | 100 findings, 100 checks, 50 questions, 50 limitations                                                                                 | Truncated after full validation; the report records what was omitted                           |
 
 Workarounds: narrow with `--files`, use a closer base, or pass
 `base_branch=<sha>`. An ancestor SHA of `HEAD` selects exactly the tracked changes
-from that commit through the current worktree, which works as a range selector after
-a branch has merged a newer base.
+from that commit through the current worktree. For a committed-only comparison,
+use `range=<base>..<head>`, for example `range=origin/develop..HEAD` after merging
+an updated `develop`. The base is the exact before-tree, so choosing an old
+base deliberately includes intervening upstream changes. A range never applies
+an implicit merge-base or first-parent filter. Both refs resolve once to stored
+SHAs; `head` evidence may be historical and differs from the monitored worktree's
+HEAD. Existing selected-path filesystem safety checks still apply.
 
 Malformed replies stop after 100 validation errors and are rejected. This
 diagnostic bound does not skip validation of any otherwise-valid reply.
@@ -106,6 +114,20 @@ so. The reviewer's own verdict is kept as `claimed_verdict`, with a warning when
 it differs. Provider stdout, stderr, and any Codex last-message capture are
 saved to `provider-evidence.json` in the run directory as soon as the provider
 returns, and every later diagnostic references that file.
+
+## Read reviewer identity
+
+The host-owned `result.json` uses schema `v2`. It records raw requested options,
+resolved settings passed to the provider, reviewer claims, and provider-reported
+identity separately. `reviewer.observed.models` is the complete reported set. An empty set means unobserved.
+Markdown shows the requested and passed model and effort even without observations.
+
+Claude result model-usage keys are aggregate evidence over the provider-reported
+scope, including multiple models when present. They do not prove one model served
+every response or attest a backend behind an alias or proxy. Effort stays
+unobserved without its own output evidence. Codex `exec --json` does not print the
+human-mode configuration header; do not infer observations from launch settings,
+rollout configuration, or the reviewer's self-identification.
 
 ## Present the handoff
 

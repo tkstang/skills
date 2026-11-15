@@ -169,6 +169,29 @@ describe('reviewer selection', () => {
 });
 
 describe('bounded review prompts', () => {
+  it('makes exact committed endpoint evidence authoritative and distinguishes it from workspace context', () => {
+    const scope: CapturedReviewScope = {
+      ...capturedScope(),
+      request: { kind: 'range', baseRef: 'base-name', headRef: 'target-name' },
+      resolvedBaseRef: 'b'.repeat(40),
+      resolvedHeadRef: 'c'.repeat(40),
+    };
+    const prompt = buildReviewPrompt({
+      request: 'Review the committed range.',
+      hostSummary: '',
+      scope,
+      evidencePath: '/state/run/evidence.json',
+    });
+    expect(prompt).toContain(`resolved_base_ref=${'b'.repeat(40)}`);
+    expect(prompt).toContain(`resolved_head_ref=${'c'.repeat(40)}`);
+    expect(prompt).toContain('source (live, base, or head)');
+    expect(prompt).toContain('exact resolved endpoints are authoritative');
+    expect(prompt).toContain('current workspace context may differ');
+    expect(prompt).toContain(
+      'Staged, unstaged, and untracked bytes are excluded',
+    );
+  });
+
   it('separates request, host summary, captured evidence, and instructions', () => {
     const prompt = buildReviewPrompt({
       request: 'Check <this> carefully.',

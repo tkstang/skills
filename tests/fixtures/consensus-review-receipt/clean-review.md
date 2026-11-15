@@ -10,7 +10,9 @@ oat_review_run_id: "receipt-clean-v1"
 **Verdict:** pass
 **Worktree:** `/tmp/consensus-review-receipt/worktree`
 **Scope token:** `receipt-clean-token`
-**Reviewer:** claude (model unobserved, effort unobserved)
+**Requested reviewer:** automatic (model unspecified, effort unspecified)
+**Passed to provider:** claude (model review\-model, effort unspecified)
+**Reviewer:** claude (reported models unobserved, effort unobserved)
 **Findings:** 0 critical, 0 high, 0 medium, 0 low
 
 ## Request

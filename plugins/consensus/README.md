@@ -29,11 +29,17 @@ Run one bounded read-only review from either generated skill directory:
 
 ```bash
 node plugins/consensus/skills/review/scripts/review.mjs base_branch=origin/main --host codex
+node plugins/consensus/skills/review/scripts/review.mjs range=origin/main..HEAD --host codex
 node plugins/consensus/skills/review/scripts/review.mjs --files src/example.ts --host codex
 node plugins/consensus/skills/review/scripts/review.mjs --document docs/design.md --host codex
 ```
 
-Review supports exactly branch diff, selected files, or one document. It makes
+Review's `range=<base>..<head>` captures two exact committed trees and excludes
+worktree/index changes. Reports show requested and passed model/effort beside
+provider-reported evidence. Host-owned result schema `v2` records the full
+`reviewer.observed.models` set; missing evidence stays unobserved.
+
+Review supports branch diffs, exact committed ranges, selected files, or one document. It makes
 one provider invocation, persists private state externally, compares selected
 state, and writes validated JSON plus OAT-compatible Markdown. It does not use
 the convergence loop or apply findings. See `skills/review/SKILL.md` and the

@@ -37,7 +37,7 @@ afterEach(async () => {
 });
 
 describe('review CLI', () => {
-  it('returns the three supported selectors and zero invocations without reading stdin', async () => {
+  it('returns the four supported selectors and zero invocations without reading stdin', async () => {
     const execute = vi.fn();
     const result = await runReviewCli(['--host', 'codex', '--json'], {
       execute,
@@ -50,6 +50,7 @@ describe('review CLI', () => {
       invocation_count: 0,
       supported_scopes: [
         'base_branch=<ref>',
+        'range=<base>..<head>',
         '--files <paths...>',
         '--document <path>',
       ],
@@ -61,6 +62,10 @@ describe('review CLI', () => {
     {
       argv: ['base_branch=origin/main', '--host', 'codex'],
       expected: { kind: 'base_branch', ref: 'origin/main' },
+    },
+    {
+      argv: ['range=origin/main..HEAD', '--host', 'codex'],
+      expected: { kind: 'range', baseRef: 'origin/main', headRef: 'HEAD' },
     },
     {
       argv: ['--files', 'src/a.ts', 'docs/b.md', '--host', 'codex'],
@@ -209,6 +214,31 @@ describe('review CLI', () => {
       const execute = vi.fn();
       const result = await runReviewCli(argv, { execute });
       expect(result).toMatchObject({
+        exitCode: 2,
+        payload: { reason, invocation_count: 0 },
+      });
+      expect(execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    [['range=main..HEAD', 'base_branch=main'], 'selector_conflict'],
+    [['--files', 'src/a.ts', 'range=main..HEAD'], 'selector_conflict'],
+    [['range=main..HEAD', '--document', 'plan.md'], 'selector_conflict'],
+    [['range=main..HEAD', 'range=main..HEAD'], 'selector_duplicate'],
+    [['range=main...HEAD'], 'range_invalid'],
+    [['range=..HEAD'], 'range_invalid'],
+    [['range=main..'], 'range_invalid'],
+    [['range=--help..HEAD'], 'range_invalid'],
+  ])(
+    'rejects malformed or conflicting committed ranges before dispatch',
+    async (args, reason) => {
+      const execute = vi.fn();
+      const outcome = await runReviewCli(
+        [...args, '--host', 'codex', '--json'],
+        { execute },
+      );
+      expect(outcome).toMatchObject({
         exitCode: 2,
         payload: { reason, invocation_count: 0 },
       });
@@ -749,6 +779,39 @@ describe('review Markdown rendering', () => {
     );
   });
 
+  it('renders requested and passed options separately from the complete reported model set', async () => {
+    const root = await temporaryRoot();
+    const aggregate = aggregateFixture(root, path.join(root, 'state'));
+    aggregate.reviewer.requested = {
+      reviewer: 'codex:gpt-6-luna',
+      model: null,
+      effort: 'low',
+    };
+    aggregate.reviewer.passed = {
+      provider: 'codex',
+      model: 'gpt-6-luna',
+      effort: 'low',
+    };
+    aggregate.reviewer.observed = {
+      provider: 'codex',
+      models: [],
+      effort: null,
+      evidence: 'No reported identity.',
+    };
+    const unknown = renderReviewMarkdown(aggregate);
+    expect(unknown).toContain('codex:gpt\\-6\\-luna');
+    expect(unknown).toContain(
+      '**Passed to provider:** codex (model gpt\\-6\\-luna, effort low)',
+    );
+    expect(unknown).toContain(
+      '**Reviewer:** codex (reported models unobserved, effort unobserved)',
+    );
+    aggregate.reviewer.observed.models = ['reported-a', 'reported-b'];
+    const reported = renderReviewMarkdown(aggregate);
+    expect(reported).toContain('reported models reported\\-a, reported\\-b');
+    expect(reported).toContain('effort unobserved');
+  });
+
   it.each([
     ['clean', 'clean-review.md'],
     ['findings', 'findings-review.md'],
@@ -867,7 +930,7 @@ function aggregateFixture(root: string, runDirectory: string): ReviewAggregate {
     ],
   };
   return {
-    schema_version: 'v1',
+    schema_version: 'v2',
     run_id: 'run-fixture',
     status: 'complete',
     worktree_root: root,
@@ -904,7 +967,7 @@ function aggregateFixture(root: string, runDirectory: string): ReviewAggregate {
       skipped: [],
       observed: {
         provider: 'claude',
-        model: null,
+        models: [],
         effort: null,
         evidence: 'Provider envelope only.',
       },
@@ -1006,7 +1069,7 @@ function receiptAggregateFixture(kind: 'clean' | 'findings'): ReviewAggregate {
   aggregate.run_id = `receipt-${kind}-v1`;
   aggregate.reviewer.observed = {
     provider: 'claude',
-    model: null,
+    models: [],
     effort: null,
     evidence: 'Provider envelope only.',
   };
