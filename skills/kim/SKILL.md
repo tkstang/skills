@@ -21,9 +21,10 @@ or outward-facing action without the confirmation described under Held actions.
 Run kim only when the user invokes it: an explicit invocation, a message that
 starts with "kim" as an instruction, or a direct "keep it moving". A question
 about kim, or Kim as a person's name, is not an invocation. Never invoke it
-yourself. Each invocation is one run: its argument applies to that run only.
-Afterwards only the blocker list carries forward, and an ordinary later request
-does not apply a level from an earlier kim.
+yourself. Each invocation is one run: a level or selection in its argument
+applies to that run only, and an ordinary later request does not reuse it.
+Steering that pauses or drops work holds until the user reverses it. Otherwise
+only the blocker list carries forward.
 
 ## Step 1: Establish what is in play
 
@@ -31,7 +32,7 @@ Use the work currently underway: the user's latest corrections, accepted
 decisions, existing authorization, and established workstreams such as tasks,
 subagents, background jobs, branches, and pull requests. Read only what you need
 to act; kim is not a status report. Work the user paused, cancelled, or replaced
-stays stopped unless the argument names it.
+stays stopped unless the user explicitly says to resume it.
 
 Recover the open blocker list from earlier messages in this session. On the
 first kim run in a session, also collect every question or approval request
@@ -68,21 +69,26 @@ Resolve the argument against blockers as last shown to the user:
 - `high` and `very high` are levels only when they refer to recommendations or
   confidence. When an argument could be steering or a decision, treat it as
   steering and say how to approve.
+- A level never confirms a held action; only its label or `kim confirm` does.
+- An unknown or closed label, a level that matches nothing, or a named blocker
+  with no recommendation applies nothing. Say so and continue the run.
 - A bare "yes" answers only the last question you asked.
 - If a selection's meaning cannot be recovered, for example after compaction,
   ask about that blocker and keep moving the rest. Do not guess.
 
 State the result in one line before acting, for example: "Applying B2 and B4
 (high). B3 stays open (medium)." Applying a decision closes the blocker, except
-that an irreversible action is held first and a missing prerequisite stays open
-until it is actually satisfied.
+that an irreversible action is held unless the user has already seen how it is
+irreversible, and a missing prerequisite stays open until it is actually
+satisfied.
 
 ## Step 3: Sort the work
 
-Before treating anything as a blocker, name what actually prevents it and the
-evidence. When that is an instruction, approval boundary, or enforced gate, name
-its source; your interpretation of a rule is not the rule. These are real
-blockers:
+Before treating anything as a blocker, name which requested outcome depends on
+it, what actually prevents it, and the evidence. An optional step the requested
+outcome does not need is not a blocker; mention it and move on. When the
+obstacle is an instruction, approval boundary, or enforced gate, name its
+source; your interpretation of a rule is not the rule. These are real blockers:
 
 - a decision that changes the goal, scope, or approach in a way the user has
   not settled;
@@ -93,8 +99,9 @@ blockers:
 - conflicting instructions or a genuinely unclear goal.
 
 These are not: a routine choice with a sensible, cheaply reversible default; a
-failure you can fix within scope; a flaky check, which you rerun once (a second
-failure is real); a question the user already answered. Never bypass or weaken
+failure you can fix within scope; a check that may be flaky, which you rerun
+once before testing a second failure like any other; a question the user already
+answered. Never bypass or weaken
 a gate, hook, or required review, and never reopen a decision the user made.
 
 Then sort the work. Make routine choices and report any the user may want to
@@ -156,10 +163,11 @@ entry as its brief.
 
 An action is irreversible or outward-facing when it publishes, releases,
 deploys, merges to a shared branch, force-pushes, sends a message to people
-outside this session, spends money, or deletes something that cannot be
-restored from this session or version control. Steps the authorized work has
-already been taking, such as committing or pushing to its own working branch,
-are not held.
+outside this session, spends money, deletes something that cannot be restored
+from this session or version control, or otherwise changes shared or production
+state in a way this session cannot undo. Routine steps of the work, such as
+local commits and ordinary pushes to its own working branch, are not held.
+Having taken an action once does not confirm taking it again.
 
 Hold such an action until the user has seen what it does and how it is
 irreversible, in its brief or a held list, and then names it or replies
@@ -171,7 +179,7 @@ held list:
 
 Confirmation covers exactly what was shown; if an action changes materially
 before it runs, show it again. Approval the user already gave for that exact
-action counts. Standing instructions that require confirmation still apply.
+action in this session counts. Standing instructions that require confirmation still apply.
 
 ## Close the run
 
@@ -182,18 +190,19 @@ order:
 1. What moved, keeping shown results distinct from reported ones.
 2. Choices you made that the user may want to revisit.
 3. Held actions.
-4. Open blockers: a full brief for each one that is new or changed, and one line
-   for the others, such as "B1 export removal: A remove / B deprecate;
-   recommend B (medium)".
+4. Open blockers, most confident actionable recommendation first: a full brief
+   for each one that is new or changed, and one line for the others, such as
+   "B1 export removal: A remove / B deprecate; recommend B (medium)".
 5. One last line. When everything left is blocked: "I can't keep it moving
    without a decision on <the blocker | one of the blockers>. My recommendation
    to unblock us is B2, <option> (confidence: very high). Go ahead with that?"
    Lead with the recommendation you are most confident in and break ties by how
-   much work it unblocks; if it is irreversible, say how in the question.
+   much work it unblocks; if it is irreversible, say how in the question. If
+   only prerequisites remain, say what you need and from whom instead.
    Otherwise, "Waiting on you: <labels>", or "Nothing is waiting on you."
 
-At any later stop in this session while blockers remain open, end with steps 4
-and 5 the same way.
+At any later stop in this session while blockers or held actions remain open,
+end with items 3 to 5 of this report.
 
 ## Boundaries
 
