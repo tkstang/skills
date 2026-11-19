@@ -38,7 +38,7 @@ _Mermaid updated 2026-11-18_
 | Decide the next action and understand why                  | [Next Steps](../../skills/next-steps.md)                           | A justified recommendation and who can take it; the skill does not execute it.                                                                 |
 | Understand choices the agent already offered               | [Explain Options](../../skills/explain-options.md)                 | Context, trade-offs, and a recommendation for one pending decision; it asks you to choose and does not act.                                    |
 | Check whether a claimed blocker or extra work is necessary | [Must We?](../../skills/must-we.md)                                | An evidence-based verdict, the consequence of skipping it, and the smallest sufficient path; no automatic execution.                           |
-| Keep the work moving past anything that does not need you  | [Kim](../../skills/kim.md)                                         | Continued work, plain-language briefs with confidence-rated recommendations for real blockers, and irreversible actions held for confirmation. |
+| Keep the work moving past anything that does not need you  | [Keep It Moving (kim)](../../skills/kim.md)                        | Continued work, plain-language briefs with confidence-rated recommendations for real blockers, and irreversible actions held for confirmation. |
 | Let another agent or person continue the work              | [Handoff](../../skills/session-handoff.md)                         | Portable goals, state, decisions, evidence, remaining work, and approval boundaries.                                                           |
 | Exchange addressed work across local sessions              | [Messaging](../../skills/agent-messaging.md)                       | A durable inbox and shared log, with manual fallback and separately verified finite delivery.                                                  |
 | Continue native history in another existing worktree       | [Fork to Destination](../../skills/session-fork-to-destination.md) | Alpha native-fork guidance with optional supported history import; it creates no native fork and transfers no worktree changes.                |
@@ -62,7 +62,7 @@ or proposed extra work is necessary**. It checks the evidence and existing
 authorization, upholds real gates, and recommends the smallest sufficient path.
 Neither skill automatically resumes work.
 
-Kim is the member that acts. It **continues the work already in scope**,
+Keep It Moving (kim) is the member that acts. It **continues the work already in scope**,
 stops only on real blockers, carries them forward with confidence-rated
 recommendations, and holds irreversible actions until you confirm them. It
 grants no new authority.
@@ -91,7 +91,7 @@ choices with their own bundled runtimes.
 
 Install the Session plugin using the [Installation guide](../../installation.md).
 Every member also has a standalone form. The names for Align, Debrief, Sitrep,
-Next Steps, Explain Options, Must We, and Kim stay the same in both forms:
+Next Steps, Explain Options, Must We, and Keep It Moving (`kim`) stay the same in both forms:
 
 | Plugin-local name     | Standalone name               |
 | --------------------- | ----------------------------- |
@@ -116,7 +116,7 @@ a standalone install and `/session:align` for the Session member. Other hosts
 use their own invocation syntax; packaging alone does not prove live discovery
 or permissions.
 
-Align, Debrief, Sitrep, Next Steps, Explain Options, Must We, and Kim are
+Align, Debrief, Sitrep, Next Steps, Explain Options, Must We, and Keep It Moving are
 instruction-only and have no runtime or package dependencies. The `seshtk-cli`
 member requires Node.js 22+ and the external `@tkstang/session-toolkit` package
 for execution (verified baseline 0.1.0). Installing the plugin does not install
@@ -151,7 +151,7 @@ in view for the plugin and its members.
 
 ### Continue or coordinate
 
-- [Kim](../../skills/kim.md) — Keep the work moving, stop only on real blockers, and hold irreversible actions for confirmation.
+- [Keep It Moving (kim)](../../skills/kim.md) — Keep the work moving, stop only on real blockers, and hold irreversible actions for confirmation.
 - [Handoff](../../skills/session-handoff.md) — Prepare portable continuation context.
 - [Messaging](../../skills/agent-messaging.md) — Exchange addressed messages with explicit receipt and delivery boundaries.
 - [Fork to Destination](../../skills/session-fork-to-destination.md) — Prepare alpha native-fork guidance, with optional supported history import.

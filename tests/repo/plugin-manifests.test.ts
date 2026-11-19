@@ -29,7 +29,7 @@ const plugins = [
   },
   {
     name: 'session',
-    version: '0.9.0',
+    version: '0.9.1',
     description:
       'Session alignment, status, debriefs, option explanations, necessity checks, next steps, keep-it-moving continuation, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.',
     skills: [

@@ -1,15 +1,15 @@
 ---
 name: kim
-description: 'Use when the user tells the agent to "kim" or "keep it moving", optionally with decisions such as "kim high" or "kim B2", to continue the current work. Moves everything that does not need the user, stops only on real blockers, explains each in plain terms with a confidence-rated recommendation, carries open blockers forward, and holds irreversible or outward-facing actions for confirmation. Not for status, recaps, or advice without action.'
+description: 'Keep it moving (kim). Use when the user tells the agent to "kim" or "keep it moving", optionally with decisions such as "kim high" or "kim B2", to continue the current work. Moves everything that does not need the user, stops only on real blockers, explains each in plain terms with a confidence-rated recommendation, carries open blockers forward, and holds irreversible or outward-facing actions for confirmation. Not for status, recaps, or advice without action.'
 license: MIT
 compatibility: Agent Skills baseline; instruction-only, with no runtime or package dependencies.
 user-invocable: true
 metadata:
   author: Thomas Stang
-  version: '1.0.0'
+  version: '1.0.1'
 ---
 
-# Keep it moving
+# Keep it moving (kim)
 
 Continue the current work. Move everything that does not need the user, stop
 only the threads that do, and say plainly what is moving and what is waiting.

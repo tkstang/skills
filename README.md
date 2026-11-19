@@ -71,8 +71,8 @@ It also includes Observer and Collaborative Observer.
 **Session** helps you check shared goals, catch up on what happened, report
 current progress, regain a long thread, and choose a justified next action.
 Explain Options makes offered choices clear; Must We checks whether proposed
-extra work is needed. Both recommend without executing. Kim acts: it keeps
-the work moving, stops only on real blockers, and holds irreversible actions
+extra work is needed. Both recommend without executing. Keep It Moving (kim) acts: it
+keeps the work moving, stops only on real blockers, and holds irreversible actions
 for confirmation.
 It also offers addressed messaging, handoffs, transcript export, past-session
 search, toolkit CLI guidance, and evidence-backed retrospectives. All members
