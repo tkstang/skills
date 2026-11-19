@@ -33,7 +33,7 @@ Add decisions on open blockers after `kim`:
 | `kim B2`                                 | Applies B2's recommendation, or confirms B2's held action.               |
 | `kim B1 option C`                        | Applies the option you chose for B1.                                     |
 | `kim confirm`                            | Confirms the held list of irreversible actions.                          |
-| "kim, but skip the docs"                 | Takes the steering for this run.                                         |
+| "kim, but skip the docs"                 | Pauses the docs until you say to resume them.                            |
 
 Before acting, it states in one line what the argument resolved to, such as
 "Applying B2 and B4 (high). B3 stays open (medium)." A level covers only
@@ -41,8 +41,10 @@ recommendations you have already seen with that rating and that stay within
 scope. A new or changed recommendation, or one that would widen scope, stays
 open. If you name an option that does not exist, the blocker stays open
 rather than falling back to the recommendation. A bare "yes" answers only the
-last question the agent asked. The argument applies to that run only; a later
-ordinary request does not reuse it.
+last question the agent asked. A level or selection applies to that run only;
+a later ordinary request does not reuse it. Steering that pauses or drops work,
+such as "skip the docs", holds until you say to resume it; a later plain `kim`
+does not bring it back.
 
 ## What you get
 

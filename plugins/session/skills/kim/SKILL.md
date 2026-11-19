@@ -70,8 +70,10 @@ Resolve the argument against blockers as last shown to the user:
   confidence. When an argument could be steering or a decision, treat it as
   steering and say how to approve.
 - A level never confirms a held action; only its label or `kim confirm` does.
-- An unknown or closed label, a level that matches nothing, or a named blocker
-  with no recommendation applies nothing. Say so and continue the run.
+- An unknown or closed label, a level that matches nothing, or a named decision
+  or prerequisite blocker with no recommendation applies nothing. Say so and
+  continue the run. Naming a held action already shown confirms it, as
+  described under Held actions.
 - A bare "yes" answers only the last question you asked.
 - If a selection's meaning cannot be recovered, for example after compaction,
   ask about that blocker and keep moving the rest. Do not guess.
