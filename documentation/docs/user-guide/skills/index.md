@@ -30,6 +30,7 @@ skill to avoid duplicate entries.
 | Understand what to do next and why                                            | [Next Steps](next-steps.md)                                   | A contextual recommendation that identifies the next justified action and who can take it, without executing it.                                                        |
 | Choose between options the agent just offered                                 | [Explain Options](explain-options.md)                         | Background, each option's costs and reversibility, what decides it, and a recommendation, ending with a question; nothing is acted on.                                  |
 | Decide whether a requirement or proposal is necessary                         | [Must We?](must-we.md)                                        | An evidence-based verdict, consequence of skipping, and the smallest sufficient path.                                                                                   |
+| Keep the work moving past anything that does not need you                     | [Kim](kim.md)                                                 | Continued work, plain-language briefs for real blockers with confidence-rated recommendations, and irreversible actions held for confirmation.                          |
 | Create, revise, migrate, or review an agent skill                             | [Author Skill](author-skill.md)                               | A skill shaped by the target repository’s conventions, with focused verification and explicit live-evidence limits.                                                     |
 | Review one bounded branch diff, file set, or document independently           | [Consensus Review](../consensus/review.md)                    | Validated JSON and OAT-compatible Markdown with findings, provenance, checks, and explicit detection limits; no automatic fixes.                                        |
 | Ask one provider-backed peer for a focused second opinion                     | [Phone-a-friend](../consensus/phone-a-friend.md)              | A structured advisory take the host dispositions, with bounded follow-up on request; no automatic application.                                                          |
@@ -68,6 +69,8 @@ and standalone choices.
   background, trade-offs, and a recommendation, then ask which to take.
 - **must-we** (session-local `must-we`) — evaluate whether a blocker, requirement, or proposed action is
   necessary and identify a smaller path when warranted.
+- **kim** (session-local `kim`) — keep the current work moving, stop only on real
+  blockers, and hold irreversible actions for confirmation.
 - **author-skill** — create, revise, migrate, or review a skill using the target
   repository’s source, distribution, version, and verification conventions.
 - **session-retro** (session-local `retro`) — review a bounded episode and
@@ -122,6 +125,7 @@ and standalone choices.
 - [Next Steps](next-steps.md) — Explain the current state and recommend justified actions without executing them. Available standalone or as Session `next-steps`.
 - [Explain Options](explain-options.md) — Explain the choices an agent just offered well enough to decide, with a recommendation, without acting on it. Available standalone or as Session `explain-options`.
 - [Must We?](must-we.md) — Decide whether a blocker or proposal is necessary and find the smallest sufficient path. Available standalone or as Session `must-we`.
+- [Kim](kim.md) — Keep the work moving past anything that does not need you, with blockers explained and carried forward. Available standalone or as Session `kim`.
 
 ### Review and improve
 

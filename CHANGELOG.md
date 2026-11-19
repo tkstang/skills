@@ -52,6 +52,14 @@
 
 ### Added
 
+- `kim` 1.0.0 (keep it moving), standalone and in `session` 0.9.0,
+  continues the current work, moving everything that does not need the user. Before stopping it checks that a blocker is real. It explains each real
+  blocker in plain terms with a recommendation rated low to very high, and
+  carries open blockers forward under stable labels. Arguments such as
+  `kim high` or `kim B2` apply recommendations, while irreversible or
+  outward-facing actions are held until the user confirms them. It grants no
+  new authority.
+
 - `consensus-delegate` 0.1.1 also ships standalone as `delegate`, with its own
   bundled consensus CLI and the same worktree accounting as `consensus:delegate`.
   Provider discovery of the new standalone form remains unverified.

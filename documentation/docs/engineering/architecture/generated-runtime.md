@@ -92,6 +92,7 @@ plugin by itself.
 | `src/skills/sitrep`                                                                                                              | `skills/sitrep/` and `plugins/session/skills/sitrep/`                                   |
 | `src/skills/next-steps`                                                                                                          | `skills/next-steps/` and `plugins/session/skills/next-steps/`                           |
 | `src/skills/explain-options`                                                                                                     | `skills/explain-options/` and `plugins/session/skills/explain-options/`                 |
+| `src/skills/kim`                                                                                                                 | `skills/kim/` and `plugins/session/skills/kim/`                                         |
 | `src/skills/must-we`                                                                                                             | `skills/must-we/` and `plugins/session/skills/must-we/`                                 |
 
 Executable owners declare entrypoints in `build.json`; prompt-only skills do
@@ -174,12 +175,14 @@ bundled templates or references. Their canonical standalone names stay
 `session-handoff`, `session-retro`, and `reorient`. The instruction-only
 `seshtk-cli` member keeps that same name in standalone and plugin forms and
 requires the external toolkit CLI only when executing a session operation.
-`align`, `debrief`, `sitrep`, `next-steps`, `explain-options`, and `must-we` are
-instruction-only members with the same standalone and plugin-local names.
+`align`, `debrief`, `sitrep`, `next-steps`, `explain-options`, `must-we`, and
+`kim` are instruction-only members with the same standalone and plugin-local names.
 Debrief and Sitrep declare Next Steps as an optional workflow reference:
 standalone payloads name `next-steps`, while Session payloads resolve the
 plugin-local `next-steps` member. Neither workflow
-invokes it automatically. Must We retains `complexity-review` as optional
+invokes it automatically. Kim declares Sitrep, Debrief, Next Steps, Explain
+Options, and Must We as optional references only to name them as alternatives;
+it applies their tests inline and invokes none of them. Must We retains `complexity-review` as optional
 analysis; Complexity Review remains standalone and is not included in Session.
 
 ## Import rewriting
