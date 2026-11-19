@@ -6,7 +6,7 @@ description: 'Find independently installable skills by capability, including mem
 # Standalone Skills
 
 Session skills can be installed individually or through Session. Align,
-Debrief, Sitrep, Reorient, Next Steps, Explain Options, Must We, and Seshtk CLI
+Debrief, Sitrep, Reorient, Next Steps, Explain Options, Must We, Kim, and Seshtk CLI
 keep the same names in both forms; other Session members use the canonical names listed in their
 guides. Observer and Collaborative Observer are standalone skills and Consensus
 members only. `author-skill`, `complexity-review`, `babysit-pr`, and `land-pr`

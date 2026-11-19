@@ -1,6 +1,6 @@
 ---
 title: 'Kim'
-description: 'Keep it moving: continue the current work, stop only on real blockers, explain them with confidence-rated recommendations, and hold irreversible actions for confirmation.'
+description: 'Continue the current work, stop only on real blockers, explain them with confidence-rated recommendations, and hold irreversible actions for confirmation.'
 ---
 
 # Kim
@@ -67,7 +67,7 @@ decision on one of the blockers. My recommendation to unblock us is B2 …" It
 leads with the recommendation it is most confident in.
 
 Before stopping on anything, the agent checks whether it is a real blocker,
-using the same tests as [Must We?](must-we.md). A choice with a sensible,
+using tests like those in [Must We?](must-we.md). A choice with a sensible,
 cheaply reversible default does not stop the work; an unsettled change of
 direction, missing access, or an unconfirmed irreversible action does.
 
@@ -88,7 +88,7 @@ so.
 report or recommend without acting; kim pairs with them when you are ready to
 continue. [Explain Options](explain-options.md) explains one pending decision
 without acting, and [Must We?](must-we.md) evaluates a disputed stop in depth.
-kim applies their tests inline and does not invoke them.
+kim applies its own blocker tests inline and invokes none of them.
 
 ## Examples
 

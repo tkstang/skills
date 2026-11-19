@@ -20,7 +20,7 @@
     - [Next Steps](docs/user-guide/skills/next-steps.md) — Turn the current situation into a justified recommendation without executing it.
     - [Explain Options](docs/user-guide/skills/explain-options.md) — Understand choices an agent already offered, with background, trade-offs, and a recommendation, without choosing or acting for you.
     - [Must We?](docs/user-guide/skills/must-we.md) — Decide whether a blocker, requirement, or proposed action is necessary and identify the smallest sufficient path.
-    - [Kim](docs/user-guide/skills/kim.md) — Keep it moving: continue the current work, stop only on real blockers, explain them with confidence-rated recommendations, and hold irreversible actions for confirmation.
+    - [Kim](docs/user-guide/skills/kim.md) — Continue the current work, stop only on real blockers, explain them with confidence-rated recommendations, and hold irreversible actions for confirmation.
     - [Babysit PR](docs/user-guide/skills/babysit-pr.md) — Repair CI and review findings until a pull request is green, then report readiness without merging.
     - [Land PR](docs/user-guide/skills/land-pr.md) — Repair and verify a pull request, then merge its checked head and confirm the remote result.
     - [Author Skill](docs/user-guide/skills/author-skill.md) — Create, revise, migrate, or review agent skills using the target repository’s own authoring and distribution conventions.
