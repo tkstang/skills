@@ -1,7 +1,7 @@
 {
   "name": "session",
-  "version": "0.8.3",
-  "description": "Session alignment, status, debriefs, option explanations, necessity checks, next steps, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.",
+  "version": "0.9.0",
+  "description": "Session alignment, status, debriefs, option explanations, necessity checks, next steps, keep-it-moving continuation, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.",
   "author": {
     "name": "Thomas Stang"
   },
@@ -10,14 +10,14 @@
   "interface": {
     "displayName": "Session",
     "shortDescription": "Align on goals, understand choices and progress, choose next steps, and preserve sessions.",
-    "longDescription": "Session skills for aligning on goals, reporting current progress, explaining what happened and offered options, evaluating disputed requirements, recommending next actions, rebuilding long-thread context, transferring work, exchanging addressed messages, inspecting and exporting supported local conversations, and reviewing bounded episodes. Fork to Destination prepares alpha native-fork instructions; seshtk-cli uses the separately installed Session Toolkit CLI.",
+    "longDescription": "Session skills for aligning on goals, reporting current progress, explaining what happened and offered options, evaluating disputed requirements, recommending next actions, continuing work past non-blockers with Kim, rebuilding long-thread context, transferring work, exchanging addressed messages, inspecting and exporting supported local conversations, and reviewing bounded episodes. Fork to Destination prepares alpha native-fork instructions; seshtk-cli uses the separately installed Session Toolkit CLI.",
     "developerName": "Thomas Stang",
     "category": "Coding",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
       "Use Align to confirm goals, Sitrep for current progress, or Debrief for what happened.",
       "Use Explain Options for offered choices, Must We for a disputed requirement, or Next Steps for a recommendation.",
-      "Use Reorient for a long thread, or other Session skills to coordinate, preserve, inspect, continue, or review session work."
+      "Use Kim to keep work moving around blockers, Reorient for a long thread, or other skills to coordinate or review sessions."
     ]
   },
   "metadata": {

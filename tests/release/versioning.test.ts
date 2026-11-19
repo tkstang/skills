@@ -332,6 +332,7 @@ describe('release-versioning', () => {
       'src/skills/consensus-review/SKILL.md',
       'src/skills/debrief/SKILL.md',
       'src/skills/explain-options/SKILL.md',
+      'src/skills/kim/SKILL.md',
       'src/skills/land-pr/SKILL.md',
       'src/skills/must-we/SKILL.md',
       'src/skills/next-steps/SKILL.md',

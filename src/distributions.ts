@@ -264,6 +264,49 @@ export const distributions: readonly DistributionDeclaration[] = [
     ],
   },
   {
+    owner: 'kim',
+    source: 'src/skills/kim',
+    optionalSkills: [
+      {
+        name: 'sitrep',
+        installUrl: 'https://github.com/tkstang/skills/tree/main/skills/sitrep',
+      },
+      {
+        name: 'debrief',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/debrief',
+      },
+      {
+        name: 'next-steps',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/next-steps',
+      },
+      {
+        name: 'explain-options',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/explain-options',
+      },
+      {
+        name: 'must-we',
+        installUrl:
+          'https://github.com/tkstang/skills/tree/main/skills/must-we',
+      },
+    ],
+    targets: [
+      {
+        kind: 'standalone',
+        name: 'kim',
+        output: 'skills/kim',
+      },
+      {
+        kind: 'plugin',
+        plugin: 'session',
+        name: 'kim',
+        output: 'plugins/session/skills/kim',
+      },
+    ],
+  },
+  {
     owner: 'sitrep',
     source: 'src/skills/sitrep',
     optionalSkills: [

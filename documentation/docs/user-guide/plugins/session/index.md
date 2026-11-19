@@ -15,11 +15,11 @@ a required sequence.
 ```mermaid
 flowchart LR
   accTitle: Choose a Session skill by intent
-  accDescr: Four independent choices group Session skills by need. Understand the work with align, debrief, sitrep, or reorient. Choose a next action with next-steps, understand offered choices with explain-options, or evaluate disputed requirements with must-we. Continue or coordinate with handoff, messaging, or fork-to-destination. Inspect or learn with export-transcript, search, seshtk-cli, or retro. The groups are choices, not workflow stages.
+  accDescr: Four independent choices group Session skills by need. Understand the work with align, debrief, sitrep, or reorient. Choose a next action with next-steps, understand offered choices with explain-options, or evaluate disputed requirements with must-we. Continue or coordinate with kim, handoff, messaging, or fork-to-destination. Inspect or learn with export-transcript, search, seshtk-cli, or retro. The groups are choices, not workflow stages.
   Q{"What do you need?"}
   U["Understand the work<br/>align · debrief<br/>sitrep · reorient"]
   N["Choose a next action<br/>next-steps<br/>explain-options · must-we"]
-  C["Continue or coordinate<br/>handoff · messaging<br/>fork-to-destination"]
+  C["Continue or coordinate<br/>kim · handoff<br/>messaging · fork-to-destination"]
   I["Inspect or learn<br/>export-transcript · search<br/>seshtk-cli · retro"]
   Q --> U
   Q --> N
@@ -27,24 +27,25 @@ flowchart LR
   Q --> I
 ```
 
-_Mermaid updated 2026-10-31_
+_Mermaid updated 2026-11-18_
 
-| What you need                                              | Skill                                                              | What it produces                                                                                                                  |
-| ---------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| Check that the agent understands your goals and problem    | [Align](../../skills/align.md)                                     | An explicit alignment exchange about intent, success criteria, assumptions, and direction; no project changes.                    |
-| Catch up on what happened while you were away              | [Debrief](../../skills/debrief.md)                                 | A concise account of an interval from visible session history only; no tools or recommendation.                                   |
-| See where the work stands against its goal                 | [Sitrep](../../skills/sitrep.md)                                   | Current progress, remaining commitments, risks, and open questions from established sources checked read-only; no recommendation. |
-| Regain the big picture of a long or compacted thread       | [Reorient](../../skills/reorient.md)                               | The whole thread's arc from its full transcript, current state with drift checked, and a recommendation.                          |
-| Decide the next action and understand why                  | [Next Steps](../../skills/next-steps.md)                           | A justified recommendation and who can take it; the skill does not execute it.                                                    |
-| Understand choices the agent already offered               | [Explain Options](../../skills/explain-options.md)                 | Context, trade-offs, and a recommendation for one pending decision; it asks you to choose and does not act.                       |
-| Check whether a claimed blocker or extra work is necessary | [Must We?](../../skills/must-we.md)                                | An evidence-based verdict, the consequence of skipping it, and the smallest sufficient path; no automatic execution.              |
-| Let another agent or person continue the work              | [Handoff](../../skills/session-handoff.md)                         | Portable goals, state, decisions, evidence, remaining work, and approval boundaries.                                              |
-| Exchange addressed work across local sessions              | [Messaging](../../skills/agent-messaging.md)                       | A durable inbox and shared log, with manual fallback and separately verified finite delivery.                                     |
-| Continue native history in another existing worktree       | [Fork to Destination](../../skills/session-fork-to-destination.md) | Alpha native-fork guidance with optional supported history import; it creates no native fork and transfers no worktree changes.   |
-| Keep a readable conversation archive                       | [Export Transcript](../../skills/session-export-transcript.md)     | Sanitized Markdown to review before sharing; an archive, not native session transfer.                                             |
-| Find a past Claude Code, Codex, or Cursor session          | [Search](../../skills/session-search.md)                           | Ranked, redacted candidates with resume hints; reads local stores without writing to them.                                        |
-| Use or understand Session Toolkit commands                 | [Seshtk CLI](../../skills/seshtk-cli.md)                           | A verified command workflow with explicit session selection, coverage, and artifact paths; execution requires the external CLI.   |
-| Learn from an invocation or bounded episode                | [Retro](../../skills/session-retro.md)                             | Evidence-backed lessons and improvement proposals; it does not apply them.                                                        |
+| What you need                                              | Skill                                                              | What it produces                                                                                                                               |
+| ---------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Check that the agent understands your goals and problem    | [Align](../../skills/align.md)                                     | An explicit alignment exchange about intent, success criteria, assumptions, and direction; no project changes.                                 |
+| Catch up on what happened while you were away              | [Debrief](../../skills/debrief.md)                                 | A concise account of an interval from visible session history only; no tools or recommendation.                                                |
+| See where the work stands against its goal                 | [Sitrep](../../skills/sitrep.md)                                   | Current progress, remaining commitments, risks, and open questions from established sources checked read-only; no recommendation.              |
+| Regain the big picture of a long or compacted thread       | [Reorient](../../skills/reorient.md)                               | The whole thread's arc from its full transcript, current state with drift checked, and a recommendation.                                       |
+| Decide the next action and understand why                  | [Next Steps](../../skills/next-steps.md)                           | A justified recommendation and who can take it; the skill does not execute it.                                                                 |
+| Understand choices the agent already offered               | [Explain Options](../../skills/explain-options.md)                 | Context, trade-offs, and a recommendation for one pending decision; it asks you to choose and does not act.                                    |
+| Check whether a claimed blocker or extra work is necessary | [Must We?](../../skills/must-we.md)                                | An evidence-based verdict, the consequence of skipping it, and the smallest sufficient path; no automatic execution.                           |
+| Keep the work moving past anything that does not need you  | [Kim](../../skills/kim.md)                                         | Continued work, plain-language briefs with confidence-rated recommendations for real blockers, and irreversible actions held for confirmation. |
+| Let another agent or person continue the work              | [Handoff](../../skills/session-handoff.md)                         | Portable goals, state, decisions, evidence, remaining work, and approval boundaries.                                                           |
+| Exchange addressed work across local sessions              | [Messaging](../../skills/agent-messaging.md)                       | A durable inbox and shared log, with manual fallback and separately verified finite delivery.                                                  |
+| Continue native history in another existing worktree       | [Fork to Destination](../../skills/session-fork-to-destination.md) | Alpha native-fork guidance with optional supported history import; it creates no native fork and transfers no worktree changes.                |
+| Keep a readable conversation archive                       | [Export Transcript](../../skills/session-export-transcript.md)     | Sanitized Markdown to review before sharing; an archive, not native session transfer.                                                          |
+| Find a past Claude Code, Codex, or Cursor session          | [Search](../../skills/session-search.md)                           | Ranked, redacted candidates with resume hints; reads local stores without writing to them.                                                     |
+| Use or understand Session Toolkit commands                 | [Seshtk CLI](../../skills/seshtk-cli.md)                           | A verified command workflow with explicit session selection, coverage, and artifact paths; execution requires the external CLI.                |
+| Learn from an invocation or bounded episode                | [Retro](../../skills/session-retro.md)                             | Evidence-backed lessons and improvement proposals; it does not apply them.                                                                     |
 
 ### Understand, report, or recommend
 
@@ -60,6 +61,11 @@ choose or execute. Must We checks **whether a claimed blocker, approval request,
 or proposed extra work is necessary**. It checks the evidence and existing
 authorization, upholds real gates, and recommends the smallest sufficient path.
 Neither skill automatically resumes work.
+
+Kim is the member that acts. It **continues the work already in scope**,
+stops only on real blockers, carries them forward with confidence-rated
+recommendations, and holds irreversible actions until you confirm them. It
+grants no new authority.
 
 [Complexity Review](../../skills/complexity-review.md) remains a separate
 standalone skill. Must We can use it as optional analysis when available and
@@ -85,7 +91,7 @@ choices with their own bundled runtimes.
 
 Install the Session plugin using the [Installation guide](../../installation.md).
 Every member also has a standalone form. The names for Align, Debrief, Sitrep,
-Next Steps, Explain Options, and Must We stay the same in both forms:
+Next Steps, Explain Options, Must We, and Kim stay the same in both forms:
 
 | Plugin-local name     | Standalone name               |
 | --------------------- | ----------------------------- |
@@ -96,6 +102,7 @@ Next Steps, Explain Options, and Must We stay the same in both forms:
 | `next-steps`          | `next-steps`                  |
 | `explain-options`     | `explain-options`             |
 | `must-we`             | `must-we`                     |
+| `kim`                 | `kim`                         |
 | `handoff`             | `session-handoff`             |
 | `messaging`           | `agent-messaging`             |
 | `fork-to-destination` | `session-fork-to-destination` |
@@ -109,7 +116,7 @@ a standalone install and `/session:align` for the Session member. Other hosts
 use their own invocation syntax; packaging alone does not prove live discovery
 or permissions.
 
-Align, Debrief, Sitrep, Next Steps, Explain Options, and Must We are
+Align, Debrief, Sitrep, Next Steps, Explain Options, Must We, and Kim are
 instruction-only and have no runtime or package dependencies. The `seshtk-cli`
 member requires Node.js 22+ and the external `@tkstang/session-toolkit` package
 for execution (verified baseline 0.1.0). Installing the plugin does not install
@@ -144,6 +151,7 @@ in view for the plugin and its members.
 
 ### Continue or coordinate
 
+- [Kim](../../skills/kim.md) — Keep the work moving, stop only on real blockers, and hold irreversible actions for confirmation.
 - [Handoff](../../skills/session-handoff.md) — Prepare portable continuation context.
 - [Messaging](../../skills/agent-messaging.md) — Exchange addressed messages with explicit receipt and delivery boundaries.
 - [Fork to Destination](../../skills/session-fork-to-destination.md) — Prepare alpha native-fork guidance, with optional supported history import.

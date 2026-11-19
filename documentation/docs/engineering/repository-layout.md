@@ -32,7 +32,7 @@ infrastructure.
 - `plugins/session/` — generated complete session installation unit with local
   `messaging`, `retro`, `handoff`, `export-transcript`, `search`, `reorient`,
   `fork-to-destination`, `seshtk-cli`, `align`, `debrief`, `sitrep`,
-  `next-steps`, `explain-options`, and `must-we` skills.
+  `next-steps`, `explain-options`, `must-we`, and `kim` skills.
 - `.claude-plugin/`, `.cursor-plugin/`, `.agents/plugins/` — repo-root marketplace entries.
 - `.oat/` and `.agents/` — project-management infrastructure, not required by plugin consumers.
 
@@ -113,6 +113,8 @@ Inside `plugins/session/`:
 - `skills/explain-options/` and `skills/must-we/` — instruction-only forms
   retaining their standalone names. Complexity Review remains optional to Must We
   and standalone; it is not installed with Session.
+- `skills/kim/` — instruction-only form retaining its standalone name; its
+  pointers to the other Session members are optional and never invoked.
 - `skills/handoff/` — plugin-local form of `session-handoff`.
 - `skills/retro/` — plugin-local form of `session-retro`.
 - `skills/reorient/` — plugin-local form of `reorient`.

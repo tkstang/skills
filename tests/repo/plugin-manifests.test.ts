@@ -29,9 +29,9 @@ const plugins = [
   },
   {
     name: 'session',
-    version: '0.8.3',
+    version: '0.9.0',
     description:
-      'Session alignment, status, debriefs, option explanations, necessity checks, next steps, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.',
+      'Session alignment, status, debriefs, option explanations, necessity checks, next steps, keep-it-moving continuation, reorientation, handoffs, messaging, transcript workflows, retrospective review, and Session Toolkit CLI guidance.',
     skills: [
       'align',
       'debrief',
@@ -39,6 +39,7 @@ const plugins = [
       'export-transcript',
       'fork-to-destination',
       'handoff',
+      'kim',
       'messaging',
       'must-we',
       'next-steps',

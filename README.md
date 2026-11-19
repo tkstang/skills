@@ -19,6 +19,7 @@ installation and available capabilities vary by host.
 | Hand off work, export a transcript, find a past session, or review a session | [Session plugin](https://tkstang.github.io/skills/user-guide/plugins/session/)                                                                                                            |
 | Check goals or progress and get a justified next action                      | [Session plugin](https://tkstang.github.io/skills/user-guide/plugins/session/)                                                                                                            |
 | Understand offered choices or question proposed extra work                   | [Session plugin](https://tkstang.github.io/skills/user-guide/plugins/session/)                                                                                                            |
+| Keep the work moving without stopping on non-blockers                        | [Session plugin](https://tkstang.github.io/skills/user-guide/plugins/session/)                                                                                                            |
 | Review complexity in a plan or implementation                                | [Complexity Review](https://tkstang.github.io/skills/user-guide/skills/complexity-review/)                                                                                                |
 | Observe another session or collaborate across two sessions                   | [Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer/) or [Collaborative Observer](https://tkstang.github.io/skills/user-guide/skills/session-observer-collab/) |
 
@@ -70,7 +71,9 @@ It also includes Observer and Collaborative Observer.
 **Session** helps you check shared goals, catch up on what happened, report
 current progress, regain a long thread, and choose a justified next action.
 Explain Options makes offered choices clear; Must We checks whether proposed
-extra work is needed. Both recommend without executing.
+extra work is needed. Both recommend without executing. Kim acts: it keeps
+the work moving, stops only on real blockers, and holds irreversible actions
+for confirmation.
 It also offers addressed messaging, handoffs, transcript export, past-session
 search, toolkit CLI guidance, and evidence-backed retrospectives. All members
 also have standalone forms. Its **alpha** Fork to Destination skill prepares

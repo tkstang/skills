@@ -21,7 +21,8 @@ What ships today:
 - **Session plugin** — `align`, `debrief`, `sitrep`, and `reorient` clarify
   intent, recent history, current progress, and the whole thread; `next-steps`
   recommends an action, `explain-options` makes offered choices understandable,
-  and `must-we` evaluates disputed requirements. `messaging`, `handoff`,
+  `must-we` evaluates disputed requirements, and `kim` keeps the work moving
+  around real blockers. `messaging`, `handoff`,
   `export-transcript`, `search`, `fork-to-destination`, `seshtk-cli`, and `retro`
   support coordination, continuity, session evidence, and lessons.
 - **Session Toolkit** — the `seshtk` terminal command and typed ESM library

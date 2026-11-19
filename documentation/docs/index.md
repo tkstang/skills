@@ -26,6 +26,7 @@ job you want help with:
 | Regain the big picture of a long or compacted thread                                     | [Reorient](user-guide/skills/reorient.md)                                                          |
 | Decide what comes next or whether a proposed step is necessary                           | [Next Steps](user-guide/skills/next-steps.md) or [Must We?](user-guide/skills/must-we.md)          |
 | Understand the options an agent offered before choosing                                  | [Explain Options](user-guide/skills/explain-options.md)                                            |
+| Keep the work moving without stopping on non-blockers                                    | [Kim](user-guide/skills/kim.md)                                                                    |
 | Check whether a plan or implementation is needlessly complex                             | [Complexity Review](user-guide/skills/complexity-review.md)                                        |
 | Create or improve an agent skill                                                         | [Author Skill](user-guide/skills/author-skill.md)                                                  |
 | Understand the implementation or contribute a skill                                      | [Engineering](engineering/index.md)                                                                |
