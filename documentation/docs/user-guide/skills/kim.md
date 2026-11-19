@@ -30,13 +30,19 @@ Add decisions on open blockers after `kim`:
 | `kim`                                    | Moves everything it can; blockers stay open.                             |
 | `kim high` or "kim high confidence recs" | Applies every recommendation rated high or very high, then keeps moving. |
 | `kim very high`                          | Applies only very-high recommendations.                                  |
-| `kim B2`                                 | Applies the recommendation for blocker B2.                               |
+| `kim B2`                                 | Applies B2's recommendation, or confirms B2's held action.               |
 | `kim B1 option C`                        | Applies the option you chose for B1.                                     |
 | `kim confirm`                            | Confirms the held list of irreversible actions.                          |
 | "kim, but skip the docs"                 | Takes the steering for this run.                                         |
 
 Before acting, it states in one line what the argument resolved to, such as
-"Applying B2 and B4 (high). B3 stays open (medium)."
+"Applying B2 and B4 (high). B3 stays open (medium)." A level covers only
+recommendations you have already seen with that rating and that stay within
+scope. A new or changed recommendation, or one that would widen scope, stays
+open. If you name an option that does not exist, the blocker stays open
+rather than falling back to the recommendation. A bare "yes" answers only the
+last question the agent asked. The argument applies to that run only; a later
+ordinary request does not reuse it.
 
 ## What you get
 
@@ -51,6 +57,8 @@ Before acting, it states in one line what the argument resolved to, such as
    other irreversible or outward-facing steps are listed with what makes each
    irreversible, and run only after you confirm them by name or with
    `kim confirm`. A bulk approval such as `kim high` never runs them directly.
+   Steps the work was already taking, such as committing or pushing to its own
+   working branch, are not held.
 5. **A short report**: what moved, choices made without you, the open blocker
    list, and what is waiting on you.
 
@@ -65,8 +73,10 @@ direction, missing access, or an unconfirmed irreversible action does.
 
 ## Blockers carry forward
 
-Blockers keep their labels (`B1`, `B2`, …) until you decide, dismiss, or the
-agent withdraws one because the evidence changed. Moving past a blocker or
+Blockers keep their labels (`B1`, `B2`, …) and their option letters until you
+decide or dismiss them, a missing prerequisite such as access actually works,
+or the agent withdraws one because the evidence changed. On the first run, the
+agent also gathers questions still unanswered earlier in the session. Moving past a blocker or
 sending an unrelated message does not close it. Every later stop in the session
 repeats the open list, so you can address blockers whenever suits you. The list
 lives in the conversation, not in a file; if compaction loses it, the agent says
