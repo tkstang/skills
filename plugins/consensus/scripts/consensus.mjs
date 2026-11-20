@@ -806,7 +806,8 @@ function buildProviderInvocation(adapter, request, options = {}) {
     lastMessageFile: options.lastMessageFile,
     preserveLastMessageFile: options.preserveLastMessageFile,
     resumeSessionId: options.resumeSessionId,
-    executable: options.executable
+    executable: options.executable,
+    ...options.prerequisiteExecutables ? { prerequisiteExecutables: options.prerequisiteExecutables } : {}
   });
 }
 var buildClaudeInvocation = (request, options = {}) => {
@@ -3318,18 +3319,14 @@ async function probeProviderRegistry({
   );
 }
 async function probeProviderReadiness(adapter, options) {
-  if (adapter.not_admitted_reason) {
-    return providerEntry(adapter, "unsupported", {
-      warnings: [
-        `PROVIDER_NOT_ADMITTED: registered, not admitted: ${adapter.not_admitted_reason}`
-      ]
-    });
-  }
-  const prerequisite = await checkProviderPrerequisites(
+  const notAdmitted = notAdmittedEntry(adapter);
+  if (notAdmitted) return notAdmitted;
+  const prerequisites = await checkProviderPrerequisites(
     adapter,
     options.runner
   );
-  if (prerequisite) {
+  if (!prerequisites.ok) {
+    const prerequisite = prerequisites.failure;
     return providerEntry(adapter, prerequisite.status, {
       ...prerequisite.install_hint ? { install_hint: prerequisite.install_hint } : {},
       diagnostics: prerequisite.diagnostics,
@@ -3426,6 +3423,8 @@ ${capabilityResult.stderr}`;
   });
 }
 async function checkProviderPrerequisites(adapter, runner) {
+  const executables = {};
+  const failed = (failure2) => ({ ok: false, failure: failure2 });
   for (const prerequisite of adapter.probe.prerequisites ?? []) {
     const missing = (detail) => ({
       status: "missing",
@@ -3441,45 +3440,70 @@ async function checkProviderPrerequisites(adapter, runner) {
       runner.env ?? {}
     );
     if (!resolved.ok) {
-      return missing(`${prerequisite.name} is unusable: ${resolved.message}`);
+      return failed(
+        missing(`${prerequisite.name} is unusable: ${resolved.message}`)
+      );
     }
     const executable = await runner.findExecutable(resolved.executable);
     if (!executable) {
-      return missing(
-        `${prerequisite.name} was not found (${resolved.executable})`
+      return failed(
+        missing(`${prerequisite.name} was not found (${resolved.executable})`)
       );
     }
     const pin = prerequisite.version;
-    if (!pin) continue;
+    if (!pin) {
+      executables[prerequisite.name] = executable;
+      continue;
+    }
+    const pinError = versionPinError(pin);
+    if (pinError) {
+      const detail = `${prerequisite.name} declares an invalid version pin: ${pinError}`;
+      return failed({
+        status: "unsupported",
+        warning: `PROVIDER_PREREQUISITE_PIN_INVALID: ${detail}`,
+        message: `Provider ${adapter.id} prerequisite ${detail}.`
+      });
+    }
     const result = await runner.run(executable, pin.args, adapter);
     if (result.failure_code === "PROVIDER_MISSING") {
-      return missing(`${prerequisite.name} failed to start (${executable})`);
+      return failed(
+        missing(`${prerequisite.name} failed to start (${executable})`)
+      );
     }
     const output = `${result.stdout}
 ${result.stderr}`;
     if (result.failure_code || result.code !== 0) {
       const detail = `${prerequisite.name} version check failed: ${result.failure_code ?? firstNonEmptyLine2(output) ?? `exit ${result.code}`}`;
-      return {
+      return failed({
         status: "unavailable",
         warning: `PROVIDER_PREREQUISITE_UNAVAILABLE: ${detail}`,
         message: `Provider ${adapter.id} prerequisite ${detail}.`,
         diagnostics: result.diagnostics
-      };
+      });
     }
     const detected = parseVersion(output);
     const required = describeVersionPin(pin);
     if (!detected || !satisfiesVersionPin(detected, pin)) {
       const found = detected ? formatVersion(detected) : `unparseable version output ${JSON.stringify(firstNonEmptyLine2(output) ?? "")}`;
       const detail = `${prerequisite.name} ${found} is outside the required ${required}`;
-      return {
+      return failed({
         status: "unsupported",
         warning: `PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED: ${detail}`,
         message: `Provider ${adapter.id} prerequisite ${detail}.`,
         install_hint: prerequisite.install_hint
-      };
+      });
     }
+    executables[prerequisite.name] = executable;
   }
-  return void 0;
+  return { ok: true, executables };
+}
+function notAdmittedEntry(adapter) {
+  if (!adapter.not_admitted_reason) return void 0;
+  return providerEntry(adapter, "unsupported", {
+    warnings: [
+      `PROVIDER_NOT_ADMITTED: registered, not admitted: ${adapter.not_admitted_reason}`
+    ]
+  });
 }
 function nodeProbeCommandRunner(env = process.env, options = {}) {
   return {
@@ -3506,7 +3530,7 @@ async function findExecutable(command, env) {
   }
   const pathValue = env.PATH ?? "";
   for (const searchPath of pathValue.split(path5.delimiter)) {
-    if (!searchPath) continue;
+    if (!path5.isAbsolute(searchPath)) continue;
     const candidate = path5.join(searchPath, command);
     if (await canExecute(candidate)) return candidate;
   }
@@ -3553,6 +3577,7 @@ function probeFailureEntry(adapter, executable, result) {
   if (result.failure_code === "PROVIDER_MISSING") {
     return providerEntry(adapter, "missing", {
       executable,
+      ...adapter.install_hint ? { install_hint: adapter.install_hint } : {},
       diagnostics: result.diagnostics,
       warnings: [
         `PROVIDER_MISSING: executable failed to start for ${adapter.id}`
@@ -3627,19 +3652,26 @@ function compareNumericVersions(left, right) {
 function formatNumericVersion(version) {
   return version.join(".");
 }
-function parseVersion(value) {
-  const match = value.match(
-    /\b(\d+(?:\.\d+){2,})(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?/
-  );
+var IDENTIFIERS = "[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*";
+var VERSION_TOKEN = `v?(\\d+(?:\\.\\d+){2,})(?:-(${IDENTIFIERS}))?(?:\\+(${IDENTIFIERS}))?`;
+var OUTPUT_VERSION = new RegExp(
+  `(?<![0-9A-Za-z.+-])${VERSION_TOKEN}(?![0-9A-Za-z.+-])`
+);
+var PIN_VERSION = new RegExp(`^${VERSION_TOKEN}$`);
+function parseVersion(value, pattern = OUTPUT_VERSION) {
+  const match = value.match(pattern);
   if (!match) return void 0;
   return {
     release: match[1].split(".").map(Number),
-    prerelease: match[2] ? match[2].split(".") : []
+    prerelease: match[2] ? match[2].split(".") : [],
+    build: match[3] ? match[3].split(".") : []
   };
 }
 function formatVersion(version) {
   const release = version.release.join(".");
-  return version.prerelease.length > 0 ? `${release}-${version.prerelease.join(".")}` : release;
+  const prerelease = version.prerelease.length > 0 ? `-${version.prerelease.join(".")}` : "";
+  const build = version.build.length > 0 ? `+${version.build.join(".")}` : "";
+  return `${release}${prerelease}${build}`;
 }
 function compareVersions(left, right) {
   const release = compareNumericVersions(left.release, right.release);
@@ -3666,10 +3698,27 @@ function compareVersions(left, right) {
 function satisfiesVersionPin(detected, pin) {
   const bound = (value, accept) => {
     if (value === void 0) return true;
-    const parsed = parseVersion(value);
-    return parsed !== void 0 && accept(compareVersions(detected, parsed));
+    const parsed = parseVersion(value, PIN_VERSION);
+    return parsed !== void 0 && accept(compareVersions(detected, parsed), parsed);
   };
-  return bound(pin.exact, (order) => order === 0) && bound(pin.min, (order) => order >= 0) && bound(pin.max, (order) => order <= 0);
+  return bound(
+    pin.exact,
+    (order, parsed) => order === 0 && detected.build.join(".") === parsed.build.join(".")
+  ) && bound(pin.min, (order) => order >= 0) && bound(pin.max, (order) => order <= 0);
+}
+function versionPinError(pin) {
+  const bounds = { exact: pin.exact, min: pin.min, max: pin.max };
+  const parsed = {};
+  for (const [field, value] of Object.entries(bounds)) {
+    if (value === void 0) continue;
+    const version = parseVersion(value, PIN_VERSION);
+    if (!version) return `${field} ${JSON.stringify(value)} is not a version`;
+    parsed[field] = version;
+  }
+  if (parsed.min && parsed.max && compareVersions(parsed.min, parsed.max) > 0) {
+    return `min ${pin.min} is above max ${pin.max}`;
+  }
+  return void 0;
 }
 function describeVersionPin(pin) {
   const parts = [
@@ -4118,20 +4167,37 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       terminalReason: "provider_executable_invalid"
     });
   }
+  const finder = dependencies.probeRunner ?? nodeProbeCommandRunner(parentEnv);
+  let prerequisiteExecutables;
   if (adapter.probe.prerequisites?.length) {
-    const prerequisite = await checkProviderPrerequisites(
-      adapter,
-      dependencies.probeRunner ?? nodeProbeCommandRunner(parentEnv)
-    );
-    if (prerequisite) {
+    const prerequisites = await checkProviderPrerequisites(adapter, finder);
+    if (!prerequisites.ok) {
+      const prerequisite = prerequisites.failure;
       return preInvocationFailure({
         provider: request.provider,
         code: PREREQUISITE_FAILURE_CODES[prerequisite.status],
-        message: prerequisite.install_hint ? `${prerequisite.message} Install hint: ${prerequisite.install_hint}` : prerequisite.message,
+        message: withInstallHint(
+          prerequisite.message,
+          prerequisite.install_hint
+        ),
         terminalReason: `provider_prerequisite_${prerequisite.status}`,
         diagnostics: { warnings: [prerequisite.warning] }
       });
     }
+    prerequisiteExecutables = prerequisites.executables;
+  }
+  const executable = await finder.findExecutable(resolvedExecutable.executable);
+  if (!executable) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_MISSING",
+      message: withInstallHint(
+        `Provider executable not found: ${resolvedExecutable.executable}`,
+        adapter.install_hint
+      ),
+      terminalReason: "provider_missing",
+      diagnostics: hostGuard.diagnostics
+    });
   }
   const submitCapturePath = submitCaptureEnabled ? submitCaptureFilePath(effectiveRequest.cwd ?? process.cwd()) : void 0;
   const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
@@ -4176,7 +4242,8 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         lastMessageFile: dependencies.transport?.lastMessageFile,
         preserveLastMessageFile: dependencies.transport?.preserveLastMessageFile,
         resumeSessionId: turnOptions.resumeSessionId,
-        executable: resolvedExecutable.executable
+        executable,
+        ...prerequisiteExecutables ? { prerequisiteExecutables } : {}
       });
       lastInvocation = invocation2;
       const processResult = await runSubprocess(invocation2, {
@@ -4386,6 +4453,10 @@ function permissionDenialDiagnostics(adapter, stdout) {
 }
 async function readJsonSchema(schemaPath) {
   return JSON.parse(await readFile2(schemaPath, "utf8"));
+}
+function withInstallHint(message, installHint) {
+  if (!installHint) return message;
+  return `${message.endsWith(".") ? message : `${message}.`} Install hint: ${installHint}`;
 }
 var PREREQUISITE_FAILURE_CODES = {
   missing: "PROVIDER_MISSING",
@@ -5038,11 +5109,13 @@ async function resolveRegistry(registry, options = {}, provider, requiredCapabil
 function defaultProviderRegistry(adapters, provider) {
   return adapters.list().filter(
     (adapter) => provider ? adapter.id === provider : adapter.tier === "core"
-  ).map((adapter) => ({
-    id: adapter.id,
-    status: "missing",
-    capabilities: adapter.capabilities
-  }));
+  ).map(
+    (adapter) => notAdmittedEntry(adapter) ?? {
+      id: adapter.id,
+      status: "missing",
+      capabilities: adapter.capabilities
+    }
+  );
 }
 function placeholderCapabilities() {
   return {

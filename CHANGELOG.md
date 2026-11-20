@@ -20,8 +20,13 @@
   with an `install_hint`, and `consensus run` checks prerequisites before
   spawning. A registered provider awaiting admission probes as `unsupported`
   with a "registered, not admitted" diagnostic and `run` refuses it before
-  launch. Readiness probes run the resolved executable path, and wrapper
-  unavailable errors keep install hints and probe warnings. Internal
+  launch. Probes and runs search only absolute `PATH` entries, and both start
+  the absolute program path they resolve; a run whose program is missing now
+  fails with `PROVIDER_MISSING` before spawning. Exact pins compare the
+  complete version token, build metadata included, ranges ignore build
+  metadata, and an invalid pin reports `PROVIDER_PREREQUISITE_PIN_INVALID`.
+  Checked prerequisite paths reach the adapter's invocation builder, and
+  wrapper unavailable errors keep install hints and probe warnings. Internal
   `FIRST_SCOPE_PROVIDER_IDS` is renamed `CORE_PROVIDER_IDS`.
   The shared runtime refresh bumps `consensus-create` 0.1.26, `consensus-decide` 0.1.26, `consensus-plan` 0.1.26, `consensus-refine` 0.1.29, `consensus-evaluate` 0.1.30, `consensus-review` 0.3.1, `consensus-panel` 0.1.23, `consensus-delegate` 0.2.2, `phone-a-friend` 0.3.5, `session-observer` 1.1.7, `session-observer-collab` 1.0.85, and `session-fork-to-destination` 0.3.12.
 

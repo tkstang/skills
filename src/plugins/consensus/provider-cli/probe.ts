@@ -123,20 +123,15 @@ export async function probeProviderReadiness(
   adapter: ProviderAdapter,
   options: ProviderProbeOptions,
 ): Promise<ProviderInventoryEntry> {
-  // A registered provider that has not passed admission is never launched.
-  if (adapter.not_admitted_reason) {
-    return providerEntry(adapter, 'unsupported', {
-      warnings: [
-        `PROVIDER_NOT_ADMITTED: registered, not admitted: ${adapter.not_admitted_reason}`,
-      ],
-    });
-  }
+  const notAdmitted = notAdmittedEntry(adapter);
+  if (notAdmitted) return notAdmitted;
 
-  const prerequisite = await checkProviderPrerequisites(
+  const prerequisites = await checkProviderPrerequisites(
     adapter,
     options.runner,
   );
-  if (prerequisite) {
+  if (!prerequisites.ok) {
+    const prerequisite = prerequisites.failure;
     return providerEntry(adapter, prerequisite.status, {
       ...(prerequisite.install_hint
         ? { install_hint: prerequisite.install_hint }
@@ -249,6 +244,14 @@ export async function probeProviderReadiness(
   });
 }
 
+export type ProviderPrerequisiteCheck =
+  | {
+      ok: true;
+      // Absolute path of each checked prerequisite, keyed by its name.
+      executables: Record<string, string>;
+    }
+  | { ok: false; failure: ProviderPrerequisiteFailure };
+
 export interface ProviderPrerequisiteFailure {
   status: 'missing' | 'unsupported' | 'unavailable';
   // Coded warning, for example `PROVIDER_PREREQUISITE_MISSING: ...`.
@@ -261,12 +264,16 @@ export interface ProviderPrerequisiteFailure {
 }
 
 // Checks each declared prerequisite: presence, then its version pin when it
-// declares one. Returns the first failure. Shared by readiness probes and the
-// run path, which never probes.
+// declares one. Returns the first failure, or the checked executables. Shared
+// by readiness probes and the run path, which never probes.
 export async function checkProviderPrerequisites(
   adapter: ProbedAdapter & Pick<ProviderAdapter, 'probe'>,
   runner: ProbeCommandRunner,
-): Promise<ProviderPrerequisiteFailure | undefined> {
+): Promise<ProviderPrerequisiteCheck> {
+  const executables: Record<string, string> = {};
+  const failed = (
+    failure: ProviderPrerequisiteFailure,
+  ): ProviderPrerequisiteCheck => ({ ok: false, failure });
   for (const prerequisite of adapter.probe.prerequisites ?? []) {
     const missing = (detail: string): ProviderPrerequisiteFailure => ({
       status: 'missing',
@@ -282,30 +289,46 @@ export async function checkProviderPrerequisites(
       runner.env ?? {},
     );
     if (!resolved.ok) {
-      return missing(`${prerequisite.name} is unusable: ${resolved.message}`);
+      return failed(
+        missing(`${prerequisite.name} is unusable: ${resolved.message}`),
+      );
     }
     const executable = await runner.findExecutable(resolved.executable);
     if (!executable) {
-      return missing(
-        `${prerequisite.name} was not found (${resolved.executable})`,
+      return failed(
+        missing(`${prerequisite.name} was not found (${resolved.executable})`),
       );
     }
     const pin = prerequisite.version;
-    if (!pin) continue;
+    if (!pin) {
+      executables[prerequisite.name] = executable;
+      continue;
+    }
+    const pinError = versionPinError(pin);
+    if (pinError) {
+      const detail = `${prerequisite.name} declares an invalid version pin: ${pinError}`;
+      return failed({
+        status: 'unsupported',
+        warning: `PROVIDER_PREREQUISITE_PIN_INVALID: ${detail}`,
+        message: `Provider ${adapter.id} prerequisite ${detail}.`,
+      });
+    }
 
     const result = await runner.run(executable, pin.args, adapter);
     if (result.failure_code === 'PROVIDER_MISSING') {
-      return missing(`${prerequisite.name} failed to start (${executable})`);
+      return failed(
+        missing(`${prerequisite.name} failed to start (${executable})`),
+      );
     }
     const output = `${result.stdout}\n${result.stderr}`;
     if (result.failure_code || result.code !== 0) {
       const detail = `${prerequisite.name} version check failed: ${result.failure_code ?? firstNonEmptyLine(output) ?? `exit ${result.code}`}`;
-      return {
+      return failed({
         status: 'unavailable',
         warning: `PROVIDER_PREREQUISITE_UNAVAILABLE: ${detail}`,
         message: `Provider ${adapter.id} prerequisite ${detail}.`,
         diagnostics: result.diagnostics,
-      };
+      });
     }
     const detected = parseVersion(output);
     const required = describeVersionPin(pin);
@@ -314,15 +337,29 @@ export async function checkProviderPrerequisites(
         ? formatVersion(detected)
         : `unparseable version output ${JSON.stringify(firstNonEmptyLine(output) ?? '')}`;
       const detail = `${prerequisite.name} ${found} is outside the required ${required}`;
-      return {
+      return failed({
         status: 'unsupported',
         warning: `PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED: ${detail}`,
         message: `Provider ${adapter.id} prerequisite ${detail}.`,
         install_hint: prerequisite.install_hint,
-      };
+      });
     }
+    executables[prerequisite.name] = executable;
   }
-  return undefined;
+  return { ok: true, executables };
+}
+
+// A registered provider that has not passed admission is never launched; every
+// inventory path reports it with this entry.
+export function notAdmittedEntry(
+  adapter: ProviderAdapter,
+): ProviderInventoryEntry | undefined {
+  if (!adapter.not_admitted_reason) return undefined;
+  return providerEntry(adapter, 'unsupported', {
+    warnings: [
+      `PROVIDER_NOT_ADMITTED: registered, not admitted: ${adapter.not_admitted_reason}`,
+    ],
+  });
 }
 
 export function nodeProbeCommandRunner(
@@ -358,7 +395,9 @@ async function findExecutable(
 
   const pathValue = env.PATH ?? '';
   for (const searchPath of pathValue.split(path.delimiter)) {
-    if (!searchPath) continue;
+    // A relative entry would resolve against whichever directory a probe or
+    // run starts in, so the binary checked and the one launched could differ.
+    if (!path.isAbsolute(searchPath)) continue;
     const candidate = path.join(searchPath, command);
     if (await canExecute(candidate)) return candidate;
   }
@@ -423,6 +462,7 @@ function probeFailureEntry(
   if (result.failure_code === 'PROVIDER_MISSING') {
     return providerEntry(adapter, 'missing', {
       executable,
+      ...(adapter.install_hint ? { install_hint: adapter.install_hint } : {}),
       diagnostics: result.diagnostics,
       warnings: [
         `PROVIDER_MISSING: executable failed to start for ${adapter.id}`,
@@ -525,30 +565,43 @@ function formatNumericVersion(version: number[]): string {
   return version.join('.');
 }
 
-// Prerequisite versions keep their prerelease tag so an exact pin such as
-// `0.2.2-rc.5` is enforced; parseNumericVersion drops it. Build metadata is
-// ignored.
+// Prerequisite versions keep their prerelease tag and build metadata so an
+// exact pin such as `0.2.2-rc.5` is enforced; parseNumericVersion drops both.
 interface ParsedVersion {
   release: number[];
   prerelease: string[];
+  build: string[];
 }
 
-function parseVersion(value: string): ParsedVersion | undefined {
-  const match = value.match(
-    /\b(\d+(?:\.\d+){2,})(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?/,
-  );
+const IDENTIFIERS = '[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*';
+const VERSION_TOKEN = `v?(\\d+(?:\\.\\d+){2,})(?:-(${IDENTIFIERS}))?(?:\\+(${IDENTIFIERS}))?`;
+// A complete token in command output: not part of a longer run of version
+// characters, so `0.2.2-rc.5.` or `x0.2.2` never parse as a shorter version.
+const OUTPUT_VERSION = new RegExp(
+  `(?<![0-9A-Za-z.+-])${VERSION_TOKEN}(?![0-9A-Za-z.+-])`,
+);
+// An authored pin bound is exactly one version.
+const PIN_VERSION = new RegExp(`^${VERSION_TOKEN}$`);
+
+function parseVersion(
+  value: string,
+  pattern: RegExp = OUTPUT_VERSION,
+): ParsedVersion | undefined {
+  const match = value.match(pattern);
   if (!match) return undefined;
   return {
     release: match[1].split('.').map(Number),
     prerelease: match[2] ? match[2].split('.') : [],
+    build: match[3] ? match[3].split('.') : [],
   };
 }
 
 function formatVersion(version: ParsedVersion): string {
   const release = version.release.join('.');
-  return version.prerelease.length > 0
-    ? `${release}-${version.prerelease.join('.')}`
-    : release;
+  const prerelease =
+    version.prerelease.length > 0 ? `-${version.prerelease.join('.')}` : '';
+  const build = version.build.length > 0 ? `+${version.build.join('.')}` : '';
+  return `${release}${prerelease}${build}`;
 }
 
 // SemVer precedence: a prerelease sorts below its release; numeric
@@ -576,23 +629,50 @@ function compareVersions(left: ParsedVersion, right: ParsedVersion): number {
   return 0;
 }
 
+// Ranges use SemVer precedence, which ignores build metadata. An exact pin
+// also requires the same build metadata, so every part of the token matches.
 function satisfiesVersionPin(
   detected: ParsedVersion,
   pin: ProviderPrerequisiteVersion,
 ): boolean {
   const bound = (
     value: string | undefined,
-    accept: (order: number) => boolean,
+    accept: (order: number, parsed: ParsedVersion) => boolean,
   ) => {
     if (value === undefined) return true;
-    const parsed = parseVersion(value);
-    return parsed !== undefined && accept(compareVersions(detected, parsed));
+    const parsed = parseVersion(value, PIN_VERSION);
+    return (
+      parsed !== undefined && accept(compareVersions(detected, parsed), parsed)
+    );
   };
   return (
-    bound(pin.exact, (order) => order === 0) &&
+    bound(
+      pin.exact,
+      (order, parsed) =>
+        order === 0 && detected.build.join('.') === parsed.build.join('.'),
+    ) &&
     bound(pin.min, (order) => order >= 0) &&
     bound(pin.max, (order) => order <= 0)
   );
+}
+
+// An authored pin whose bound is not exactly one version, or whose range is
+// empty, can never be satisfied; it is reported before any version probe.
+function versionPinError(pin: ProviderPrerequisiteVersion): string | undefined {
+  const bounds = { exact: pin.exact, min: pin.min, max: pin.max };
+  const parsed: Partial<Record<keyof typeof bounds, ParsedVersion>> = {};
+  for (const [field, value] of Object.entries(bounds) as Array<
+    [keyof typeof bounds, string | undefined]
+  >) {
+    if (value === undefined) continue;
+    const version = parseVersion(value, PIN_VERSION);
+    if (!version) return `${field} ${JSON.stringify(value)} is not a version`;
+    parsed[field] = version;
+  }
+  if (parsed.min && parsed.max && compareVersions(parsed.min, parsed.max) > 0) {
+    return `min ${pin.min} is above max ${pin.max}`;
+  }
+  return undefined;
 }
 
 function describeVersionPin(pin: ProviderPrerequisiteVersion): string {

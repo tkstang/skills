@@ -247,6 +247,8 @@ export async function runReview(
   const envelope = await (dependencies.runTurn ?? runProviderTurn)(request, {
     registry,
     parentEnv: env,
+    // The run resolves the same program its preflight checked.
+    probeRunner,
     transport: claimedTransport.options,
     async runSubprocess(invocation, options) {
       const result = await (

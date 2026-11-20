@@ -60,8 +60,9 @@ export interface RunProviderTurnDependencies {
     options: RunProviderSubprocessOptions,
   ) => Promise<ProviderProcessResult>;
   parentEnv?: NodeJS.ProcessEnv;
-  // Checks adapter prerequisites before spawn. Default: a node runner over
-  // parentEnv. Unused for adapters without prerequisites.
+  // Resolves the provider program and checks adapter prerequisites before
+  // spawn, with the finder preflight uses. Default: a node runner over
+  // parentEnv.
   probeRunner?: ProbeCommandRunner;
   submitCommand?: string;
   transport?: ProviderTurnTransportOptions;
@@ -407,24 +408,44 @@ async function runStructuredTurn(
       terminalReason: 'provider_executable_invalid',
     });
   }
+  const finder = dependencies.probeRunner ?? nodeProbeCommandRunner(parentEnv);
   // `run` never probes, so a missing or out-of-pin prerequisite is reported
-  // here with its install hint instead of surfacing as a spawn failure.
+  // here with its install hint instead of surfacing as a spawn failure. The
+  // checked paths reach the invocation builder: the override variables that
+  // chose them never reach the child.
+  let prerequisiteExecutables: Record<string, string> | undefined;
   if (adapter.probe.prerequisites?.length) {
-    const prerequisite = await checkProviderPrerequisites(
-      adapter,
-      dependencies.probeRunner ?? nodeProbeCommandRunner(parentEnv),
-    );
-    if (prerequisite) {
+    const prerequisites = await checkProviderPrerequisites(adapter, finder);
+    if (!prerequisites.ok) {
+      const prerequisite = prerequisites.failure;
       return preInvocationFailure({
         provider: request.provider,
         code: PREREQUISITE_FAILURE_CODES[prerequisite.status],
-        message: prerequisite.install_hint
-          ? `${prerequisite.message} Install hint: ${prerequisite.install_hint}`
-          : prerequisite.message,
+        message: withInstallHint(
+          prerequisite.message,
+          prerequisite.install_hint,
+        ),
         terminalReason: `provider_prerequisite_${prerequisite.status}`,
         diagnostics: { warnings: [prerequisite.warning] },
       });
     }
+    prerequisiteExecutables = prerequisites.executables;
+  }
+  // Spawn the absolute path the preflight finder resolves, never a bare
+  // command that spawn would look up again from the request's working
+  // directory. An absolute override is checked and kept as is.
+  const executable = await finder.findExecutable(resolvedExecutable.executable);
+  if (!executable) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: 'PROVIDER_MISSING',
+      message: withInstallHint(
+        `Provider executable not found: ${resolvedExecutable.executable}`,
+        adapter.install_hint,
+      ),
+      terminalReason: 'provider_missing',
+      diagnostics: hostGuard.diagnostics,
+    });
   }
   const submitCapturePath = submitCaptureEnabled
     ? submitCaptureFilePath(effectiveRequest.cwd ?? process.cwd())
@@ -483,7 +504,8 @@ async function runStructuredTurn(
         preserveLastMessageFile:
           dependencies.transport?.preserveLastMessageFile,
         resumeSessionId: turnOptions.resumeSessionId,
-        executable: resolvedExecutable.executable,
+        executable,
+        ...(prerequisiteExecutables ? { prerequisiteExecutables } : {}),
       });
       lastInvocation = invocation;
       const processResult = await runSubprocess(invocation, {
@@ -734,6 +756,11 @@ function permissionDenialDiagnostics(
 
 async function readJsonSchema(schemaPath: string): Promise<unknown> {
   return JSON.parse(await readFile(schemaPath, 'utf8'));
+}
+
+function withInstallHint(message: string, installHint: string | undefined) {
+  if (!installHint) return message;
+  return `${message.endsWith('.') ? message : `${message}.`} Install hint: ${installHint}`;
 }
 
 const PREREQUISITE_FAILURE_CODES = {

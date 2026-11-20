@@ -34,7 +34,11 @@ import type {
 } from './args.js';
 import { processExitForEnvelope, usageFailure } from './envelope.js';
 import { evaluateHostGuard, hostContextFromEnv } from './host-guard.js';
-import { nodeProbeCommandRunner, probeProviderRegistry } from './probe.js';
+import {
+  nodeProbeCommandRunner,
+  notAdmittedEntry,
+  probeProviderRegistry,
+} from './probe.js';
 import type { ProbeCommandRunner } from './probe.js';
 import { validateSchemaSubset } from './schema-validate.js';
 import { runProviderTurn } from './structured-output.js';
@@ -862,11 +866,14 @@ function defaultProviderRegistry(
     .filter((adapter) =>
       provider ? adapter.id === provider : adapter.tier === 'core',
     )
-    .map((adapter) => ({
-      id: adapter.id,
-      status: 'missing',
-      capabilities: adapter.capabilities,
-    }));
+    .map(
+      (adapter) =>
+        notAdmittedEntry(adapter) ?? {
+          id: adapter.id,
+          status: 'missing',
+          capabilities: adapter.capabilities,
+        },
+    );
 }
 
 function placeholderCapabilities(): ProviderCapabilities {

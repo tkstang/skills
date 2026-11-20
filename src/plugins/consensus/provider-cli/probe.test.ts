@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -522,6 +522,28 @@ describe('extended provider registration', () => {
       '0.23.0',
       'unsupported',
     ],
+    // Exact pins compare build metadata; ranges ignore it.
+    [
+      { args: ['--version'], exact: '0.2.2-rc.5+approved' },
+      '0.2.2-rc.5+approved',
+      'ready',
+    ],
+    [
+      { args: ['--version'], exact: '0.2.2-rc.5+approved' },
+      '0.2.2-rc.5+other',
+      'unsupported',
+    ],
+    [
+      { args: ['--version'], min: '0.20.0', max: '0.22.0' },
+      '0.22.0+build.7',
+      'ready',
+    ],
+    // Only a complete version token parses.
+    [
+      { args: ['--version'], exact: '0.2.2-rc.5' },
+      '0.2.2-rc.5.',
+      'unsupported',
+    ],
   ])(
     'checks prerequisite pin %j against version %s',
     async (version, detected, status) => {
@@ -552,14 +574,80 @@ describe('extended provider registration', () => {
           diagnostics: {
             warnings: [
               expect.stringMatching(
-                new RegExp(
-                  `^PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED: launcher ${detected.replaceAll('.', '\\.')} is outside`,
-                ),
+                /^PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED: launcher .* is outside the required version /,
               ),
             ],
           },
         });
       }
+    },
+  );
+
+  it.each<[string, ProviderPrerequisiteVersion]>([
+    ['a partial version', { args: ['--version'], exact: '0.2' }],
+    ['surrounding text', { args: ['--version'], min: 'v0.20.0 or later' }],
+    ['an empty range', { args: ['--version'], min: '0.22.0', max: '0.20.0' }],
+  ])(
+    'rejects a pin with %s before running the version command',
+    async (_label, version) => {
+      const calls: string[] = [];
+      const entry = await probeProviderReadiness(
+        fixtureAdapter({ prerequisites: [{ ...launcher, version }] }),
+        {
+          runner: fakeRunner({
+            calls,
+            executables: {
+              launcher: '/opt/bin/launcher',
+              'fixture-agent': '/opt/bin/fixture-agent',
+            },
+            results: agentReady,
+          }),
+        },
+      );
+
+      expect(entry).toMatchObject({
+        status: 'unsupported',
+        diagnostics: {
+          warnings: [
+            expect.stringMatching(
+              /^PROVIDER_PREREQUISITE_PIN_INVALID: launcher declares an invalid version pin/,
+            ),
+          ],
+        },
+      });
+      expect(entry).not.toHaveProperty('install_hint');
+      expect(calls).toEqual([]);
+    },
+  );
+
+  it.each([
+    ['is not found', {}],
+    [
+      'fails to start',
+      {
+        executables: { 'fixture-agent': '/opt/bin/fixture-agent' },
+        results: {
+          '/opt/bin/fixture-agent --version': {
+            code: -2,
+            stdout: '',
+            stderr: '',
+            failure_code: 'PROVIDER_MISSING' as const,
+          },
+        },
+      },
+    ],
+  ])(
+    "reports the adapter's install hint when its binary %s",
+    async (_label, runner) => {
+      const entry = await probeProviderReadiness(
+        fixtureAdapter({ install_hint: 'Install fixture-agent.' }),
+        { runner: fakeRunner({ executables: {}, ...runner }) },
+      );
+
+      expect(entry).toMatchObject({
+        status: 'missing',
+        install_hint: 'Install fixture-agent.',
+      });
     },
   );
 
@@ -605,38 +693,82 @@ describe('extended provider registration', () => {
     });
   });
 
-  it('reports a registered but not admitted provider without launching it', async () => {
-    const calls: string[] = [];
-    const envelope = await runPreflight({
-      provider: 'fixture',
-      capabilities: ['run'],
-      adapters: providerRegistry([
-        fixtureAdapter({ not_admitted_reason: 'read-only admission pending' }),
-      ]),
-      probeRunner: fakeRunner({
-        calls,
-        executables: { 'fixture-agent': '/opt/bin/fixture-agent' },
-        results: agentReady,
-      }),
-    });
+  it.each(['a probe runner', 'no probe runner'])(
+    'reports a registered but not admitted provider without launching it, with %s',
+    async (runnerCase) => {
+      const calls: string[] = [];
+      const envelope = await runPreflight({
+        provider: 'fixture',
+        capabilities: ['run'],
+        adapters: providerRegistry([
+          fixtureAdapter({
+            not_admitted_reason: 'read-only admission pending',
+          }),
+        ]),
+        ...(runnerCase === 'a probe runner'
+          ? {
+              probeRunner: fakeRunner({
+                calls,
+                executables: { 'fixture-agent': '/opt/bin/fixture-agent' },
+                results: agentReady,
+              }),
+            }
+          : {}),
+      });
 
-    expect(envelope).toEqual({
-      schema_version: 'v1',
-      ok: true,
-      usable: false,
-      providers: [
-        expect.objectContaining({
-          id: 'fixture',
-          status: 'unsupported',
-          diagnostics: {
-            warnings: [
-              'PROVIDER_NOT_ADMITTED: registered, not admitted: read-only admission pending',
-            ],
-          },
-        }),
-      ],
-    });
-    expect(calls).toEqual([]);
+      expect(envelope).toEqual({
+        schema_version: 'v1',
+        ok: true,
+        usable: false,
+        providers: [
+          expect.objectContaining({
+            id: 'fixture',
+            status: 'unsupported',
+            diagnostics: {
+              warnings: [
+                'PROVIDER_NOT_ADMITTED: registered, not admitted: read-only admission pending',
+              ],
+            },
+          }),
+        ],
+      });
+      expect(calls).toEqual([]);
+    },
+  );
+});
+
+describe('node probe command runner', () => {
+  it('skips relative PATH entries so probes and runs find the same absolute binary', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-finder-'));
+    try {
+      const relativeDir = path.join(root, 'relative-bin');
+      const absoluteDir = path.join(root, 'absolute-bin');
+      await mkdir(relativeDir);
+      await mkdir(absoluteDir);
+      await writeExecutableFixture(relativeDir, 'fixture-agent', '#!/bin/sh\n');
+      const absoluteStub = await writeExecutableFixture(
+        absoluteDir,
+        'fixture-agent',
+        '#!/bin/sh\n',
+      );
+      // Relative to this process's working directory, as a PATH entry such
+      // as `bin` would be.
+      const relativeEntry = path.relative(process.cwd(), relativeDir);
+
+      const onlyRelative = nodeProbeCommandRunner({ PATH: relativeEntry });
+      const relativeFirst = nodeProbeCommandRunner({
+        PATH: ['', relativeEntry, absoluteDir].join(path.delimiter),
+      });
+
+      await expect(
+        onlyRelative.findExecutable('fixture-agent'),
+      ).resolves.toBeUndefined();
+      await expect(relativeFirst.findExecutable('fixture-agent')).resolves.toBe(
+        absoluteStub,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
 
@@ -684,7 +816,13 @@ function fakeRunner(options: {
   executables: Record<string, string>;
   results?: Record<
     string,
-    { code: number; stdout: string; stderr: string; signal?: string | null }
+    {
+      code: number;
+      stdout: string;
+      stderr: string;
+      signal?: string | null;
+      failure_code?: 'PROVIDER_MISSING';
+    }
   >;
 }): ProbeCommandRunner {
   return {

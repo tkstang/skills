@@ -34,8 +34,12 @@ export interface BuildProviderInvocationOptions {
   // Continue this exact provider session. Callers validate the id and the
   // adapter's verified continuation capability before building.
   resumeSessionId?: string;
-  // Replaces the adapter's command (see resolveProviderExecutable).
+  // Replaces the adapter's command (see resolveProviderExecutable). The run
+  // path passes the absolute path it resolved.
   executable?: string;
+  // The absolute path of each prerequisite the run path checked, keyed by
+  // prerequisite name, so the adapter launches exactly what was checked.
+  prerequisiteExecutables?: Readonly<Record<string, string>>;
 }
 
 export type ProviderInvocationBuilder = (
@@ -55,6 +59,9 @@ export function buildProviderInvocation(
     preserveLastMessageFile: options.preserveLastMessageFile,
     resumeSessionId: options.resumeSessionId,
     executable: options.executable,
+    ...(options.prerequisiteExecutables
+      ? { prerequisiteExecutables: options.prerequisiteExecutables }
+      : {}),
   });
 }
 

@@ -117,20 +117,30 @@ provider's own binary:
   not found, or whose override variable is not an absolute path, makes the
   provider `missing` with `PROVIDER_PREREQUISITE_MISSING`.
 - A prerequisite with a version pin runs its version command. The pin has
-  inclusive `min` and `max` bounds and an optional `exact` version. Versions
-  are compared with their prerelease tag, so `0.2.2` and `0.2.2-rc.4` do not
-  match an exact `0.2.2-rc.5`. A version outside the pin, or output with no
-  parseable version, makes the provider `unsupported` with
-  `PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED`. A failed version command makes
-  it `unavailable` with `PROVIDER_PREREQUISITE_UNAVAILABLE`.
+  inclusive `min` and `max` bounds and an optional `exact` version. The
+  version is the first complete version token in the output, so `0.2.2-rc.5.`
+  does not parse. Versions are compared with their prerelease tag, so `0.2.2`
+  and `0.2.2-rc.4` do not match an exact `0.2.2-rc.5`. An exact pin also
+  compares build metadata (`0.2.2-rc.5+other` does not match
+  `0.2.2-rc.5+approved`); `min` and `max` ignore it, as SemVer precedence does.
+  A version outside the pin, or output with no parseable version, makes the
+  provider `unsupported` with `PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED`. A
+  failed version command makes it `unavailable` with
+  `PROVIDER_PREREQUISITE_UNAVAILABLE`.
+- A pin bound that is not exactly one version, or a `min` above its `max`,
+  makes the provider `unsupported` with `PROVIDER_PREREQUISITE_PIN_INVALID`
+  without running the version command.
 - A missing or out-of-pin prerequisite adds `install_hint` to the inventory or
-  preflight entry. A missing provider binary adds the adapter's own hint when
-  it has one.
+  preflight entry. A provider binary that is missing or fails to start adds the
+  adapter's own hint when it has one.
 
 `consensus run` checks the same prerequisites before it starts the provider. A
 failure returns `PROVIDER_MISSING`, `PROVIDER_UNSUPPORTED` or
 `PROVIDER_UNAVAILABLE` with the install hint in the message and
-`continuation.turn: "not_started"`.
+`continuation.turn: "not_started"`. On success the absolute path of each
+checked prerequisite reaches the adapter's invocation builder, so the run
+launches what was checked; the override variables that selected them are not
+passed to the provider.
 
 A provider can also be registered before it is admitted for use. Probes report
 it as `unsupported` with `PROVIDER_NOT_ADMITTED: registered, not admitted:
@@ -153,6 +163,7 @@ used:
 - `PROVIDER_PREREQUISITE_MISSING`
 - `PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED`
 - `PROVIDER_PREREQUISITE_UNAVAILABLE`
+- `PROVIDER_PREREQUISITE_PIN_INVALID`
 - `PROVIDER_NOT_ADMITTED`
 
 When a wrapper reports a peer as unavailable, its error keeps each provider's
@@ -171,7 +182,11 @@ can correct the verdict in-turn.
 ## Provider programs
 
 Consensus runs each provider's CLI by name, found on `PATH`: `claude`, `codex`
-and `cursor-agent`. To run a different program for one provider, set that
+and `cursor-agent`. Only absolute `PATH` entries are searched; relative and
+empty entries are skipped, so a probe and a run started from different
+directories find the same binary. `consensus run` starts the absolute path it
+finds, and when there is none it fails with `PROVIDER_MISSING` before any
+process starts. To run a different program for one provider, set that
 provider's variable to the program's absolute path in the environment that
 starts consensus:
 
@@ -250,8 +265,9 @@ If the CLI already works from your agent shells, leave the variable unset.
   run's working directory, often the repository under review. A relative value
   makes `provider ls` and `preflight` report the provider as `missing`, and
   `consensus run` fails with `PROVIDER_MISSING` before starting any process.
-- **Readiness probes run it.** `provider ls` and `preflight` run the program
-  they found, by its resolved path, with `--version`. `preflight --capability run` also runs it with `--help`
+- **Readiness probes and runs use its resolved path.** `provider ls` and
+  `preflight` run the program they found, by its absolute path, with
+  `--version`, and `consensus run` starts that same path. `preflight --capability run` also runs it with `--help`
   (`exec --help` for Codex). Both apply the same version and capability checks
   as for the default CLI, so a wrapper must pass these arguments through to the
   real CLI unchanged. A wrapper that skips its credential for probes, as above,
