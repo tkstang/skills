@@ -849,17 +849,24 @@ async function resolveRegistry(
       ...(requiredCapabilities ? { requiredCapabilities } : {}),
     });
   }
-  return defaultProviderRegistry(adapters);
+  return defaultProviderRegistry(adapters, provider);
 }
 
+// Like probeProviderRegistry: a named provider from any tier, otherwise core.
 function defaultProviderRegistry(
   adapters: ProviderAdapterRegistry,
+  provider?: ProviderId,
 ): ProviderInventoryEntry[] {
-  return adapters.list().map((adapter) => ({
-    id: adapter.id,
-    status: 'missing',
-    capabilities: adapter.capabilities,
-  }));
+  return adapters
+    .list()
+    .filter((adapter) =>
+      provider ? adapter.id === provider : adapter.tier === 'core',
+    )
+    .map((adapter) => ({
+      id: adapter.id,
+      status: 'missing',
+      capabilities: adapter.capabilities,
+    }));
 }
 
 function placeholderCapabilities(): ProviderCapabilities {

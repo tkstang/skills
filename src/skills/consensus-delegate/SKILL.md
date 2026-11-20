@@ -47,9 +47,10 @@ node <skill-dir>/scripts/consensus.mjs preflight --json --provider <peer> --capa
 ```
 
 If the user named the peer and it is not `ready`, report that and stop; do not
-swap in another provider. If they named none, try the next provider other than
-you (skip Cursor for a write run). If none is ready, report it and stop; the
-user may name any peer, including your own provider.
+swap in another provider. If they named none, try the next core provider (Codex,
+Claude, Cursor) other than you (skip Cursor for a write run); an extended
+provider runs only when named. If none is ready, report it and stop; the user
+may name any peer, including your own provider.
 
 ## Workflow
 

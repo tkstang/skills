@@ -105,11 +105,13 @@ export async function probeProviderRegistry({
   provider,
   requiredCapabilities,
 }: ProviderRegistryProbeOptions): Promise<ProviderInventoryEntry[]> {
+  // A named provider resolves from any tier; the unnamed inventory lists
+  // core providers only, so extended providers are used only by name.
   const adapters = provider
     ? [registry.get(provider)].filter(
         (adapter): adapter is ProviderAdapter => adapter !== undefined,
       )
-    : registry.list();
+    : registry.list().filter((adapter) => adapter.tier === 'core');
   return Promise.all(
     adapters.map((adapter) =>
       probeProviderReadiness(adapter, { runner, requiredCapabilities }),

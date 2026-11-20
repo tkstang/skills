@@ -569,7 +569,7 @@ describe('consensus config schema and resolver', () => {
           schema_version: 'v1',
           defaults: {
             panelists: [{ provider: 'cursor' }, { provider: 'claude' }],
-            panel_size: 4,
+            panel_size: 3,
           },
         },
       });
@@ -579,7 +579,7 @@ describe('consensus config schema and resolver', () => {
           workflow: 'panel',
           cwd,
           env,
-          inventory: inventory(['claude', 'codex', 'cursor', 'gemini']),
+          inventory: inventory(['claude', 'codex', 'cursor']),
         }),
       ).resolves.toMatchObject({
         source: 'project',
@@ -587,8 +587,53 @@ describe('consensus config schema and resolver', () => {
           { provider: 'cursor' },
           { provider: 'claude' },
           { provider: 'codex' },
-          { provider: 'gemini' },
         ],
+      });
+    });
+  });
+
+  it('auto-fills panels from core providers only, leaving extended providers to explicit naming', async () => {
+    await withTempConfig(async ({ cwd, env }) => {
+      await writeConsensusConfig({
+        scope: 'project',
+        cwd,
+        env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            panelists: [{ provider: 'cursor' }, { provider: 'claude' }],
+            panel_size: 4,
+          },
+        },
+      });
+
+      const shortfall = await resolveConsensusComposition({
+        workflow: 'panel',
+        cwd,
+        env,
+        inventory: inventory(['devin', 'codex']),
+      });
+
+      expect(shortfall.agents).toEqual([
+        { provider: 'cursor' },
+        { provider: 'claude' },
+        { provider: 'codex' },
+      ]);
+      expect(shortfall.warnings).toContain(
+        'Only 3 panelists are available for requested panel_size 4.',
+      );
+    });
+    await withTempConfig(async ({ cwd, env }) => {
+      const builtIn = await resolveConsensusComposition({
+        workflow: 'panel',
+        cwd,
+        env,
+        inventory: inventory(['devin', 'cursor']),
+      });
+
+      expect(builtIn).toMatchObject({
+        source: 'built-in',
+        agents: [{ provider: 'cursor' }, { provider: 'claude' }],
       });
     });
   });

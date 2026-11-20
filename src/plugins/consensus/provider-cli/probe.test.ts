@@ -450,7 +450,7 @@ describe('provider readiness probes', () => {
   });
 });
 
-describe('provider prerequisites and admission', () => {
+describe('extended provider registration', () => {
   const launcher = {
     name: 'launcher',
     command: 'launcher',
@@ -562,6 +562,48 @@ describe('provider prerequisites and admission', () => {
       }
     },
   );
+
+  it('lists only core providers by default but resolves a named extended provider', async () => {
+    const adapters = providerRegistry([
+      ...providerRegistry().list(),
+      fixtureAdapter(),
+    ]);
+    const runner = fakeRunner({
+      executables: { 'fixture-agent': '/opt/bin/fixture-agent' },
+      results: {
+        ...agentReady,
+        '/opt/bin/fixture-agent exec --help': {
+          code: 0,
+          stdout: '--json --output-last-message --output-schema\n',
+          stderr: '',
+        },
+      },
+    });
+
+    const listed = await runProviderList({ adapters, probeRunner: runner });
+    const unprobed = await runProviderList({ adapters, registry: undefined });
+    const named = await runPreflight({
+      provider: 'fixture',
+      capabilities: ['run'],
+      adapters,
+      probeRunner: runner,
+    });
+
+    expect(listed.providers.map((entry) => entry.id)).toEqual([
+      'claude',
+      'codex',
+      'cursor',
+    ]);
+    expect(unprobed.providers.map((entry) => entry.id)).toEqual([
+      'claude',
+      'codex',
+      'cursor',
+    ]);
+    expect(named).toMatchObject({
+      usable: true,
+      providers: [{ id: 'fixture', status: 'ready' }],
+    });
+  });
 
   it('reports a registered but not admitted provider without launching it', async () => {
     const calls: string[] = [];

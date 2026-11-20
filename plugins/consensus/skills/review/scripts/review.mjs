@@ -1876,7 +1876,7 @@ async function probeProviderRegistry({
 }) {
   const adapters = provider ? [registry.get(provider)].filter(
     (adapter) => adapter !== void 0
-  ) : registry.list();
+  ) : registry.list().filter((adapter) => adapter.tier === "core");
   return Promise.all(
     adapters.map(
       (adapter) => probeProviderReadiness(adapter, { runner, requiredCapabilities })
@@ -4221,7 +4221,7 @@ function selectPanelAgents(configuredPanelists, targetSize, inventory) {
   const seen = new Set(selected.map((agent) => agent.provider));
   for (const entry of inventory ?? []) {
     if (selected.length >= targetSize) break;
-    if (entry.status !== "ready" || seen.has(entry.id)) continue;
+    if (!isAutoSelectable(entry) || seen.has(entry.id)) continue;
     selected.push({ provider: entry.id });
     seen.add(entry.id);
   }
@@ -4234,13 +4234,16 @@ function selectPanelAgents(configuredPanelists, targetSize, inventory) {
   return selected;
 }
 function builtInAgents(inventory, count) {
-  const ready = (inventory ?? []).filter((entry) => entry.status === "ready").map((entry) => ({ provider: entry.id }));
+  const ready = (inventory ?? []).filter(isAutoSelectable).map((entry) => ({ provider: entry.id }));
   const selected = ready.slice(0, count);
   for (const agent of missingBuiltInAgents(selected)) {
     if (selected.length >= count) break;
     selected.push(agent);
   }
   return selected;
+}
+function isAutoSelectable(entry) {
+  return entry.status === "ready" && CORE_PROVIDER_IDS.some((id) => id === entry.id);
 }
 function builtInConvergenceAgents(count) {
   return BUILT_IN_PROVIDER_ORDER.slice(0, count).map((provider) => ({

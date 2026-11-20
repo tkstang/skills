@@ -418,7 +418,7 @@ function selectPanelAgents(
   const seen = new Set(selected.map((agent) => agent.provider));
   for (const entry of inventory ?? []) {
     if (selected.length >= targetSize) break;
-    if (entry.status !== 'ready' || seen.has(entry.id)) continue;
+    if (!isAutoSelectable(entry) || seen.has(entry.id)) continue;
     selected.push({ provider: entry.id });
     seen.add(entry.id);
   }
@@ -438,7 +438,7 @@ function builtInAgents(
   count: number,
 ): ConsensusAgentRef[] {
   const ready = (inventory ?? [])
-    .filter((entry) => entry.status === 'ready')
+    .filter(isAutoSelectable)
     .map((entry) => ({ provider: entry.id }));
   const selected = ready.slice(0, count);
   for (const agent of missingBuiltInAgents(selected)) {
@@ -446,6 +446,14 @@ function builtInAgents(
     selected.push(agent);
   }
   return selected;
+}
+
+// Auto-fill recruits only ready core providers; an extended provider joins a
+// panel only when it is named.
+function isAutoSelectable(entry: ProviderInventoryEntry) {
+  return (
+    entry.status === 'ready' && CORE_PROVIDER_IDS.some((id) => id === entry.id)
+  );
 }
 
 function builtInConvergenceAgents(count: number): ConsensusAgentRef[] {
