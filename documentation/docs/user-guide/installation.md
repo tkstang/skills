@@ -413,7 +413,9 @@ two plugins, leaving the second undiscoverable.
 Check the reported count against the marketplace manifest and use
 `cursor-agent plugin marketplace list --format json` to compare the registered
 `gitRef` with the expected pushed commit. If the catalog is stale, remove and
-re-add the same marketplace to fetch a fresh clone:
+re-add the same marketplace to fetch a fresh clone. First record any branch,
+tag, or commit you explicitly pinned and pass it back with `--git-ref` when
+re-adding. These commands use the default branch:
 
 ```bash
 cursor-agent plugin marketplace remove skills
@@ -422,9 +424,7 @@ cursor-agent plugin marketplace add https://github.com/tkstang/skills
 
 `add` reports how many plugins it indexed; confirm that count matches the
 marketplace manifest. Because the source is a git URL, Cursor reads the
-**pushed** repository rather than your local checkout — push first, then
-re-add. Re-adding drops any non-default ref the original entry pinned, so
-re-apply that if you relied on it.
+**pushed** repository. Push the changes before refreshing the catalog.
 
 The installed plugin can still point to an older commit after the catalog is
 current. To refresh a user-scope install from the repository's default branch,
@@ -440,11 +440,12 @@ To automate the picker, run `cursor-agent` in a terminal with a pseudo-TTY
 plugin name and scope before selecting Install. A locked login keychain can
 prevent Cursor authentication over SSH.
 
-Start a fresh Agent session to load the update. Compare the installed payload
-under `~/.cursor/plugins/cache/skills/<plugin>/<sha>/` with `plugins/<plugin>/`
-at the intended commit. Compare relative paths, file contents, and executable
-bits, excluding Cursor's `.cache-complete` marker. The picker's success message
-alone does not establish that the installed files changed.
+Start a fresh Agent session to load the update. Check which revision the session
+selects. Compare its payload under `~/.cursor/plugins/cache/skills/<plugin>/<sha>/`
+with `plugins/<plugin>/` at the intended commit. Compare relative paths, file
+contents, and executable bits, excluding Cursor's `.cache-complete` marker. If
+you can only verify a directory on disk, report file parity and leave the active
+revision unverified. The picker can report success while the install stays stale.
 
 ## Update a standalone skill
 
