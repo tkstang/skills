@@ -359,7 +359,7 @@ consensus provider ls --json
 consensus preflight --json --provider claude --capability run
 ```
 
-The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_VERSION_UNPARSEABLE`, `PROVIDER_VERSION_UNSUPPORTED`, `PROVIDER_CAPABILITY_MISSING`, and `PROVIDER_UNSUPPORTED_OPTION`.
+The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. `provider ls` lists these core providers only; a provider outside the core tier is used only when named with `preflight --provider` or `run --provider`, and no such provider is registered yet. Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_VERSION_UNPARSEABLE`, `PROVIDER_VERSION_UNSUPPORTED`, `PROVIDER_CAPABILITY_MISSING`, and `PROVIDER_UNSUPPORTED_OPTION`, and keep any inventory or preflight `install_hint` in their unavailable errors. See [Prerequisites, version pins, and admission](https://github.com/tkstang/skills/blob/main/documentation/docs/user-guide/consensus/provider-setup.md#prerequisites-version-pins-and-admission).
 
 Cursor accepts `--model <id>` in both default and read-only profiles, for example
 `--model composer-2.5`; list IDs with `cursor-agent --list-models`. Effort remains

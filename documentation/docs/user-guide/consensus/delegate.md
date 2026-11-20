@@ -43,9 +43,10 @@ If the host cannot tell, it asks. Cursor runs read-only only.
 
 ## Peers
 
-By default the host picks a ready provider other than itself, checked with a
-scoped preflight. Name a peer to choose it yourself; any provider works,
-including the host's own. Pass a model or effort only when you want one;
+By default the host picks a ready core provider (Codex, Claude or Cursor) other
+than itself, checked with a scoped preflight. Name a peer to choose it
+yourself; any provider works, including the host's own. An extended provider
+runs only when named. Pass a model or effort only when you want one;
 Cursor accepts a model, including for read-only delegation, but does not support
 effort.
 

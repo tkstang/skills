@@ -7,7 +7,10 @@ description: 'Consensus run output modes, retries, timeouts, process cleanup, an
 
 These `consensus run` controls apply to every caller, through flags or
 `--request-json`, and are checked after the runtime policy is normalized and
-before any provider process starts.
+before any provider process starts. A registered provider that is not admitted
+is refused before these checks, and declared prerequisites are checked last,
+before spawn; see
+[Prerequisites, version pins, and admission](provider-setup.md#prerequisites-version-pins-and-admission).
 
 ## Output modes
 

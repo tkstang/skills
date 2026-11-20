@@ -304,7 +304,8 @@ node plugins/consensus/skills/panel/scripts/consensus-panel.mjs \
 `--panelists` must list at least two provider ids. `--panel-size` must be 2 or
 larger. If `--panel-size` is smaller than the configured panelist list, the first
 N configured panelists are selected. If it is larger, the resolver appends ready
-providers from inventory order when possible.
+core providers from inventory order when possible; an extended provider joins a
+panel only when it is listed.
 
 ## Synthesizer
 

@@ -21,6 +21,12 @@ consensus provider ls --json
 consensus preflight --json --provider claude --capability run
 ```
 
+`provider ls` lists the core providers (`claude`, `codex`, `cursor`) only. The
+provider CLI also has an extended tier for providers that are used only when
+named: `preflight --provider <id>` and `run --provider <id>` resolve any
+registered provider, but delegate fallback and panel auto-fill select core
+providers only. No extended provider is registered yet.
+
 Claude Code must be at least 2.1.259. Restricted permission profiles use
 `--permission-prompts none`, which the [Claude CLI reference](https://code.claude.com/docs/en/cli-reference#cli-flags)
 documents as requiring that version. Older versions fail preflight rather than
@@ -39,7 +45,8 @@ node plugins/consensus/scripts/consensus.mjs preflight --json --provider <select
 Readiness is a state machine, not a boolean. `consensus run` is a separate
 command that never probes. Completed success and provider-failure envelopes
 exit 0; usage errors exit 2. An interrupted CLI re-raises the signal and exits
-by that signal.
+by that signal. The diagram below covers the core providers; the next section
+adds the states a provider with prerequisites or pending admission can reach.
 
 ```mermaid
 stateDiagram-v2
@@ -99,6 +106,38 @@ stateDiagram-v2
 
 _Mermaid updated 2026-11-13_
 
+### Prerequisites, version pins, and admission
+
+A provider adapter can declare prerequisites: programs that must be installed
+before the provider can run, such as a launcher or the agent CLI it starts. The
+core providers declare none. Probes check prerequisites in order, before the
+provider's own binary:
+
+- A prerequisite without a version is checked for presence only. One that is
+  not found, or whose override variable is not an absolute path, makes the
+  provider `missing` with `PROVIDER_PREREQUISITE_MISSING`.
+- A prerequisite with a version pin runs its version command. The pin has
+  inclusive `min` and `max` bounds and an optional `exact` version. Versions
+  are compared with their prerelease tag, so `0.2.2` and `0.2.2-rc.4` do not
+  match an exact `0.2.2-rc.5`. A version outside the pin, or output with no
+  parseable version, makes the provider `unsupported` with
+  `PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED`. A failed version command makes
+  it `unavailable` with `PROVIDER_PREREQUISITE_UNAVAILABLE`.
+- A missing or out-of-pin prerequisite adds `install_hint` to the inventory or
+  preflight entry. A missing provider binary adds the adapter's own hint when
+  it has one.
+
+`consensus run` checks the same prerequisites before it starts the provider. A
+failure returns `PROVIDER_MISSING`, `PROVIDER_UNSUPPORTED` or
+`PROVIDER_UNAVAILABLE` with the install hint in the message and
+`continuation.turn: "not_started"`.
+
+A provider can also be registered before it is admitted for use. Probes report
+it as `unsupported` with `PROVIDER_NOT_ADMITTED: registered, not admitted:
+<reason>`, without launching anything, and `consensus run` refuses it with
+`PROVIDER_UNSUPPORTED` before any process starts. Preflight reports
+`Requested provider is not registered` only for an ID with no adapter.
+
 ## Diagnostics
 
 The wrappers surface provider-neutral diagnostics when a requested peer cannot be
@@ -111,6 +150,13 @@ used:
 - `PROVIDER_VERSION_UNSUPPORTED`
 - `PROVIDER_CAPABILITY_MISSING`
 - `PROVIDER_UNSUPPORTED_OPTION`
+- `PROVIDER_PREREQUISITE_MISSING`
+- `PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED`
+- `PROVIDER_PREREQUISITE_UNAVAILABLE`
+- `PROVIDER_NOT_ADMITTED`
+
+When a wrapper reports a peer as unavailable, its error keeps each provider's
+`install_hint` and diagnostic warnings from inventory or preflight.
 
 Completed provider `run` results are machine-readable envelopes. Provider
 failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_ARGV_TOO_LARGE`,
@@ -205,7 +251,7 @@ If the CLI already works from your agent shells, leave the variable unset.
   makes `provider ls` and `preflight` report the provider as `missing`, and
   `consensus run` fails with `PROVIDER_MISSING` before starting any process.
 - **Readiness probes run it.** `provider ls` and `preflight` run the program
-  with `--version`. `preflight --capability run` also runs it with `--help`
+  they found, by its resolved path, with `--version`. `preflight --capability run` also runs it with `--help`
   (`exec --help` for Codex). Both apply the same version and capability checks
   as for the default CLI, so a wrapper must pass these arguments through to the
   real CLI unchanged. A wrapper that skips its credential for probes, as above,
