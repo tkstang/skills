@@ -111,6 +111,27 @@ async function main() {
 
   if (args[0] === 'preflight') {
     const provider = providerFromArgs();
+    // A provider listed ready in inventory whose named preflight fails with
+    // an install hint, as a missing prerequisite does.
+    if (csv('CONSENSUS_STUB_PREFLIGHT_MISSING').includes(provider)) {
+      appendCall({ event: 'preflight', provider, status: 'missing' });
+      print({
+        schema_version: 'v1',
+        ok: true,
+        usable: false,
+        providers: [
+          {
+            id: provider,
+            status: 'missing',
+            install_hint: `Install the ${provider} launcher.`,
+            diagnostics: {
+              warnings: [`PROVIDER_PREREQUISITE_MISSING: ${provider} launcher`],
+            },
+          },
+        ],
+      });
+      return;
+    }
     const status = providerStatus(provider);
     appendCall({ event: 'preflight', provider, status });
     print({

@@ -1565,6 +1565,37 @@ function providerStatusMap(envelope) {
   }
   return new Map(entries);
 }
+function providerUnavailability(envelope, id, fallbackStatus) {
+  const providers = Array.isArray(envelope.providers) ? envelope.providers : [];
+  const entry = providers.findLast(
+    (provider) => isJsonRecord2(provider) && String(provider.id ?? provider.provider ?? provider.name ?? "") === id
+  );
+  if (!entry) return { id, status: fallbackStatus };
+  return {
+    id,
+    status: String(entry.status ?? "unavailable"),
+    ...unavailabilityEvidence(entry)
+  };
+}
+function unavailabilityEvidence(entry) {
+  const installHint = typeof entry.install_hint === "string" && entry.install_hint.trim() ? entry.install_hint : void 0;
+  const diagnostics = isJsonRecord2(entry.diagnostics) ? entry.diagnostics : void 0;
+  const warnings = Array.isArray(diagnostics?.warnings) ? diagnostics.warnings.filter(
+    (warning) => typeof warning === "string"
+  ) : [];
+  return {
+    ...installHint ? { install_hint: installHint } : {},
+    ...warnings.length > 0 ? { warnings } : {}
+  };
+}
+function providerUnavailableMessage(providers) {
+  const summary = providers.map((provider) => `${provider.id} (${provider.status})`).join(", ");
+  const hints = providers.filter((provider) => provider.install_hint).map(
+    (provider) => `${provider.id}: ${provider.install_hint.replace(/[\s.]+$/u, "")}`
+  );
+  const hintText = hints.length > 0 ? ` Install hints: ${hints.join("; ")}.` : "";
+  return `Consensus providers are unavailable: ${summary}.${hintText} Run "consensus preflight --json --provider <id> --capability run" and resolve provider compatibility, authentication, or availability before retrying.`;
+}
 function providerInventoryEntries(envelope) {
   return [...providerStatusMap(envelope)].map(
     ([id, status]) => ({ id, status })
@@ -1573,15 +1604,11 @@ function providerInventoryEntries(envelope) {
 
 // src/plugins/consensus/shared/cli-helpers.ts
 function providerCliUnavailableError(providers) {
-  const summary = providers.map((provider) => `${provider.id} (${provider.status})`).join(", ");
-  return new ConsensusError(
-    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id> --capability run" and resolve provider compatibility, authentication, or availability before retrying.`,
-    {
-      code: "PEER_UNAVAILABLE",
-      exitCode: EXIT_CODES.CONFIG,
-      details: { providers }
-    }
-  );
+  return new ConsensusError(providerUnavailableMessage(providers), {
+    code: "PEER_UNAVAILABLE",
+    exitCode: EXIT_CODES.CONFIG,
+    details: { providers }
+  });
 }
 async function confineWrite(targetPath, rootPath) {
   const root = path5.resolve(rootPath);
@@ -3434,11 +3461,7 @@ async function preflightEvaluateProviderCli({
     inventoryResult.stdout,
     "provider inventory"
   );
-  const statuses = providerStatusMap(inventory);
-  const unavailable = providers.filter((provider) => statuses.get(provider) !== "ready").map((provider) => ({
-    id: provider,
-    status: statuses.get(provider) ?? "missing"
-  }));
+  const unavailable = providers.map((provider) => providerUnavailability(inventory, provider, "missing")).filter((provider) => provider.status !== "ready");
   if (unavailable.length > 0) {
     throw providerCliUnavailableError(unavailable);
   }
@@ -3453,12 +3476,8 @@ async function preflightEvaluateProviderCli({
       `${provider} preflight`
     );
     if (preflight.usable !== true) {
-      const preflightStatuses = providerStatusMap(preflight);
       throw providerCliUnavailableError([
-        {
-          id: provider,
-          status: preflightStatuses.get(provider) ?? "unavailable"
-        }
+        providerUnavailability(preflight, provider, "unavailable")
       ]);
     }
   }

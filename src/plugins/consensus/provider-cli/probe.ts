@@ -19,9 +19,31 @@ export interface ProviderCapabilityProbeDefinition {
   required_output_patterns: readonly RegExp[];
 }
 
+// A program that must be installed before the provider can run, such as a
+// launcher or agent CLI the provider command starts. Without `version` it is
+// checked for presence only.
+export interface ProviderProbePrerequisite {
+  name: string;
+  command: string;
+  // Parent-only override for `command`, like the adapter's `executable_env`.
+  executable_env: string;
+  version?: ProviderPrerequisiteVersion;
+  install_hint: string;
+}
+
+// Inclusive bounds. `exact` compares the full version, prerelease included.
+export interface ProviderPrerequisiteVersion {
+  args: readonly string[];
+  min?: string;
+  max?: string;
+  exact?: string;
+}
+
 export interface ProviderProbeDefinition {
   version_args: readonly string[];
   minimum_version: string;
+  // Checked in order, before the provider binary.
+  prerequisites?: readonly ProviderProbePrerequisite[];
   capabilities: Readonly<
     Record<ProviderPreflightCapability, ProviderCapabilityProbeDefinition>
   >;
@@ -99,6 +121,29 @@ export async function probeProviderReadiness(
   adapter: ProviderAdapter,
   options: ProviderProbeOptions,
 ): Promise<ProviderInventoryEntry> {
+  // A registered provider that has not passed admission is never launched.
+  if (adapter.not_admitted_reason) {
+    return providerEntry(adapter, 'unsupported', {
+      warnings: [
+        `PROVIDER_NOT_ADMITTED: registered, not admitted: ${adapter.not_admitted_reason}`,
+      ],
+    });
+  }
+
+  const prerequisite = await checkProviderPrerequisites(
+    adapter,
+    options.runner,
+  );
+  if (prerequisite) {
+    return providerEntry(adapter, prerequisite.status, {
+      ...(prerequisite.install_hint
+        ? { install_hint: prerequisite.install_hint }
+        : {}),
+      diagnostics: prerequisite.diagnostics,
+      warnings: [prerequisite.warning],
+    });
+  }
+
   const resolved = resolveProviderExecutable(adapter, options.runner.env ?? {});
   if (!resolved.ok) {
     return providerEntry(adapter, 'missing', {
@@ -109,14 +154,17 @@ export async function probeProviderReadiness(
   const executable = await options.runner.findExecutable(command);
   if (!executable) {
     return providerEntry(adapter, 'missing', {
+      ...(adapter.install_hint ? { install_hint: adapter.install_hint } : {}),
       warnings: [
         `PROVIDER_MISSING: executable not found for ${adapter.id} (${command})`,
       ],
     });
   }
 
+  // Run the program that was found, not the bare command: PATH lookup at
+  // spawn time could pick a different binary than the one checked.
   const result = await options.runner.run(
-    command,
+    executable,
     adapter.probe.version_args,
     adapter,
   );
@@ -166,7 +214,7 @@ export async function probeProviderReadiness(
   for (const capability of options.requiredCapabilities ?? []) {
     const definition = adapter.probe.capabilities[capability];
     const capabilityResult = await options.runner.run(
-      command,
+      executable,
       definition.args,
       adapter,
     );
@@ -197,6 +245,82 @@ export async function probeProviderReadiness(
     executable,
     version: firstNonEmptyLine(output),
   });
+}
+
+export interface ProviderPrerequisiteFailure {
+  status: 'missing' | 'unsupported' | 'unavailable';
+  // Coded warning, for example `PROVIDER_PREREQUISITE_MISSING: ...`.
+  warning: string;
+  // Plain-language reason for a run failure.
+  message: string;
+  // Present when installing or upgrading the prerequisite fixes it.
+  install_hint?: string;
+  diagnostics?: ProviderDiagnostics;
+}
+
+// Checks each declared prerequisite: presence, then its version pin when it
+// declares one. Returns the first failure. Shared by readiness probes and the
+// run path, which never probes.
+export async function checkProviderPrerequisites(
+  adapter: ProbedAdapter & Pick<ProviderAdapter, 'probe'>,
+  runner: ProbeCommandRunner,
+): Promise<ProviderPrerequisiteFailure | undefined> {
+  for (const prerequisite of adapter.probe.prerequisites ?? []) {
+    const missing = (detail: string): ProviderPrerequisiteFailure => ({
+      status: 'missing',
+      warning: `PROVIDER_PREREQUISITE_MISSING: ${detail}`,
+      message: `Provider ${adapter.id} prerequisite ${detail}.`,
+      install_hint: prerequisite.install_hint,
+    });
+    const resolved = resolveProviderExecutable(
+      {
+        executable: prerequisite.command,
+        executable_env: prerequisite.executable_env,
+      },
+      runner.env ?? {},
+    );
+    if (!resolved.ok) {
+      return missing(`${prerequisite.name} is unusable: ${resolved.message}`);
+    }
+    const executable = await runner.findExecutable(resolved.executable);
+    if (!executable) {
+      return missing(
+        `${prerequisite.name} was not found (${resolved.executable})`,
+      );
+    }
+    const pin = prerequisite.version;
+    if (!pin) continue;
+
+    const result = await runner.run(executable, pin.args, adapter);
+    if (result.failure_code === 'PROVIDER_MISSING') {
+      return missing(`${prerequisite.name} failed to start (${executable})`);
+    }
+    const output = `${result.stdout}\n${result.stderr}`;
+    if (result.failure_code || result.code !== 0) {
+      const detail = `${prerequisite.name} version check failed: ${result.failure_code ?? firstNonEmptyLine(output) ?? `exit ${result.code}`}`;
+      return {
+        status: 'unavailable',
+        warning: `PROVIDER_PREREQUISITE_UNAVAILABLE: ${detail}`,
+        message: `Provider ${adapter.id} prerequisite ${detail}.`,
+        diagnostics: result.diagnostics,
+      };
+    }
+    const detected = parseVersion(output);
+    const required = describeVersionPin(pin);
+    if (!detected || !satisfiesVersionPin(detected, pin)) {
+      const found = detected
+        ? formatVersion(detected)
+        : `unparseable version output ${JSON.stringify(firstNonEmptyLine(output) ?? '')}`;
+      const detail = `${prerequisite.name} ${found} is outside the required ${required}`;
+      return {
+        status: 'unsupported',
+        warning: `PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED: ${detail}`,
+        message: `Provider ${adapter.id} prerequisite ${detail}.`,
+        install_hint: prerequisite.install_hint,
+      };
+    }
+  }
+  return undefined;
 }
 
 export function nodeProbeCommandRunner(
@@ -333,6 +457,7 @@ function providerEntry(
   options: {
     executable?: string;
     version?: string;
+    install_hint?: string;
     diagnostics?: ProviderDiagnostics;
     warnings?: string[];
   } = {},
@@ -348,6 +473,7 @@ function providerEntry(
     capabilities: adapter.capabilities,
     ...(options.executable ? { executable: options.executable } : {}),
     ...(options.version ? { version: options.version } : {}),
+    ...(options.install_hint ? { install_hint: options.install_hint } : {}),
     ...(diagnostics ? { diagnostics } : {}),
   };
 }
@@ -395,4 +521,83 @@ function compareNumericVersions(left: number[], right: number[]): number {
 
 function formatNumericVersion(version: number[]): string {
   return version.join('.');
+}
+
+// Prerequisite versions keep their prerelease tag so an exact pin such as
+// `0.2.2-rc.5` is enforced; parseNumericVersion drops it. Build metadata is
+// ignored.
+interface ParsedVersion {
+  release: number[];
+  prerelease: string[];
+}
+
+function parseVersion(value: string): ParsedVersion | undefined {
+  const match = value.match(
+    /\b(\d+(?:\.\d+){2,})(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?/,
+  );
+  if (!match) return undefined;
+  return {
+    release: match[1].split('.').map(Number),
+    prerelease: match[2] ? match[2].split('.') : [],
+  };
+}
+
+function formatVersion(version: ParsedVersion): string {
+  const release = version.release.join('.');
+  return version.prerelease.length > 0
+    ? `${release}-${version.prerelease.join('.')}`
+    : release;
+}
+
+// SemVer precedence: a prerelease sorts below its release; numeric
+// identifiers compare numerically and below alphanumeric ones.
+function compareVersions(left: ParsedVersion, right: ParsedVersion): number {
+  const release = compareNumericVersions(left.release, right.release);
+  if (release !== 0) return release;
+  if (left.prerelease.length === 0 || right.prerelease.length === 0) {
+    return Math.sign(right.prerelease.length - left.prerelease.length);
+  }
+  const length = Math.max(left.prerelease.length, right.prerelease.length);
+  for (let index = 0; index < length; index += 1) {
+    const a = left.prerelease[index];
+    const b = right.prerelease[index];
+    if (a === undefined) return -1;
+    if (b === undefined) return 1;
+    if (a === b) continue;
+    const aNumeric = /^\d+$/.test(a);
+    const bNumeric = /^\d+$/.test(b);
+    if (aNumeric && bNumeric) return Math.sign(Number(a) - Number(b));
+    if (aNumeric) return -1;
+    if (bNumeric) return 1;
+    return a < b ? -1 : 1;
+  }
+  return 0;
+}
+
+function satisfiesVersionPin(
+  detected: ParsedVersion,
+  pin: ProviderPrerequisiteVersion,
+): boolean {
+  const bound = (
+    value: string | undefined,
+    accept: (order: number) => boolean,
+  ) => {
+    if (value === undefined) return true;
+    const parsed = parseVersion(value);
+    return parsed !== undefined && accept(compareVersions(detected, parsed));
+  };
+  return (
+    bound(pin.exact, (order) => order === 0) &&
+    bound(pin.min, (order) => order >= 0) &&
+    bound(pin.max, (order) => order <= 0)
+  );
+}
+
+function describeVersionPin(pin: ProviderPrerequisiteVersion): string {
+  const parts = [
+    ...(pin.exact !== undefined ? [`=${pin.exact}`] : []),
+    ...(pin.min !== undefined ? [`>=${pin.min}`] : []),
+    ...(pin.max !== undefined ? [`<=${pin.max}`] : []),
+  ];
+  return parts.length > 0 ? `version ${parts.join(' ')}` : 'version';
 }

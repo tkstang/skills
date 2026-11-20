@@ -482,6 +482,29 @@ function providerStatusMap(envelope) {
   }
   return new Map(entries);
 }
+function providerUnavailability(envelope, id, fallbackStatus) {
+  const providers = Array.isArray(envelope.providers) ? envelope.providers : [];
+  const entry = providers.findLast(
+    (provider) => isJsonRecord(provider) && String(provider.id ?? provider.provider ?? provider.name ?? "") === id
+  );
+  if (!entry) return { id, status: fallbackStatus };
+  return {
+    id,
+    status: String(entry.status ?? "unavailable"),
+    ...unavailabilityEvidence(entry)
+  };
+}
+function unavailabilityEvidence(entry) {
+  const installHint = typeof entry.install_hint === "string" && entry.install_hint.trim() ? entry.install_hint : void 0;
+  const diagnostics = isJsonRecord(entry.diagnostics) ? entry.diagnostics : void 0;
+  const warnings = Array.isArray(diagnostics?.warnings) ? diagnostics.warnings.filter(
+    (warning) => typeof warning === "string"
+  ) : [];
+  return {
+    ...installHint ? { install_hint: installHint } : {},
+    ...warnings.length > 0 ? { warnings } : {}
+  };
+}
 function providerInventoryEntries(envelope) {
   return [...providerStatusMap(envelope)].map(
     ([id, status]) => ({ id, status })
@@ -1417,19 +1440,28 @@ async function preflightPanelists({
       readiness.push({ agent, status: "ready", diagnostics: [] });
       continue;
     }
-    const preflightStatus = providerStatusMap(preflight).get(agent.provider) ?? "unavailable";
+    const unavailable = providerUnavailability(
+      preflight,
+      agent.provider,
+      "unavailable"
+    );
     readiness.push({
       agent,
       status: "unavailable",
       diagnostics: [
-        panelistUnavailableMessage(agent.provider, preflightStatus)
+        panelistUnavailableMessage(
+          agent.provider,
+          unavailable.status,
+          unavailable.install_hint
+        ),
+        ...unavailable.warnings ?? []
       ]
     });
   }
   return readiness;
 }
-function panelistUnavailableMessage(provider, status) {
-  return `Panelist ${provider} unavailable: ${status}`;
+function panelistUnavailableMessage(provider, status, installHint) {
+  return installHint ? `Panelist ${provider} unavailable: ${status}. Install hint: ${installHint}` : `Panelist ${provider} unavailable: ${status}`;
 }
 async function invokePanelistViaCli({
   panelist,

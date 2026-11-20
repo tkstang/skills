@@ -141,6 +141,76 @@ export function providerStatusMap(envelope: Record<string, unknown>) {
   return new Map(entries);
 }
 
+// One provider a wrapper cannot use. `install_hint` and `warnings` are copied
+// from the provider CLI's inventory or preflight entry so a reduced failure
+// still says how to fix it.
+export interface ProviderUnavailability {
+  id: string;
+  status: string;
+  install_hint?: string;
+  warnings?: string[];
+}
+
+// Reads `id`'s entry from a `provider ls` or `preflight` envelope. An absent
+// entry reports `fallbackStatus`.
+export function providerUnavailability(
+  envelope: Record<string, unknown>,
+  id: string,
+  fallbackStatus: string,
+): ProviderUnavailability {
+  const providers = Array.isArray(envelope.providers) ? envelope.providers : [];
+  const entry = providers.findLast(
+    (provider): provider is Record<string, unknown> =>
+      isJsonRecord(provider) &&
+      String(provider.id ?? provider.provider ?? provider.name ?? '') === id,
+  );
+  if (!entry) return { id, status: fallbackStatus };
+  return {
+    id,
+    status: String(entry.status ?? 'unavailable'),
+    ...unavailabilityEvidence(entry),
+  };
+}
+
+// The install hint and warning strings from one provider inventory entry.
+export function unavailabilityEvidence(
+  entry: Record<string, unknown>,
+): Pick<ProviderUnavailability, 'install_hint' | 'warnings'> {
+  const installHint =
+    typeof entry.install_hint === 'string' && entry.install_hint.trim()
+      ? entry.install_hint
+      : undefined;
+  const diagnostics = isJsonRecord(entry.diagnostics)
+    ? entry.diagnostics
+    : undefined;
+  const warnings = Array.isArray(diagnostics?.warnings)
+    ? diagnostics.warnings.filter(
+        (warning): warning is string => typeof warning === 'string',
+      )
+    : [];
+  return {
+    ...(installHint ? { install_hint: installHint } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
+  };
+}
+
+export function providerUnavailableMessage(
+  providers: readonly ProviderUnavailability[],
+) {
+  const summary = providers
+    .map((provider) => `${provider.id} (${provider.status})`)
+    .join(', ');
+  const hints = providers
+    .filter((provider) => provider.install_hint)
+    .map(
+      (provider) =>
+        `${provider.id}: ${provider.install_hint!.replace(/[\s.]+$/u, '')}`,
+    );
+  const hintText =
+    hints.length > 0 ? ` Install hints: ${hints.join('; ')}.` : '';
+  return `Consensus providers are unavailable: ${summary}.${hintText} Run "consensus preflight --json --provider <id> --capability run" and resolve provider compatibility, authentication, or availability before retrying.`;
+}
+
 export function providerInventoryEntries(
   envelope: Record<string, unknown>,
 ): ProviderInventoryEntry[] {

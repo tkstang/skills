@@ -313,6 +313,40 @@ it('reports provider-neutral diagnostics for unavailable configured defaults', a
   );
 });
 
+it('keeps the preflight install hint and warnings in the unavailable error', async () => {
+  await withIsolatedConsensusConfig(
+    async (context) => {
+      await expect(
+        runEvaluateFixture(context, 'preflight-install-hint', [
+          '--peers',
+          'claude,codex',
+        ]),
+      ).rejects.toSatisfy(
+        (error: {
+          code?: string;
+          message: string;
+          details?: { providers?: unknown };
+        }) => {
+          expect(error.code).toBe('PEER_UNAVAILABLE');
+          expect(error.message).toContain(
+            'Install hints: codex: Install the codex launcher.',
+          );
+          expect(error.details?.providers).toEqual([
+            {
+              id: 'codex',
+              status: 'missing',
+              install_hint: 'Install the codex launcher.',
+              warnings: ['PROVIDER_PREREQUISITE_MISSING: codex launcher'],
+            },
+          ]);
+          return true;
+        },
+      );
+    },
+    { CONSENSUS_STUB_PREFLIGHT_MISSING: 'codex' },
+  );
+});
+
 it('rejects independent_draft cold starts with a clear evaluate error', () => {
   expect(() =>
     parseEvaluateArgs([

@@ -5,12 +5,14 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { providerRegistry } from '../provider-cli/adapters.js';
+import type { ProviderAdapter } from '../provider-cli/adapters.js';
 import { runPreflight, runProviderList } from '../provider-cli/commands.js';
 import {
   nodeProbeCommandRunner,
   probeProviderReadiness,
   probeProviderRegistry,
   type ProbeCommandRunner,
+  type ProviderPrerequisiteVersion,
 } from '../provider-cli/probe.js';
 
 describe('provider readiness probes', () => {
@@ -24,7 +26,7 @@ describe('provider readiness probes', () => {
         runner: fakeRunner({
           executables: { claude: '/fixture/claude' },
           results: {
-            'claude --version': {
+            '/fixture/claude --version': {
               code: 0,
               stdout: `Claude Code ${version}\n`,
               stderr: '',
@@ -60,7 +62,7 @@ describe('provider readiness probes', () => {
       runner: fakeRunner({
         executables: { codex: '/usr/local/bin/codex' },
         results: {
-          'codex --version': {
+          '/usr/local/bin/codex --version': {
             code: 0,
             stdout: 'codex 1.2.3\n',
             stderr: '',
@@ -82,7 +84,7 @@ describe('provider readiness probes', () => {
       runner: fakeRunner({
         executables: { 'cursor-agent': '/usr/local/bin/cursor-agent' },
         results: {
-          'cursor-agent --version': {
+          '/usr/local/bin/cursor-agent --version': {
             code: 1,
             stdout: '',
             stderr: 'OS keychain is locked; authentication required\n',
@@ -105,7 +107,7 @@ describe('provider readiness probes', () => {
       runner: fakeRunner({
         executables: { claude: '/usr/local/bin/claude' },
         results: {
-          'claude --version': {
+          '/usr/local/bin/claude --version': {
             code: 1,
             stdout: '',
             stderr: 'unsupported platform for local Claude runtime\n',
@@ -128,7 +130,7 @@ describe('provider readiness probes', () => {
       probeRunner: fakeRunner({
         executables: { codex: '/usr/local/bin/codex' },
         results: {
-          'codex --version': {
+          '/usr/local/bin/codex --version': {
             code: 0,
             stdout: 'codex 1.2.3\n',
             stderr: '',
@@ -144,7 +146,7 @@ describe('provider readiness probes', () => {
     ]);
   });
 
-  it('preflights only the selected provider CLI with an injected local runner', async () => {
+  it('preflights only the selected provider CLI, running the resolved executable', async () => {
     const calls: string[] = [];
     const runner: ProbeCommandRunner = {
       async findExecutable(command) {
@@ -152,8 +154,8 @@ describe('provider readiness probes', () => {
         if (command !== 'codex') throw new Error(`unexpected CLI: ${command}`);
         return '/usr/local/bin/codex';
       },
-      async run(command, args, adapter) {
-        calls.push(`run:${adapter.id}:${command} ${args.join(' ')}`);
+      async run(command, args, probed) {
+        calls.push(`run:${probed.id}:${command} ${args.join(' ')}`);
         const help = args.join(' ') === 'exec --help';
         return {
           code: 0,
@@ -178,8 +180,8 @@ describe('provider readiness probes', () => {
     });
     expect(calls).toEqual([
       'find:codex',
-      'run:codex:codex --version',
-      'run:codex:codex exec --help',
+      'run:codex:/usr/local/bin/codex --version',
+      'run:codex:/usr/local/bin/codex exec --help',
     ]);
   });
 
@@ -198,7 +200,11 @@ describe('provider readiness probes', () => {
         runner: fakeRunner({
           executables: { codex: '/usr/local/bin/codex' },
           results: {
-            'codex --version': { code: 0, stdout: output, stderr: '' },
+            '/usr/local/bin/codex --version': {
+              code: 0,
+              stdout: output,
+              stderr: '',
+            },
           },
         }),
       });
@@ -217,12 +223,12 @@ describe('provider readiness probes', () => {
       runner: fakeRunner({
         executables: { codex: '/usr/local/bin/codex' },
         results: {
-          'codex --version': {
+          '/usr/local/bin/codex --version': {
             code: 0,
             stdout: 'codex-cli 0.139.0\n',
             stderr: '',
           },
-          'codex exec --help': {
+          '/usr/local/bin/codex exec --help': {
             code: 0,
             stdout: '--json --output-last-message --output-schema\n',
             stderr: '',
@@ -329,12 +335,12 @@ describe('provider readiness probes', () => {
       runner: fakeRunner({
         executables: { codex: '/usr/local/bin/codex' },
         results: {
-          'codex --version': {
+          '/usr/local/bin/codex --version': {
             code: 0,
             stdout: 'codex-cli 0.142.5\n',
             stderr: '',
           },
-          'codex exec --help': {
+          '/usr/local/bin/codex exec --help': {
             code: 0,
             stdout: '--json --output-last-message\n',
             stderr: '',
@@ -437,9 +443,181 @@ describe('provider readiness probes', () => {
       ok: true,
       usable: false,
       providers: [{ id: 'gemini', status: 'unsupported' }],
+      diagnostics: {
+        warnings: ['Requested provider is not registered: gemini'],
+      },
     });
   });
 });
+
+describe('provider prerequisites and admission', () => {
+  const launcher = {
+    name: 'launcher',
+    command: 'launcher',
+    executable_env: 'CONSENSUS_FIXTURE_LAUNCHER_EXECUTABLE',
+    install_hint: 'Install launcher 0.2.2-rc.5.',
+  };
+  const agentReady = {
+    '/opt/bin/fixture-agent --version': {
+      code: 0,
+      stdout: 'fixture-agent 1.0.0\n',
+      stderr: '',
+    },
+  };
+
+  it('checks a presence-only prerequisite without running it', async () => {
+    const calls: string[] = [];
+    const entry = await probeProviderReadiness(
+      fixtureAdapter({ prerequisites: [launcher] }),
+      {
+        runner: fakeRunner({
+          calls,
+          executables: {
+            launcher: '/opt/bin/launcher',
+            'fixture-agent': '/opt/bin/fixture-agent',
+          },
+          results: agentReady,
+        }),
+      },
+    );
+
+    expect(entry).toMatchObject({ id: 'fixture', status: 'ready' });
+    expect(entry).not.toHaveProperty('install_hint');
+    expect(calls).toEqual(['/opt/bin/fixture-agent --version']);
+  });
+
+  it('reports a missing prerequisite with its install hint before probing the provider', async () => {
+    const calls: string[] = [];
+    const entry = await probeProviderReadiness(
+      fixtureAdapter({ prerequisites: [launcher] }),
+      {
+        runner: fakeRunner({
+          calls,
+          executables: { 'fixture-agent': '/opt/bin/fixture-agent' },
+          results: agentReady,
+        }),
+      },
+    );
+
+    expect(entry).toMatchObject({
+      id: 'fixture',
+      status: 'missing',
+      install_hint: 'Install launcher 0.2.2-rc.5.',
+      diagnostics: {
+        warnings: [
+          'PROVIDER_PREREQUISITE_MISSING: launcher was not found (launcher)',
+        ],
+      },
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it.each<[ProviderPrerequisiteVersion, string, 'ready' | 'unsupported']>([
+    [{ args: ['--version'], exact: '0.2.2-rc.5' }, '0.2.2-rc.5', 'ready'],
+    [{ args: ['--version'], exact: '0.2.2-rc.5' }, '0.2.2-rc.4', 'unsupported'],
+    [{ args: ['--version'], exact: '0.2.2-rc.5' }, '0.2.2', 'unsupported'],
+    [{ args: ['--version'], min: '0.20.0', max: '0.22.0' }, '0.22.0', 'ready'],
+    [
+      { args: ['--version'], min: '0.20.0', max: '0.22.0' },
+      '0.23.0',
+      'unsupported',
+    ],
+  ])(
+    'checks prerequisite pin %j against version %s',
+    async (version, detected, status) => {
+      const entry = await probeProviderReadiness(
+        fixtureAdapter({ prerequisites: [{ ...launcher, version }] }),
+        {
+          runner: fakeRunner({
+            executables: {
+              launcher: '/opt/bin/launcher',
+              'fixture-agent': '/opt/bin/fixture-agent',
+            },
+            results: {
+              ...agentReady,
+              '/opt/bin/launcher --version': {
+                code: 0,
+                stdout: `launcher ${detected}\n`,
+                stderr: '',
+              },
+            },
+          }),
+        },
+      );
+
+      expect(entry.status).toBe(status);
+      if (status === 'unsupported') {
+        expect(entry).toMatchObject({
+          install_hint: 'Install launcher 0.2.2-rc.5.',
+          diagnostics: {
+            warnings: [
+              expect.stringMatching(
+                new RegExp(
+                  `^PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED: launcher ${detected.replaceAll('.', '\\.')} is outside`,
+                ),
+              ),
+            ],
+          },
+        });
+      }
+    },
+  );
+
+  it('reports a registered but not admitted provider without launching it', async () => {
+    const calls: string[] = [];
+    const envelope = await runPreflight({
+      provider: 'fixture',
+      capabilities: ['run'],
+      adapters: providerRegistry([
+        fixtureAdapter({ not_admitted_reason: 'read-only admission pending' }),
+      ]),
+      probeRunner: fakeRunner({
+        calls,
+        executables: { 'fixture-agent': '/opt/bin/fixture-agent' },
+        results: agentReady,
+      }),
+    });
+
+    expect(envelope).toEqual({
+      schema_version: 'v1',
+      ok: true,
+      usable: false,
+      providers: [
+        expect.objectContaining({
+          id: 'fixture',
+          status: 'unsupported',
+          diagnostics: {
+            warnings: [
+              'PROVIDER_NOT_ADMITTED: registered, not admitted: read-only admission pending',
+            ],
+          },
+        }),
+      ],
+    });
+    expect(calls).toEqual([]);
+  });
+});
+
+// An extended-tier adapter built from the Codex probe surface.
+function fixtureAdapter(
+  overrides: Partial<ProviderAdapter> & {
+    prerequisites?: NonNullable<ProviderAdapter['probe']['prerequisites']>;
+  } = {},
+): ProviderAdapter {
+  const codex = adapter('codex');
+  const { prerequisites, ...rest } = overrides;
+  return {
+    ...codex,
+    id: 'fixture',
+    tier: 'extended',
+    display_name: 'Fixture',
+    executable: 'fixture-agent',
+    executable_env: 'CONSENSUS_FIXTURE_EXECUTABLE',
+    credential_env: [],
+    probe: { ...codex.probe, ...(prerequisites ? { prerequisites } : {}) },
+    ...rest,
+  };
+}
 
 function adapter(id: 'claude' | 'codex' | 'cursor') {
   const selected = providerRegistry().get(id);

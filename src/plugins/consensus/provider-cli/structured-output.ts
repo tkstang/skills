@@ -21,6 +21,8 @@ import { resolveProviderExecutable } from './executable.js';
 import { evaluateHostGuard } from './host-guard.js';
 import { buildProviderInvocation } from './invocation.js';
 import type { ProviderInvocation } from './invocation.js';
+import { checkProviderPrerequisites, nodeProbeCommandRunner } from './probe.js';
+import type { ProbeCommandRunner } from './probe.js';
 import {
   extractProviderResultText,
   extractStructuredJsonValue,
@@ -58,6 +60,9 @@ export interface RunProviderTurnDependencies {
     options: RunProviderSubprocessOptions,
   ) => Promise<ProviderProcessResult>;
   parentEnv?: NodeJS.ProcessEnv;
+  // Checks adapter prerequisites before spawn. Default: a node runner over
+  // parentEnv. Unused for adapters without prerequisites.
+  probeRunner?: ProbeCommandRunner;
   submitCommand?: string;
   transport?: ProviderTurnTransportOptions;
 }
@@ -121,6 +126,19 @@ export async function runProviderTurn(
       fallbackReason,
     }),
   });
+
+  if (adapter?.not_admitted_reason) {
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: 'PROVIDER_UNSUPPORTED',
+        message: `Provider ${request.provider} is registered but not admitted: ${adapter.not_admitted_reason}`,
+        terminalReason: 'provider_not_admitted',
+      }),
+      mode,
+      {},
+    );
+  }
 
   const usageError = continuationUsageError(request, adapter?.isSessionId);
   if (usageError) {
@@ -388,6 +406,25 @@ async function runStructuredTurn(
       message: resolvedExecutable.message,
       terminalReason: 'provider_executable_invalid',
     });
+  }
+  // `run` never probes, so a missing or out-of-pin prerequisite is reported
+  // here with its install hint instead of surfacing as a spawn failure.
+  if (adapter.probe.prerequisites?.length) {
+    const prerequisite = await checkProviderPrerequisites(
+      adapter,
+      dependencies.probeRunner ?? nodeProbeCommandRunner(parentEnv),
+    );
+    if (prerequisite) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: PREREQUISITE_FAILURE_CODES[prerequisite.status],
+        message: prerequisite.install_hint
+          ? `${prerequisite.message} Install hint: ${prerequisite.install_hint}`
+          : prerequisite.message,
+        terminalReason: `provider_prerequisite_${prerequisite.status}`,
+        diagnostics: { warnings: [prerequisite.warning] },
+      });
+    }
   }
   const submitCapturePath = submitCaptureEnabled
     ? submitCaptureFilePath(effectiveRequest.cwd ?? process.cwd())
@@ -698,6 +735,12 @@ function permissionDenialDiagnostics(
 async function readJsonSchema(schemaPath: string): Promise<unknown> {
   return JSON.parse(await readFile(schemaPath, 'utf8'));
 }
+
+const PREREQUISITE_FAILURE_CODES = {
+  missing: 'PROVIDER_MISSING',
+  unsupported: 'PROVIDER_UNSUPPORTED',
+  unavailable: 'PROVIDER_UNAVAILABLE',
+} as const satisfies Record<string, ProviderErrorCode>;
 
 function preInvocationFailure(input: {
   provider: ConsensusCliRunRequest['provider'];

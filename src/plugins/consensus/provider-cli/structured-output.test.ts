@@ -1467,6 +1467,82 @@ describe('text output', () => {
   });
 });
 
+describe('provider admission and run-path prerequisites', () => {
+  it('refuses a registered but not admitted provider before any spawn', async () => {
+    const codex = providerRegistry().get('codex')!;
+    const subprocess = fakeSubprocess([]);
+
+    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+      registry: providerRegistry([
+        { ...codex, not_admitted_reason: 'read-only admission pending' },
+      ]),
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_UNSUPPORTED',
+      message:
+        'Provider codex is registered but not admitted: read-only admission pending',
+      attempts: { cli_attempts: 0, terminal_reason: 'provider_not_admitted' },
+      continuation: { turn: 'not_started' },
+    });
+    expect(subprocess.invocations).toHaveLength(0);
+  });
+
+  it('fails a missing prerequisite before spawn with its install hint', async () => {
+    const codex = providerRegistry().get('codex')!;
+    const subprocess = fakeSubprocess([]);
+    const found: string[] = [];
+
+    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+      registry: providerRegistry([
+        {
+          ...codex,
+          probe: {
+            ...codex.probe,
+            prerequisites: [
+              {
+                name: 'launcher',
+                command: 'launcher',
+                executable_env: 'CONSENSUS_FIXTURE_LAUNCHER_EXECUTABLE',
+                install_hint: 'Install launcher.',
+              },
+            ],
+          },
+        },
+      ]),
+      probeRunner: {
+        env: {},
+        async findExecutable(command) {
+          found.push(command);
+          return undefined;
+        },
+        async run() {
+          throw new Error('a presence-only prerequisite is never run');
+        },
+      },
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_MISSING',
+      message:
+        'Provider codex prerequisite launcher was not found (launcher). Install hint: Install launcher.',
+      attempts: {
+        cli_attempts: 0,
+        terminal_reason: 'provider_prerequisite_missing',
+      },
+      continuation: { turn: 'not_started' },
+    });
+    expect(found).toEqual(['launcher']);
+    expect(subprocess.invocations).toHaveLength(0);
+  });
+});
+
 describe('provider session continuation', () => {
   it('records a new session from provider metadata beside the advisory JSON', async () => {
     const envelope = await runProviderTurn(request({ provider: 'codex' }), {

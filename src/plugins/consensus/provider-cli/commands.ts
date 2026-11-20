@@ -19,6 +19,7 @@ import type {
   ConsensusWorkflow,
 } from '../config/consensus-config.js';
 import { providerRegistry } from './adapters.js';
+import type { ProviderAdapterRegistry } from './adapters.js';
 import {
   ConsensusCliUsageError,
   normalizeRunRequest,
@@ -152,6 +153,9 @@ export interface SubmitResult {
 export interface ProviderCommandOptions {
   registry?: ProviderInventoryEntry[] | ProviderRegistryLoader;
   probeRunner?: ProbeCommandRunner;
+  // The adapters to list or probe when `registry` is not given. Default:
+  // the built-in provider registry.
+  adapters?: ProviderAdapterRegistry;
 }
 
 export interface PreflightCommandOptions extends ProviderCommandOptions {
@@ -220,8 +224,10 @@ export async function runPreflight(
     options.host,
   );
   const usable = providers.every((provider) => provider.status === 'ready');
+  // A registered provider can also be `unsupported` (not admitted, or a
+  // prerequisite outside its pin); its own diagnostics say why.
   const diagnostics =
-    options.provider && providers[0]?.status === 'unsupported'
+    options.provider && !registry.some((entry) => entry.id === options.provider)
       ? {
           warnings: [
             `Requested provider is not registered: ${options.provider}`,
@@ -828,31 +834,32 @@ function mergeDiagnostics(
 
 async function resolveRegistry(
   registry: ProviderCommandOptions['registry'],
-  options: Pick<ProviderCommandOptions, 'probeRunner'> = {},
+  options: Pick<ProviderCommandOptions, 'probeRunner' | 'adapters'> = {},
   provider?: ProviderId,
   requiredCapabilities?: readonly ProviderPreflightCapability[],
 ) {
   if (Array.isArray(registry)) return registry;
   if (typeof registry === 'function') return registry();
+  const adapters = options.adapters ?? providerRegistry();
   if (options.probeRunner) {
     return probeProviderRegistry({
-      registry: providerRegistry(),
+      registry: adapters,
       runner: options.probeRunner,
       ...(provider ? { provider } : {}),
       ...(requiredCapabilities ? { requiredCapabilities } : {}),
     });
   }
-  return defaultProviderRegistry();
+  return defaultProviderRegistry(adapters);
 }
 
-function defaultProviderRegistry(): ProviderInventoryEntry[] {
-  return providerRegistry()
-    .list()
-    .map((adapter) => ({
-      id: adapter.id,
-      status: 'missing',
-      capabilities: adapter.capabilities,
-    }));
+function defaultProviderRegistry(
+  adapters: ProviderAdapterRegistry,
+): ProviderInventoryEntry[] {
+  return adapters.list().map((adapter) => ({
+    id: adapter.id,
+    status: 'missing',
+    capabilities: adapter.capabilities,
+  }));
 }
 
 function placeholderCapabilities(): ProviderCapabilities {

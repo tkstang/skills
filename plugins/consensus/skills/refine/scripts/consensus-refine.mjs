@@ -1507,6 +1507,25 @@ function validateProviderId(value, flag) {
 function isJsonRecord2(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
+function unavailabilityEvidence(entry) {
+  const installHint = typeof entry.install_hint === "string" && entry.install_hint.trim() ? entry.install_hint : void 0;
+  const diagnostics = isJsonRecord2(entry.diagnostics) ? entry.diagnostics : void 0;
+  const warnings = Array.isArray(diagnostics?.warnings) ? diagnostics.warnings.filter(
+    (warning) => typeof warning === "string"
+  ) : [];
+  return {
+    ...installHint ? { install_hint: installHint } : {},
+    ...warnings.length > 0 ? { warnings } : {}
+  };
+}
+function providerUnavailableMessage(providers) {
+  const summary = providers.map((provider) => `${provider.id} (${provider.status})`).join(", ");
+  const hints = providers.filter((provider) => provider.install_hint).map(
+    (provider) => `${provider.id}: ${provider.install_hint.replace(/[\s.]+$/u, "")}`
+  );
+  const hintText = hints.length > 0 ? ` Install hints: ${hints.join("; ")}.` : "";
+  return `Consensus providers are unavailable: ${summary}.${hintText} Run "consensus preflight --json --provider <id> --capability run" and resolve provider compatibility, authentication, or availability before retrying.`;
+}
 
 // src/plugins/consensus/shared/cli-helpers.ts
 var PEER_AGENTS_OPTION = "--peer-agents";
@@ -5836,18 +5855,15 @@ function providerCliUnavailableError(providers, selected) {
     const entry = byId.get(id);
     return {
       id,
-      status: String(entry?.status ?? (entry ? "unavailable" : "missing"))
+      status: String(entry?.status ?? (entry ? "unavailable" : "missing")),
+      ...entry ? unavailabilityEvidence(entry) : {}
     };
   });
-  const summary = details.map((entry) => `${entry.id} (${entry.status})`).join(", ");
-  return new ConsensusError(
-    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id> --capability run" and resolve provider compatibility, authentication, or availability before retrying.`,
-    {
-      code: "PEER_UNAVAILABLE",
-      exitCode: EXIT_CODES.CONFIG,
-      details: { providers: details }
-    }
-  );
+  return new ConsensusError(providerUnavailableMessage(details), {
+    code: "PEER_UNAVAILABLE",
+    exitCode: EXIT_CODES.CONFIG,
+    details: { providers: details }
+  });
 }
 function resolveProviderCliPeers(options = {}, host = "unknown", providerInventory = []) {
   const defaultPeers = host === "codex" ? ["codex", "claude"] : ["claude", "codex"];

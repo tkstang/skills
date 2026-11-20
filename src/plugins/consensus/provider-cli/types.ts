@@ -104,6 +104,8 @@ export interface ProviderInventoryEntry {
   status: 'ready' | 'missing' | 'unavailable' | 'auth_required' | 'unsupported';
   executable?: string;
   version?: string;
+  // How to install or upgrade what is missing or outside its version pin.
+  install_hint?: string;
   capabilities: ProviderCapabilities;
   host_relation?: 'different_host' | 'same_host' | 'unknown';
   guard?:

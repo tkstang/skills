@@ -42,7 +42,7 @@ import {
   encodePromptBlockData,
   promptBlockData,
   parseProviderCliEnvelope,
-  providerStatusMap,
+  providerUnavailability,
   providerInventoryEntries,
   providerCliUnavailableError,
   confineWrite,
@@ -167,13 +167,9 @@ async function preflightEvaluateProviderCli({
     inventoryResult.stdout,
     'provider inventory',
   );
-  const statuses = providerStatusMap(inventory);
   const unavailable = providers
-    .filter((provider) => statuses.get(provider) !== 'ready')
-    .map((provider) => ({
-      id: provider,
-      status: statuses.get(provider) ?? 'missing',
-    }));
+    .map((provider) => providerUnavailability(inventory, provider, 'missing'))
+    .filter((provider) => provider.status !== 'ready');
   if (unavailable.length > 0) {
     throw providerCliUnavailableError(unavailable);
   }
@@ -189,12 +185,8 @@ async function preflightEvaluateProviderCli({
       `${provider} preflight`,
     );
     if (preflight.usable !== true) {
-      const preflightStatuses = providerStatusMap(preflight);
       throw providerCliUnavailableError([
-        {
-          id: provider,
-          status: preflightStatuses.get(provider) ?? 'unavailable',
-        },
+        providerUnavailability(preflight, provider, 'unavailable'),
       ]);
     }
   }

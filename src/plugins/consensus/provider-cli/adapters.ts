@@ -42,6 +42,10 @@ export interface ProviderAdapter {
   credential_env: readonly string[];
   // How to install the provider CLI, reported when it is missing.
   install_hint?: string;
+  // Set while the provider is registered but has not passed its live
+  // admission test: preflight reports it `unsupported` and `run` refuses it
+  // before launching anything.
+  not_admitted_reason?: string;
   probe: ProviderProbeDefinition;
   classifyRunFailure: ProviderRunFailureClassifier;
   // Provider-owned error output can be returned even with exit status zero.
@@ -425,12 +429,20 @@ export function providerRegistry(
   };
 }
 
-// Every program-override variable the registry owns. Consensus reads them from
-// its own environment and strips all of them from every provider child.
+// Every program-override variable the registry owns, prerequisites included.
+// Consensus reads them from its own environment and strips all of them from
+// every provider child.
 export function providerExecutableEnvNames(
   registry: ProviderAdapterRegistry,
 ): string[] {
-  return registry.list().map((adapter) => adapter.executable_env);
+  return registry
+    .list()
+    .flatMap((adapter) => [
+      adapter.executable_env,
+      ...(adapter.probe.prerequisites ?? []).map(
+        (prerequisite) => prerequisite.executable_env,
+      ),
+    ]);
 }
 
 export function defaultSchemaStrategy(
