@@ -22,7 +22,6 @@ import {
 } from '../provider-cli/runtime-policy.js';
 import type {
   ConsensusCliRunRequest,
-  ProviderCapabilities,
   ProviderRuntimePolicy,
 } from '../provider-cli/types.js';
 
@@ -40,7 +39,7 @@ describe('provider runtime policy validation', () => {
           env_allowlist: ['OPENAI_API_KEY'],
         },
       }),
-      capabilities('codex'),
+      adapterFor('codex'),
     );
 
     expect(result).toEqual({ ok: true });
@@ -50,7 +49,7 @@ describe('provider runtime policy validation', () => {
     expect(
       validateProviderOptions(
         request({ provider: 'cursor', model: 'cursor-model' }),
-        capabilities('cursor'),
+        adapterFor('cursor'),
       ),
     ).toMatchObject({
       ok: true,
@@ -61,7 +60,7 @@ describe('provider runtime policy validation', () => {
     expect(
       validateProviderOptions(
         request({ provider: 'cursor', effort: 'high' }),
-        capabilities('cursor'),
+        adapterFor('cursor'),
       ),
     ).toMatchObject({
       ok: false,
@@ -75,7 +74,7 @@ describe('provider runtime policy validation', () => {
           provider: 'claude',
           runtime_policy: { sandbox: 'workspace-write' },
         }),
-        capabilities('claude'),
+        adapterFor('claude'),
       ),
     ).toMatchObject({
       ok: false,
@@ -101,7 +100,7 @@ describe('provider runtime policy validation', () => {
           provider: 'codex',
           runtime_policy: { read_paths: ['/private/brief.md'] },
         }),
-        capabilities('codex'),
+        adapterFor('codex'),
       ),
     ).toMatchObject({ ok: false, option: 'runtime_policy.scoped_tools' });
     expect(
@@ -110,7 +109,7 @@ describe('provider runtime policy validation', () => {
           provider: 'claude',
           runtime_policy: { read_paths: ['/private/**'] },
         }),
-        capabilities('claude'),
+        adapterFor('claude'),
       ),
     ).toMatchObject({ ok: false, option: 'runtime_policy.read_paths' });
     expect(
@@ -122,7 +121,7 @@ describe('provider runtime policy validation', () => {
             web_search: true,
           },
         }),
-        capabilities('claude'),
+        adapterFor('claude'),
       ),
     ).toMatchObject({ ok: false, option: 'runtime_policy.permission_mode' });
   });
@@ -163,7 +162,7 @@ describe('provider runtime policy validation', () => {
       expect(
         validateProviderOptions(
           request({ ...overrides, max_attempts: 3 }),
-          capabilities(overrides.provider as 'claude' | 'codex' | 'cursor'),
+          adapterFor(overrides.provider as 'claude' | 'codex' | 'cursor'),
         ),
       ).toEqual({ ok: true });
     });
@@ -208,7 +207,7 @@ describe('provider runtime policy validation', () => {
       expect(
         validateProviderOptions(
           request({ ...overrides, max_attempts: 2 }),
-          capabilities(id),
+          adapterFor(id),
         ),
       ).toMatchObject({
         ok: false,
@@ -218,7 +217,7 @@ describe('provider runtime policy validation', () => {
       expect(
         validateProviderOptions(
           request({ ...overrides, max_attempts: 1 }),
-          capabilities(id),
+          adapterFor(id),
         ),
       ).toEqual({ ok: true });
     });
@@ -297,7 +296,7 @@ describe('provider runtime policy validation', () => {
       ],
     ])('rejects %s', async (_label, build, message) => {
       expect(
-        validateProviderOptions(await build(), capabilities('cursor')),
+        validateProviderOptions(await build(), adapterFor('cursor')),
       ).toEqual({
         ok: false,
         code: 'PROVIDER_UNSUPPORTED_OPTION',
@@ -311,7 +310,7 @@ describe('provider runtime policy validation', () => {
         await fromFlags(['--permission-mode', 'read-only']),
         await fromRequestJson({ permission_mode: 'read-only' }),
       ]) {
-        expect(validateProviderOptions(built, capabilities('cursor'))).toEqual({
+        expect(validateProviderOptions(built, adapterFor('cursor'))).toEqual({
           ok: true,
         });
       }
@@ -321,7 +320,7 @@ describe('provider runtime policy validation', () => {
       expect(
         validateProviderOptions(
           request({ provider: 'cursor' }),
-          capabilities('cursor'),
+          adapterFor('cursor'),
         ),
       ).toEqual({ ok: true });
     });
@@ -366,7 +365,7 @@ describe('provider runtime policy validation', () => {
       expect(
         validateProviderOptions(
           request({ provider: 'claude', runtime_policy: runtimePolicy }),
-          capabilities('claude'),
+          adapterFor('claude'),
         ),
       ).toEqual({ ok: true });
     });
@@ -388,7 +387,7 @@ describe('provider runtime policy validation', () => {
             provider: 'claude',
             runtime_policy: { permission_mode: mode, ...grants },
           }),
-          capabilities('claude'),
+          adapterFor('claude'),
         ),
       ).toMatchObject({
         ok: false,
@@ -405,7 +404,7 @@ describe('provider runtime policy validation', () => {
               provider: 'claude',
               runtime_policy: { permission_mode: mode },
             }),
-            capabilities('claude'),
+            adapterFor('claude'),
           ),
         ).toMatchObject({
           ok: false,
@@ -434,7 +433,7 @@ describe('provider runtime policy validation', () => {
                 bash_patterns: [pattern],
               },
             }),
-            capabilities('claude'),
+            adapterFor('claude'),
           ),
         ).toMatchObject({ ok: false, option: 'runtime_policy.bash_patterns' });
       }
@@ -447,7 +446,7 @@ describe('provider runtime policy validation', () => {
             provider: 'codex',
             runtime_policy: { bash_patterns: ['git status:*'] },
           }),
-          capabilities('codex'),
+          adapterFor('codex'),
         ),
       ).toMatchObject({ ok: false, option: 'runtime_policy.scoped_tools' });
     });
@@ -463,7 +462,7 @@ describe('provider runtime policy validation', () => {
             provider: 'claude',
             runtime_policy: { edit_paths: [filePath] },
           }),
-          capabilities('claude'),
+          adapterFor('claude'),
         ),
       ).toMatchObject({ ok: false, option: 'runtime_policy.edit_paths' });
     }
@@ -476,7 +475,7 @@ describe('provider runtime policy validation', () => {
             edit_paths: [path.join(directory, 'new-advisory-output.md')],
           },
         }),
-        capabilities('claude'),
+        adapterFor('claude'),
       ),
     ).toEqual({ ok: true });
   });
@@ -720,10 +719,10 @@ function childEnvironment(
   });
 }
 
-function capabilities(id: 'claude' | 'codex' | 'cursor'): ProviderCapabilities {
+function adapterFor(id: 'claude' | 'codex' | 'cursor') {
   const selected = providerRegistry().get(id);
   if (!selected) throw new Error(`Missing adapter fixture: ${id}`);
-  return selected.capabilities;
+  return selected;
 }
 
 function request(

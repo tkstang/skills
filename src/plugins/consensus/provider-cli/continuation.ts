@@ -41,8 +41,11 @@ export function continuationMode(
 }
 
 // Returns a usage message for contradictory or unsafe continuation requests.
+// `isSessionId` is the adapter's session-id rule; omitted, the lowercase UUID
+// rule applies.
 export function continuationUsageError(
   request: ConsensusCliRunRequest,
+  isSessionId?: (value: string) => boolean,
 ): string | undefined {
   const continuation = request.continuation;
   if (!continuation) return undefined;
@@ -91,8 +94,11 @@ export function continuationUsageError(
   if (!continuation.session_id) {
     return 'Native resume requires an explicit provider session id.';
   }
-  if (!isProviderSessionId(continuation.session_id)) {
+  if (!isSessionId && !isProviderSessionId(continuation.session_id)) {
     return 'Native resume requires a lowercase provider session UUID, as reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
+  }
+  if (isSessionId && !isSessionId(continuation.session_id)) {
+    return 'Native resume requires the provider session id reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
   }
   if (continuation.previous_session_id !== undefined) {
     return 'Native resume continues the --resume session itself; --previous-session applies only to reconstructed continuation.';

@@ -3,15 +3,29 @@ import {
   buildCodexInvocation,
   buildCursorInvocation,
 } from './invocation.js';
-import type { ProviderInvocationBuilder } from './invocation.js';
-import type { ProviderProbeDefinition } from './probe.js';
-import { isReliableExternalInterrupt } from './subprocess.js';
 import type {
+  ProviderInvocation,
+  ProviderInvocationBuilder,
+} from './invocation.js';
+import type { ProviderProbeDefinition } from './probe.js';
+import { extractProviderResultText } from './provider-output.js';
+import type { ProviderTextExtraction } from './provider-output.js';
+import {
+  hasScopedToolAccess,
+  isClaudeReadOnlyPolicy,
+  isCodexReadOnlyPolicy,
+} from './runtime-policy.js';
+import { isReliableExternalInterrupt } from './subprocess.js';
+import type { ProviderProcessSuccess } from './subprocess.js';
+import type {
+  ConsensusCliRunRequest,
   ProviderExitClassification,
   ProviderCapabilities,
   ProviderDiagnostics,
   ProviderErrorCode,
   ProviderId,
+  ProviderPermissionDenials,
+  ProviderRuntimePolicy,
   ProviderTier,
   StructuredOutputStrategy,
 } from './types.js';
@@ -37,6 +51,27 @@ export interface ProviderAdapter {
   buildInvocation: ProviderInvocationBuilder;
   extractSession: ProviderSessionExtractor;
   capabilities: ProviderCapabilities;
+  // Optional hooks. Each omitted hook keeps the default noted beside it.
+  // Final text of a text-mode turn. Default: extractProviderResultText.
+  extractText?: (
+    invocation: ProviderInvocation,
+    result: ProviderProcessSuccess,
+  ) => ProviderTextExtraction;
+  // The verdict inside parsed final-message JSON. Default:
+  // extractStructuredJsonValue.
+  extractStructuredValue?: (value: unknown) => unknown;
+  // Accepts a native-resume session id. Default: lowercase UUID.
+  isSessionId?: (value: string) => boolean;
+  // Whether a JSON turn may offer `consensus submit`; a profile that cannot
+  // run the command answers through the final message. Default: eligible.
+  submitCaptureEligible?: (request: ConsensusCliRunRequest) => boolean;
+  // Tool calls the provider reports it denied. Default: none reported.
+  extractPermissionDenials?: (
+    stdout: string,
+  ) => ProviderPermissionDenials | undefined;
+  // A profile that cannot repeat side effects, so its turn may be retried.
+  // Default: not proven, so the turn runs once.
+  isProvenReadOnly?: (policy: ProviderRuntimePolicy) => boolean;
 }
 
 export interface ProviderSessionObservation {
@@ -162,6 +197,20 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     credential_env: ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'],
     buildInvocation: buildClaudeInvocation,
     extractSession: extractJsonResultSession,
+    // Claude always reports a subtype; anything but `success` is a failure.
+    extractText: (invocation, result) =>
+      extractProviderResultText(invocation, result, {
+        requireSuccessSubtype: true,
+      }),
+    // Scoped and workspace-write profiles allow no Bash beyond explicit
+    // grants, so they cannot run the submit command.
+    submitCaptureEligible: (request) =>
+      !(
+        hasScopedToolAccess(request.runtime_policy) ||
+        request.runtime_policy?.permission_mode === 'workspace-write'
+      ),
+    extractPermissionDenials: extractClaudePermissionDenials,
+    isProvenReadOnly: isClaudeReadOnlyPolicy,
     classifyRunFailure: defaultRunFailureClassifier({
       session_not_found_patterns: CLAUDE_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
@@ -230,6 +279,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     credential_env: ['OPENAI_API_KEY'],
     buildInvocation: buildCodexInvocation,
     extractSession: extractCodexJsonlSession,
+    isProvenReadOnly: isCodexReadOnlyPolicy,
     classifyRunFailure: defaultRunFailureClassifier({
       session_not_found_patterns: CODEX_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
@@ -301,6 +351,10 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
     credential_env: ['CURSOR_API_KEY'],
     buildInvocation: buildCursorInvocation,
     extractSession: extractJsonResultSession,
+    // Read-only Cursor runs in ask mode, which cannot run the submit command.
+    submitCaptureEligible: (request) =>
+      request.runtime_policy?.permission_mode !== 'read-only',
+    isProvenReadOnly: (policy) => policy.permission_mode === 'read-only',
     classifyRunFailure: defaultRunFailureClassifier({
       session_not_found_patterns: [],
       auth_required_patterns: [
@@ -604,6 +658,30 @@ function parseJsonRecord(value: string): Record<string, unknown> | undefined {
   } catch {
     return undefined;
   }
+}
+
+function extractClaudePermissionDenials(
+  stdout: string,
+): ProviderPermissionDenials | undefined {
+  const result = parseJsonRecord(stdout);
+  if (!result || !Array.isArray(result.permission_denials)) {
+    return undefined;
+  }
+  const denials = result.permission_denials;
+  if (denials.length === 0) return undefined;
+  const tools = [
+    ...new Set(
+      denials
+        .filter(isRecord)
+        .map((denial) => denial.tool_name)
+        .filter(
+          (name): name is string =>
+            typeof name === 'string' &&
+            /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name),
+        ),
+    ),
+  ];
+  return { count: denials.length, tools };
 }
 
 export function extractJsonResultSession(

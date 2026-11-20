@@ -1796,6 +1796,45 @@ describe('provider session continuation', () => {
     },
   );
 
+  it("validates native-resume ids with the adapter's session-id rule", async () => {
+    const codex = providerRegistry().get('codex')!;
+    const registry = providerRegistry([
+      { ...codex, isSessionId: (value) => /^[a-z]+-[a-z]+$/.test(value) },
+    ]);
+    const subprocess = fakeSubprocess([codexTurn('silent-ankle')]);
+    const unused = fakeSubprocess([]);
+
+    const accepted = await runProviderTurn(
+      resumeRequest({ session_id: 'silent-ankle' }),
+      {
+        registry,
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      },
+    );
+    // The adapter rule replaces the UUID default rather than extending it.
+    const rejected = await runProviderTurn(resumeRequest(), {
+      registry,
+      readSchema: async () => schema(),
+      runSubprocess: unused.run,
+    });
+
+    expect(accepted).toMatchObject({
+      ok: true,
+      continuation: {
+        session_id: 'silent-ankle',
+        requested_session_id: 'silent-ankle',
+      },
+    });
+    expect(subprocess.invocations[0]?.argv).toContain('silent-ankle');
+    expect(rejected).toMatchObject({
+      ok: false,
+      code: 'CONSENSUS_CLI_USAGE',
+      continuation: { turn: 'not_started' },
+    });
+    expect(unused.invocations).toHaveLength(0);
+  });
+
   it('keeps the recursion guard on resumed turns', async () => {
     const subprocess = fakeSubprocess([]);
 

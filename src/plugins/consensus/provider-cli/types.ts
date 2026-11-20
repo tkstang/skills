@@ -204,12 +204,15 @@ export interface ProviderDiagnostics {
   };
   timeout_sec?: number;
   warnings?: string[];
-  permission_denials?: {
-    count: number;
-    tools: string[];
-  };
+  permission_denials?: ProviderPermissionDenials;
   permission_profile?: ProviderPermissionProfile;
   termination?: ProviderTermination;
+}
+
+// Tool calls the provider reports it denied during the turn.
+export interface ProviderPermissionDenials {
+  count: number;
+  tools: string[];
 }
 
 // How a timed-out, capped, or interrupted provider run was stopped. `reason`

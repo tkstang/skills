@@ -35,7 +35,8 @@ var BASE_ENV_ALLOWLIST = [
   "SHELL",
   "LANG"
 ];
-function validateProviderOptions(request, capabilities) {
+function validateProviderOptions(request, adapter) {
+  const { capabilities } = adapter;
   if (request.model && !capabilities.options.model) {
     return unsupported("model", "Provider does not support model selection.");
   }
@@ -87,7 +88,7 @@ function validateProviderOptions(request, capabilities) {
       return unsupported(composition.option, composition.message);
     }
   }
-  if ((request.max_attempts ?? 1) > 1 && !isProvenReadOnlyProfile(request.provider, policy)) {
+  if ((request.max_attempts ?? 1) > 1 && !adapter.isProvenReadOnly?.(policy)) {
     return {
       ok: false,
       code: "CONSENSUS_CLI_USAGE",
@@ -149,13 +150,11 @@ function validateProviderOptions(request, capabilities) {
   }
   return { ok: true };
 }
-function isProvenReadOnlyProfile(provider, policy) {
-  if (provider === "codex") return policy.sandbox === "read-only";
-  if (provider === "claude") {
-    return policy.permission_mode === "read-only" && !policy.edit_paths?.length && !policy.bash_patterns?.length;
-  }
-  if (provider === "cursor") return policy.permission_mode === "read-only";
-  return false;
+function isClaudeReadOnlyPolicy(policy) {
+  return policy.permission_mode === "read-only" && !policy.edit_paths?.length && !policy.bash_patterns?.length;
+}
+function isCodexReadOnlyPolicy(policy) {
+  return policy.sandbox === "read-only";
 }
 function hasScopedToolAccess(policy = {}) {
   return Boolean(
@@ -517,6 +516,164 @@ function defaultStrategy(adapter) {
   return adapter.capabilities.schema_strategies.find(
     (strategy) => strategy !== "submit_tool_candidate"
   ) ?? "prompt_only";
+}
+
+// src/plugins/consensus/provider-cli/schema-validate.ts
+function validateSchemaSubset(value, schema) {
+  if (!isRecord(schema)) return { ok: true };
+  if (schema.type === "object" && !isRecord(value)) {
+    return { ok: false, message: "Expected provider JSON to be an object." };
+  }
+  if (Array.isArray(schema.required)) {
+    if (!isRecord(value)) {
+      return {
+        ok: false,
+        message: "Expected provider JSON to be an object with required fields."
+      };
+    }
+    for (const field of schema.required) {
+      if (typeof field === "string" && !(field in value)) {
+        return {
+          ok: false,
+          message: `Missing required JSON field: ${field}`
+        };
+      }
+    }
+  }
+  if (isRecord(schema.properties) && isRecord(value)) {
+    for (const [field, fieldSchema] of Object.entries(schema.properties)) {
+      if (!(field in value) || !isRecord(fieldSchema)) continue;
+      const type = fieldSchema.type;
+      if (typeof type === "string" && !matchesJsonType(value[field], type)) {
+        return {
+          ok: false,
+          message: `Field ${field} must be ${type}.`
+        };
+      }
+    }
+  }
+  return { ok: true };
+}
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function matchesJsonType(value, type) {
+  if (type === "array") return Array.isArray(value);
+  if (type === "object") return isRecord(value);
+  if (type === "integer") return Number.isInteger(value);
+  return typeof value === type;
+}
+
+// src/plugins/consensus/provider-cli/provider-output.ts
+function extractProviderResultText(invocation2, result, options = {}) {
+  const empty = (message) => ({
+    ok: false,
+    code: "PROVIDER_EMPTY_OUTPUT",
+    message,
+    terminal_reason: "empty_output"
+  });
+  const malformed = (message) => ({
+    ok: false,
+    code: "PROVIDER_MALFORMED_RESULT",
+    message,
+    terminal_reason: "malformed_result"
+  });
+  if (invocation2.output_mode === "last_message_file") {
+    const lastMessage = result.last_message;
+    if (lastMessage === void 0) {
+      return empty("Provider did not write a last-message file response.");
+    }
+    if (!lastMessage.trim()) {
+      return empty("Provider wrote a blank last-message file response.");
+    }
+    return { ok: true, raw: lastMessage, text: lastMessage };
+  }
+  if (!result.stdout.trim()) {
+    return empty("Provider produced no output.");
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout.trim());
+  } catch {
+    return malformed("Provider output is not a JSON result object.");
+  }
+  if (!isRecord(parsed)) {
+    return malformed("Provider output is not a JSON result object.");
+  }
+  if (parsed.is_error === true) {
+    return malformed("Provider reported an error result.");
+  }
+  const subtype = parsed.subtype;
+  if (options.requireSuccessSubtype && subtype !== "success" || subtype !== void 0 && subtype !== "success") {
+    return malformed(
+      `Provider result subtype is ${typeof subtype === "string" ? subtype : "missing"}, not success.`
+    );
+  }
+  if (typeof parsed.result !== "string") {
+    return malformed("Provider result object has no text result.");
+  }
+  if (!parsed.result.trim()) {
+    return empty("Provider returned a blank text result.");
+  }
+  return { ok: true, raw: result.stdout, text: parsed.result };
+}
+function extractStructuredJsonValue(value) {
+  if (!isRecord(value)) return value;
+  if ("structured_output" in value) {
+    return value.structured_output;
+  }
+  const result = value.result;
+  if (typeof result !== "string") return value;
+  try {
+    return JSON.parse(result.trim());
+  } catch {
+    return extractFirstJsonObject(result) ?? value;
+  }
+}
+function extractFirstJsonObject(text) {
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (start === -1) {
+      if (char === "{") {
+        start = index;
+        depth = 1;
+      }
+      continue;
+    }
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char !== "}") continue;
+    depth -= 1;
+    if (depth !== 0) continue;
+    const candidate = text.slice(start, index + 1);
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      start = -1;
+      depth = 0;
+    }
+  }
+  return void 0;
 }
 
 // src/plugins/consensus/provider-cli/subprocess.ts
@@ -1093,6 +1250,15 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     credential_env: ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"],
     buildInvocation: buildClaudeInvocation,
     extractSession: extractJsonResultSession,
+    // Claude always reports a subtype; anything but `success` is a failure.
+    extractText: (invocation2, result) => extractProviderResultText(invocation2, result, {
+      requireSuccessSubtype: true
+    }),
+    // Scoped and workspace-write profiles allow no Bash beyond explicit
+    // grants, so they cannot run the submit command.
+    submitCaptureEligible: (request) => !(hasScopedToolAccess(request.runtime_policy) || request.runtime_policy?.permission_mode === "workspace-write"),
+    extractPermissionDenials: extractClaudePermissionDenials,
+    isProvenReadOnly: isClaudeReadOnlyPolicy,
     classifyRunFailure: defaultRunFailureClassifier({
       session_not_found_patterns: CLAUDE_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
@@ -1160,6 +1326,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     credential_env: ["OPENAI_API_KEY"],
     buildInvocation: buildCodexInvocation,
     extractSession: extractCodexJsonlSession,
+    isProvenReadOnly: isCodexReadOnlyPolicy,
     classifyRunFailure: defaultRunFailureClassifier({
       session_not_found_patterns: CODEX_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
@@ -1230,6 +1397,9 @@ var DEFAULT_PROVIDER_ADAPTERS = [
     credential_env: ["CURSOR_API_KEY"],
     buildInvocation: buildCursorInvocation,
     extractSession: extractJsonResultSession,
+    // Read-only Cursor runs in ask mode, which cannot run the submit command.
+    submitCaptureEligible: (request) => request.runtime_policy?.permission_mode !== "read-only",
+    isProvenReadOnly: (policy) => policy.permission_mode === "read-only",
     classifyRunFailure: defaultRunFailureClassifier({
       session_not_found_patterns: [],
       auth_required_patterns: [
@@ -1398,8 +1568,8 @@ function classifyClaudeLimit(stdout) {
     return void 0;
   if (result.api_error_status !== 429 && result.api_error !== "usage_limit_reached")
     return void 0;
-  const usage = isRecord(result.usage) ? result.usage : void 0;
-  const noWork = result.num_turns === 1 && usage?.input_tokens === 0 && usage.output_tokens === 0 && (usage.cache_read_input_tokens === void 0 || usage.cache_read_input_tokens === 0) && (usage.cache_creation_input_tokens === void 0 || usage.cache_creation_input_tokens === 0) && (!isRecord(result.modelUsage) || Object.keys(result.modelUsage).length === 0);
+  const usage = isRecord2(result.usage) ? result.usage : void 0;
+  const noWork = result.num_turns === 1 && usage?.input_tokens === 0 && usage.output_tokens === 0 && (usage.cache_read_input_tokens === void 0 || usage.cache_read_input_tokens === 0) && (usage.cache_creation_input_tokens === void 0 || usage.cache_creation_input_tokens === 0) && (!isRecord2(result.modelUsage) || Object.keys(result.modelUsage).length === 0);
   return limitFailure(
     typeof result.result === "string" && result.result.trim() ? result.result : "Provider usage or rate limit reached.",
     noWork ? "not_started" : "unknown"
@@ -1412,7 +1582,7 @@ function classifyCodexLimit(stdout) {
     if (!event) continue;
     if (event.type === "turn.completed" || event.type === "turn.failed")
       failure2 = void 0;
-    const message = event.type === "turn.failed" && isRecord(event.error) ? event.error.message : event.type === "error" ? event.message : void 0;
+    const message = event.type === "turn.failed" && isRecord2(event.error) ? event.error.message : event.type === "error" ? event.message : void 0;
     if (typeof message !== "string") continue;
     if (/^You've hit your usage limit[. ]/.test(message) || message.startsWith(
       "Quota exceeded. Check your plan and billing details."
@@ -1435,10 +1605,26 @@ function limitFailure(message, turn) {
 function parseJsonRecord(value) {
   try {
     const parsed = JSON.parse(value);
-    return isRecord(parsed) ? parsed : void 0;
+    return isRecord2(parsed) ? parsed : void 0;
   } catch {
     return void 0;
   }
+}
+function extractClaudePermissionDenials(stdout) {
+  const result = parseJsonRecord(stdout);
+  if (!result || !Array.isArray(result.permission_denials)) {
+    return void 0;
+  }
+  const denials = result.permission_denials;
+  if (denials.length === 0) return void 0;
+  const tools = [
+    ...new Set(
+      denials.filter(isRecord2).map((denial) => denial.tool_name).filter(
+        (name) => typeof name === "string" && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name)
+      )
+    )
+  ];
+  return { count: denials.length, tools };
 }
 function extractJsonResultSession(stdout) {
   let parsed;
@@ -1447,12 +1633,12 @@ function extractJsonResultSession(stdout) {
   } catch {
     return {};
   }
-  if (!isRecord(parsed)) return {};
+  if (!isRecord2(parsed)) return {};
   const observation = {};
   if (typeof parsed.session_id === "string" && parsed.session_id) {
     observation.session_id = parsed.session_id;
   }
-  if (isRecord(parsed.modelUsage)) {
+  if (isRecord2(parsed.modelUsage)) {
     const models = Object.keys(parsed.modelUsage);
     if (models.length > 0) observation.observed_models = models;
   }
@@ -1468,13 +1654,13 @@ function extractCodexJsonlSession(stdout) {
     } catch {
       continue;
     }
-    if (isRecord(event) && event.type === "thread.started" && typeof event.thread_id === "string" && event.thread_id) {
+    if (isRecord2(event) && event.type === "thread.started" && typeof event.thread_id === "string" && event.thread_id) {
       return { session_id: event.thread_id };
     }
   }
   return {};
 }
-function isRecord(value) {
+function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function terminalReasonForNonExitFailure(code) {
@@ -1949,7 +2135,7 @@ function isProviderSessionId(value) {
 function continuationMode(request) {
   return request.continuation?.mode ?? "new";
 }
-function continuationUsageError(request) {
+function continuationUsageError(request, isSessionId) {
   const continuation = request.continuation;
   if (!continuation) return void 0;
   const { mode } = continuation;
@@ -1985,8 +2171,11 @@ function continuationUsageError(request) {
   if (!continuation.session_id) {
     return "Native resume requires an explicit provider session id.";
   }
-  if (!isProviderSessionId(continuation.session_id)) {
+  if (!isSessionId && !isProviderSessionId(continuation.session_id)) {
     return 'Native resume requires a lowercase provider session UUID, as reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
+  }
+  if (isSessionId && !isSessionId(continuation.session_id)) {
+    return 'Native resume requires the provider session id reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
   }
   if (continuation.previous_session_id !== void 0) {
     return "Native resume continues the --resume session itself; --previous-session applies only to reconstructed continuation.";
@@ -2125,52 +2314,6 @@ function buildAttemptSummary(attempts, retryable) {
   };
 }
 
-// src/plugins/consensus/provider-cli/schema-validate.ts
-function validateSchemaSubset(value, schema) {
-  if (!isRecord2(schema)) return { ok: true };
-  if (schema.type === "object" && !isRecord2(value)) {
-    return { ok: false, message: "Expected provider JSON to be an object." };
-  }
-  if (Array.isArray(schema.required)) {
-    if (!isRecord2(value)) {
-      return {
-        ok: false,
-        message: "Expected provider JSON to be an object with required fields."
-      };
-    }
-    for (const field of schema.required) {
-      if (typeof field === "string" && !(field in value)) {
-        return {
-          ok: false,
-          message: `Missing required JSON field: ${field}`
-        };
-      }
-    }
-  }
-  if (isRecord2(schema.properties) && isRecord2(value)) {
-    for (const [field, fieldSchema] of Object.entries(schema.properties)) {
-      if (!(field in value) || !isRecord2(fieldSchema)) continue;
-      const type = fieldSchema.type;
-      if (typeof type === "string" && !matchesJsonType(value[field], type)) {
-        return {
-          ok: false,
-          message: `Field ${field} must be ${type}.`
-        };
-      }
-    }
-  }
-  return { ok: true };
-}
-function isRecord2(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function matchesJsonType(value, type) {
-  if (type === "array") return Array.isArray(value);
-  if (type === "object") return isRecord2(value);
-  if (type === "integer") return Number.isInteger(value);
-  return typeof value === type;
-}
-
 // src/plugins/consensus/provider-cli/submit-capture.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
 import path6 from "node:path";
@@ -2239,7 +2382,7 @@ async function runProviderTurn(request, dependencies = {}) {
       fallbackReason
     })
   });
-  const usageError = continuationUsageError(request);
+  const usageError = continuationUsageError(request, adapter?.isSessionId);
   if (usageError) {
     return withReceipt(
       preInvocationFailure({
@@ -2354,10 +2497,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       terminalReason: "unsupported_provider"
     });
   }
-  const optionValidation = validateProviderOptions(
-    request,
-    adapter.capabilities
-  );
+  const optionValidation = validateProviderOptions(request, adapter);
   if (!optionValidation.ok) {
     return preInvocationFailure({
       provider: request.provider,
@@ -2426,7 +2566,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
-  const submitCaptureEnabled = !textMode && (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && (hasScopedToolAccess(request.runtime_policy) || request.runtime_policy?.permission_mode === "workspace-write")) && !(request.provider === "cursor" && request.runtime_policy?.permission_mode === "read-only");
+  const submitCaptureEnabled = !textMode && (dependencies.transport?.submitCaptureEnabled ?? true) && (adapter.submitCaptureEligible?.(request) ?? true);
   const strategy = selectStructuredOutputStrategy(adapter, {
     output: request.output,
     submitCaptureEnabled,
@@ -2514,7 +2654,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         },
         hostGuard.diagnostics,
         processResult.diagnostics,
-        permissionDenialDiagnostics(request.provider, processResult.stdout),
+        permissionDenialDiagnostics(adapter, processResult.stdout),
         exitClassificationDiagnostics(exitClassification)
       );
       const reportedFailure = processResult.ok || processResult.code === "PROVIDER_EXIT" && !processResult.signal && !processResult.diagnostics?.termination ? adapter.classifyReportedFailure?.(processResult.stdout) : void 0;
@@ -2545,10 +2685,9 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         });
       }
       if (textMode) {
-        const extracted = extractProviderText(
+        const extracted = (adapter.extractText ?? extractProviderResultText)(
           invocation2,
-          processResult,
-          request.provider
+          processResult
         );
         if (!extracted.ok) {
           return failureEnvelope({
@@ -2638,7 +2777,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
           diagnostics: finalMessageDiagnostics
         });
       }
-      const verdictJson = extractStructuredJsonValue(parsed.value);
+      const verdictJson = (adapter.extractStructuredValue ?? extractStructuredJsonValue)(parsed.value);
       const validation = validateSchemaSubset(verdictJson, schema);
       if (!validation.ok) {
         if (attempt < maxAttempts) {
@@ -2693,30 +2832,13 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     }
   }
 }
-function permissionDenialDiagnostics(provider, stdout) {
-  if (provider !== "claude") return void 0;
-  let result;
-  try {
-    result = JSON.parse(stdout);
-  } catch {
-    return void 0;
-  }
-  if (!isRecord2(result) || !Array.isArray(result.permission_denials)) {
-    return void 0;
-  }
-  const denials = result.permission_denials;
-  if (denials.length === 0) return void 0;
-  const tools = [
-    ...new Set(
-      denials.filter(isRecord2).map((denial) => denial.tool_name).filter(
-        (name) => typeof name === "string" && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name)
-      )
-    )
-  ];
+function permissionDenialDiagnostics(adapter, stdout) {
+  const denials = adapter.extractPermissionDenials?.(stdout);
+  if (!denials) return void 0;
   return {
-    permission_denials: { count: denials.length, tools },
+    permission_denials: denials,
     warnings: [
-      `Claude reported ${denials.length} denied tool call(s); verify task completeness independently of schema and transport success.`
+      `${adapter.display_name} reported ${denials.count} denied tool call(s); verify task completeness independently of schema and transport success.`
     ]
   };
 }
@@ -2748,58 +2870,6 @@ function extractProviderOutput(invocation2, result) {
     message: "Provider did not write a last-message file response."
   };
 }
-function extractProviderText(invocation2, result, provider) {
-  const empty = (message) => ({
-    ok: false,
-    code: "PROVIDER_EMPTY_OUTPUT",
-    message,
-    terminal_reason: "empty_output"
-  });
-  const malformed = (message) => ({
-    ok: false,
-    code: "PROVIDER_MALFORMED_RESULT",
-    message,
-    terminal_reason: "malformed_result"
-  });
-  if (invocation2.output_mode === "last_message_file") {
-    const lastMessage = result.last_message;
-    if (lastMessage === void 0) {
-      return empty("Provider did not write a last-message file response.");
-    }
-    if (!lastMessage.trim()) {
-      return empty("Provider wrote a blank last-message file response.");
-    }
-    return { ok: true, raw: lastMessage, text: lastMessage };
-  }
-  if (!result.stdout.trim()) {
-    return empty("Provider produced no output.");
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(result.stdout.trim());
-  } catch {
-    return malformed("Provider output is not a JSON result object.");
-  }
-  if (!isRecord2(parsed)) {
-    return malformed("Provider output is not a JSON result object.");
-  }
-  if (parsed.is_error === true) {
-    return malformed("Provider reported an error result.");
-  }
-  const subtype = parsed.subtype;
-  if (provider === "claude" && subtype !== "success" || subtype !== void 0 && subtype !== "success") {
-    return malformed(
-      `Provider result subtype is ${typeof subtype === "string" ? subtype : "missing"}, not success.`
-    );
-  }
-  if (typeof parsed.result !== "string") {
-    return malformed("Provider result object has no text result.");
-  }
-  if (!parsed.result.trim()) {
-    return empty("Provider returned a blank text result.");
-  }
-  return { ok: true, raw: result.stdout, text: parsed.result };
-}
 function parseProviderJson(stdout) {
   try {
     return { ok: true, value: JSON.parse(stdout.trim()) };
@@ -2830,19 +2900,6 @@ async function cleanupSubmitCaptureFile(filePath) {
   try {
     await rm2(filePath, { force: true });
   } catch {
-  }
-}
-function extractStructuredJsonValue(value) {
-  if (!isRecord2(value)) return value;
-  if ("structured_output" in value) {
-    return value.structured_output;
-  }
-  const result = value.result;
-  if (typeof result !== "string") return value;
-  try {
-    return JSON.parse(result.trim());
-  } catch {
-    return extractFirstJsonObject(result) ?? value;
   }
 }
 function promptForStrategy(input) {
@@ -2877,51 +2934,6 @@ function promptForStrategy(input) {
     );
   }
   return parts.join("\n\n");
-}
-function extractFirstJsonObject(text) {
-  let start = -1;
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    if (start === -1) {
-      if (char === "{") {
-        start = index;
-        depth = 1;
-      }
-      continue;
-    }
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (char === "\\") {
-        escaped = true;
-      } else if (char === '"') {
-        inString = false;
-      }
-      continue;
-    }
-    if (char === '"') {
-      inString = true;
-      continue;
-    }
-    if (char === "{") {
-      depth += 1;
-      continue;
-    }
-    if (char !== "}") continue;
-    depth -= 1;
-    if (depth !== 0) continue;
-    const candidate = text.slice(start, index + 1);
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      start = -1;
-      depth = 0;
-    }
-  }
-  return void 0;
 }
 function mergeDiagnostics(...diagnostics) {
   const merged = {};
