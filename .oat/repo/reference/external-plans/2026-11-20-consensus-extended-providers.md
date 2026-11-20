@@ -362,6 +362,65 @@ Dev logs: `~/acp-spike/logs/agy-tools-*`, `agy-{subagent,swarm}-wait-brain/` and
 - **For Thomas** (via the coordinator): `search_web` egress, the summaries-db
   write, and sub-agent behaviour as disclosed limits, or reasons not to admit.
 
+### Coordinator update #10: Factory Droid 1.16.0
+
+Dev logs: `~/acp-spike/logs/droid-*`; runs from a desktop session.
+
+- **CRITICAL:** the default ACP mode is `auto-medium` (configOption
+  `autonomy_level`). With no mode set, the write tests created a file, ran
+  `touch` and wrote outside cwd with **zero permission requests**. The modes:
+
+  | Mode | Behaviour |
+  | --- | --- |
+  | `normal` | auto-approves reads only |
+  | `spec` | read-only planning |
+  | `auto-low` | autonomous, low |
+  | `auto-medium` | autonomous, medium (the ACP default) |
+  | `auto-high` | autonomous, high |
+
+  Read-only sets `normal` and confirms it from the `current_mode_update` /
+  `config_option_update` echo before the prompt.
+- **`normal` + deny-all:**
+  - Edit, shell and outside-cwd writes each raise
+    `session/request_permission`. Denial fails the tool, and disk stays
+    clean.
+  - **After a denial, stopReason is `cancelled`** (agy: `end_turn`).
+  - Batches abort after one denial, as with agy.
+  - Option ids differ (`allow_once:proceed_once`, `reject_once:cancel`), so
+    **options are chosen by `kind`, never by id**.
+- **Positive control:** passed.
+- **Session:**
+  - Ids are UUIDv4.
+  - `resume` works.
+  - `load` replays earlier turns.
+  - Teardown is clean.
+- **Auth:**
+  - Credentials are in the keychain. Over SSH, `session/new` mints a
+    device-pairing code each time.
+  - `FACTORY_HOME_OVERRIDE` loses auth, so it is not an isolation lever.
+  - `FACTORY_API_KEY` is the headless route.
+- **Models** are set through configOption `model`. The list includes the
+  user's custom proxy models (`custom:...-(Proxy)-0`). **Thomas wants tests,
+  and probably defaults, on cheap proxy models.**
+- **Project `.factory/mcp.json` servers are spawned** in every variant, under a
+  **different pgid**, so a group kill misses them; they were gone after
+  teardown. Root `.mcp.json` was not spawned.
+- **Hooks:** per the docs, `droid exec` runs project hooks without folder
+  trust, and `droid exec --settings <file>` with
+  `{"hooks":{"hooksDisabled":true}}` overrides at the highest precedence.
+  Retest pending.
+- **Tool surface** includes Task subagents, plus deferred tools via
+  ToolSearch: web search and fetch, `computer_*`, `loop_*`, and **Factory cloud
+  automations** (Create/Run/Edit/Delete). Automation and loop tests are held
+  for Thomas.
+- **Proposed lever:** a **`--only-tools` allowlist** of read tools in the
+  launch argv makes write, exec, Task, deferred tools and MCP tools
+  unreachable. Pending tests:
+  - does the allowlist hold in ACP mode, and does ToolSearch bypass it;
+  - are MCP servers still spawned;
+  - does `--settings` hooksDisabled cover `.factory/hooks.json` and
+    `.claude/settings.json`.
+
 ## Architecture
 
 ```
@@ -417,8 +476,10 @@ layer 6:
    - Devin: `session/set_mode ask`, or `plan`. Candidate launch levers are
      `--agent-type codemap` and `DEVIN_PERMISSION_MODE`. **[hinges: Q1, Q11]**
    - Gemini: `--approval-mode plan`. **[hinges: Q1]** Does it hold over ACP?
-   - Droid: `droid exec` without `--auto`, plus `--only-tools` set to read
-     tools. **[hinges: Q1]**
+   - Droid: mode `normal`, confirmed by update echo (the ACP default
+     `auto-medium` auto-approves writes; update #10). Add a
+     `--only-tools <read tools>` allowlist and `--settings <tmp>` with
+     `hooksDisabled`. **[hinges: allowlist/MCP/hooks tests]**
    - Pi: a wrapper script set as `PI_ACP_PI_COMMAND` that runs
      `exec pi --tools read,grep,find,ls "$@"`. **[hinges: Q13 live check]**
    - DeepSeek: no flags; check session modes and config once a key exists.
@@ -428,7 +489,9 @@ layer 6:
    `terminal`. `fs.readTextFile` may be advertised (in-house only, confined to
    cwd). **[hinges: Q2]** Does the agent fall back to native tools?
 3. **Permission responder: deny all.** The tool `kind` an agent reports is
-   untrusted metadata, so the responder grants nothing. Read-only agents read
+   untrusted metadata, so the responder grants nothing. It picks the option
+   by its `kind` (`reject_once`), never by option id, because ids differ by
+   provider. Read-only agents read
    through their own tools or the client read callback. It picks `reject_once`
    when offered, otherwise answers `cancelled`, and answers any pending request
    with `cancelled` on cancel or timeout (spec `prompt-turn.mdx:610-652`).
@@ -469,8 +532,8 @@ layer 6:
      with tool calls is also a failure: delegate needs an answer.
    - A non-`end_turn` stop reason is a failure.
    - **`permission_denied`** is a distinct outcome: at least one permission
-     request was denied and the turn ended. agy then ends `end_turn` with empty
-     text. It is reported as a failure with `diagnostics.permission_denials`
+     request was denied and the turn ended, whether the stopReason is
+     `end_turn` (agy, empty text) or `cancelled` (Droid). It is reported as a failure with `diagnostics.permission_denials`
      filled ("the peer tried to act outside read-only"). **`empty_turn`** means
      a silent provider failure (Pi on a 401).
    - After `session/load`, chunks arriving before our `session/prompt` is sent
@@ -508,7 +571,11 @@ to it.
 - no `env_allowlist`, so `--env-allow` is rejected (credentials come from the
   descriptor's fixed list);
 - no scoped tool grants;
-- `model: false` until Q3 is settled per provider;
+- `model`: a **consensus-config default model per extended provider**
+  (Thomas prefers cheap proxy models), applied through
+  `session/set_config_option` and confirmed before the prompt. A failure
+  aborts the run as `not_started`. No model ids are hard-coded in source.
+  `--model` from the caller overrides the default, using an advertised id.
 - submit capture disabled whatever the strategy (`structured-output.ts:366-377`).
 
 A test covers the direct `run --request-json` JSON entry point, not only the
@@ -808,8 +875,8 @@ including the direct `run --request-json` entry, so no live calls happen in CI.
   references:
   - Extended providers are explicit-name only.
   - Add an "Extended (ACP)" row to the flag table (`SKILL.md:112-116`):
-    read-only only, no `--model` until Q3 is settled, no effort, no
-    continuation.
+    read-only only, the model from the consensus-config default (or
+    `--model`), no effort, no continuation.
   - Extended read-only runs use the D2 worktree plus snapshots, with no
     repo-root opt-out. Generalize the Claude-only host snapshot to "any peer
     without an OS sandbox" (`accounting.md:95-98,120-125`).
