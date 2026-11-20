@@ -18,7 +18,7 @@ created: '2026-11-20T22:30:00Z'
 > [!NOTE]
 > This is an external implementation plan, not a canonical OAT project `plan.md`.
 > Execute it directly, or import it with `oat-project-import-plan <this-file>`.
-> Status: **reviewed (Codex, 2026-11-20); Phase 1 in progress; live ACP test ongoing**. Steps tagged
+> Status: **reviewed (Codex, 2026-11-20); Phase 1 committed locally (`971439b5..4a2f8c70`), under cross-model review; live ACP test ongoing (Antigravity complete)**. Steps tagged
 > **[independent]** can start now. Steps tagged **[hinges: Qn]** wait on the live
 > test question with that number (see "Live-test questions").
 
@@ -246,6 +246,75 @@ frames are logged on tstang-dev at `~/acp-spike/logs/` and on mini at
     Close probe sessions where `sessionCapabilities.close` exists (Devin, Droid,
     agy, dsh); Gemini and Pi lack it.
 
+### Coordinator updates #4-#6
+
+Dev logs: `~/acp-spike/logs/agy-gui*.jsonl`, `agy-iso-*.jsonl` and their
+`*-suite.txt` summaries.
+
+- **Devin leaves survivors after a clean exit (Q10).** Even unauthenticated,
+  `devin acp` launches the user's MCP servers at `session/new` (for example an
+  `uvx mcp-proxy-for-aws` proxy with node children). After `session/close` ok
+  and Devin exit 0, 4 MCP children were still alive in its process group.
+  **A group kill on every exit path is mandatory.** dsh had no survivors.
+- **Devin config isolation (Q11).** Devin imports MCP servers, plus rules,
+  skills, commands and hooks for the `claude` source, from other tools'
+  configs: `~/.claude.json`, `.mcp.json`, `.claude/settings*.json` and others.
+  Per-run isolation was verified:
+  - Set `XDG_CONFIG_HOME=<private tmp>` with `<tmp>/devin/config.json` =
+    `{"version":1,"read_config_from":{<all ten sources>:false}}`.
+  - Result: no MCP servers, `serversChanged` frames dropped from 36 to 2, zero
+    survivors, and mode `ask` still echoed.
+  - Credentials stay in `XDG_DATA_HOME` (`~/.local/share/devin/credentials.toml`).
+  - `agents_standard` stays false until its scope is known.
+  - **General rule:** list what each agent imports from other tools' config,
+    and give it an isolation lever or keep it unadmitted.
+- **Antigravity (`agy acp` 1.5.13) is the first authenticated provider, fully
+  tested from a desktop session.**
+  - **Auth:** the token is in the macOS login keychain. From SSH,
+    `session/new` gives `-32000 Authentication required`, and `authenticate`
+    gives `-32603 No browser is available…`. Preflight maps both to "sign in
+    with `agy acp --login` from a desktop terminal", and SSH-only hosts are
+    not ready. No prompts appeared in unattended runs (Q15).
+  - **Session:** UUIDv4 ids. Modes are `default` (ask before edits and
+    commands), `accept-edits`, `auto` and `plan` (not read-only).
+  - **Model:** `models.currentModelId` plus configOptions `model`,
+    `thought_level` and `mode`. `usage` comes in the prompt result.
+  - **Q3 mode evidence:** `set_mode default` returns `{}` with **no** update
+    when the mode is unchanged.
+  - **Q1/Q2 permissions:** with a deny-all responder, edit, `touch` and
+    outside-cwd writes each arrived as `session/request_permission`
+    (`allow_once`/`reject_once`). Denied tools went to `failed`, and **disk was
+    unchanged every time**. The same happened with caps none or all (agy never
+    used client fs or terminal), and `--sandbox` had no visible effect.
+  - **Batching:** when 3 tool calls are emitted together, only the first is
+    asked about; after the deny the rest are failed unasked.
+  - **After any denial, agy ends `end_turn` with EMPTY text.**
+  - **Positive control** passed: it read a marker file with no permission
+    request and returned it.
+  - **Q5:** `session/resume` and `session/load` both work in a fresh process.
+    `load` replays earlier turns as `agent_message_chunk`s.
+  - **Q10:** zero survivors after 10 clean authenticated exits.
+  - **Imports:** project `AGENTS.md`, `GEMINI.md` and `.agents/skills/*` always
+    load (repo content). A server in `<gemini-dir>/config/mcp_config.json` is
+    spawned at `session/new` and **survived agy's clean exit until the group
+    kill**, while the model claimed no MCP servers were connected. Model
+    self-report is not evidence. Project `.cursor/mcp.json` was not spawned.
+  - **Isolation lever (verified):** `agy acp --gemini-dir=<private abs tmp>
+    --app-data-dir=<relative name>`. An absolute app-data-dir fails with
+    `-32603`. Auth survives (keychain), there is no global MCP, skills or
+    rules, and the temp dir is deleted after the run. Continuation must keep
+    the same gemini-dir for the delegate session's lifetime.
+  - **Exposed tools** (self-reported): read_file, write_file, edit_file,
+    run_command, search_web, schedule, send_message, manage_task,
+    invoke_subagent, define_subagent, manage_subagents, run_workflow, swarm,
+    ask_question.
+  - **Open before admission:**
+    - project `.agents/hooks.json`: does it run under isolation, and without a
+      permission request?
+    - deny checks for `schedule`, `invoke_subagent`/`swarm`, `send_message` and
+      `run_workflow`, with nothing persisting afterwards;
+    - whether `search_web` asks (it is treated as denied: it sends data out).
+
 ## Architecture
 
 ```
@@ -291,8 +360,13 @@ layer 6:
 
 1. **Provider-native read-only.** Each provider's own setting, baked into its
    pinned launch or session setup and **confirmed before the first prompt**.
-   For example, a Devin `current_mode_update` must echo the requested mode, or
-   the run aborts as `not_started`.
+   Mode evidence is `update` or `initial-state`. A mode *change* (Devin `ask`)
+   must be echoed by `current_mode_update` or `config_option_update`. An
+   unchanged mode is confirmed by the `session/new` `modes.currentModeId` (or
+   configOption `mode`) plus an ok `set_mode` with no contrary update (agy
+   `default`). Otherwise the run aborts as `not_started`.
+   - Antigravity: mode `default` plus deny-all. **Evidence complete except the
+     items listed open in update #6.**
    - Devin: `session/set_mode ask`, or `plan`. Candidate launch levers are
      `--agent-type codemap` and `DEVIN_PERMISSION_MODE`. **[hinges: Q1, Q11]**
    - Gemini: `--approval-mode plan`. **[hinges: Q1]** Does it hold over ACP?
@@ -315,9 +389,21 @@ layer 6:
    MCP servers or extensions:
    - Droid: `--remove-tools MCP:<server>` / `--only-tools`.
    - Gemini: `--allowed-mcp-server-names` with no names, and `-e none`.
-   - Devin: no ACP flag found. `--agent-type` is a candidate. **[hinges: Q11]**
-     Devin is not admissible until this is solved or the operator accepts the
-     user's MCP set explicitly.
+   - Devin: a private `XDG_CONFIG_HOME` with `devin/config.json`
+     `read_config_from` all false (verified, update #4).
+   - Antigravity: `--gemini-dir=<private tmp> --app-data-dir=<relative>`
+     (verified, update #6).
+
+   Each descriptor declares a **per-run isolation step**: create a private
+   temp dir, write the provider's config, and set the env or flags. The dir is
+   removed after the run, or after the delegate session when continuation is
+   in use. Credentials must still resolve, which `XDG_DATA_HOME`/`HOME` and
+   the keychain do. Admission asserts **no MCP or other child processes in the
+   agent's process group** from a process-tree snapshot, not only "no MCP tools
+   used". The model's self-report is not evidence. Project-level imports that
+   are repo content (AGENTS.md, GEMINI.md, project skills) are recorded per
+   provider. Project-level **hooks** that can run commands must be shown not
+   to fire, or the provider stays unadmitted.
 
    An empty acpx `--mcp-config` replaces only acpx's own list. The provider's
    own config still needs its lever.
@@ -335,6 +421,13 @@ layer 6:
    - Missing, truncated or ambiguous responses are failures. A blank answer
      with tool calls is also a failure: delegate needs an answer.
    - A non-`end_turn` stop reason is a failure.
+   - **`permission_denied`** is a distinct outcome: at least one permission
+     request was denied and the turn ended. agy then ends `end_turn` with empty
+     text. It is reported as a failure with `diagnostics.permission_denials`
+     filled ("the peer tried to act outside read-only"). **`empty_turn`** means
+     a silent provider failure (Pi on a 401).
+   - After `session/load`, chunks arriving before our `session/prompt` is sent
+     are replays and are discarded. Prefer `session/resume` where advertised.
    - A JSON-RPC error before `session/prompt` is sent is `turn: not_started`.
    - Agent stats (Devin `agent_stopped.stats.filesChanged/commandsRun`) are
      recorded as a cross-check.
@@ -342,11 +435,15 @@ layer 6:
    - The admission test also includes a **positive control**: the same provider
      authenticates, reads a known marker file, and returns the marker.
      Otherwise a provider that did nothing passes every negative test.
-7. **Process cleanup on every exit.** The current runner never signals the
-   process group on a normal exit (`subprocess.ts:185-192`). The ACP transport
-   must also tear down the group after a normal exit, close the session where
-   `sessionCapabilities.close` exists, and check for survivors. **[hinges: Q10
-   after authenticated turns]**
+7. **Process cleanup on every exit (mandatory).** The current runner never
+   signals the process group on a normal exit (`subprocess.ts:185-192`). Devin
+   left 4 MCP children alive after `session/close` ok and exit 0, and agy left
+   a planted MCP server. The ACP transport therefore runs these steps on every
+   exit path: `session/close` where advertised, close stdin, wait a bounded
+   time for exit, record any survivors in the agent's process group as
+   diagnostics, then kill the group.
+8. **Admission tests one action per prompt.** agy asks permission only for
+   the first of a batch of tool calls, then fails the rest.
 
 A provider that fails any layer stays registered but **not admitted**. It
 appears in named preflight as `unsupported` with a distinct "registered, not
@@ -611,10 +708,25 @@ including the direct `run --request-json` entry, so no live calls happen in CI.
 
 ### Phase 3: first provider, read-only, in delegate
 
-- 3.1 **[hinges: Q1, Q2, Q11, Q12]** Pick the first provider by evidence.
-  Devin leads the priority order but is blocked on neutralizing user MCP (Q11).
-  If that cannot be solved, start with whichever of Gemini or Droid passes
-  admission first.
+- 3.1 Pick the first provider by evidence. **Proposed: Antigravity.**
+  Priority is now flexible, and it is the only provider with complete live
+  evidence (updates #5-#6). Before admission it still needs:
+  - project `hooks.json`;
+  - deny checks for `schedule`, `subagent`/`swarm`, `send_message` and
+    `run_workflow`;
+  - whether `search_web` asks permission.
+
+  Its descriptor:
+  - launch `agy acp --gemini-dir=<tmp> --app-data-dir=<rel>`;
+  - mode `default` with `initial-state` evidence;
+  - deny-all responder;
+  - auth map: `-32000`/`-32603 No browser` → "sign in from a desktop
+    terminal";
+  - session id UUID;
+  - model from `models.currentModelId`.
+
+  Devin follows; its isolation is now solved. Then Gemini and Droid as their
+  sign-ins land.
 - 3.2 Admission harness. It can be **authored [independent]**, but **runs and
   verdicts [hinges: final launch, config and cleanup policy; Q1-Q4, Q10]**.
   - It is an opt-in live test gated by its own env var, next to
@@ -731,19 +843,19 @@ are extra wall-clock time.
 ## Live-test questions
 
 Q1-Q7 were sent to the coordinator 2026-11-20. Q8-Q15 came from recon. Status
-is as of the coordinator's reply after the plan summary.
+is as of coordinator update #6.
 
-1. **Open (needs sign-in).** In the read-only setup, do edit, shell and
-   outside-cwd writes arrive as `session/request_permission`, and does
-   rejecting them prevent the action on disk?
-2. **Open.** With `fs.writeTextFile` and `terminal` not advertised, does the
-   agent still act through native tools?
-3. **Partly answered** (Devin, Pi, DSH). Is the executed model reported, and
-   can it be set?
-4. **Partly answered** (Devin and acpx auth). Which `stopReason` and error
-   codes come back on denial, cancel, auth failure and timeout?
-5. **Partly answered** (Devin, Pi, DSH formats). What is the session id format,
-   and does resume/load work?
+1. **Answered for agy; others need sign-in.** Edit, shell and outside-cwd writes
+   arrive as `session/request_permission`, and denial leaves the disk unchanged.
+2. **Answered for agy:** it never uses client fs or terminal, so withholding
+   them changes nothing. Others are open.
+3. **Answered** (Devin, Pi, DSH, agy). Each provider reports the model in its
+   own shape.
+4. **Partly answered.** agy denial gives `end_turn` with empty text
+   (`permission_denied`). Auth error texts are known for agy, Devin and acpx.
+   Cancel and timeout are open.
+5. **Partly answered.** Formats: Devin slug; Pi UUIDv7; DSH and agy UUIDv4. agy
+   resume and load work, and load replays chunks.
 6. **Answered.** pi-acp asks permission only for extension-UI prompts. Pi's
    `--tools` needs a `PI_ACP_PI_COMMAND` wrapper.
 7. **Answered.** `acpx --format json` prints raw frames and exits 1 on auth
@@ -752,17 +864,20 @@ is as of the coordinator's reply after the plan summary.
    `agentInfo.version`.
 9. **Open.** Is a model-free `session/new` auth probe side-effect-free?
    Devin's `persistOnCreate` suggests it persists a record.
-10. **Partly answered.** No survivors after unauthenticated runs. Recheck after
-    authenticated turns and normal exits.
-11. **Partly answered.** Devin has no ACP MCP flag. `--agent-type codemap` and
-    `DEVIN_PERMISSION_MODE` are untested over ACP.
-12. **Partly answered.** Gemini plan mode, Droid exec default and
-    `--only-tools`, and agy `--sandbox` are known. Holding over ACP, and the
-    dsh/agy modes, are open.
+10. **Answered.** Devin and agy both leave MCP children after a clean exit, so
+    a group kill on every exit is mandatory.
+11. **Answered.** Devin uses a private `XDG_CONFIG_HOME` with
+    `read_config_from` all false.
+12. **Partly answered.** agy has no read-only mode (`default` plus deny-all).
+    Gemini, Droid and dsh holding over ACP is open.
 13. **Answered (mechanism); live check open.** Use a `PI_ACP_PI_COMMAND`
     wrapper.
 14. **Answered.** See the env table above.
-15. **Open.** Does `agy acp` run unattended after login?
+15. **Answered.** `agy acp` runs unattended once the keychain is readable
+    (desktop session only).
+16. **Open (new).** For agy: do project `.agents/hooks.json`, `schedule`,
+    `invoke_subagent`/`swarm`, `send_message`, `run_workflow` and `search_web`
+    each raise a permission request, and does nothing persist after a deny?
 
 ## Review disposition
 
