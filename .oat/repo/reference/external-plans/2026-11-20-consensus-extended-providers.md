@@ -452,8 +452,18 @@ Every run used `normal` (echoed), deny-all, and the model pinned to
   `.factory/settings*.json` with `mcpServers`, between cwd and the git root;
 - auth: desktop session or `FACTORY_API_KEY`.
 
-**Open:** after a SIGKILL mid-turn, do MCP servers survive? Are user-level
-`~/.factory/mcp.json` servers spawned?
+**Update #12, Droid testing complete:**
+
+- **SIGKILL mid-turn:** the dummy MCP servers had `ppid` = droid but their
+  own pgid (setsid). A group kill cannot reach them; a ppid walk finds them.
+  After `kill -9` of droid, both were gone within 5 s, with no orphans
+  (mechanism unknown). **Descendant-tree teardown stays required.** Observed
+  reaping is not relied on, because Devin left survivors.
+- **Find the agent by its spawned pid, never by command-line match:** a
+  `pgrep` on argv matched the probe instead.
+- **User-level `~/.factory/mcp.json` servers are spawned in every run.** They
+  are operator-controlled, so they are recorded and not gated; no disable key
+  exists.
 
 ## Architecture
 
