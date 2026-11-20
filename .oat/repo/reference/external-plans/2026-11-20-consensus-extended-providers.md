@@ -18,7 +18,7 @@ created: '2026-11-20T22:30:00Z'
 > [!NOTE]
 > This is an external implementation plan, not a canonical OAT project `plan.md`.
 > Execute it directly, or import it with `oat-project-import-plan <this-file>`.
-> Status: **reviewed (Codex, 2026-11-20); Phase 1 committed locally (`971439b5..4a2f8c70`), under cross-model review; live ACP test ongoing (Antigravity complete)**. Steps tagged
+> Status: **reviewed (Codex, 2026-11-20); Phase 1 committed locally (`971439b5..f2ce5d22`, review findings fixed, re-check pending); live ACP test ongoing (Antigravity complete)**. Steps tagged
 > **[independent]** can start now. Steps tagged **[hinges: Qn]** wait on the live
 > test question with that number (see "Live-test questions").
 
@@ -314,6 +314,53 @@ Dev logs: `~/acp-spike/logs/agy-gui*.jsonl`, `agy-iso-*.jsonl` and their
     - deny checks for `schedule`, `invoke_subagent`/`swarm`, `send_message` and
       `run_workflow`, with nothing persisting afterwards;
     - whether `search_web` asks (it is treated as denied: it sends data out).
+
+### Coordinator updates #7-#9
+
+Dev logs: `~/acp-spike/logs/agy-tools-*`, `agy-{subagent,swarm}-wait-brain/` and
+`agy-marketplace-suite.txt`.
+
+- **agy project hooks are arbitrary code execution.**
+  - What fires: project `.agents/hooks.json` hooks (`SessionStart`,
+    `PreInvocation`, `PreToolUse`, `PostToolUse`, `Stop`; shell commands,
+    `sh -c`) **fire with no permission request, even under the isolated
+    gemini-dir**. Plugin hooks run too.
+  - Customization roots: `.agents/`, `.agent/`, `_agents/` and `_agent/`, in
+    every ancestor from cwd to the repo root.
+  - Code-capable entries: `hooks.json`, `plugins/<name>/` (any dir with
+    `plugin.json`, `.antigravity-plugin/` or `.gemini-plugin/`, carrying
+    `hooks.json`/`mcp_config.json`), and `plugins.json`.
+  - `plugins.json` and `skills.json` take `entries[].path` and
+    `inherits[].path` that may be absolute, `~/` or workspace-relative, so a
+    repo can pull in code from anywhere.
+  - **No trust lever:** the binary has a `workspace_trust.Store`, but a fresh
+    gemini-dir behaves as trusted and no flag, env or config starts it
+    untrusted.
+- **`marketplace.json` is ignored:** a Codex-style
+  `.agents/plugins/marketplace.json` pointing at a hooked plugin did not load
+  it, and a repo-root `plugins/` dir is not auto-discovered (agy 1.5.13).
+- **HOME imports:** `~/.claude/commands`, `~/.codex/prompts` were **not
+  observed under isolation**; untested without it.
+- **Tools without a permission request:**
+  - `schedule`: an in-process timer re-prompts later. Nothing outlived the
+    process.
+  - `send_message`: recipients are agy conversation ids only, with no egress
+    observed.
+  - `search_web`: **network egress the client cannot deny**.
+  - Reads outside the workspace **do** ask; `run_workflow` was denied that way.
+- **Sub-agents/swarm:** worker write prompts go to an internal approval UI that
+  ACP never surfaces. They **fail closed after a 60 s timeout**, nothing is
+  written, and the client gets no signal. agy must **never run in
+  `accept-edits`/`auto`**.
+- **Not fully hermetic:** agy still writes the real
+  `~/.gemini/antigravity-cli/conversation_summaries.db`.
+- **Droid** keeps its login in the keychain (`~/.factory/auth.v2.loginkeychain`).
+  Over SSH, `session/new` returns `-32000 Authentication required: Your code:
+  XXXX-XXXX` and **starts a new device-pairing code on every probe**. Droid is
+  therefore not ready from SSH, and preflight must not call `session/new` for
+  it.
+- **For Thomas** (via the coordinator): `search_web` egress, the summaries-db
+  write, and sub-agent behaviour as disclosed limits, or reasons not to admit.
 
 ## Architecture
 
@@ -695,8 +742,11 @@ tests use fixture registries.
   - launch argv;
   - version probe: the first line of `--version` per Q8, and
     `initialize.agentInfo.version` for `pi-acp`;
-  - auth probe: model-free `session/new`, then `session/close` where
-    advertised, per Q9, and never from inventory;
+  - auth probe: **opt-in per descriptor**. It is a model-free
+    `session/new`, then `session/close` where advertised (Q9), and never runs
+    from inventory. It is **disabled for Droid**, where `session/new` mints a
+    device-pairing code, and for any provider where the probe has side
+    effects; those classify auth at run time instead;
   - credential env names, session-id rule, model reader, read-only and MCP
     setup steps, and known stop or error mapping.
 
@@ -725,8 +775,22 @@ including the direct `run --request-json` entry, so no live calls happen in CI.
   - session id UUID;
   - model from `models.currentModelId`.
 
+  - **Launch gate (allowlist, fail-closed).** Refuse to launch, listing the
+    offending paths, if any customization root (`.agents/`, `.agent/`,
+    `_agents/`, `_agent/`) between cwd and the repo root contains anything
+    other than `rules/`, `rules.json` and `skills/`. One exception:
+    `plugins/` may hold `marketplace.json` alone, with no subdirs, no
+    `plugin.json`/`hooks.json`, and no `plugins.json` in the root. The gate
+    runs in the CLI before every launch. It is a **version-pinned assumption**,
+    re-verified on each agy upgrade. `workflows/` and `agents/` stay excluded
+    unless Thomas accepts them.
+  - Mode is never `accept-edits` or `auto`. The brief forbids
+    `invoke_subagent`, `swarm`, `run_workflow` and `schedule`.
+  - Disclosed limits, pending Thomas: `search_web` egress, the
+    summaries-db write, and silent 60 s worker denials.
+
   Devin follows; its isolation is now solved. Then Gemini and Droid as their
-  sign-ins land.
+  sign-ins land. Droid and agy are desktop-session only (keychain auth).
 - 3.2 Admission harness. It can be **authored [independent]**, but **runs and
   verdicts [hinges: final launch, config and cleanup policy; Q1-Q4, Q10]**.
   - It is an opt-in live test gated by its own env var, next to
@@ -875,9 +939,10 @@ is as of coordinator update #6.
 14. **Answered.** See the env table above.
 15. **Answered.** `agy acp` runs unattended once the keychain is readable
     (desktop session only).
-16. **Open (new).** For agy: do project `.agents/hooks.json`, `schedule`,
-    `invoke_subagent`/`swarm`, `send_message`, `run_workflow` and `search_web`
-    each raise a permission request, and does nothing persist after a deny?
+16. **Answered (updates #7-#9).** Project hooks fire unasked, so a launch
+    allowlist is needed. `schedule`, `send_message` and `search_web` run
+    unasked. Sub-agent writes fail closed silently. Reads outside the
+    workspace ask. Nothing persisted after teardown except the summaries db.
 
 ## Review disposition
 
