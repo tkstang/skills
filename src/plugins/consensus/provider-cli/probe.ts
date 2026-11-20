@@ -47,12 +47,15 @@ export interface ProbeCommandRunner {
   // The parent environment, read for CONSENSUS_<PROVIDER>_EXECUTABLE overrides.
   readonly env?: Record<string, string | undefined>;
   findExecutable(command: string): Promise<string | undefined>;
+  // `adapter` selects the credential variables the probe environment keeps.
   run(
     command: string,
     args: readonly string[],
-    provider: ProviderId,
+    adapter: ProbedAdapter,
   ): Promise<ProbeCommandResult>;
 }
+
+export type ProbedAdapter = Pick<ProviderAdapter, 'id' | 'credential_env'>;
 
 export interface ProviderProbeOptions {
   runner: ProbeCommandRunner;
@@ -115,7 +118,7 @@ export async function probeProviderReadiness(
   const result = await options.runner.run(
     command,
     adapter.probe.version_args,
-    adapter.id,
+    adapter,
   );
   const probeFailure = probeFailureEntry(adapter, executable, result);
   if (probeFailure) return probeFailure;
@@ -165,7 +168,7 @@ export async function probeProviderReadiness(
     const capabilityResult = await options.runner.run(
       command,
       definition.args,
-      adapter.id,
+      adapter,
     );
     const capabilityFailure = probeFailureEntry(
       adapter,
@@ -205,11 +208,14 @@ export function nodeProbeCommandRunner(
     findExecutable(command) {
       return findExecutable(command, env);
     },
-    run(command, args, provider) {
+    run(command, args, adapter) {
       return runProbeCommand(
         command,
         args,
-        buildProviderProbeEnvironment({ parentEnv: env, provider }),
+        buildProviderProbeEnvironment({
+          parentEnv: env,
+          credentialEnv: adapter.credential_env,
+        }),
         options,
       );
     },

@@ -7,19 +7,27 @@ import type { ProviderInvocationBuilder } from './invocation.js';
 import type { ProviderProbeDefinition } from './probe.js';
 import { isReliableExternalInterrupt } from './subprocess.js';
 import type {
-  FirstScopeProviderId,
   ProviderExitClassification,
   ProviderCapabilities,
   ProviderDiagnostics,
   ProviderErrorCode,
   ProviderId,
+  ProviderTier,
   StructuredOutputStrategy,
 } from './types.js';
 
 export interface ProviderAdapter {
-  id: FirstScopeProviderId;
+  id: ProviderId;
+  tier: ProviderTier;
   display_name: string;
   executable: string;
+  // Parent-only variable that replaces `executable` (see
+  // resolveProviderExecutable). It never reaches a provider child.
+  executable_env: string;
+  // Credential variables the provider's child and probe environments inherit.
+  credential_env: readonly string[];
+  // How to install the provider CLI, reported when it is missing.
+  install_hint?: string;
   probe: ProviderProbeDefinition;
   classifyRunFailure: ProviderRunFailureClassifier;
   // Provider-owned error output can be returned even with exit status zero.
@@ -146,9 +154,12 @@ const CURSOR_TRANSIENT_EXIT_PATTERNS = [
 export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   {
     id: 'claude',
+    tier: 'core',
     classifyReportedFailure: classifyClaudeLimit,
     display_name: 'Claude',
     executable: 'claude',
+    executable_env: 'CONSENSUS_CLAUDE_EXECUTABLE',
+    credential_env: ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'],
     buildInvocation: buildClaudeInvocation,
     extractSession: extractJsonResultSession,
     classifyRunFailure: defaultRunFailureClassifier({
@@ -211,9 +222,12 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   },
   {
     id: 'codex',
+    tier: 'core',
     classifyReportedFailure: classifyCodexLimit,
     display_name: 'Codex',
     executable: 'codex',
+    executable_env: 'CONSENSUS_CODEX_EXECUTABLE',
+    credential_env: ['OPENAI_API_KEY'],
     buildInvocation: buildCodexInvocation,
     extractSession: extractCodexJsonlSession,
     classifyRunFailure: defaultRunFailureClassifier({
@@ -280,8 +294,11 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   },
   {
     id: 'cursor',
+    tier: 'core',
     display_name: 'Cursor',
     executable: 'cursor-agent',
+    executable_env: 'CONSENSUS_CURSOR_EXECUTABLE',
+    credential_env: ['CURSOR_API_KEY'],
     buildInvocation: buildCursorInvocation,
     extractSession: extractJsonResultSession,
     classifyRunFailure: defaultRunFailureClassifier({
@@ -352,6 +369,14 @@ export function providerRegistry(
       return byId.get(id);
     },
   };
+}
+
+// Every program-override variable the registry owns. Consensus reads them from
+// its own environment and strips all of them from every provider child.
+export function providerExecutableEnvNames(
+  registry: ProviderAdapterRegistry,
+): string[] {
+  return registry.list().map((adapter) => adapter.executable_env);
 }
 
 export function defaultSchemaStrategy(

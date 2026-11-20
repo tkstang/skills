@@ -16,35 +16,11 @@ import path12 from "node:path";
 // src/plugins/consensus/provider-cli/invocation.ts
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
-import path3 from "node:path";
+import path2 from "node:path";
 
 // src/plugins/consensus/provider-cli/runtime-policy.ts
 import { realpathSync, statSync } from "node:fs";
-import path2 from "node:path";
-
-// src/plugins/consensus/provider-cli/executable.ts
 import path from "node:path";
-var PROVIDER_EXECUTABLE_ENV = {
-  claude: "CONSENSUS_CLAUDE_EXECUTABLE",
-  codex: "CONSENSUS_CODEX_EXECUTABLE",
-  cursor: "CONSENSUS_CURSOR_EXECUTABLE"
-};
-function resolveProviderExecutable(adapter, env) {
-  const variable = PROVIDER_EXECUTABLE_ENV[adapter.id];
-  const value = env[variable];
-  if (value === void 0 || value === "") {
-    return { ok: true, executable: adapter.executable };
-  }
-  if (!path.isAbsolute(value)) {
-    return {
-      ok: false,
-      message: `${variable} must be an absolute path to an executable, not ${JSON.stringify(value)}.`
-    };
-  }
-  return { ok: true, executable: value };
-}
-
-// src/plugins/consensus/provider-cli/runtime-policy.ts
 var DEFAULT_RUNTIME_POLICY = {
   permission_mode: "non-interactive"
 };
@@ -58,11 +34,6 @@ var BASE_ENV_ALLOWLIST = [
   "LOGNAME",
   "SHELL",
   "LANG"
-];
-var PROVIDER_ENV_ALLOWLIST = [
-  ["claude", ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]],
-  ["codex", ["OPENAI_API_KEY"]],
-  ["cursor", ["CURSOR_API_KEY"]]
 ];
 function validateProviderOptions(request, capabilities) {
   if (request.model && !capabilities.options.model) {
@@ -137,7 +108,7 @@ function validateProviderOptions(request, capabilities) {
     ["edit_paths", policy.edit_paths]
   ]) {
     for (const filePath of paths ?? []) {
-      if (!path2.isAbsolute(filePath) || path2.normalize(filePath) !== filePath || filePath.split(path2.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
+      if (!path.isAbsolute(filePath) || path.normalize(filePath) !== filePath || filePath.split(path.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
         return unsupported(
           `runtime_policy.${field}`,
           `${field} requires exact absolute paths without parent traversal or glob characters.`
@@ -152,7 +123,7 @@ function validateProviderOptions(request, capabilities) {
               `${field} requires canonical regular-file targets, not directories or symlinks.`
             );
           }
-        } else if (field === "read_paths" || realpathSync(path2.dirname(filePath)) !== path2.dirname(filePath)) {
+        } else if (field === "read_paths" || realpathSync(path.dirname(filePath)) !== path.dirname(filePath)) {
           return unsupported(
             `runtime_policy.${field}`,
             `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
@@ -292,14 +263,16 @@ function defaultRuntimePolicy(policy = {}) {
 function buildChildEnvironment({
   parentEnv,
   request,
-  hostEnv
+  hostEnv,
+  credentialEnv,
+  executableOverrideEnv
 }) {
   const allowedNames = /* @__PURE__ */ new Set([
     ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(request.provider),
+    ...credentialEnv,
     ...request.runtime_policy?.env_allowlist ?? []
   ]);
-  for (const name of Object.values(PROVIDER_EXECUTABLE_ENV)) {
+  for (const name of executableOverrideEnv) {
     allowedNames.delete(name);
   }
   const childEnv = {};
@@ -318,11 +291,11 @@ function buildChildEnvironment({
 var RESERVED_SUBMIT_ENV_PREFIX = "CONSENSUS_SUBMIT_";
 function buildProviderProbeEnvironment({
   parentEnv,
-  provider
+  credentialEnv
 }) {
   const allowedNames = /* @__PURE__ */ new Set([
     ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(provider)
+    ...credentialEnv
   ]);
   const probeEnv = {};
   for (const name of allowedNames) {
@@ -330,9 +303,6 @@ function buildProviderProbeEnvironment({
     if (value !== void 0) probeEnv[name] = value;
   }
   return probeEnv;
-}
-function providerEnvAllowlist(provider) {
-  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
 }
 function redactedRuntimePolicyDiagnostics(policy = {}) {
   const effectivePolicy = defaultRuntimePolicy(policy);
@@ -538,7 +508,7 @@ function codexConfigOverride(key, value) {
   return `${key}=${JSON.stringify(value)}`;
 }
 function codexLastMessageFile() {
-  return path3.join(
+  return path2.join(
     tmpdir(),
     `consensus-codex-last-message-${randomUUID()}.txt`
   );
@@ -1115,9 +1085,12 @@ var CURSOR_TRANSIENT_EXIT_PATTERNS = [
 var DEFAULT_PROVIDER_ADAPTERS = [
   {
     id: "claude",
+    tier: "core",
     classifyReportedFailure: classifyClaudeLimit,
     display_name: "Claude",
     executable: "claude",
+    executable_env: "CONSENSUS_CLAUDE_EXECUTABLE",
+    credential_env: ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"],
     buildInvocation: buildClaudeInvocation,
     extractSession: extractJsonResultSession,
     classifyRunFailure: defaultRunFailureClassifier({
@@ -1179,9 +1152,12 @@ var DEFAULT_PROVIDER_ADAPTERS = [
   },
   {
     id: "codex",
+    tier: "core",
     classifyReportedFailure: classifyCodexLimit,
     display_name: "Codex",
     executable: "codex",
+    executable_env: "CONSENSUS_CODEX_EXECUTABLE",
+    credential_env: ["OPENAI_API_KEY"],
     buildInvocation: buildCodexInvocation,
     extractSession: extractCodexJsonlSession,
     classifyRunFailure: defaultRunFailureClassifier({
@@ -1247,8 +1223,11 @@ var DEFAULT_PROVIDER_ADAPTERS = [
   },
   {
     id: "cursor",
+    tier: "core",
     display_name: "Cursor",
     executable: "cursor-agent",
+    executable_env: "CONSENSUS_CURSOR_EXECUTABLE",
+    credential_env: ["CURSOR_API_KEY"],
     buildInvocation: buildCursorInvocation,
     extractSession: extractJsonResultSession,
     classifyRunFailure: defaultRunFailureClassifier({
@@ -1314,6 +1293,9 @@ function providerRegistry(adapters = DEFAULT_PROVIDER_ADAPTERS) {
       return byId.get(id);
     }
   };
+}
+function providerExecutableEnvNames(registry) {
+  return registry.list().map((adapter) => adapter.executable_env);
 }
 function defaultRunFailureClassifier(patterns) {
   return (failure2) => {
@@ -1674,6 +1656,25 @@ function hasCursorHostMarker(env) {
 import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import path4 from "node:path";
+
+// src/plugins/consensus/provider-cli/executable.ts
+import path3 from "node:path";
+function resolveProviderExecutable(adapter, env) {
+  const variable = adapter.executable_env;
+  const value = env[variable];
+  if (value === void 0 || value === "") {
+    return { ok: true, executable: adapter.executable };
+  }
+  if (!path3.isAbsolute(value)) {
+    return {
+      ok: false,
+      message: `${variable} must be an absolute path to an executable, not ${JSON.stringify(value)}.`
+    };
+  }
+  return { ok: true, executable: value };
+}
+
+// src/plugins/consensus/provider-cli/probe.ts
 var DEFAULT_PROBE_TIMEOUT_SEC = 10;
 var DEFAULT_PROBE_MAX_OUTPUT_BYTES = 64 * 1024;
 async function probeProviderRegistry({
@@ -1710,7 +1711,7 @@ async function probeProviderReadiness(adapter, options) {
   const result = await options.runner.run(
     command,
     adapter.probe.version_args,
-    adapter.id
+    adapter
   );
   const probeFailure = probeFailureEntry(adapter, executable, result);
   if (probeFailure) return probeFailure;
@@ -1753,7 +1754,7 @@ ${result.stderr}`;
     const capabilityResult = await options.runner.run(
       command,
       definition.args,
-      adapter.id
+      adapter
     );
     const capabilityFailure = probeFailureEntry(
       adapter,
@@ -1786,11 +1787,14 @@ function nodeProbeCommandRunner(env = process.env, options = {}) {
     findExecutable(command) {
       return findExecutable(command, env);
     },
-    run(command, args, provider) {
+    run(command, args, adapter) {
       return runProbeCommand(
         command,
         args,
-        buildProviderProbeEnvironment({ parentEnv: env, provider }),
+        buildProviderProbeEnvironment({
+          parentEnv: env,
+          credentialEnv: adapter.credential_env
+        }),
         options
       );
     }
@@ -2453,6 +2457,8 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
   const childEnv = buildChildEnvironment({
     parentEnv,
     request: effectiveRequest,
+    credentialEnv: adapter.credential_env,
+    executableOverrideEnv: providerExecutableEnvNames(registry),
     hostEnv: {
       ...hostGuard.child_env,
       ...submitCaptureEnabled && submitCommand && submitCapturePath && schemaPath ? {
@@ -3816,7 +3822,7 @@ import {
 import path10 from "node:path";
 
 // src/plugins/consensus/provider-cli/types.ts
-var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
+var CORE_PROVIDER_IDS = ["claude", "codex", "cursor"];
 
 // src/plugins/consensus/config/consensus-config.ts
 var BUILT_IN_PROVIDER_ORDER = ["claude", "codex"];
@@ -4105,7 +4111,7 @@ function parseAgentList(value, options) {
   );
   if (options.knownProvidersOnly) {
     for (const agent of agents) {
-      if (!FIRST_SCOPE_PROVIDER_IDS.some((id) => id === agent.provider)) {
+      if (!CORE_PROVIDER_IDS.some((id) => id === agent.provider)) {
         throw new Error(
           `${options.label} contains unsupported provider: ${agent.provider}`
         );

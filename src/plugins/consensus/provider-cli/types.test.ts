@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   FIRST_SCOPE_HOST_NATIVE_DISPATCH,
-  FIRST_SCOPE_PROVIDER_IDS,
+  CORE_PROVIDER_IDS,
   PROVIDER_ERROR_CODES,
   STRUCTURED_OUTPUT_STRATEGIES,
   type ConsensusCliRunEnvelope,
@@ -10,8 +10,8 @@ import {
 } from '../provider-cli/types.js';
 
 describe('provider CLI model types', () => {
-  it('exposes the first-scope provider IDs', () => {
-    expect(FIRST_SCOPE_PROVIDER_IDS).toEqual(['claude', 'codex', 'cursor']);
+  it('exposes the core provider IDs', () => {
+    expect(CORE_PROVIDER_IDS).toEqual(['claude', 'codex', 'cursor']);
   });
 
   it('includes all structured output strategies including reserved submit-tool support', () => {

@@ -4,13 +4,17 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { providerRegistry } from '../provider-cli/adapters.js';
+import {
+  providerExecutableEnvNames,
+  providerRegistry,
+} from '../provider-cli/adapters.js';
 import {
   normalizeRunRequest,
   parseConsensusCliArgs,
 } from '../provider-cli/args.js';
 import {
   buildChildEnvironment,
+  type BuildChildEnvironmentInput,
   buildProviderProbeEnvironment,
   defaultRuntimePolicy,
   redactedRuntimePolicyDiagnostics,
@@ -488,7 +492,7 @@ describe('provider runtime policy validation', () => {
   ] as const)(
     'passes only %s provider credentials plus base and host environment',
     (provider, expectedProviderKeys, omittedProviderKeys) => {
-      const env = buildChildEnvironment({
+      const env = childEnvironment({
         parentEnv: {
           PATH: '/usr/bin',
           HOME: '/Users/test',
@@ -530,7 +534,7 @@ describe('provider runtime policy validation', () => {
       CONSENSUS_SUBMIT_COMMAND: 'consensus submit',
     };
     const build = (output: 'json' | 'text') =>
-      buildChildEnvironment({
+      childEnvironment({
         parentEnv: { PATH: '/usr/bin', ...submitEnv },
         request: request({
           provider: 'codex',
@@ -561,7 +565,7 @@ describe('provider runtime policy validation', () => {
   });
 
   it('allows explicit env allowlist variables even when unrelated to the selected provider', () => {
-    const env = buildChildEnvironment({
+    const env = childEnvironment({
       parentEnv: {
         PATH: '/usr/bin',
         HOME: '/Users/test',
@@ -597,7 +601,7 @@ describe('provider runtime policy validation', () => {
   });
 
   it('never forwards CONSENSUS_<PROVIDER>_EXECUTABLE, even when a request allowlists it', () => {
-    const env = buildChildEnvironment({
+    const env = childEnvironment({
       parentEnv: {
         PATH: '/usr/bin',
         CONSENSUS_CLAUDE_EXECUTABLE: '/opt/bin/claude-wrapper',
@@ -621,7 +625,7 @@ describe('provider runtime policy validation', () => {
   });
 
   it('merges submit capture variables from host env without requiring allowlist', () => {
-    const env = buildChildEnvironment({
+    const env = childEnvironment({
       parentEnv: {
         PATH: '/usr/bin',
         CONSENSUS_SUBMIT_FILE: '/untrusted/capture.json',
@@ -645,7 +649,7 @@ describe('provider runtime policy validation', () => {
     const policy = {
       env_allowlist: ['CUSTOM_SECRET'],
     };
-    const env = buildChildEnvironment({
+    const env = childEnvironment({
       parentEnv: {
         CUSTOM_SECRET: 'custom-secret-value',
       },
@@ -670,6 +674,7 @@ describe('provider runtime policy validation', () => {
     'limits the %s readiness probe environment to base and selected-provider variables',
     (provider, selectedKeys) => {
       const env = buildProviderProbeEnvironment({
+        credentialEnv: providerRegistry().get(provider)!.credential_env,
         parentEnv: {
           PATH: '/usr/bin',
           HOME: '/Users/test',
@@ -680,7 +685,6 @@ describe('provider runtime policy validation', () => {
           HTTPS_PROXY: 'https://proxy.example.test',
           SECRET_TOKEN: 'do-not-pass',
         },
-        provider,
       });
 
       expect(env).toMatchObject({ PATH: '/usr/bin', HOME: '/Users/test' });
@@ -699,6 +703,22 @@ describe('provider runtime policy validation', () => {
     },
   );
 });
+
+// The run path passes the selected adapter's credentials and every registered
+// program-override name.
+function childEnvironment(
+  input: Omit<
+    BuildChildEnvironmentInput,
+    'credentialEnv' | 'executableOverrideEnv'
+  >,
+) {
+  const registry = providerRegistry();
+  return buildChildEnvironment({
+    ...input,
+    credentialEnv: registry.get(input.request.provider)!.credential_env,
+    executableOverrideEnv: providerExecutableEnvNames(registry),
+  });
+}
 
 function capabilities(id: 'claude' | 'codex' | 'cursor'): ProviderCapabilities {
   const selected = providerRegistry().get(id);

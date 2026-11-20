@@ -1,7 +1,6 @@
 import { realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 
-import { PROVIDER_EXECUTABLE_ENV } from './executable.js';
 import type {
   ConsensusCliRunRequest,
   ProviderCapabilities,
@@ -31,11 +30,16 @@ export interface BuildChildEnvironmentInput {
   parentEnv: Record<string, string | undefined>;
   request: ConsensusCliRunRequest;
   hostEnv: Record<string, string>;
+  // The selected adapter's `credential_env`.
+  credentialEnv: readonly string[];
+  // Every registered program-override name (providerExecutableEnvNames).
+  executableOverrideEnv: readonly string[];
 }
 
 export interface BuildProviderProbeEnvironmentInput {
   parentEnv: Record<string, string | undefined>;
-  provider: string;
+  // The probed adapter's `credential_env`.
+  credentialEnv: readonly string[];
 }
 
 export interface RedactedRuntimePolicyDiagnostics {
@@ -61,12 +65,6 @@ const BASE_ENV_ALLOWLIST = [
   'LOGNAME',
   'SHELL',
   'LANG',
-] as const;
-
-const PROVIDER_ENV_ALLOWLIST = [
-  ['claude', ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN']],
-  ['codex', ['OPENAI_API_KEY']],
-  ['cursor', ['CURSOR_API_KEY']],
 ] as const;
 
 export function validateProviderOptions(
@@ -412,15 +410,17 @@ export function buildChildEnvironment({
   parentEnv,
   request,
   hostEnv,
+  credentialEnv,
+  executableOverrideEnv,
 }: BuildChildEnvironmentInput): Record<string, string> {
   const allowedNames = new Set<string>([
     ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(request.provider),
+    ...credentialEnv,
     ...(request.runtime_policy?.env_allowlist ?? []),
   ]);
   // Parent-owned program overrides stay with consensus, even when a request
   // names them in env_allowlist.
-  for (const name of Object.values(PROVIDER_EXECUTABLE_ENV)) {
+  for (const name of executableOverrideEnv) {
     allowedNames.delete(name);
   }
   const childEnv: Record<string, string> = {};
@@ -445,11 +445,11 @@ const RESERVED_SUBMIT_ENV_PREFIX = 'CONSENSUS_SUBMIT_';
 
 export function buildProviderProbeEnvironment({
   parentEnv,
-  provider,
+  credentialEnv,
 }: BuildProviderProbeEnvironmentInput): Record<string, string> {
   const allowedNames = new Set<string>([
     ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(provider),
+    ...credentialEnv,
   ]);
   const probeEnv: Record<string, string> = {};
 
@@ -459,10 +459,6 @@ export function buildProviderProbeEnvironment({
   }
 
   return probeEnv;
-}
-
-function providerEnvAllowlist(provider: string): readonly string[] {
-  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
 }
 
 export function redactedRuntimePolicyDiagnostics(

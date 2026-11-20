@@ -9,7 +9,7 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 
-import { FIRST_SCOPE_PROVIDER_IDS } from '../provider-cli/types.js';
+import { CORE_PROVIDER_IDS } from '../provider-cli/types.js';
 import type {
   ProviderId,
   ProviderInventoryEntry,
@@ -515,7 +515,7 @@ function parseAgentList(
   );
   if (options.knownProvidersOnly) {
     for (const agent of agents) {
-      if (!FIRST_SCOPE_PROVIDER_IDS.some((id) => id === agent.provider)) {
+      if (!CORE_PROVIDER_IDS.some((id) => id === agent.provider)) {
         throw new Error(
           `${options.label} contains unsupported provider: ${agent.provider}`,
         );

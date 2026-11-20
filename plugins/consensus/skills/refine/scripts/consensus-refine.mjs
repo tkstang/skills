@@ -21,7 +21,7 @@ import {
 import path from "node:path";
 
 // src/plugins/consensus/provider-cli/types.ts
-var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
+var CORE_PROVIDER_IDS = ["claude", "codex", "cursor"];
 
 // src/plugins/consensus/config/consensus-config.ts
 var BUILT_IN_PROVIDER_ORDER = ["claude", "codex"];
@@ -310,7 +310,7 @@ function parseAgentList(value, options) {
   );
   if (options.knownProvidersOnly) {
     for (const agent of agents) {
-      if (!FIRST_SCOPE_PROVIDER_IDS.some((id) => id === agent.provider)) {
+      if (!CORE_PROVIDER_IDS.some((id) => id === agent.provider)) {
         throw new Error(
           `${options.label} contains unsupported provider: ${agent.provider}`
         );

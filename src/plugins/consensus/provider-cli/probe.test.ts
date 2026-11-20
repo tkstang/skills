@@ -152,8 +152,8 @@ describe('provider readiness probes', () => {
         if (command !== 'codex') throw new Error(`unexpected CLI: ${command}`);
         return '/usr/local/bin/codex';
       },
-      async run(command, args, provider) {
-        calls.push(`run:${provider}:${command} ${args.join(' ')}`);
+      async run(command, args, adapter) {
+        calls.push(`run:${adapter.id}:${command} ${args.join(' ')}`);
         const help = args.join(' ') === 'exec --help';
         return {
           code: 0,

@@ -2,7 +2,7 @@ import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { providerRegistry } from './adapters.js';
+import { providerExecutableEnvNames, providerRegistry } from './adapters.js';
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
 import {
   consultationIdFor,
@@ -412,6 +412,8 @@ async function runStructuredTurn(
   const childEnv = buildChildEnvironment({
     parentEnv,
     request: effectiveRequest,
+    credentialEnv: adapter.credential_env,
+    executableOverrideEnv: providerExecutableEnvNames(registry),
     hostEnv: {
       ...hostGuard.child_env,
       ...(submitCaptureEnabled &&

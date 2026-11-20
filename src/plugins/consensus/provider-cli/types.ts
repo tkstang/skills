@@ -1,8 +1,12 @@
-export const FIRST_SCOPE_PROVIDER_IDS = ['claude', 'codex', 'cursor'] as const;
+export const CORE_PROVIDER_IDS = ['claude', 'codex', 'cursor'] as const;
 
-export type FirstScopeProviderId = (typeof FIRST_SCOPE_PROVIDER_IDS)[number];
+export type CoreProviderId = (typeof CORE_PROVIDER_IDS)[number];
 
-export type ProviderId = FirstScopeProviderId | (string & {});
+export type ProviderId = CoreProviderId | (string & {});
+
+// `core` providers run through their native CLIs and may be selected
+// automatically. `extended` providers are used only when named explicitly.
+export type ProviderTier = 'core' | 'extended';
 
 export const PROVIDER_PREFLIGHT_CAPABILITIES = ['run'] as const;
 
@@ -88,10 +92,6 @@ export interface ProviderCapabilities {
   supports_same_host_subprocess: boolean;
   supports_host_native_dispatch: boolean;
   continuation?: ProviderContinuationCapability;
-  future_extension_kind?:
-    | 'custom_command'
-    | 'openai_compatible_base_url'
-    | 'acp_like';
 }
 
 export const FIRST_SCOPE_HOST_NATIVE_DISPATCH = {
