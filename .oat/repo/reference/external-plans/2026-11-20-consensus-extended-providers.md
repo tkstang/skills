@@ -421,6 +421,40 @@ Dev logs: `~/acp-spike/logs/droid-*`; runs from a desktop session.
   - does `--settings` hooksDisabled cover `.factory/hooks.json` and
     `.claude/settings.json`.
 
+### Coordinator update #11: Droid round 2-3
+
+Every run used `normal` (echoed), deny-all, and the model pinned to
+`custom:GPT-6-Luna-(Proxy)-0` with `set_config_option`.
+
+- **`--only-tools` is ignored in ACP mode.** Write and shell attempts used
+  `Execute`, which raised `request_permission`; denial gave `cancelled` and a
+  clean disk. The permission layer is what holds.
+- **ToolSearch** surfaces deferred tools, but **WebSearch and FetchUrl are
+  permission-gated** in `normal` (kind `fetch`). Deny-all blocks this egress,
+  unlike agy's `search_web`.
+- **`.factory/mcp.json` servers are always spawned**, twice per run and in
+  another pgid. That held under `--only-tools`, hooksDisabled, and failed
+  auth. Droid reaped them after a clean exit in 14/14 runs. Reaping after a
+  SIGKILL (our timeout path) is unproven. No per-run MCP-disable key was found.
+- **Hooks:** project `.factory/hooks.json` fires unasked, and **`--settings
+  <tmp>` with `{"hooks":{"hooksDisabled":true}}` stops it**. Droid does not
+  read `.claude/settings.json` hooks.
+- **Task workers:** a write is rejected internally and immediately. No request
+  reaches the client, and nothing is written (a silent denial, as with agy).
+
+**Droid descriptor:**
+
+- launch `droid exec --output-format acp --settings <private tmp hooksDisabled>`;
+- `set_mode normal` (echo required);
+- `set_config_option model=<configured default>` (confirmed);
+- deny-all by `kind`;
+- launch gate fails closed on `.factory/mcp.json`, or on
+  `.factory/settings*.json` with `mcpServers`, between cwd and the git root;
+- auth: desktop session or `FACTORY_API_KEY`.
+
+**Open:** after a SIGKILL mid-turn, do MCP servers survive? Are user-level
+`~/.factory/mcp.json` servers spawned?
+
 ## Architecture
 
 ```
@@ -476,10 +510,10 @@ layer 6:
    - Devin: `session/set_mode ask`, or `plan`. Candidate launch levers are
      `--agent-type codemap` and `DEVIN_PERMISSION_MODE`. **[hinges: Q1, Q11]**
    - Gemini: `--approval-mode plan`. **[hinges: Q1]** Does it hold over ACP?
-   - Droid: mode `normal`, confirmed by update echo (the ACP default
-     `auto-medium` auto-approves writes; update #10). Add a
-     `--only-tools <read tools>` allowlist and `--settings <tmp>` with
-     `hooksDisabled`. **[hinges: allowlist/MCP/hooks tests]**
+   - Droid: mode `normal`, confirmed by update echo. The ACP default
+     `auto-medium` auto-approves writes (update #10). Launch with
+     `--settings <tmp>` and `hooksDisabled`; `--only-tools` is ignored in ACP
+     mode (update #11).
    - Pi: a wrapper script set as `PI_ACP_PI_COMMAND` that runs
      `exec pi --tools read,grep,find,ls "$@"`. **[hinges: Q13 live check]**
    - DeepSeek: no flags; check session modes and config once a key exists.
@@ -550,8 +584,10 @@ layer 6:
    left 4 MCP children alive after `session/close` ok and exit 0, and agy left
    a planted MCP server. The ACP transport therefore runs these steps on every
    exit path: `session/close` where advertised, close stdin, wait a bounded
-   time for exit, record any survivors in the agent's process group as
-   diagnostics, then kill the group.
+   time for exit, record survivors as diagnostics, then kill. **Kill the
+   agent's whole descendant tree,** found by walking ppid from a snapshot taken
+   before the kill, **not only its process group.** Droid's MCP servers run in
+   another pgid, and any child can `setsid`.
 8. **Admission tests one action per prompt.** agy asks permission only for
    the first of a batch of tool calls, then fails the rest.
 
