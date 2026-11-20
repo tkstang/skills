@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(git:*), Read, Write
 argument-hint: '"<task>" [--peer <provider-id>] [--model <model>] [--effort <effort>]'
 metadata:
   author: Thomas Stang
-  version: '0.2.1'
+  version: '0.2.2'
 ---
 
 # Delegate

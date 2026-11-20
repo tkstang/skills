@@ -8,6 +8,23 @@
   Toolkit 0.2.0. The CLI adds backward paging to `read` and `parse` and names
   the omitted end in forward byte-budget warnings. Addresses #172.
 
+- `consensus` 0.2.14 adds provider-CLI groundwork for an extended provider
+  tier; no extended provider is registered yet, and `claude`, `codex` and
+  `cursor` run as before. Adapters now carry their tier, executable override
+  and credential variables, and own their provider-specific run rules through
+  hooks. `provider ls` lists core providers only; a named `--provider` still
+  resolves any registered adapter, and panel auto-fill and delegate fallback
+  select core providers only. Adapters can declare probe prerequisites with
+  presence checks or inclusive version pins that keep prerelease tags for exact
+  matches; inventory and preflight report a missing or out-of-pin prerequisite
+  with an `install_hint`, and `consensus run` checks prerequisites before
+  spawning. A registered provider awaiting admission probes as `unsupported`
+  with a "registered, not admitted" diagnostic and `run` refuses it before
+  launch. Readiness probes run the resolved executable path, and wrapper
+  unavailable errors keep install hints and probe warnings. Internal
+  `FIRST_SCOPE_PROVIDER_IDS` is renamed `CORE_PROVIDER_IDS`.
+  The shared runtime refresh bumps `consensus-create` 0.1.26, `consensus-decide` 0.1.26, `consensus-plan` 0.1.26, `consensus-refine` 0.1.29, `consensus-evaluate` 0.1.30, `consensus-review` 0.3.1, `consensus-panel` 0.1.23, `consensus-delegate` 0.2.2, `phone-a-friend` 0.3.5, `session-observer` 1.1.7, `session-observer-collab` 1.0.85, and `session-fork-to-destination` 0.3.12.
+
 - `kim` 1.0.1 (`session` 0.9.1) leads its description with "Keep it moving
   (kim)", and the docs label it Keep It Moving (kim), so skill lists and
   navigation explain the short name. Behavior is unchanged.

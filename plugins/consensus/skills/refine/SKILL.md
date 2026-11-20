@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: <input-artifact.md> [--goal "<refinement goal>"]
 metadata:
   author: Thomas Stang
-  version: '0.1.28'
+  version: '0.1.29'
 ---
 
 # Refine
