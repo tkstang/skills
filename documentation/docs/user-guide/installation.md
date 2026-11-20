@@ -412,19 +412,21 @@ two plugins, leaving the second undiscoverable.
 
 Check the reported count against the marketplace manifest and use
 `cursor-agent plugin marketplace list --format json` to compare the registered
-`gitRef` with the expected pushed commit. If the catalog is stale, remove and
-re-add the same marketplace to fetch a fresh clone. First record any branch,
-tag, or commit you explicitly pinned and pass it back with `--git-ref` when
-re-adding. These commands use the default branch:
+`gitRef` with the expected pushed commit. If the catalog is stale, try removing
+and re-adding the same marketplace. Cursor Agent can import an unregistered
+marketplace from a Claude Code Git clone on startup. If that clone tracks the
+same ref and is stale, refresh it with Claude's marketplace update first.
+Record any branch, tag, or commit you explicitly pinned and pass it back with
+`--git-ref` when re-adding. These commands use the default branch:
 
 ```bash
 cursor-agent plugin marketplace remove skills
 cursor-agent plugin marketplace add https://github.com/tkstang/skills
 ```
 
-`add` reports how many plugins it indexed; confirm that count matches the
-marketplace manifest. Because the source is a git URL, Cursor reads the
-**pushed** repository. Push the changes before refreshing the catalog.
+After `add`, check the indexed count and registered `gitRef` again. Cursor reads
+the **pushed** repository for Git URL imports. Push your changes before refreshing
+the catalog.
 
 The installed plugin can still point to an older commit after the catalog is
 current. To refresh a user-scope install from the repository's default branch,
