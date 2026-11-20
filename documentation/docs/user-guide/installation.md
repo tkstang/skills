@@ -410,23 +410,44 @@ pinned to a clone that was roughly two months old, and `update` reported
 `✓ Updated marketplace skills: 1 plugin indexed` for a manifest that declared
 two plugins, leaving the second undiscoverable.
 
-Check the reported count against the marketplace manifest after an update. When
-it disagrees, or the clone directory has not moved to the expected commit,
-remove and re-add the marketplace to force a fresh clone:
+Check the reported count against the marketplace manifest and use
+`cursor-agent plugin marketplace list --format json` to compare the registered
+`gitRef` with the expected pushed commit. If the catalog is stale, try removing
+and re-adding the same marketplace. Cursor Agent can import an unregistered
+marketplace from a Claude Code Git clone on startup. If that clone tracks the
+same ref and is stale, refresh it with Claude's marketplace update first.
+Record any branch, tag, or commit you explicitly pinned and pass it back with
+`--git-ref` when re-adding. These commands use the default branch:
 
 ```bash
 cursor-agent plugin marketplace remove skills
 cursor-agent plugin marketplace add https://github.com/tkstang/skills
 ```
 
-`add` reports how many plugins it indexed; confirm that count matches the
-marketplace manifest. Because the source is a git URL, Cursor reads the
-**pushed** repository rather than your local checkout — push first, then
-re-add. Re-adding drops any non-default ref the original entry pinned, so
-re-apply that if you relied on it.
+After `add`, check the indexed count and registered `gitRef` again. Cursor reads
+the **pushed** repository for Git URL imports. Push your changes before refreshing
+the catalog.
 
-There is no `plugin install` verb on the Cursor CLI, so install or reinstall the
-refreshed plugins from the interactive picker with `/plugins`.
+The installed plugin can still point to an older commit after the catalog is
+current. To refresh a user-scope install from the repository's default branch,
+start an authenticated interactive Cursor Agent session. Open `/plugin`, switch
+to **Marketplace**, paste `https://github.com/tkstang/skills` into **Search or
+Paste Link**, and select the plugin. Choose **Install for you (user scope)**.
+On Cursor Agent `2026.11.13-eacade1`, importing the Git URL this way refreshed
+Consensus after searching by name in the picker kept resolving the old revision.
+
+Cursor Agent has no non-interactive `plugin install` command in that version.
+To automate the picker, run `cursor-agent` in a terminal with a pseudo-TTY
+(locally or over SSH) and send input as each expected screen appears. Confirm the
+plugin name and scope before selecting Install. A locked login keychain can
+prevent Cursor authentication over SSH.
+
+Start a fresh Agent session to load the update. Check which revision the session
+selects. Compare its payload under `~/.cursor/plugins/cache/skills/<plugin>/<sha>/`
+with `plugins/<plugin>/` at the intended commit. Compare relative paths, file
+contents, and executable bits, excluding Cursor's `.cache-complete` marker. If
+you can only verify a directory on disk, report file parity and leave the active
+revision unverified. The picker can report success while the install stays stale.
 
 ## Update a standalone skill
 
