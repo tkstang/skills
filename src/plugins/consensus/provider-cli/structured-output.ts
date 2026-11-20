@@ -435,7 +435,7 @@ async function runStructuredTurn(
   // command that spawn would look up again from the request's working
   // directory. An absolute override is checked and kept as is.
   const executable = await finder.findExecutable(resolvedExecutable.executable);
-  if (!executable) {
+  if (!executable || !path.isAbsolute(executable)) {
     return preInvocationFailure({
       provider: request.provider,
       code: 'PROVIDER_MISSING',
@@ -562,7 +562,12 @@ async function runStructuredTurn(
         return failureEnvelope({
           provider: request.provider,
           code: classification.code,
-          message: classification.message,
+          // The binary was found but could not be started (removed or
+          // replaced after lookup): keep the install hint here too.
+          message:
+            classification.code === 'PROVIDER_MISSING'
+              ? withInstallHint(classification.message, adapter.install_hint)
+              : classification.message,
           retryable: false,
           stdout: processResult.stdout,
           stderr: processResult.stderr,

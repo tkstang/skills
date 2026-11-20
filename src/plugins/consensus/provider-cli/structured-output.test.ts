@@ -31,11 +31,11 @@ import type {
 import type { ConsensusCliRunRequest } from '../provider-cli/types.js';
 
 // These tests inject a fake subprocess, so every provider program counts as
-// installed at the path it is named by.
+// installed: an absolute name as given, a bare name under a fixed directory.
 const installedPrograms: ProbeCommandRunner = {
   env: {},
   async findExecutable(command) {
-    return command;
+    return path.isAbsolute(command) ? command : `/opt/fake-bin/${command}`;
   },
   async run() {
     throw new Error('no prerequisite version probe is expected');
@@ -1612,6 +1612,50 @@ describe('run-path program resolution', () => {
     } finally {
       await rm(root, { recursive: true, force: true });
     }
+  });
+
+  it('refuses a relative program path from the finder before any spawn', async () => {
+    const subprocess = fakeSubprocess([]);
+
+    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+      probeRunner: {
+        ...installedPrograms,
+        findExecutable: async () => 'bin/codex',
+      },
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_MISSING',
+      attempts: { cli_attempts: 0 },
+      continuation: { turn: 'not_started' },
+    });
+    expect(subprocess.invocations).toHaveLength(0);
+  });
+
+  it('keeps the install hint when a found program cannot be started', async () => {
+    const codex = providerRegistry().get('codex')!;
+    const subprocess = fakeSubprocess([
+      processFailure('PROVIDER_MISSING', false, {
+        message: 'Provider executable not found: /opt/fake-bin/codex',
+      }),
+    ]);
+
+    const envelope = await runTurn(request({ provider: 'codex' }), {
+      registry: providerRegistry([
+        { ...codex, install_hint: 'Install Codex.' },
+      ]),
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_MISSING',
+      message: expect.stringMatching(/Install hint: Install Codex\.$/),
+    });
   });
 
   it('passes the checked prerequisite paths to the invocation builder', async () => {

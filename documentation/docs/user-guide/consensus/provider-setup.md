@@ -120,14 +120,17 @@ provider's own binary:
   inclusive `min` and `max` bounds and an optional `exact` version. The
   version is the first complete version token in the output, so `0.2.2-rc.5.`
   does not parse. Versions are compared with their prerelease tag, so `0.2.2`
-  and `0.2.2-rc.4` do not match an exact `0.2.2-rc.5`. An exact pin also
-  compares build metadata (`0.2.2-rc.5+other` does not match
-  `0.2.2-rc.5+approved`); `min` and `max` ignore it, as SemVer precedence does.
+  and `0.2.2-rc.4` do not match an exact `0.2.2-rc.5`. An exact pin compares
+  the token as written, build metadata included: `0.2.2.0` and `00.2.2` do not
+  match an exact `0.2.2`, and `0.2.2-rc.5+other` does not match
+  `0.2.2-rc.5+approved`. `min` and `max` ignore build metadata, as SemVer
+  precedence does.
   A version outside the pin, or output with no parseable version, makes the
   provider `unsupported` with `PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED`. A
   failed version command makes it `unavailable` with
   `PROVIDER_PREREQUISITE_UNAVAILABLE`.
-- A pin bound that is not exactly one version, or a `min` above its `max`,
+- A pin bound that is not exactly one version, an `exact` pin combined with
+  `min` or `max`, or a `min` above its `max`,
   makes the provider `unsupported` with `PROVIDER_PREREQUISITE_PIN_INVALID`
   without running the version command.
 - A missing or out-of-pin prerequisite adds `install_hint` to the inventory or
@@ -184,9 +187,12 @@ can correct the verdict in-turn.
 Consensus runs each provider's CLI by name, found on `PATH`: `claude`, `codex`
 and `cursor-agent`. Only absolute `PATH` entries are searched; relative and
 empty entries are skipped, so a probe and a run started from different
-directories find the same binary. `consensus run` starts the absolute path it
-finds, and when there is none it fails with `PROVIDER_MISSING` before any
-process starts. To run a different program for one provider, set that
+directories find the same binary. A directory named like the program is
+skipped too, and on Windows a bare name also matches `<name>.exe` or
+`<name>.com`. `consensus run` starts the absolute path it finds, and when
+there is none it fails with `PROVIDER_MISSING` before any process starts.
+Each run resolves the program again, so a program replaced on `PATH` between
+a `preflight` and a later `run` is the one that runs. To run a different program for one provider, set that
 provider's variable to the program's absolute path in the environment that
 starts consensus:
 

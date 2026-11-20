@@ -1291,7 +1291,8 @@ describe('one bounded review transaction', () => {
           // The mocked subprocess stands in for an installed Codex.
           probeRunner: {
             env: {},
-            findExecutable: async (command) => command,
+            findExecutable: async (command) =>
+              path.isAbsolute(command) ? command : `/opt/fake-bin/${command}`,
             run: async () => {
               throw new Error('no probe run is expected');
             },

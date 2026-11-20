@@ -544,6 +544,9 @@ describe('extended provider registration', () => {
       '0.2.2-rc.5.',
       'unsupported',
     ],
+    // Exact pins compare the token as written, not numeric precedence.
+    [{ args: ['--version'], exact: '0.2.2' }, '0.2.2.0', 'unsupported'],
+    [{ args: ['--version'], exact: '0.2.2' }, '00.2.2', 'unsupported'],
   ])(
     'checks prerequisite pin %j against version %s',
     async (version, detected, status) => {
@@ -587,6 +590,10 @@ describe('extended provider registration', () => {
     ['a partial version', { args: ['--version'], exact: '0.2' }],
     ['surrounding text', { args: ['--version'], min: 'v0.20.0 or later' }],
     ['an empty range', { args: ['--version'], min: '0.22.0', max: '0.20.0' }],
+    [
+      'an exact pin with a range',
+      { args: ['--version'], exact: '0.2.2', min: '0.2.3' },
+    ],
   ])(
     'rejects a pin with %s before running the version command',
     async (_label, version) => {
@@ -766,6 +773,30 @@ describe('node probe command runner', () => {
       await expect(relativeFirst.findExecutable('fixture-agent')).resolves.toBe(
         absoluteStub,
       );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('skips a directory with the command name so it cannot shadow a later executable', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-finder-'));
+    try {
+      const firstDir = path.join(root, 'first');
+      const secondDir = path.join(root, 'second');
+      // A searchable directory named like the command passes an X_OK check.
+      await mkdir(path.join(firstDir, 'fixture-agent'), { recursive: true });
+      await mkdir(secondDir);
+      const stub = await writeExecutableFixture(
+        secondDir,
+        'fixture-agent',
+        '#!/bin/sh\n',
+      );
+
+      const runner = nodeProbeCommandRunner({
+        PATH: [firstDir, secondDir].join(path.delimiter),
+      });
+
+      await expect(runner.findExecutable('fixture-agent')).resolves.toBe(stub);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

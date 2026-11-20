@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { access } from 'node:fs/promises';
+import { access, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
@@ -149,7 +149,7 @@ export async function probeProviderReadiness(
   }
   const command = resolved.executable;
   const executable = await options.runner.findExecutable(command);
-  if (!executable) {
+  if (!executable || !path.isAbsolute(executable)) {
     return providerEntry(adapter, 'missing', {
       ...(adapter.install_hint ? { install_hint: adapter.install_hint } : {}),
       warnings: [
@@ -294,7 +294,8 @@ export async function checkProviderPrerequisites(
       );
     }
     const executable = await runner.findExecutable(resolved.executable);
-    if (!executable) {
+    // Only an absolute path binds the launch to the binary checked here.
+    if (!executable || !path.isAbsolute(executable)) {
       return failed(
         missing(`${prerequisite.name} was not found (${resolved.executable})`),
       );
@@ -390,7 +391,7 @@ async function findExecutable(
   env: NodeJS.ProcessEnv,
 ): Promise<string | undefined> {
   if (command.includes(path.sep)) {
-    return canExecute(command).then((ok) => (ok ? command : undefined));
+    return firstExecutable(command);
   }
 
   const pathValue = env.PATH ?? '';
@@ -398,14 +399,35 @@ async function findExecutable(
     // A relative entry would resolve against whichever directory a probe or
     // run starts in, so the binary checked and the one launched could differ.
     if (!path.isAbsolute(searchPath)) continue;
-    const candidate = path.join(searchPath, command);
+    const found = await firstExecutable(path.join(searchPath, command));
+    if (found) return found;
+  }
+  return undefined;
+}
+
+// Windows spawn without a shell runs `.exe` and `.com` files found for a bare
+// name; `.cmd` and `.bat` need a shell, which provider runs never use.
+const WINDOWS_EXECUTABLE_EXTENSIONS = ['.exe', '.com'] as const;
+
+async function firstExecutable(filePath: string) {
+  const candidates =
+    process.platform === 'win32' && !path.extname(filePath)
+      ? [
+          filePath,
+          ...WINDOWS_EXECUTABLE_EXTENSIONS.map((ext) => filePath + ext),
+        ]
+      : [filePath];
+  for (const candidate of candidates) {
     if (await canExecute(candidate)) return candidate;
   }
   return undefined;
 }
 
+// A directory is searchable (X_OK) but cannot be spawned; it must not shadow
+// an executable later on PATH.
 async function canExecute(filePath: string) {
   try {
+    if (!(await stat(filePath)).isFile()) return false;
     await access(filePath, constants.X_OK);
     return true;
   } catch {
@@ -568,6 +590,9 @@ function formatNumericVersion(version: number[]): string {
 // Prerequisite versions keep their prerelease tag and build metadata so an
 // exact pin such as `0.2.2-rc.5` is enforced; parseNumericVersion drops both.
 interface ParsedVersion {
+  // The token as written, without a leading `v`: exact pins compare it, so
+  // `0.2.2.0` or `00.2.2` never equal `0.2.2`.
+  text: string;
   release: number[];
   prerelease: string[];
   build: string[];
@@ -590,6 +615,7 @@ function parseVersion(
   const match = value.match(pattern);
   if (!match) return undefined;
   return {
+    text: `${match[1]}${match[2] ? `-${match[2]}` : ''}${match[3] ? `+${match[3]}` : ''}`,
     release: match[1].split('.').map(Number),
     prerelease: match[2] ? match[2].split('.') : [],
     build: match[3] ? match[3].split('.') : [],
@@ -630,7 +656,7 @@ function compareVersions(left: ParsedVersion, right: ParsedVersion): number {
 }
 
 // Ranges use SemVer precedence, which ignores build metadata. An exact pin
-// also requires the same build metadata, so every part of the token matches.
+// compares the whole token as written, build metadata included.
 function satisfiesVersionPin(
   detected: ParsedVersion,
   pin: ProviderPrerequisiteVersion,
@@ -646,11 +672,7 @@ function satisfiesVersionPin(
     );
   };
   return (
-    bound(
-      pin.exact,
-      (order, parsed) =>
-        order === 0 && detected.build.join('.') === parsed.build.join('.'),
-    ) &&
+    bound(pin.exact, (_order, parsed) => detected.text === parsed.text) &&
     bound(pin.min, (order) => order >= 0) &&
     bound(pin.max, (order) => order <= 0)
   );
@@ -668,6 +690,9 @@ function versionPinError(pin: ProviderPrerequisiteVersion): string | undefined {
     const version = parseVersion(value, PIN_VERSION);
     if (!version) return `${field} ${JSON.stringify(value)} is not a version`;
     parsed[field] = version;
+  }
+  if (parsed.exact && (parsed.min || parsed.max)) {
+    return 'exact cannot be combined with min or max';
   }
   if (parsed.min && parsed.max && compareVersions(parsed.min, parsed.max) > 0) {
     return `min ${pin.min} is above max ${pin.max}`;

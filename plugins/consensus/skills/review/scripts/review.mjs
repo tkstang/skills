@@ -10,7 +10,7 @@ import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // src/skills/consensus-review/src/run.ts
 import { createHash as createHash3, randomUUID as randomUUID6 } from "node:crypto";
-import { link, lstat as lstat3, open as open3, realpath as realpath2, stat, unlink } from "node:fs/promises";
+import { link, lstat as lstat3, open as open3, realpath as realpath2, stat as stat2, unlink } from "node:fs/promises";
 import path12 from "node:path";
 
 // src/plugins/consensus/provider-cli/invocation.ts
@@ -1846,7 +1846,7 @@ function hasCursorHostMarker(env) {
 
 // src/plugins/consensus/provider-cli/probe.ts
 import { constants } from "node:fs";
-import { access } from "node:fs/promises";
+import { access, stat } from "node:fs/promises";
 import path4 from "node:path";
 
 // src/plugins/consensus/provider-cli/executable.ts
@@ -1907,7 +1907,7 @@ async function probeProviderReadiness(adapter, options) {
   }
   const command = resolved.executable;
   const executable = await options.runner.findExecutable(command);
-  if (!executable) {
+  if (!executable || !path4.isAbsolute(executable)) {
     return providerEntry(adapter, "missing", {
       ...adapter.install_hint ? { install_hint: adapter.install_hint } : {},
       warnings: [
@@ -2011,7 +2011,7 @@ async function checkProviderPrerequisites(adapter, runner) {
       );
     }
     const executable = await runner.findExecutable(resolved.executable);
-    if (!executable) {
+    if (!executable || !path4.isAbsolute(executable)) {
       return failed(
         missing(`${prerequisite.name} was not found (${resolved.executable})`)
       );
@@ -2092,18 +2092,30 @@ function nodeProbeCommandRunner(env = process.env, options = {}) {
 }
 async function findExecutable(command, env) {
   if (command.includes(path4.sep)) {
-    return canExecute(command).then((ok) => ok ? command : void 0);
+    return firstExecutable(command);
   }
   const pathValue = env.PATH ?? "";
   for (const searchPath of pathValue.split(path4.delimiter)) {
     if (!path4.isAbsolute(searchPath)) continue;
-    const candidate = path4.join(searchPath, command);
+    const found = await firstExecutable(path4.join(searchPath, command));
+    if (found) return found;
+  }
+  return void 0;
+}
+var WINDOWS_EXECUTABLE_EXTENSIONS = [".exe", ".com"];
+async function firstExecutable(filePath) {
+  const candidates = process.platform === "win32" && !path4.extname(filePath) ? [
+    filePath,
+    ...WINDOWS_EXECUTABLE_EXTENSIONS.map((ext) => filePath + ext)
+  ] : [filePath];
+  for (const candidate of candidates) {
     if (await canExecute(candidate)) return candidate;
   }
   return void 0;
 }
 async function canExecute(filePath) {
   try {
+    if (!(await stat(filePath)).isFile()) return false;
     await access(filePath, constants.X_OK);
     return true;
   } catch {
@@ -2228,6 +2240,7 @@ function parseVersion(value, pattern = OUTPUT_VERSION) {
   const match = value.match(pattern);
   if (!match) return void 0;
   return {
+    text: `${match[1]}${match[2] ? `-${match[2]}` : ""}${match[3] ? `+${match[3]}` : ""}`,
     release: match[1].split(".").map(Number),
     prerelease: match[2] ? match[2].split(".") : [],
     build: match[3] ? match[3].split(".") : []
@@ -2267,10 +2280,7 @@ function satisfiesVersionPin(detected, pin) {
     const parsed = parseVersion(value, PIN_VERSION);
     return parsed !== void 0 && accept(compareVersions(detected, parsed), parsed);
   };
-  return bound(
-    pin.exact,
-    (order, parsed) => order === 0 && detected.build.join(".") === parsed.build.join(".")
-  ) && bound(pin.min, (order) => order >= 0) && bound(pin.max, (order) => order <= 0);
+  return bound(pin.exact, (_order, parsed) => detected.text === parsed.text) && bound(pin.min, (order) => order >= 0) && bound(pin.max, (order) => order <= 0);
 }
 function versionPinError(pin) {
   const bounds = { exact: pin.exact, min: pin.min, max: pin.max };
@@ -2280,6 +2290,9 @@ function versionPinError(pin) {
     const version = parseVersion(value, PIN_VERSION);
     if (!version) return `${field} ${JSON.stringify(value)} is not a version`;
     parsed[field] = version;
+  }
+  if (parsed.exact && (parsed.min || parsed.max)) {
+    return "exact cannot be combined with min or max";
   }
   if (parsed.min && parsed.max && compareVersions(parsed.min, parsed.max) > 0) {
     return `min ${pin.min} is above max ${pin.max}`;
@@ -2805,7 +2818,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     prerequisiteExecutables = prerequisites.executables;
   }
   const executable = await finder.findExecutable(resolvedExecutable.executable);
-  if (!executable) {
+  if (!executable || !path7.isAbsolute(executable)) {
     return preInvocationFailure({
       provider: request.provider,
       code: "PROVIDER_MISSING",
@@ -2900,7 +2913,9 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         return failureEnvelope({
           provider: request.provider,
           code: classification.code,
-          message: classification.message,
+          // The binary was found but could not be started (removed or
+          // replaced after lookup): keep the install hint here too.
+          message: classification.code === "PROVIDER_MISSING" ? withInstallHint(classification.message, adapter.install_hint) : classification.message,
           retryable: false,
           stdout: processResult.stdout,
           stderr: processResult.stderr,
@@ -5980,10 +5995,10 @@ async function validateCodexCapture(input) {
 }
 async function aliasesProtectedInput(capturePath, input) {
   try {
-    const captureInfo = await stat(capturePath);
+    const captureInfo = await stat2(capturePath);
     for (const protectedPath of [input.schemaPath, input.cwd]) {
       try {
-        const protectedInfo = await stat(protectedPath);
+        const protectedInfo = await stat2(protectedPath);
         if (captureInfo.dev === protectedInfo.dev && captureInfo.ino === protectedInfo.ino) {
           return true;
         }

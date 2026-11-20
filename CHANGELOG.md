@@ -22,9 +22,12 @@
   with a "registered, not admitted" diagnostic and `run` refuses it before
   launch. Probes and runs search only absolute `PATH` entries, and both start
   the absolute program path they resolve; a run whose program is missing now
-  fails with `PROVIDER_MISSING` before spawning. Exact pins compare the
-  complete version token, build metadata included, ranges ignore build
-  metadata, and an invalid pin reports `PROVIDER_PREREQUISITE_PIN_INVALID`.
+  fails with `PROVIDER_MISSING` before spawning. The lookup skips directories
+  named like the program and, on Windows, also tries `.exe` and `.com`. Exact
+  pins compare the complete version token as written, build metadata
+  included; ranges ignore build metadata; and an invalid pin, including
+  `exact` combined with `min` or `max`, reports
+  `PROVIDER_PREREQUISITE_PIN_INVALID`.
   Checked prerequisite paths reach the adapter's invocation builder, and
   wrapper unavailable errors keep install hints and probe warnings. Internal
   `FIRST_SCOPE_PROVIDER_IDS` is renamed `CORE_PROVIDER_IDS`.
