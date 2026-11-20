@@ -4,6 +4,10 @@
 
 ### Changed
 
+- `kim` 1.0.1 (`session` 0.9.1) leads its description with "Keep it moving
+  (kim)", and the docs label it Keep It Moving (kim), so skill lists and
+  navigation explain the short name. Behavior is unchanged.
+
 - `consensus-review` 0.3.0 (`consensus` 0.2.13) adds exact committed-tree review
   via `range=<base>..<head>`, with immutable endpoint evidence and workspace
   drift checks. Reports now show requested and passed reviewer settings and

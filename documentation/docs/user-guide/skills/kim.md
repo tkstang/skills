@@ -1,11 +1,11 @@
 ---
-title: 'Kim'
+title: 'Keep It Moving (kim)'
 description: 'Continue the current work, stop only on real blockers, explain them with confidence-rated recommendations, and hold irreversible actions for confirmation.'
 ---
 
-# Kim
+# Keep It Moving (kim)
 
-`kim` (keep it moving) tells the agent to continue the current work. It
+Keep It Moving, invoked as `kim`, tells the agent to continue the current work. It
 moves everything that does not need you and stops only the work that does. It
 says plainly what is moving and what is waiting, and keeps open blockers on a
 list until you resolve them. It is instruction-only, available standalone or as
