@@ -161,7 +161,7 @@ There is no repair call or post-dispatch alternate provider.
 ## Requested, passed, and reported identity
 
 Markdown displays the raw requested reviewer selection and the resolved model
-and effort that review passed to `consensus run`. These settings remain
+and effort that review passed to the consensus runtime. These settings remain
 separate from both the reviewer's self-reported identity and provider output
 evidence. A Codex reviewer always runs read-only, so when review passes no model
 or effort, consensus passes your `config.toml` top-level `model` and

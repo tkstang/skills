@@ -371,20 +371,10 @@ Cursor accepts `--model <id>` in both default and read-only profiles, for exampl
 unsupported. Continuation receipts record `requested_model`; the inspected Cursor
 JSON result does not report an observed model.
 
-Read-only Claude and Codex peers load no repository configuration. Claude
-read-only runs add `--setting-sources user --strict-mcp-config`, so they skip
-project settings and project hooks, all MCP servers (user servers included),
-and the project's `CLAUDE.md`, `AGENTS.md`, and `.claude/rules`; user settings
-and hooks still apply. Codex `--sandbox read-only` runs add
-`--ignore-user-config --ignore-rules --disable hooks`, which skips
-`config.toml` and the repository's `.codex/` config; consensus passes the
-user's top-level default `model` and `model_reasoning_effort` explicitly when
-the request sets none. Cursor cannot disable repository hooks, so consensus
-checks before every read-only Cursor spawn, retries included, and refuses the
-run (`cursor_repo_hooks`) when the repository's `.cursor/hooks.json`,
-`.claude/settings.json`, or `.claude/settings.local.json` configures any or
-cannot be read or parsed. A permitted read-only Cursor run still loads the
-repository's other configuration and instructions. Write and default profiles still load repository
+Read-only Claude and Codex peers load no repository configuration, so they
+also skip the repository's `CLAUDE.md`, `AGENTS.md`, and rules (Claude) or the
+user's `config.toml` (Codex). Read-only Cursor is refused when the repository
+configures hooks. Write and default profiles still load repository
 configuration. See
 [Read-only isolation](https://tkstang.github.io/skills/user-guide/consensus/provider-run-controls/#read-only-isolation).
 

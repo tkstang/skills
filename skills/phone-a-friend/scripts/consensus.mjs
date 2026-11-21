@@ -3934,7 +3934,6 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       diagnostics: hostGuard.diagnostics
     });
   }
-  const hostFileSystem = dependencies.hostFileSystem ?? nodeHostFileSystem;
   const readOnly = isProvenReadOnlyProfile(
     request.provider,
     defaultRuntimePolicy(request.runtime_policy)
@@ -4028,7 +4027,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     }
   });
   if (request.provider === "codex" && readOnly && (!effectiveRequest.model || !effectiveRequest.effort)) {
-    const defaults = readCodexUserDefaults(childEnv, hostFileSystem);
+    const defaults = readCodexUserDefaults(childEnv, nodeHostFileSystem);
     effectiveRequest = {
       ...effectiveRequest,
       ...!effectiveRequest.model && defaults.model ? { model: defaults.model } : {},
@@ -4043,7 +4042,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       if (request.provider === "cursor" && readOnly) {
         const hookGate = checkCursorRepoHooks({
           cwd: request.cwd ?? process.cwd(),
-          fs: hostFileSystem
+          fs: nodeHostFileSystem
         });
         if (!hookGate.ok) {
           return failureEnvelope({

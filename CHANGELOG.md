@@ -29,8 +29,8 @@
 
 ### Fixed
 
-- `consensus` 0.2.14 stops read-only peers from running repository-controlled
-  code. Read-only Claude runs add `--setting-sources user --strict-mcp-config`,
+- `consensus` 0.2.14 stops read-only peers from loading repository-controlled
+  configuration (hooks, MCP servers, settings). Read-only Claude runs add `--setting-sources user --strict-mcp-config`,
   so they skip project settings, project hooks, MCP servers and the project's
   `CLAUDE.md`, `AGENTS.md` and rules. Read-only Codex runs add
   `--ignore-user-config --ignore-rules --disable hooks` and pass the user's

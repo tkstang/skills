@@ -26,8 +26,7 @@ context already in the prompt. Do not grant tools just because they exist.
    for multiple approved targets. The default profile shown below uses
    Claude's `dontAsk` mode. `--permission-mode read-only` combines only with
    `--allow-read` grants (no edit, web, or Bash grants); it also uses
-   `dontAsk` and adds read-only isolation, so prefer it for a read-only turn
-   that needs no web access.
+   `dontAsk` and adds read-only isolation.
 
 ```bash
 node <skill-dir>/scripts/consensus.mjs run --provider claude \

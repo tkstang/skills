@@ -151,9 +151,10 @@ export function resolveCursorHookRoot(
 // Refuses when any repo hook file configures a hook. The rule is deliberately
 // broader than Cursor's loader, so a Cursor upgrade cannot quietly start
 // running something the gate allowed:
-// - any `hooks` key holding a non-empty array refuses, whatever the event
-//   name, entry shape, `version` or Claude `matcher` (Cursor 2026.11.13 skips
-//   Claude files without a `matcher` key, and ignores `disableAllHooks`);
+// - any event under a `hooks` object holding a non-empty array refuses,
+//   whatever the event name, entry shape, `version` or Claude `matcher`
+//   (Cursor 2026.11.13 skips Claude files without a `matcher` key, and
+//   ignores `disableAllHooks`);
 // - a file that does not parse, or cannot be read, refuses;
 // - symlinked files are judged by their target's content;
 // - a root that is also the home directory is checked too: a checkout rooted
@@ -221,7 +222,8 @@ function refusal(
 }
 
 // Cursor reads hooks.json as JSONC by stripping comments with two regexes.
-// Both readings are checked, and a hook found by either refuses.
+// Both readings are checked, and a hook found by either refuses: stripping
+// can change which of two duplicate `hooks` keys survives.
 function parseHookFile(
   text: string,
   jsonc: boolean,

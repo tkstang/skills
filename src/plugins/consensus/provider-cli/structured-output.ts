@@ -26,7 +26,6 @@ import {
   nodeHostFileSystem,
   readCodexUserDefaults,
 } from './read-only-isolation.js';
-import type { HostFileSystem } from './read-only-isolation.js';
 import {
   buildChildEnvironment,
   defaultRuntimePolicy,
@@ -68,9 +67,6 @@ export interface RunProviderTurnDependencies {
   parentEnv?: NodeJS.ProcessEnv;
   submitCommand?: string;
   transport?: ProviderTurnTransportOptions;
-  // Host files read before a read-only spawn: the Cursor repo-hook gate and
-  // the Codex user defaults.
-  hostFileSystem?: HostFileSystem;
 }
 
 export interface ProviderTurnTransportOptions {
@@ -319,7 +315,6 @@ async function runStructuredTurn(
     });
   }
 
-  const hostFileSystem = dependencies.hostFileSystem ?? nodeHostFileSystem;
   const readOnly = isProvenReadOnlyProfile(
     request.provider,
     defaultRuntimePolicy(request.runtime_policy),
@@ -450,7 +445,7 @@ async function runStructuredTurn(
     readOnly &&
     (!effectiveRequest.model || !effectiveRequest.effort)
   ) {
-    const defaults = readCodexUserDefaults(childEnv, hostFileSystem);
+    const defaults = readCodexUserDefaults(childEnv, nodeHostFileSystem);
     effectiveRequest = {
       ...effectiveRequest,
       ...(!effectiveRequest.model && defaults.model
@@ -472,7 +467,7 @@ async function runStructuredTurn(
       if (request.provider === 'cursor' && readOnly) {
         const hookGate = checkCursorRepoHooks({
           cwd: request.cwd ?? process.cwd(),
-          fs: hostFileSystem,
+          fs: nodeHostFileSystem,
         });
         if (!hookGate.ok) {
           return failureEnvelope({

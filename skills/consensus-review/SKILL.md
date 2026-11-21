@@ -120,7 +120,7 @@ returns, and every later diagnostic references that file.
 The host-owned `result.json` uses schema `v2`. It records raw requested options,
 resolved settings passed to the provider, reviewer claims, and provider-reported
 identity separately. `reviewer.observed.models` is the complete reported set. An empty set means unobserved.
-Markdown shows the requested and passed model and effort even without observations. "Passed" is what review sent to `consensus run`; when it sends no model or effort to a Codex reviewer, consensus fills them from the user's `config.toml` top-level `model` and `model_reasoning_effort`, and the report still shows them as unspecified.
+Markdown shows the requested and passed model and effort even without observations. "Passed" is what review sent to the consensus runtime; when it sends no model or effort to a Codex reviewer, consensus fills them from the user's `config.toml` top-level `model` and `model_reasoning_effort`, and the report still shows them as unspecified.
 
 Claude result model-usage keys are aggregate evidence over the provider-reported
 scope, including multiple models when present. They do not prove one model served

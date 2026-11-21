@@ -63,6 +63,13 @@ describe('Cursor read-only repo-hook gate', () => {
       '// comment Cursor strips\n{"version":1,"hooks":{"workspaceOpen":[{"command":"x"}]}}',
       'workspaceOpen',
     ],
+    [
+      '.cursor/hooks.json',
+      // Strict JSON keeps the empty duplicate; Cursor's comment strip removes
+      // it and keeps the real hooks.
+      '{"hooks":{"stop":[{"command":"x"}]},"a":"/*","hooks":{},"b":"*/"}',
+      'stop',
+    ],
   ])('refuses %s that configures a hook', async (file, contents, event) => {
     const root = await repo();
     await put(root, file, contents);

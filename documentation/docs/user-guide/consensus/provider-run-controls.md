@@ -171,15 +171,18 @@ the host stages and commits them.
 ## Read-only isolation
 
 The three read-only profiles listed under
-[Attempts and retries](#attempts-and-retries) keep a repository from running
-code through a peer that is only meant to read it. Read-only Claude and Codex
+[Attempts and retries](#attempts-and-retries) keep a repository's
+configuration (hooks, MCP servers, settings) from running through a peer that
+is only meant to read it. They do not stop the peer from running repository
+scripts its own permissions allow. Read-only Claude and Codex
 peers do not load configuration that the repository controls. Read-only Cursor
 has no such flags: it still trusts the workspace and loads the repository's
 other Cursor configuration and instructions, and consensus only refuses the
 run when the repository configures hooks. Every other profile is unchanged and
 still loads repository configuration. That includes `non-interactive`, `workspace-write`,
-`delegate` write runs, and the `create`, `decide`, `plan`, `refine`,
-`evaluate`, and `panel` loops, which send no runtime policy.
+`delegate` write runs, the default one-shot `phone-a-friend`, and the
+`create`, `decide`, `plan`, `refine`, `evaluate`, and `panel` loops, which send
+no runtime policy.
 
 - **Claude** adds `--setting-sources user --strict-mcp-config` to every turn,
   including `--resume`. The peer loads no project or local settings, so no
@@ -209,9 +212,9 @@ still loads repository configuration. That includes `non-interactive`, `workspac
 - **Cursor** has no flag that disables repository hooks, and `cursor-agent`
   runs them without a permission request, even in ask mode. Immediately
   before every spawn, retries included, consensus finds the root `cursor-agent` uses: the
-  nearest ancestor of the working directory (resolved physically) that holds a
-  `.git` entry, where a linked worktree's `.git` file stops at the worktree,
-  or else the working directory itself. It refuses the run with `PROVIDER_UNSUPPORTED_OPTION` and
+  working directory (resolved physically) or its nearest ancestor, never `/`,
+  that holds a `.git` entry, where a linked worktree's `.git` file stops at the
+  worktree, or else the working directory itself. It refuses the run with `PROVIDER_UNSUPPORTED_OPTION` and
   `attempts.terminal_reason: "cursor_repo_hooks"`, without launching that
   attempt, when
   `<root>/.cursor/hooks.json`, `<root>/.claude/settings.json`, or

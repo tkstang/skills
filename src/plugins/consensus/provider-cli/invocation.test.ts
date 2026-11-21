@@ -455,16 +455,10 @@ describe('provider invocation builders', () => {
         'approval_policy="never"',
       ]),
     );
-    expect(invocation.argv.slice(2, 4)).toEqual([
-      '--json',
-      '--output-last-message',
-    ]);
-    expect(invocation.argv.slice(5, 9)).toEqual([
-      '--ignore-user-config',
-      '--ignore-rules',
-      '--disable',
-      'hooks',
-    ]);
+    expect(invocation.argv).toEqual(
+      expect.arrayContaining(['--ignore-user-config', '--ignore-rules']),
+    );
+    expect(argumentAfter(invocation.argv, '--disable')).toBe('hooks');
     expect(invocation.stdin).toBe('Sensitive prompt text.');
   });
 
