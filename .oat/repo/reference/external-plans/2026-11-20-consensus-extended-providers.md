@@ -57,6 +57,25 @@ brief:
 - Read-only first. Writes come per provider after live confinement evidence.
 - `delegate` first.
 
+Thomas's decisions (coordinator update #13, 2026-11-20):
+
+- **Core security fix:** approved for read-only profiles only, as a separate PR
+  ahead of this work (`fix/consensus-read-only-repo-config`). Write runs keep
+  loading repo config. Cross-model review is required, and there is no merge
+  without Thomas.
+- **Antigravity:** all three limits are accepted and must be disclosed:
+  `search_web` egress, the write to the real
+  `~/.gemini/antigravity-cli/conversation_summaries.db`, and the brief clause
+  banning `invoke_subagent`, `swarm`, `run_workflow` and `schedule`.
+- **Droid:** nothing may run in the Factory cloud. Do not test
+  Create/Run/EditAutomation, `loop_*`, ConnectApp or `computer_*` live. Before
+  admission, show **without a live call** that they are unreachable or
+  provably permission-gated in `normal`. If that can't be shown, Droid stays
+  unadmitted unless Thomas later accepts a disclosed limit. The brief clause
+  banning them stays regardless.
+- **DeepSeek:** test only through its own harness (`dsh`), never through
+  Droid's proxy model. Deferred, so it stays registered, not admitted.
+
 ## What recon changed
 
 Recon ran at `12350127` (origin/main): seven repo and web lanes, two adversarial
@@ -359,8 +378,8 @@ Dev logs: `~/acp-spike/logs/agy-tools-*`, `agy-{subagent,swarm}-wait-brain/` and
   XXXX-XXXX` and **starts a new device-pairing code on every probe**. Droid is
   therefore not ready from SSH, and preflight must not call `session/new` for
   it.
-- **For Thomas** (via the coordinator): `search_web` egress, the summaries-db
-  write, and sub-agent behaviour as disclosed limits, or reasons not to admit.
+- **Thomas accepted** (update #13) `search_web` egress, the summaries-db write,
+  and the brief clause on sub-agents as disclosed limits.
 
 ### Coordinator update #10: Factory Droid 1.16.0
 
@@ -899,8 +918,10 @@ including the direct `run --request-json` entry, so no live calls happen in CI.
     unless Thomas accepts them.
   - Mode is never `accept-edits` or `auto`. The brief forbids
     `invoke_subagent`, `swarm`, `run_workflow` and `schedule`.
-  - Disclosed limits, pending Thomas: `search_web` egress, the
-    summaries-db write, and silent 60 s worker denials.
+  - Disclosed limits, accepted by Thomas (update #13): `search_web`
+    egress, the summaries-db write, and the brief clause banning
+    `invoke_subagent`, `swarm`, `run_workflow` and `schedule` (workers
+    otherwise fail closed after a silent 60 s denial).
 
   Devin follows; its isolation is now solved. Then Gemini and Droid as their
   sign-ins land. Droid and agy are desktop-session only (keychain auth).
@@ -961,7 +982,11 @@ each. Per-provider gates:
 - **Antigravity:** launched with `agy acp` (not acpx's `.par` argv).
   Unattended sign-in is a risk (Q15).
 - **DeepSeek:** needs `DEEPSEEK_API_KEY` in its credential env, and the
-  install hint must name Node >= 24.9.
+  install hint must name Node >= 24.9. Admission evidence must come from `dsh`
+  itself, not Droid's DeepSeek proxy model. Deferred (update #13).
+- **Droid:** no live calls to cloud tools (automations, `loop_*`, ConnectApp,
+  `computer_*`). Admission needs static evidence that they are unreachable or
+  permission-gated in `normal`; otherwise Droid stays unadmitted (update #13).
 
 ### Phase 5: continuation per provider
 
