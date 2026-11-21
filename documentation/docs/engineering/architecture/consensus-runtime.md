@@ -111,7 +111,10 @@ runs the state machine.
   resume rejects `--sandbox`, and passes the thread ID and a stdin `-`
   positionally. Claude adds `--resume <uuid>` to the usual print-mode flags.
   Model, effort, schema, permission, and approval controls are passed again
-  on every call, and all round instructions travel in the user prompt. The
+  on every call, as are the read-only isolation flags (Claude
+  `--setting-sources user --strict-mcp-config`; Codex
+  `--ignore-user-config --ignore-rules --disable hooks`), and all round
+  instructions travel in the user prompt. The
   wrapper never uses `--last`, `--continue`, `--fork-session`, or
   `--no-session-persistence`.
 - **No duplicate turns.** Native resume is single-attempt. The receipt's `turn`
@@ -150,7 +153,13 @@ auto-approves every command. `--permission-mode read-only` runs it with
 `--trust --mode ask --sandbox enabled` instead. Ask mode allows only read-only
 tools, including read-only shell commands (a live check ran `ls` but refused a
 file write), and the peer answers through its final message rather than
-`consensus submit`.
+`consensus submit`. `cursor-agent` has no flag that disables repository hooks,
+so before each read-only spawn, retries included, the run loop in
+[`structured-output.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/structured-output.ts)
+calls `checkCursorRepoHooks`
+([`read-only-isolation.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/read-only-isolation.ts))
+and refuses the run (`cursor_repo_hooks`) when the repository configures any; see
+[Read-only isolation](../../user-guide/consensus/provider-run-controls.md#read-only-isolation).
 
 ## From provider output to a verdict
 

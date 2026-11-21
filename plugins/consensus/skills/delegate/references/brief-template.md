@@ -13,6 +13,8 @@ Context:
 - Repository and branch: <name>, <branch or base commit>
 - Relevant files: <paths, with a line on why each matters>
 - Constraints: <conventions, APIs to keep, things not to touch>
+- Repository conventions (read-only): <the CLAUDE.md, AGENTS.md, or rule
+  guidance the task depends on; a read-only Claude peer does not load it>
 - Known so far: <findings, failed attempts, error output>
 
 Working directory: <absolute cwd>. Stay inside it.
@@ -49,5 +51,9 @@ pass.
   `--allow-bash`, so grant the verification command. A Codex run may have no
   network, depending on the user's Codex sandbox configuration, so install
   dependencies before the run rather than asking the peer to.
+- A read-only Claude peer does not load the project's `CLAUDE.md`,
+  `AGENTS.md`, or rules, and a read-only Codex peer skips the user's
+  `config.toml`. Copy the conventions the task depends on into the brief. A
+  write peer loads them as usual.
 - For a continued turn, write a short follow-up that names what to change, and
   repeat the verification loop. The resumed session keeps the earlier context.

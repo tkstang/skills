@@ -180,7 +180,11 @@ feature of the upstream provider CLI:
 | `cursor` | `--model <value>` | Unsupported by this adapter         |
 
 When a workflow forwards them, omitted fields leave the corresponding provider
-options unset. The provider CLI supplies its own defaults. Model availability
+options unset. The provider CLI supplies its own defaults. The exception is a
+read-only Codex run (`--sandbox read-only`), which skips your Codex
+`config.toml`: consensus reads only its top-level `model` and
+`model_reasoning_effort` values and passes them explicitly; see
+[Read-only isolation](provider-run-controls.md#read-only-isolation). Model availability
 and allowed effort values depend on the provider, selected model, and account;
 successful config parsing does not prove those values are usable. Passing an
 effort option to this plugin's Cursor adapter yields `PROVIDER_UNSUPPORTED_OPTION`.

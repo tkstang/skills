@@ -161,8 +161,12 @@ There is no repair call or post-dispatch alternate provider.
 ## Requested, passed, and reported identity
 
 Markdown displays the raw requested reviewer selection and the resolved model
-and effort passed to the provider. These settings remain separate from both the
-reviewer's self-reported identity and provider output evidence.
+and effort that review passed to `consensus run`. These settings remain
+separate from both the reviewer's self-reported identity and provider output
+evidence. A Codex reviewer always runs read-only, so when review passes no model
+or effort, consensus passes your `config.toml` top-level `model` and
+`model_reasoning_effort` to Codex; the report still shows those fields as
+unspecified.
 
 The host-owned `result.json` uses schema `v2`: `reviewer.observed.models` is an
 array of exact provider-reported strings.
@@ -194,7 +198,11 @@ its Git status stays the same and remain undetected. Ignored, unselected, and
 external paths plus transient write-then-revert activity are not fully
 monitored. A stable result means only that no change was detected within the
 stated coverage. Provider read-only controls are not universal filesystem or
-network isolation.
+network isolation. They do stop the reviewer from loading repository
+configuration, such as project settings, hooks, and MCP servers, and a Claude
+reviewer no longer auto-loads the repository's `CLAUDE.md`, `AGENTS.md`, or
+rules; see
+[Read-only isolation](provider-run-controls.md#read-only-isolation).
 
 Author evidence is recorded as detected, declared, or unknown with explicit
 coverage. Reviewer claims remain separate from host-observed provider evidence;

@@ -25,7 +25,9 @@ discussion, and deliberation metrics/cost caps.
 
 ### Review
 
-Run one bounded read-only review from either generated skill directory:
+Run one bounded read-only review from either generated skill directory. The
+reviewer loads no repository configuration; see
+[Read-only isolation](https://tkstang.github.io/skills/user-guide/consensus/provider-run-controls/#read-only-isolation).
 
 ```bash
 node plugins/consensus/skills/review/scripts/review.mjs base_branch=origin/main --host codex
@@ -296,7 +298,10 @@ full diff, and reruns the brief's verification command. On Claude and Codex,
 ordinary verification failures within the original task go back to the same peer automatically,
 with the same session and permissions; the host checks every follow-up. It never merges or
 pushes; the user decides what to keep. Codex and Claude can write and continue
-a session; Cursor is read-only. See `skills/delegate/SKILL.md` and the
+a session; Cursor is read-only. A read-only Claude or Codex peer loads no
+repository configuration, so the brief carries the conventions it needs. A
+read-only Cursor peer still loads repository rules and instructions; only
+repository hooks are blocked, by refusing the run. See `skills/delegate/SKILL.md` and the
 [Delegate guide](https://tkstang.github.io/skills/user-guide/consensus/delegate/).
 
 ## Permissions
@@ -365,6 +370,23 @@ Cursor accepts `--model <id>` in both default and read-only profiles, for exampl
 `--model composer-2.5`; list IDs with `cursor-agent --list-models`. Effort remains
 unsupported. Continuation receipts record `requested_model`; the inspected Cursor
 JSON result does not report an observed model.
+
+Read-only Claude and Codex peers load no repository configuration. Claude
+read-only runs add `--setting-sources user --strict-mcp-config`, so they skip
+project settings and project hooks, all MCP servers (user servers included),
+and the project's `CLAUDE.md`, `AGENTS.md`, and `.claude/rules`; user settings
+and hooks still apply. Codex `--sandbox read-only` runs add
+`--ignore-user-config --ignore-rules --disable hooks`, which skips
+`config.toml` and the repository's `.codex/` config; consensus passes the
+user's top-level default `model` and `model_reasoning_effort` explicitly when
+the request sets none. Cursor cannot disable repository hooks, so consensus
+checks before every read-only Cursor spawn, retries included, and refuses the
+run (`cursor_repo_hooks`) when the repository's `.cursor/hooks.json`,
+`.claude/settings.json`, or `.claude/settings.local.json` configures any or
+cannot be read or parsed. A permitted read-only Cursor run still loads the
+repository's other configuration and instructions. Write and default profiles still load repository
+configuration. See
+[Read-only isolation](https://tkstang.github.io/skills/user-guide/consensus/provider-run-controls/#read-only-isolation).
 
 Recognized provider usage, quota, and rate-limit rejections return
 `PROVIDER_LIMIT_REACHED` without retries within the run. The envelope surfaces the

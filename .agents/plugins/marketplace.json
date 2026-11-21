@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "consensus",
-      "version": "0.2.13",
+      "version": "0.2.14",
       "description": "Consensus create, decide, plan, refine, evaluate, review, panel, phone-a-friend, delegate, observer, and observer-collab skills for deliberation, bounded review, consultation, task delegation, and observation.",
       "source": {
         "source": "local",

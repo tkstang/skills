@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Read
 argument-hint: base_branch=<ref> | range=<base>..<head> | --files <paths...> | --document <path> --host <runtime>
 metadata:
   author: Thomas Stang
-  version: '0.3.0'
+  version: '0.3.1'
 ---
 
 # Consensus Review
@@ -120,7 +120,7 @@ returns, and every later diagnostic references that file.
 The host-owned `result.json` uses schema `v2`. It records raw requested options,
 resolved settings passed to the provider, reviewer claims, and provider-reported
 identity separately. `reviewer.observed.models` is the complete reported set. An empty set means unobserved.
-Markdown shows the requested and passed model and effort even without observations.
+Markdown shows the requested and passed model and effort even without observations. "Passed" is what review sent to `consensus run`; when it sends no model or effort to a Codex reviewer, consensus fills them from the user's `config.toml` top-level `model` and `model_reasoning_effort`, and the report still shows them as unspecified.
 
 Claude result model-usage keys are aggregate evidence over the provider-reported
 scope, including multiple models when present. They do not prove one model served
@@ -141,7 +141,10 @@ output. Never offer a diagnostic as a completed review or invent a path. Peer ou
 to apply fixes.
 
 State the limits: read-only provider controls are not universal filesystem or
-network isolation; drift detection covers HEAD, index, Git status, and selected
+network isolation. They keep the reviewer from loading repository
+configuration, so a Claude reviewer does not auto-load the repository's
+`CLAUDE.md`, `AGENTS.md`, or rules, and a Codex reviewer runs without the
+user's `config.toml` apart from its default model and effort. Drift detection covers HEAD, index, Git status, and selected
 path hashes. Content changes outside the selected set can go undetected when
 Git status is unchanged, as can ignored/unselected paths and transient
 write-then-revert activity. External run state has operator-managed retention
