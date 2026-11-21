@@ -22,9 +22,15 @@ import { evaluateHostGuard } from './host-guard.js';
 import { buildProviderInvocation } from './invocation.js';
 import type { ProviderInvocation } from './invocation.js';
 import {
+  checkCursorRepoHooks,
+  nodeHostFileSystem,
+  readCodexUserDefaults,
+} from './read-only-isolation.js';
+import {
   buildChildEnvironment,
   defaultRuntimePolicy,
   hasScopedToolAccess,
+  isProvenReadOnlyProfile,
   validateProviderOptions,
 } from './runtime-policy.js';
 import { isRecord, validateSchemaSubset } from './schema-validate.js';
@@ -309,6 +315,11 @@ async function runStructuredTurn(
     });
   }
 
+  const readOnly = isProvenReadOnlyProfile(
+    request.provider,
+    defaultRuntimePolicy(request.runtime_policy),
+  );
+
   // Text mode returns the provider's reply as text: it reads no schema,
   // adds nothing to the prompt and validates nothing.
   const textMode = request.output === 'text';
@@ -354,7 +365,7 @@ async function runStructuredTurn(
     }
   }
 
-  const effectiveRequest: ConsensusCliRunRequest = {
+  let effectiveRequest: ConsensusCliRunRequest = {
     ...request,
     runtime_policy: defaultRuntimePolicy(request.runtime_policy),
   };
@@ -427,12 +438,50 @@ async function runStructuredTurn(
         : {}),
     },
   });
+  // Read-only Codex skips the user config, so its default model and effort
+  // are passed explicitly, read from the home the child resolves.
+  if (
+    request.provider === 'codex' &&
+    readOnly &&
+    (!effectiveRequest.model || !effectiveRequest.effort)
+  ) {
+    const defaults = readCodexUserDefaults(childEnv, nodeHostFileSystem);
+    effectiveRequest = {
+      ...effectiveRequest,
+      ...(!effectiveRequest.model && defaults.model
+        ? { model: defaults.model }
+        : {}),
+      ...(!effectiveRequest.effort && defaults.effort
+        ? { effort: defaults.effort }
+        : {}),
+    };
+  }
   let validationFeedback: string | undefined;
   let lastInvocation: ProviderInvocation | undefined;
   let exitClassification: ProviderDiagnostics['exit_classification'];
 
   try {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      // Checked before every spawn, retries included, to keep the window
+      // between the check and the launch short.
+      if (request.provider === 'cursor' && readOnly) {
+        const hookGate = checkCursorRepoHooks({
+          cwd: request.cwd ?? process.cwd(),
+          fs: nodeHostFileSystem,
+        });
+        if (!hookGate.ok) {
+          return failureEnvelope({
+            provider: request.provider,
+            code: 'PROVIDER_UNSUPPORTED_OPTION',
+            message: hookGate.message,
+            retryable: false,
+            attempts: {
+              cli_attempts: attempt - 1,
+              terminal_reason: 'cursor_repo_hooks',
+            },
+          });
+        }
+      }
       if (submitCapturePath) {
         await cleanupSubmitCaptureFile(submitCapturePath);
       }

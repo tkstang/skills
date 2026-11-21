@@ -84,7 +84,13 @@ describe('provider invocation builders', () => {
       [
         'read-only',
         { permission_mode: 'read-only' },
-        ['--permission-mode', 'plan'],
+        [
+          '--permission-mode',
+          'plan',
+          '--setting-sources',
+          'user',
+          '--strict-mcp-config',
+        ],
         { mode: 'plan' },
       ],
       [
@@ -102,6 +108,8 @@ describe('provider invocation builders', () => {
           'none',
           '--permission-mode',
           'dontAsk',
+          '--setting-sources',
+          'user',
           '--strict-mcp-config',
         ],
         {
@@ -447,7 +455,36 @@ describe('provider invocation builders', () => {
         'approval_policy="never"',
       ]),
     );
+    expect(invocation.argv).toEqual(
+      expect.arrayContaining(['--ignore-user-config', '--ignore-rules']),
+    );
+    expect(argumentAfter(invocation.argv, '--disable')).toBe('hooks');
     expect(invocation.stdin).toBe('Sensitive prompt text.');
+  });
+
+  it('isolates a read-only Codex run from user config, rules and hooks', () => {
+    const invocation = buildInvocation('codex', 'prompt_only', {
+      model: 'gpt-test',
+      runtime_policy: { sandbox: 'read-only', approval_policy: 'never' },
+    });
+
+    expect(invocation.argv).toEqual([
+      'exec',
+      '--json',
+      '--output-last-message',
+      invocation.last_message_file,
+      '--ignore-user-config',
+      '--ignore-rules',
+      '--disable',
+      'hooks',
+      '--model',
+      'gpt-test',
+      '--sandbox',
+      'read-only',
+      '-c',
+      'approval_policy="never"',
+    ]);
+    expect(invocation.argv).not.toContain('--trust');
   });
 
   it('resumes an exact Claude session without latest, fork, or ephemeral flags', () => {
@@ -469,6 +506,9 @@ describe('provider invocation builders', () => {
         'claude-fable-5-1',
         '--permission-mode',
         'plan',
+        '--setting-sources',
+        'user',
+        '--strict-mcp-config',
       ]),
     );
     for (const flag of [

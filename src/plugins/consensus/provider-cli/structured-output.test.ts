@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -2035,3 +2035,150 @@ function processFailure(
     ...overrides,
   };
 }
+
+describe('read-only isolation at the turn boundary', () => {
+  const cursorHooks = JSON.stringify({
+    version: 1,
+    hooks: { sessionStart: [{ command: './run.sh' }] },
+  });
+
+  async function scratchDir() {
+    return realpathSync(
+      await mkdtemp(path.join(tmpdir(), 'consensus-ro-turn-')),
+    );
+  }
+
+  it('refuses a read-only Cursor turn before spawn when the repo configures hooks', async () => {
+    const root = await scratchDir();
+    try {
+      await mkdir(path.join(root, '.git'));
+      await mkdir(path.join(root, '.cursor'));
+      await writeFile(path.join(root, '.cursor', 'hooks.json'), cursorHooks);
+      const subprocess = fakeSubprocess([]);
+
+      const envelope = await runProviderTurn(
+        textRequest('cursor', { cwd: root }),
+        { runSubprocess: subprocess.run },
+      );
+
+      expect(envelope).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_UNSUPPORTED_OPTION',
+        message: expect.stringContaining('.cursor/hooks.json'),
+        attempts: { cli_attempts: 0, terminal_reason: 'cursor_repo_hooks' },
+      });
+      expect(subprocess.invocations).toHaveLength(0);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rechecks repo hooks before a retried Cursor turn', async () => {
+    const root = await scratchDir();
+    try {
+      await mkdir(path.join(root, '.git'));
+      const subprocess = fakeSubprocess([processSuccess('{"other":"value"}')]);
+      const run: typeof subprocess.run = async (invocation, options) => {
+        // A hook file appears while the first attempt runs.
+        await mkdir(path.join(root, '.cursor'));
+        await writeFile(path.join(root, '.cursor', 'hooks.json'), cursorHooks);
+        return subprocess.run(invocation, options);
+      };
+
+      const envelope = await runProviderTurn(
+        readOnlyRetryRequest('cursor', { cwd: root }),
+        { readSchema: async () => schema(), runSubprocess: run },
+      );
+
+      expect(envelope).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_UNSUPPORTED_OPTION',
+        attempts: { cli_attempts: 1, terminal_reason: 'cursor_repo_hooks' },
+      });
+      expect(subprocess.invocations).toHaveLength(1);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('still runs a non-read-only Cursor turn in that repo', async () => {
+    const root = await scratchDir();
+    try {
+      await mkdir(path.join(root, '.git'));
+      await mkdir(path.join(root, '.cursor'));
+      await writeFile(path.join(root, '.cursor', 'hooks.json'), cursorHooks);
+      const subprocess = fakeSubprocess([
+        processSuccess(
+          JSON.stringify({ type: 'result', result: '{"verdict":"accept"}' }),
+        ),
+      ]);
+
+      await runProviderTurn(request({ provider: 'cursor', cwd: root }), {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+        transport: { submitCaptureEnabled: false },
+      });
+
+      expect(subprocess.invocations).toHaveLength(1);
+      expect(subprocess.invocations[0]?.argv).toContain('--force');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('passes the user default Codex model and effort explicitly on read-only turns only', async () => {
+    const home = await scratchDir();
+    try {
+      await mkdir(path.join(home, '.codex'));
+      await writeFile(
+        path.join(home, '.codex', 'config.toml'),
+        'model = "gpt-user-default"\nmodel_reasoning_effort = "low"\n',
+      );
+      const run = async (
+        overrides: Partial<ConsensusCliRunRequest>,
+      ): Promise<string[]> => {
+        const subprocess = fakeSubprocess([codexTurn(SESSION_A)]);
+        await runProviderTurn(request({ provider: 'codex', ...overrides }), {
+          readSchema: async () => schema(),
+          runSubprocess: subprocess.run,
+          parentEnv: { PATH: '/usr/bin', HOME: home },
+          transport: { submitCaptureEnabled: false },
+        });
+        return subprocess.invocations[0]?.argv ?? [];
+      };
+
+      const readOnly = await run({
+        runtime_policy: { sandbox: 'read-only', approval_policy: 'never' },
+      });
+      expect(readOnly).toEqual(
+        expect.arrayContaining([
+          '--ignore-user-config',
+          '--model',
+          'gpt-user-default',
+          '-c',
+          'model_reasoning_effort="low"',
+        ]),
+      );
+
+      const explicit = await run({
+        model: 'gpt-requested',
+        effort: 'high',
+        runtime_policy: { sandbox: 'read-only', approval_policy: 'never' },
+      });
+      expect(argumentAfter(explicit, '--model')).toBe('gpt-requested');
+      expect(explicit).toContain('model_reasoning_effort="high"');
+      expect(explicit).not.toContain('gpt-user-default');
+
+      const write = await run({
+        runtime_policy: {
+          sandbox: 'workspace-write',
+          approval_policy: 'never',
+        },
+      });
+      expect(write).not.toContain('--ignore-user-config');
+      expect(write).not.toContain('--model');
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+});

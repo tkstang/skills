@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(consensus:*), Read, Write
 argument-hint: ["<question or topic>"] [--peer <provider-id>]
 metadata:
   author: Thomas Stang
-  version: '0.3.4'
+  version: '0.3.5'
 ---
 
 # Phone a Friend
@@ -183,7 +183,7 @@ node <skill-dir>/scripts/consensus.mjs run --provider <peer> <peer-controls> \
 | Claude   | `--model <model> --effort <effort> --permission-mode read-only`                                                          |
 | Cursor   | `--permission-mode read-only`; supports `--model <id>`; effort is unsupported; an omitted model uses the account default |
 
-The default non-interactive policy is not read-only, so pass the read-only control on every round. Start round 1 with `--consultation-id <id> --round 1` so every receipt carries the same consultation label.
+The default non-interactive policy is not read-only, so pass the read-only control on every round. A read-only Claude or Codex peer loads no repository configuration: Claude skips the project's settings, MCP servers, `CLAUDE.md`, `AGENTS.md`, and rules, and Codex skips the user's `config.toml` (consensus passes its default model and effort when you set none). Put the repository conventions the question depends on in the prompt or packet. A read-only Cursor peer still loads repository rules and instructions, but its run is refused (`attempts.terminal_reason: "cursor_repo_hooks"`) when the repository configures Claude Code or Cursor hooks, or a hook file cannot be read or parsed; report the envelope's message, which names the file and the cause, and offer another peer rather than editing the hooks. Start round 1 with `--consultation-id <id> --round 1` so every receipt carries the same consultation label.
 
 Confirm that the receipt shows `mode: native-resume` and a `session_id` equal to the one you requested. Native resume is available only where the adapter's capability is `verified`:
 

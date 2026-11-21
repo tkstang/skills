@@ -368,4 +368,4 @@ validation does not make their advice trustworthy or authorize following it.
 
 - [Configuration](configuration.md) — Saved workflow defaults, peer selection, synthesizer, and agency.
 - [Provider setup](provider-setup.md) — Inventory, readiness, diagnostics, provider programs, and authentication.
-- [Provider run controls](provider-run-controls.md) — Output modes, retries, timeouts, process cleanup, and write policies.
+- [Provider run controls](provider-run-controls.md) — Output modes, retries, timeouts, process cleanup, write policies, and read-only isolation.

@@ -39,7 +39,9 @@ The host picks the mode from what you ask:
   Codex look into why X fails"), and whenever the host consults a peer on its
   own initiative.
 
-If the host cannot tell, it asks. Cursor runs read-only only.
+If the host cannot tell, it asks. Cursor runs read-only only, and is refused
+in a repository that configures Claude Code or Cursor hooks or whose hook
+files cannot be read or parsed.
 
 ## Peers
 
@@ -77,6 +79,14 @@ the worktree and snapshots. The host still checks the peer's load-bearing
 claims against the source before relying on them. Its verification command
 must not write to your checkout; verification that may write runs in a separate
 worktree.
+
+A read-only Claude or Codex peer does not load repository configuration:
+Claude skips the project's settings, MCP servers, `CLAUDE.md`, `AGENTS.md`,
+and `.claude/rules`, and Codex skips your `config.toml` apart from its default
+model and effort. The brief therefore carries the repository conventions the
+peer needs. A read-only Cursor peer still loads repository rules and
+instructions; only repository hooks are blocked, by refusing the run. See
+[Read-only isolation](provider-run-controls.md#read-only-isolation).
 
 ## What the peer can do
 

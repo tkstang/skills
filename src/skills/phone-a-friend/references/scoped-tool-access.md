@@ -23,8 +23,10 @@ context already in the prompt. Do not grant tools just because they exist.
    workspace trust, or network access.
 4. Invoke once with only the grants the task needs. The flags below are
    Claude-only and rejected for other providers. Repeat file/domain flags
-   for multiple approved targets. Do not use `--permission-mode read-only`
-   together with these grants; the wrapper uses Claude's `dontAsk` mode.
+   for multiple approved targets. The default profile shown below uses
+   Claude's `dontAsk` mode. `--permission-mode read-only` combines only with
+   `--allow-read` grants (no edit, web, or Bash grants); it also uses
+   `dontAsk` and adds read-only isolation.
 
 ```bash
 node <skill-dir>/scripts/consensus.mjs run --provider claude \
@@ -46,7 +48,8 @@ limits available built-in tools to those named, sets `dontAsk` and
 `bypassPermissions`, make a global settings change, or create broad
 `--add-dir` access. Unapproved calls normally deny under `dontAsk`; however,
 pre-existing user/project allow rules can still grant a selected tool more
-broadly, while managed policies and higher-priority deny/ask rules can still
+broadly (this default profile loads project settings; a read-only profile
+with only `--allow-read` grants loads user settings only), while managed policies and higher-priority deny/ask rules can still
 block a requested grant. Inspect ambient settings for sensitive runs and do
 not silently retry with broader grants. These controls are Claude Code
 permission rules, **not** an OS sandbox or a guarantee that unrelated cwd

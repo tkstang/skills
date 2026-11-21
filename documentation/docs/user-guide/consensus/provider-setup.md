@@ -26,6 +26,13 @@ Claude Code must be at least 2.1.259. Restricted permission profiles use
 documents as requiring that version. Older versions fail preflight rather than
 being advertised as ready for unsupported profiles.
 
+Preflight does not check for the flags that
+[read-only isolation](provider-run-controls.md#read-only-isolation) adds
+(Claude `--setting-sources`; Codex `--ignore-user-config`, `--ignore-rules`,
+and `--disable`), so write runs do not depend on them. A CLI too old to accept
+them can report `ready` and still fail a read-only run when it starts.
+codex-cli 0.170.0 accepts all three Codex flags.
+
 From a repository checkout the same provider CLI lives at
 `plugins/consensus/scripts/consensus.mjs` and can be run with `node`:
 

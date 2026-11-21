@@ -25,7 +25,9 @@ discussion, and deliberation metrics/cost caps.
 
 ### Review
 
-Run one bounded read-only review from either generated skill directory:
+Run one bounded read-only review from either generated skill directory. The
+reviewer loads no repository configuration; see
+[Read-only isolation](https://tkstang.github.io/skills/user-guide/consensus/provider-run-controls/#read-only-isolation).
 
 ```bash
 node plugins/consensus/skills/review/scripts/review.mjs base_branch=origin/main --host codex
@@ -296,7 +298,10 @@ full diff, and reruns the brief's verification command. On Claude and Codex,
 ordinary verification failures within the original task go back to the same peer automatically,
 with the same session and permissions; the host checks every follow-up. It never merges or
 pushes; the user decides what to keep. Codex and Claude can write and continue
-a session; Cursor is read-only. See `skills/delegate/SKILL.md` and the
+a session; Cursor is read-only. A read-only Claude or Codex peer loads no
+repository configuration, so the brief carries the conventions it needs. A
+read-only Cursor peer still loads repository rules and instructions; only
+repository hooks are blocked, by refusing the run. See `skills/delegate/SKILL.md` and the
 [Delegate guide](https://tkstang.github.io/skills/user-guide/consensus/delegate/).
 
 ## Permissions
@@ -365,6 +370,13 @@ Cursor accepts `--model <id>` in both default and read-only profiles, for exampl
 `--model composer-2.5`; list IDs with `cursor-agent --list-models`. Effort remains
 unsupported. Continuation receipts record `requested_model`; the inspected Cursor
 JSON result does not report an observed model.
+
+Read-only Claude and Codex peers load no repository configuration. Read-only
+Claude peers also skip the repository's `CLAUDE.md`, `AGENTS.md`, and rules;
+read-only Codex peers skip the user's `config.toml`. Read-only Cursor is refused when the repository
+configures hooks. Write and default profiles still load repository
+configuration. See
+[Read-only isolation](https://tkstang.github.io/skills/user-guide/consensus/provider-run-controls/#read-only-isolation).
 
 Recognized provider usage, quota, and rate-limit rejections return
 `PROVIDER_LIMIT_REACHED` without retries within the run. The envelope surfaces the

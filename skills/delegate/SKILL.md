@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Bash(git:*), Read, Write
 argument-hint: '"<task>" [--peer <provider-id>] [--model <model>] [--effort <effort>]'
 metadata:
   author: Thomas Stang
-  version: '0.2.1'
+  version: '0.2.2'
 ---
 
 # Delegate
@@ -115,6 +115,14 @@ node <skill-dir>/scripts/consensus.mjs run --provider <peer> \
 | Claude | `--permission-mode read-only` | `--permission-mode workspace-write`, plus `--allow-bash '<pattern>'` |
 | Cursor | `--permission-mode read-only` | not supported                                                        |
 
+A read-only Claude or Codex peer loads no repository configuration: Claude
+skips the project's settings, hooks, MCP servers, `CLAUDE.md`, `AGENTS.md`, and
+rules, and Codex skips the user's `config.toml` (consensus passes its default
+model and effort when you set none). Put the repository conventions the peer
+needs in the brief. A read-only Cursor peer still loads repository rules and
+instructions, but consensus refuses the run when the repository configures
+Claude Code or Cursor hooks.
+
 For a Claude write run, grant the brief's verification command, such as
 `--allow-bash 'pnpm run test:*'`, and any other command the task needs. Other
 Bash commands are denied, but a granted command runs repository code the peer
@@ -149,6 +157,11 @@ A success has `ok: true`, `output_kind: "text"`, and the peer's final reply in
 - `PROVIDER_LIMIT_REACHED`: report the provider's message and stop. Do not
   retry within this run or switch providers. If `turn` is `unknown`, inspect
   the worktree as below; the limit may have followed earlier work.
+- `attempts.terminal_reason: "cursor_repo_hooks"`: the repository configures
+  hooks, or a hook file cannot be read or parsed, so read-only Cursor cannot
+  run there. Report the envelope's message, which names the file and the
+  cause, and offer another peer; do not edit or remove hook files to get past
+  it.
 - Any other `turn: not_started`, or a usage or preflight error: nothing reached
   the peer. Fix the cause and run again.
 - `PROVIDER_TIMEOUT`, an interrupt, or `turn: unknown`: the peer may have
