@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type { ProviderAdapter } from './adapters.js';
-import { composeClaudePermissionProfile } from './runtime-policy.js';
+import {
+  composeClaudePermissionProfile,
+  defaultRuntimePolicy,
+  isProvenReadOnlyProfile,
+} from './runtime-policy.js';
 import type {
   ConsensusCliRunRequest,
   OutputMode,
@@ -105,7 +109,19 @@ export const buildClaudeInvocation: ProviderInvocationBuilder = (
     argv.push('--permission-mode', permission.mode);
     redactedArgv.push('--permission-mode', permission.mode);
   }
-  if (permission.restricted) {
+  // Read-only runs load user settings only: no project or local settings
+  // (hooks, env, helpers, permissions, plugins), no `.mcp.json`, and no
+  // project CLAUDE.md, AGENTS.md, rules or skills. They also connect no MCP
+  // server. Write runs keep the repository's configuration.
+  const readOnly = isProvenReadOnlyProfile(
+    'claude',
+    defaultRuntimePolicy(request.runtime_policy),
+  );
+  if (readOnly) {
+    argv.push('--setting-sources', 'user');
+    redactedArgv.push('--setting-sources', 'user');
+  }
+  if (permission.restricted || readOnly) {
     argv.push('--strict-mcp-config');
     redactedArgv.push('--strict-mcp-config');
   }
@@ -160,6 +176,20 @@ export const buildCodexInvocation: ProviderInvocationBuilder = (
     '--output-last-message',
     lastMessageFile,
   ];
+  // Read-only runs skip `$CODEX_HOME/config.toml` (and with it the project
+  // trust that loads a repository's `.codex/` config, hooks and MCP servers),
+  // every execpolicy `.rules` file (user allow rules run outside the
+  // sandbox), and hooks. The caller passes the user's default model and
+  // effort explicitly, since the skipped file held them. Never combined with
+  // `--trust`, which exec rejects alongside `--ignore-user-config`.
+  if (
+    isProvenReadOnlyProfile(
+      'codex',
+      defaultRuntimePolicy(request.runtime_policy),
+    )
+  ) {
+    argv.push('--ignore-user-config', '--ignore-rules', '--disable', 'hooks');
+  }
   if (strategy === 'constrained_native') {
     if (!request.schema_path) {
       throw new Error('Codex constrained-native invocation requires a schema.');

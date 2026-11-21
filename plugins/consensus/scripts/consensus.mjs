@@ -3,7 +3,7 @@
 // Source: src/plugins/consensus/provider-cli/cli.ts
 
 // src/plugins/consensus/provider-cli/cli.ts
-import { realpathSync as realpathSync2 } from "node:fs";
+import { realpathSync as realpathSync3 } from "node:fs";
 import { readFile as readFile3, stat } from "node:fs/promises";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
@@ -880,7 +880,15 @@ var buildClaudeInvocation = (request, options = {}) => {
     argv.push("--permission-mode", permission.mode);
     redactedArgv.push("--permission-mode", permission.mode);
   }
-  if (permission.restricted) {
+  const readOnly = isProvenReadOnlyProfile(
+    "claude",
+    defaultRuntimePolicy(request.runtime_policy)
+  );
+  if (readOnly) {
+    argv.push("--setting-sources", "user");
+    redactedArgv.push("--setting-sources", "user");
+  }
+  if (permission.restricted || readOnly) {
     argv.push("--strict-mcp-config");
     redactedArgv.push("--strict-mcp-config");
   }
@@ -920,6 +928,12 @@ var buildCodexInvocation = (request, options = {}) => {
     "--output-last-message",
     lastMessageFile
   ];
+  if (isProvenReadOnlyProfile(
+    "codex",
+    defaultRuntimePolicy(request.runtime_policy)
+  )) {
+    argv.push("--ignore-user-config", "--ignore-rules", "--disable", "hooks");
+  }
   if (strategy === "constrained_native") {
     if (!request.schema_path) {
       throw new Error("Codex constrained-native invocation requires a schema.");
@@ -1604,7 +1618,13 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       capabilities: {
         run: {
           args: ["--help"],
-          required_output_patterns: [/--print\b/, /--output-format\b/]
+          // Read-only runs pass --setting-sources and --strict-mcp-config.
+          required_output_patterns: [
+            /--print\b/,
+            /--output-format\b/,
+            /--setting-sources\b/,
+            /--strict-mcp-config\b/
+          ]
         }
       },
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
@@ -1671,7 +1691,11 @@ var DEFAULT_PROVIDER_ADAPTERS = [
           required_output_patterns: [
             /--json\b/,
             /--output-last-message\b/,
-            /--output-schema\b/
+            /--output-schema\b/,
+            // Read-only runs pass these isolation flags (codex-cli 0.170.0).
+            /--ignore-user-config\b/,
+            /--ignore-rules\b/,
+            /--disable\b/
           ]
         }
       },
@@ -3402,7 +3426,8 @@ function matchesJsonType(value, type) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 import { readFile as readFile2, rm as rm3 } from "node:fs/promises";
-import path8 from "node:path";
+import { homedir as homedir2 } from "node:os";
+import path9 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/plugins/consensus/provider-cli/continuation.ts
@@ -3536,9 +3561,153 @@ function previousSessionId(request) {
   return continuation.mode === "native-resume" ? continuation.session_id : continuation.previous_session_id;
 }
 
+// src/plugins/consensus/provider-cli/read-only-isolation.ts
+import { existsSync, readFileSync, realpathSync as realpathSync2 } from "node:fs";
+import { homedir } from "node:os";
+import path7 from "node:path";
+var nodeHostFileSystem = {
+  realpath: (filePath) => realpathSync2(filePath),
+  exists: (filePath) => existsSync(filePath),
+  readFile(filePath) {
+    try {
+      return readFileSync(filePath, "utf8");
+    } catch (error) {
+      if (error.code === "ENOENT") return void 0;
+      throw error;
+    }
+  }
+};
+function readCodexUserDefaults(env, fs) {
+  const codexHome = env.CODEX_HOME || path7.join(env.HOME || homedir(), ".codex");
+  let text;
+  try {
+    text = fs.readFile(path7.join(codexHome, "config.toml"));
+  } catch {
+    return {};
+  }
+  if (text === void 0) return {};
+  return parseCodexTopLevelDefaults(text);
+}
+var TOP_LEVEL_KEY = /^(model|model_reasoning_effort)\s*=\s*(?:"([^"\\\r\n]*)"|'([^'\r\n]*)')\s*(?:#.*)?$/;
+function parseCodexTopLevelDefaults(text) {
+  const defaults = {};
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line.startsWith("[")) break;
+    const match = TOP_LEVEL_KEY.exec(line);
+    if (!match) continue;
+    const value = match[2] ?? match[3];
+    if (!value) continue;
+    if (match[1] === "model") defaults.model = value;
+    else defaults.effort = value;
+  }
+  return defaults;
+}
+var CURSOR_REPO_HOOK_FILES = [
+  ".cursor/hooks.json",
+  ".claude/settings.json",
+  ".claude/settings.local.json"
+];
+function resolveCursorHookRoot(startDir, fs) {
+  const fsRoot = path7.parse(startDir).root;
+  let dir = startDir;
+  for (; ; ) {
+    if (fs.exists(path7.join(dir, ".git"))) return dir;
+    const parent = path7.dirname(dir);
+    if (parent === dir || parent === fsRoot) return startDir;
+    dir = parent;
+  }
+}
+function checkCursorRepoHooks(input) {
+  const { fs } = input;
+  let start;
+  try {
+    start = fs.realpath(input.cwd);
+  } catch (error) {
+    return {
+      ok: false,
+      message: `Cursor read-only run refused: could not resolve the working directory ${input.cwd} to check for repository hooks (${errorText(error)}).`
+    };
+  }
+  const root = resolveCursorHookRoot(start, fs);
+  let home;
+  try {
+    home = fs.realpath(input.home);
+  } catch {
+    home = void 0;
+  }
+  if (home !== void 0 && root === home) return { ok: true, root };
+  for (const file of CURSOR_REPO_HOOK_FILES) {
+    const filePath = path7.join(root, file);
+    let text;
+    try {
+      text = fs.readFile(filePath);
+    } catch (error) {
+      return refusal(
+        root,
+        file,
+        `${file} in ${root} could not be read (${errorText(error)}), so the gate cannot rule out hooks.`
+      );
+    }
+    if (text === void 0 || text.trim() === "") continue;
+    const parsed = parseHookFile(text, file === ".cursor/hooks.json");
+    if (!parsed.ok) {
+      return refusal(
+        root,
+        file,
+        `${file} in ${root} is not valid JSON, so the gate cannot rule out hooks.`
+      );
+    }
+    const events = configuredHookEvents(parsed.values);
+    if (events.length > 0) {
+      return refusal(
+        root,
+        file,
+        `${file} in ${root} configures hooks (${events.join(", ")}). cursor-agent runs repository hooks without a permission request, even in ask mode, and has no flag to disable them.`
+      );
+    }
+  }
+  return { ok: true, root };
+}
+function refusal(root, file, detail) {
+  return {
+    ok: false,
+    root,
+    file,
+    message: `Cursor read-only run refused: ${detail} Remove or empty those hooks, or choose another read-only peer.`
+  };
+}
+function parseHookFile(text, jsonc) {
+  const values = [];
+  const attempts = jsonc ? [text, text.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")] : [text];
+  for (const attempt of attempts) {
+    try {
+      values.push(JSON.parse(attempt));
+    } catch {
+    }
+  }
+  return values.length > 0 ? { ok: true, values } : { ok: false };
+}
+function configuredHookEvents(values) {
+  const events = /* @__PURE__ */ new Set();
+  for (const value of values) {
+    if (!isObject(value) || !isObject(value.hooks)) continue;
+    for (const [event, entries] of Object.entries(value.hooks)) {
+      if (Array.isArray(entries) && entries.length > 0) events.add(event);
+    }
+  }
+  return [...events].toSorted();
+}
+function isObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function errorText(error) {
+  return error?.code ?? String(error);
+}
+
 // src/plugins/consensus/provider-cli/submit-capture.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
-import path7 from "node:path";
+import path8 from "node:path";
 var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
 var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
 var CONSENSUS_SUBMIT_CAPTURE_DIR = ".consensus/submit";
@@ -3577,10 +3746,10 @@ function submitCaptureLimitMessage(bytes, maxBytes) {
   return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
 }
 function submitCaptureDirectory(cwd) {
-  return path7.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
+  return path8.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
 }
 function submitCaptureFilePath(cwd, id = randomUUID4()) {
-  return path7.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
+  return path8.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts
@@ -3754,6 +3923,27 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       diagnostics: hostGuard.diagnostics
     });
   }
+  const hostFileSystem = dependencies.hostFileSystem ?? nodeHostFileSystem;
+  const readOnly = isProvenReadOnlyProfile(
+    request.provider,
+    defaultRuntimePolicy(request.runtime_policy)
+  );
+  if (request.provider === "cursor" && readOnly) {
+    const parentHome = (dependencies.parentEnv ?? process.env).HOME;
+    const hookGate = checkCursorRepoHooks({
+      cwd: request.cwd ?? process.cwd(),
+      home: parentHome || homedir2(),
+      fs: hostFileSystem
+    });
+    if (!hookGate.ok) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: "PROVIDER_UNSUPPORTED_OPTION",
+        message: hookGate.message,
+        terminalReason: "cursor_repo_hooks"
+      });
+    }
+  }
   const textMode = request.output === "text";
   const schemaPath = request.schema_path;
   if (textMode && schemaPath !== void 0) {
@@ -3796,7 +3986,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       });
     }
   }
-  const effectiveRequest = {
+  let effectiveRequest = {
     ...request,
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
@@ -3838,10 +4028,18 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         CONSENSUS_SUBMIT_COMMAND: submitCommand,
         CONSENSUS_SUBMIT_FILE: submitCapturePath,
         [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path8.resolve(schemaPath)
+        CONSENSUS_SUBMIT_SCHEMA: path9.resolve(schemaPath)
       } : {}
     }
   });
+  if (request.provider === "codex" && readOnly && (!effectiveRequest.model || !effectiveRequest.effort)) {
+    const defaults = readCodexUserDefaults(childEnv, hostFileSystem);
+    effectiveRequest = {
+      ...effectiveRequest,
+      ...!effectiveRequest.model && defaults.model ? { model: defaults.model } : {},
+      ...!effectiveRequest.effort && defaults.effort ? { effort: defaults.effort } : {}
+    };
+  }
   let validationFeedback;
   let lastInvocation;
   let exitClassification;
@@ -4316,7 +4514,7 @@ function buildConsensusSubmitCommand(input = {}) {
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
 }
 function currentConsensusCliPath() {
-  if (process.argv[1]) return path8.resolve(process.argv[1]);
+  if (process.argv[1]) return path9.resolve(process.argv[1]);
   return fileURLToPath(import.meta.url);
 }
 function shellQuote(value) {
@@ -4923,7 +5121,7 @@ function readAllStdin(stdin, maxBytes) {
 }
 function isEntrypointPath(argvPath) {
   try {
-    return realpathSync2(argvPath) === realpathSync2(fileURLToPath2(import.meta.url));
+    return realpathSync3(argvPath) === realpathSync3(fileURLToPath2(import.meta.url));
   } catch (error) {
     const code = error.code;
     if (code === "ENOENT" || code === "ENOTDIR") return false;

@@ -1,4 +1,5 @@
 import { readFile, rm } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,9 +23,16 @@ import { evaluateHostGuard } from './host-guard.js';
 import { buildProviderInvocation } from './invocation.js';
 import type { ProviderInvocation } from './invocation.js';
 import {
+  checkCursorRepoHooks,
+  nodeHostFileSystem,
+  readCodexUserDefaults,
+} from './read-only-isolation.js';
+import type { HostFileSystem } from './read-only-isolation.js';
+import {
   buildChildEnvironment,
   defaultRuntimePolicy,
   hasScopedToolAccess,
+  isProvenReadOnlyProfile,
   validateProviderOptions,
 } from './runtime-policy.js';
 import { isRecord, validateSchemaSubset } from './schema-validate.js';
@@ -61,6 +69,9 @@ export interface RunProviderTurnDependencies {
   parentEnv?: NodeJS.ProcessEnv;
   submitCommand?: string;
   transport?: ProviderTurnTransportOptions;
+  // Host files read before a read-only spawn: the Cursor repo-hook gate and
+  // the Codex user defaults.
+  hostFileSystem?: HostFileSystem;
 }
 
 export interface ProviderTurnTransportOptions {
@@ -309,6 +320,28 @@ async function runStructuredTurn(
     });
   }
 
+  const hostFileSystem = dependencies.hostFileSystem ?? nodeHostFileSystem;
+  const readOnly = isProvenReadOnlyProfile(
+    request.provider,
+    defaultRuntimePolicy(request.runtime_policy),
+  );
+  if (request.provider === 'cursor' && readOnly) {
+    const parentHome = (dependencies.parentEnv ?? process.env).HOME;
+    const hookGate = checkCursorRepoHooks({
+      cwd: request.cwd ?? process.cwd(),
+      home: parentHome || homedir(),
+      fs: hostFileSystem,
+    });
+    if (!hookGate.ok) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: 'PROVIDER_UNSUPPORTED_OPTION',
+        message: hookGate.message,
+        terminalReason: 'cursor_repo_hooks',
+      });
+    }
+  }
+
   // Text mode returns the provider's reply as text: it reads no schema,
   // adds nothing to the prompt and validates nothing.
   const textMode = request.output === 'text';
@@ -354,7 +387,7 @@ async function runStructuredTurn(
     }
   }
 
-  const effectiveRequest: ConsensusCliRunRequest = {
+  let effectiveRequest: ConsensusCliRunRequest = {
     ...request,
     runtime_policy: defaultRuntimePolicy(request.runtime_policy),
   };
@@ -427,6 +460,24 @@ async function runStructuredTurn(
         : {}),
     },
   });
+  // Read-only Codex skips the user config, so its default model and effort
+  // are passed explicitly, read from the home the child resolves.
+  if (
+    request.provider === 'codex' &&
+    readOnly &&
+    (!effectiveRequest.model || !effectiveRequest.effort)
+  ) {
+    const defaults = readCodexUserDefaults(childEnv, hostFileSystem);
+    effectiveRequest = {
+      ...effectiveRequest,
+      ...(!effectiveRequest.model && defaults.model
+        ? { model: defaults.model }
+        : {}),
+      ...(!effectiveRequest.effort && defaults.effort
+        ? { effort: defaults.effort }
+        : {}),
+    };
+  }
   let validationFeedback: string | undefined;
   let lastInvocation: ProviderInvocation | undefined;
   let exitClassification: ProviderDiagnostics['exit_classification'];

@@ -159,7 +159,7 @@ describe('provider readiness probes', () => {
           code: 0,
           signal: null,
           stdout: help
-            ? '--json --output-last-message --output-schema\n'
+            ? '--json --output-last-message --output-schema --ignore-user-config --ignore-rules --disable\n'
             : 'codex 1.2.3\n',
           stderr: '',
         };
@@ -224,7 +224,8 @@ describe('provider readiness probes', () => {
           },
           'codex exec --help': {
             code: 0,
-            stdout: '--json --output-last-message --output-schema\n',
+            stdout:
+              '--json --output-last-message --output-schema --ignore-user-config --ignore-rules --disable\n',
             stderr: '',
           },
         },
