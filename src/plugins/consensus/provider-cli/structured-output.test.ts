@@ -2073,6 +2073,34 @@ describe('read-only isolation at the turn boundary', () => {
     }
   });
 
+  it('rechecks repo hooks before a retried Cursor turn', async () => {
+    const root = await scratchDir();
+    try {
+      await mkdir(path.join(root, '.git'));
+      const subprocess = fakeSubprocess([processSuccess('{"other":"value"}')]);
+      const run: typeof subprocess.run = async (invocation, options) => {
+        // A hook file appears while the first attempt runs.
+        await mkdir(path.join(root, '.cursor'));
+        await writeFile(path.join(root, '.cursor', 'hooks.json'), cursorHooks);
+        return subprocess.run(invocation, options);
+      };
+
+      const envelope = await runProviderTurn(
+        readOnlyRetryRequest('cursor', { cwd: root }),
+        { readSchema: async () => schema(), runSubprocess: run },
+      );
+
+      expect(envelope).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_UNSUPPORTED_OPTION',
+        attempts: { cli_attempts: 1, terminal_reason: 'cursor_repo_hooks' },
+      });
+      expect(subprocess.invocations).toHaveLength(1);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it('still runs a non-read-only Cursor turn in that repo', async () => {
     const root = await scratchDir();
     try {

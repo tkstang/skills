@@ -3582,12 +3582,18 @@ function parseCodexTopLevelDefaults(text) {
   let openDelimiter;
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
-    const startsInside = openDelimiter !== void 0;
-    openDelimiter = multilineStateAfter(line, openDelimiter);
-    if (startsInside) continue;
+    if (openDelimiter !== void 0) {
+      openDelimiter = multilineStateAfter(line, openDelimiter);
+      continue;
+    }
     if (line.startsWith("[")) break;
     const match = TOP_LEVEL_KEY.exec(line);
-    if (!match) continue;
+    if (!match) {
+      if (!line.startsWith("#")) {
+        openDelimiter = multilineStateAfter(line, void 0);
+      }
+      continue;
+    }
     const value = match[2] ?? match[3];
     if (!value) continue;
     if (match[1] === "model") defaults.model = value;
@@ -4029,25 +4035,29 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       ...!effectiveRequest.effort && defaults.effort ? { effort: defaults.effort } : {}
     };
   }
-  if (request.provider === "cursor" && readOnly) {
-    const hookGate = checkCursorRepoHooks({
-      cwd: request.cwd ?? process.cwd(),
-      fs: hostFileSystem
-    });
-    if (!hookGate.ok) {
-      return preInvocationFailure({
-        provider: request.provider,
-        code: "PROVIDER_UNSUPPORTED_OPTION",
-        message: hookGate.message,
-        terminalReason: "cursor_repo_hooks"
-      });
-    }
-  }
   let validationFeedback;
   let lastInvocation;
   let exitClassification;
   try {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (request.provider === "cursor" && readOnly) {
+        const hookGate = checkCursorRepoHooks({
+          cwd: request.cwd ?? process.cwd(),
+          fs: hostFileSystem
+        });
+        if (!hookGate.ok) {
+          return failureEnvelope({
+            provider: request.provider,
+            code: "PROVIDER_UNSUPPORTED_OPTION",
+            message: hookGate.message,
+            retryable: false,
+            attempts: {
+              cli_attempts: attempt - 1,
+              terminal_reason: "cursor_repo_hooks"
+            }
+          });
+        }
+      }
       if (submitCapturePath) {
         await cleanupSubmitCaptureFile(submitCapturePath);
       }

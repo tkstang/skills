@@ -461,28 +461,32 @@ async function runStructuredTurn(
         : {}),
     };
   }
-  // Checked last before spawning, to keep the window between the check and
-  // the launch short.
-  if (request.provider === 'cursor' && readOnly) {
-    const hookGate = checkCursorRepoHooks({
-      cwd: request.cwd ?? process.cwd(),
-      fs: hostFileSystem,
-    });
-    if (!hookGate.ok) {
-      return preInvocationFailure({
-        provider: request.provider,
-        code: 'PROVIDER_UNSUPPORTED_OPTION',
-        message: hookGate.message,
-        terminalReason: 'cursor_repo_hooks',
-      });
-    }
-  }
   let validationFeedback: string | undefined;
   let lastInvocation: ProviderInvocation | undefined;
   let exitClassification: ProviderDiagnostics['exit_classification'];
 
   try {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      // Checked before every spawn, retries included, to keep the window
+      // between the check and the launch short.
+      if (request.provider === 'cursor' && readOnly) {
+        const hookGate = checkCursorRepoHooks({
+          cwd: request.cwd ?? process.cwd(),
+          fs: hostFileSystem,
+        });
+        if (!hookGate.ok) {
+          return failureEnvelope({
+            provider: request.provider,
+            code: 'PROVIDER_UNSUPPORTED_OPTION',
+            message: hookGate.message,
+            retryable: false,
+            attempts: {
+              cli_attempts: attempt - 1,
+              terminal_reason: 'cursor_repo_hooks',
+            },
+          });
+        }
+      }
       if (submitCapturePath) {
         await cleanupSubmitCaptureFile(submitCapturePath);
       }

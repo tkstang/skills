@@ -185,6 +185,7 @@ describe('Codex user defaults for read-only runs', () => {
           "notes = '''",
           "model_reasoning_effort = 'from-a-literal'",
           "'''",
+          '# a comment mentioning """ is not a string',
           'model = "real"',
         ].join('\n'),
       ),

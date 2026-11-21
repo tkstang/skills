@@ -69,12 +69,20 @@ export function parseCodexTopLevelDefaults(text: string): CodexUserDefaults {
   let openDelimiter: '"""' | "'''" | undefined;
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
-    const startsInside = openDelimiter !== undefined;
-    openDelimiter = multilineStateAfter(line, openDelimiter);
-    if (startsInside) continue;
+    if (openDelimiter !== undefined) {
+      openDelimiter = multilineStateAfter(line, openDelimiter);
+      continue;
+    }
     if (line.startsWith('[')) break;
     const match = TOP_LEVEL_KEY.exec(line);
-    if (!match) continue;
+    // A comment line, or a complete plain-string key, cannot open a
+    // multi-line string.
+    if (!match) {
+      if (!line.startsWith('#')) {
+        openDelimiter = multilineStateAfter(line, undefined);
+      }
+      continue;
+    }
     const value = match[2] ?? match[3];
     if (!value) continue;
     if (match[1] === 'model') defaults.model = value;
