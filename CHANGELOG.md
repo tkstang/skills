@@ -29,14 +29,15 @@
 
 ### Fixed
 
-- `consensus` 0.2.14 stops read-only peers from loading repository-controlled
-  configuration (hooks, MCP servers, settings). Read-only Claude runs add `--setting-sources user --strict-mcp-config`,
-  so they skip project settings, project hooks, MCP servers and the project's
-  `CLAUDE.md`, `AGENTS.md` and rules. Read-only Codex runs add
-  `--ignore-user-config --ignore-rules --disable hooks` and pass the user's
-  default model and effort from `config.toml` explicitly. Read-only Cursor runs
-  are refused (`cursor_repo_hooks`) when the repository root configures hooks,
-  which `cursor-agent` cannot disable. Write and default profiles are unchanged.
+- `consensus` 0.2.14 stops read-only Claude and Codex peers from loading
+  repository-controlled configuration (hooks, MCP servers, settings), and
+  refuses read-only Cursor (`cursor_repo_hooks`) where the repository
+  configures hooks, which `cursor-agent` cannot disable. Read-only Claude runs
+  add `--setting-sources user --strict-mcp-config`, so they skip project
+  settings, project hooks, MCP servers and the project's `CLAUDE.md`,
+  `AGENTS.md` and rules. Read-only Codex runs add `--ignore-user-config
+--ignore-rules --disable hooks` and pass the user's default model and effort
+  from `config.toml` explicitly. Write and default profiles are unchanged.
   Briefs for read-only peers should carry the repository conventions they
   need. The shared runtime refresh bumps `consensus-create` 0.1.26, `consensus-decide` 0.1.26, `consensus-plan` 0.1.26, `consensus-refine` 0.1.29, `consensus-evaluate` 0.1.30, `consensus-review` 0.3.1, `consensus-panel` 0.1.23, `consensus-delegate` 0.2.2, `phone-a-friend` 0.3.5, `session-observer` 1.1.7, `session-observer-collab` 1.0.85, and `session-fork-to-destination` 0.3.12.
 

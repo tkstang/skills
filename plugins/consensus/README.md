@@ -371,9 +371,9 @@ Cursor accepts `--model <id>` in both default and read-only profiles, for exampl
 unsupported. Continuation receipts record `requested_model`; the inspected Cursor
 JSON result does not report an observed model.
 
-Read-only Claude and Codex peers load no repository configuration, so they
-also skip the repository's `CLAUDE.md`, `AGENTS.md`, and rules (Claude) or the
-user's `config.toml` (Codex). Read-only Cursor is refused when the repository
+Read-only Claude and Codex peers load no repository configuration. Read-only
+Claude peers also skip the repository's `CLAUDE.md`, `AGENTS.md`, and rules;
+read-only Codex peers skip the user's `config.toml`. Read-only Cursor is refused when the repository
 configures hooks. Write and default profiles still load repository
 configuration. See
 [Read-only isolation](https://tkstang.github.io/skills/user-guide/consensus/provider-run-controls/#read-only-isolation).
