@@ -484,6 +484,46 @@ Every run used `normal` (echoed), deny-all, and the model pinned to
   are operator-controlled, so they are recorded and not gated; no disable key
   exists.
 
+**Static research on Droid's cloud tools (update #13 follow-up, no live calls):**
+
+The workflow used `droid --help`, `exec --help` and binary strings of droid
+1.16.0 on tstang-dev, with an adversarial verifier.
+
+- **No ACP lever removes tools.**
+  - `--only-tools`, `--add-tools` and `--remove-tools` are computed, then
+    discarded before `runAcpDaemon()`.
+  - `session/new` forwards no tool filter.
+  - `set_config_option` accepts only reasoning effort, autonomy level and
+    model.
+  - No user, project or `--settings` key disables built-in tools.
+    `disabledTools` exists only per MCP server.
+- **Gating in `normal`**, where autonomy level is `off`, so any impact level
+  asks:
+  - **Automation writes are permission-gated:** Create (medium/high), Edit
+    (medium), Delete (high), Run (medium), EditAutomationFiles and
+    SetAutomationRunOutcome.
+  - **Automation reads are ungated cloud reads:** `chooseSlackChannels`, and
+    List/Read/ReadFiles/ListTemplates.
+  - **`loop_*` is not gated.** It has no confirmation function and
+    schedules crons in the local daemon.
+  - **ConnectApp is not gated.** It is enabled in ACP (interactive-cli mode)
+    and lists slugs or returns a connect link.
+  - **`computer_*` is not gated.** It is two read-only cloud list calls.
+  - **The built-in default autonomy is `auto-medium`.** Automation writes are
+    gated only if `normal` is set and echoed.
+- **Verdict:** neither "unreachable" nor "permission-gated" holds for
+  `loop_*`, ConnectApp or `computer_*`. **Droid stays unadmitted.**
+- **Possible routes, each needing Thomas's approval and a live spike that
+  never calls the cloud tools** (verify by tool listing only):
+  - (a) `FACTORY_AIRGAP_ENABLED=1`, which blocks Factory egress and
+    `backendOnly` tools, plus `FACTORY_MACHINE_TYPE=ephemeral`, which makes
+    loop create throw. Both are undocumented for the public build, which the
+    docs say is not airgap.
+  - (b) Move the Droid adapter from ACP to Droid's stream-jsonrpc
+    `droid.initialize_session` with `disabledToolIds` / `restrictToolIds`.
+- **Adjacent ungated tools:** send-message, create/update/delete-task, the
+  PR-autofix setters, and Script's top-level confirmation in ACP sessions.
+
 ## Architecture
 
 ```
