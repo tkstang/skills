@@ -270,7 +270,7 @@ const args = process.argv.slice(2);
 if (args[0] === '--version') {
   process.stdout.write('codex 9.9.9\\n');
 } else if (args[0] === 'exec' && args[1] === '--help') {
-  process.stdout.write('--json --output-last-message --output-schema --ignore-user-config --ignore-rules --disable\\n');
+  process.stdout.write('--json --output-last-message --output-schema\\n');
 } else if (args[0] === 'exec') {
   const capture = args[args.indexOf('--output-last-message') + 1];
   if (!capture || args.includes('--output-schema')) process.exit(64);
@@ -1119,7 +1119,7 @@ const args = process.argv.slice(2);
 if (args[0] === '--version') {
   process.stdout.write('codex-cli 999.0.0\\n');
 } else if (args[0] === 'exec' && args[1] === '--help') {
-  process.stdout.write('--json --output-last-message --output-schema --ignore-user-config --ignore-rules --disable\\n');
+  process.stdout.write('--json --output-last-message --output-schema\\n');
 } else if (args[0] === 'exec') {
   const capture = args[args.indexOf('--output-last-message') + 1];
   const prompt = readFileSync(0, 'utf8');
@@ -1626,7 +1626,7 @@ process.stdout.write(JSON.stringify(result));
     await write(
       root,
       'bin/codex',
-      '#!/bin/sh\nif [ "$1" = "--version" ]; then printf "codex 9.9.9\\n"; elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then printf "%s\\n" "--json --output-last-message --output-schema --ignore-user-config --ignore-rules --disable"; else exit 2; fi\n',
+      '#!/bin/sh\nif [ "$1" = "--version" ]; then printf "codex 9.9.9\\n"; elif [ "$1" = "exec" ] && [ "$2" = "--help" ]; then printf "%s\\n" "--json --output-last-message --output-schema"; else exit 2; fi\n',
     );
     await chmod(path.join(bin, 'codex'), 0o755);
     const isolatedEnv = { HOME: home, PATH: bin };

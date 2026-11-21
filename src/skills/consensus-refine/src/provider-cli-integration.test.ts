@@ -50,8 +50,8 @@ async function writeProviderExecutable(binDir: string, name: string) {
   const version = name === 'claude' ? '2.1.259' : '0.142.5';
   const help =
     name === 'claude'
-      ? '--print --output-format --setting-sources --strict-mcp-config'
-      : '--json --output-last-message --output-schema --ignore-user-config --ignore-rules --disable';
+      ? '--print --output-format'
+      : '--json --output-last-message --output-schema';
   await writeFile(
     providerPath,
     [

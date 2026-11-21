@@ -1,5 +1,4 @@
 import { readFile, rm } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -325,22 +324,6 @@ async function runStructuredTurn(
     request.provider,
     defaultRuntimePolicy(request.runtime_policy),
   );
-  if (request.provider === 'cursor' && readOnly) {
-    const parentHome = (dependencies.parentEnv ?? process.env).HOME;
-    const hookGate = checkCursorRepoHooks({
-      cwd: request.cwd ?? process.cwd(),
-      home: parentHome || homedir(),
-      fs: hostFileSystem,
-    });
-    if (!hookGate.ok) {
-      return preInvocationFailure({
-        provider: request.provider,
-        code: 'PROVIDER_UNSUPPORTED_OPTION',
-        message: hookGate.message,
-        terminalReason: 'cursor_repo_hooks',
-      });
-    }
-  }
 
   // Text mode returns the provider's reply as text: it reads no schema,
   // adds nothing to the prompt and validates nothing.
@@ -477,6 +460,22 @@ async function runStructuredTurn(
         ? { effort: defaults.effort }
         : {}),
     };
+  }
+  // Checked last before spawning, to keep the window between the check and
+  // the launch short.
+  if (request.provider === 'cursor' && readOnly) {
+    const hookGate = checkCursorRepoHooks({
+      cwd: request.cwd ?? process.cwd(),
+      fs: hostFileSystem,
+    });
+    if (!hookGate.ok) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: 'PROVIDER_UNSUPPORTED_OPTION',
+        message: hookGate.message,
+        terminalReason: 'cursor_repo_hooks',
+      });
+    }
   }
   let validationFeedback: string | undefined;
   let lastInvocation: ProviderInvocation | undefined;

@@ -1152,13 +1152,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
       capabilities: {
         run: {
           args: ["--help"],
-          // Read-only runs pass --setting-sources and --strict-mcp-config.
-          required_output_patterns: [
-            /--print\b/,
-            /--output-format\b/,
-            /--setting-sources\b/,
-            /--strict-mcp-config\b/
-          ]
+          required_output_patterns: [/--print\b/, /--output-format\b/]
         }
       },
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
@@ -1225,11 +1219,7 @@ var DEFAULT_PROVIDER_ADAPTERS = [
           required_output_patterns: [
             /--json\b/,
             /--output-last-message\b/,
-            /--output-schema\b/,
-            // Read-only runs pass these isolation flags (codex-cli 0.170.0).
-            /--ignore-user-config\b/,
-            /--ignore-rules\b/,
-            /--disable\b/
+            /--output-schema\b/
           ]
         }
       },
@@ -1949,7 +1939,6 @@ function formatNumericVersion(version) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 import { readFile, rm as rm2 } from "node:fs/promises";
-import { homedir as homedir2 } from "node:os";
 import path8 from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -2164,6 +2153,7 @@ var nodeHostFileSystem = {
 };
 function readCodexUserDefaults(env, fs) {
   const codexHome = env.CODEX_HOME || path6.join(env.HOME || homedir(), ".codex");
+  if (!path6.isAbsolute(codexHome)) return {};
   let text;
   try {
     text = fs.readFile(path6.join(codexHome, "config.toml"));
@@ -2176,8 +2166,12 @@ function readCodexUserDefaults(env, fs) {
 var TOP_LEVEL_KEY = /^(model|model_reasoning_effort)\s*=\s*(?:"([^"\\\r\n]*)"|'([^'\r\n]*)')\s*(?:#.*)?$/;
 function parseCodexTopLevelDefaults(text) {
   const defaults = {};
+  let openDelimiter;
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
+    const startsInside = openDelimiter !== void 0;
+    openDelimiter = multilineStateAfter(line, openDelimiter);
+    if (startsInside) continue;
     if (line.startsWith("[")) break;
     const match = TOP_LEVEL_KEY.exec(line);
     if (!match) continue;
@@ -2187,6 +2181,26 @@ function parseCodexTopLevelDefaults(text) {
     else defaults.effort = value;
   }
   return defaults;
+}
+function multilineStateAfter(line, open5) {
+  let state = open5;
+  let index = 0;
+  while (index < line.length) {
+    if (state) {
+      const close = line.indexOf(state, index);
+      if (close === -1) return state;
+      index = close + 3;
+      state = void 0;
+      continue;
+    }
+    const basic = line.indexOf('"""', index);
+    const literal = line.indexOf("'''", index);
+    if (basic === -1 && literal === -1) return void 0;
+    const useBasic = basic !== -1 && (literal === -1 || basic < literal);
+    state = useBasic ? '"""' : "'''";
+    index = (useBasic ? basic : literal) + 3;
+  }
+  return state;
 }
 var CURSOR_REPO_HOOK_FILES = [
   ".cursor/hooks.json",
@@ -2215,13 +2229,6 @@ function checkCursorRepoHooks(input) {
     };
   }
   const root = resolveCursorHookRoot(start, fs);
-  let home;
-  try {
-    home = fs.realpath(input.home);
-  } catch {
-    home = void 0;
-  }
-  if (home !== void 0 && root === home) return { ok: true, root };
   for (const file of CURSOR_REPO_HOOK_FILES) {
     const filePath = path6.join(root, file);
     let text;
@@ -2549,22 +2556,6 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     request.provider,
     defaultRuntimePolicy(request.runtime_policy)
   );
-  if (request.provider === "cursor" && readOnly) {
-    const parentHome = (dependencies.parentEnv ?? process.env).HOME;
-    const hookGate = checkCursorRepoHooks({
-      cwd: request.cwd ?? process.cwd(),
-      home: parentHome || homedir2(),
-      fs: hostFileSystem
-    });
-    if (!hookGate.ok) {
-      return preInvocationFailure({
-        provider: request.provider,
-        code: "PROVIDER_UNSUPPORTED_OPTION",
-        message: hookGate.message,
-        terminalReason: "cursor_repo_hooks"
-      });
-    }
-  }
   const textMode = request.output === "text";
   const schemaPath = request.schema_path;
   if (textMode && schemaPath !== void 0) {
@@ -2660,6 +2651,20 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       ...!effectiveRequest.model && defaults.model ? { model: defaults.model } : {},
       ...!effectiveRequest.effort && defaults.effort ? { effort: defaults.effort } : {}
     };
+  }
+  if (request.provider === "cursor" && readOnly) {
+    const hookGate = checkCursorRepoHooks({
+      cwd: request.cwd ?? process.cwd(),
+      fs: hostFileSystem
+    });
+    if (!hookGate.ok) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: "PROVIDER_UNSUPPORTED_OPTION",
+        message: hookGate.message,
+        terminalReason: "cursor_repo_hooks"
+      });
+    }
   }
   let validationFeedback;
   let lastInvocation;

@@ -44,6 +44,9 @@ export function readCodexUserDefaults(
 ): CodexUserDefaults {
   const codexHome =
     env.CODEX_HOME || path.join(env.HOME || homedir(), '.codex');
+  // A relative home would resolve differently for the child, which starts in
+  // the requested working directory; leave the defaults to Codex.
+  if (!path.isAbsolute(codexHome)) return {};
   let text: string | undefined;
   try {
     text = fs.readFile(path.join(codexHome, 'config.toml'));
@@ -59,11 +62,16 @@ const TOP_LEVEL_KEY =
 
 // Top-level keys end at the first table header. Only plain basic or literal
 // strings are read; anything else (escapes, multi-line strings, inline tables)
-// is ignored, which leaves that default to Codex.
+// is ignored, which leaves that default to Codex. Lines inside a multi-line
+// string are text, not keys.
 export function parseCodexTopLevelDefaults(text: string): CodexUserDefaults {
   const defaults: CodexUserDefaults = {};
+  let openDelimiter: '"""' | "'''" | undefined;
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
+    const startsInside = openDelimiter !== undefined;
+    openDelimiter = multilineStateAfter(line, openDelimiter);
+    if (startsInside) continue;
     if (line.startsWith('[')) break;
     const match = TOP_LEVEL_KEY.exec(line);
     if (!match) continue;
@@ -73,6 +81,33 @@ export function parseCodexTopLevelDefaults(text: string): CodexUserDefaults {
     else defaults.effort = value;
   }
   return defaults;
+}
+
+// Tracks whether a line leaves a TOML multi-line string open. A line that
+// opens one is still read as a key line (`key = """...`), which never matches
+// the plain-string pattern.
+function multilineStateAfter(
+  line: string,
+  open: '"""' | "'''" | undefined,
+): '"""' | "'''" | undefined {
+  let state = open;
+  let index = 0;
+  while (index < line.length) {
+    if (state) {
+      const close = line.indexOf(state, index);
+      if (close === -1) return state;
+      index = close + 3;
+      state = undefined;
+      continue;
+    }
+    const basic = line.indexOf('"""', index);
+    const literal = line.indexOf("'''", index);
+    if (basic === -1 && literal === -1) return undefined;
+    const useBasic = basic !== -1 && (literal === -1 || basic < literal);
+    state = useBasic ? '"""' : "'''";
+    index = (useBasic ? basic : literal) + 3;
+  }
+  return state;
 }
 
 // The repo files cursor-agent 2026.11.13 reads hooks from, relative to the
@@ -112,12 +147,11 @@ export function resolveCursorHookRoot(
 //   name, entry shape, `version` or Claude `matcher` (Cursor 2026.11.13 skips
 //   Claude files without a `matcher` key, and ignores `disableAllHooks`);
 // - a file that does not parse, or cannot be read, refuses;
-// - symlinked files are judged by their target's content.
-// When the root is the home directory, those paths are the operator's own
-// user-level files, which run as user hooks either way and are not gated.
+// - symlinked files are judged by their target's content;
+// - a root that is also the home directory is checked too: a checkout rooted
+//   at home can track those files.
 export function checkCursorRepoHooks(input: {
   cwd: string;
-  home: string;
   fs: HostFileSystem;
 }): CursorRepoHookGateResult {
   const { fs } = input;
@@ -131,13 +165,6 @@ export function checkCursorRepoHooks(input: {
     };
   }
   const root = resolveCursorHookRoot(start, fs);
-  let home: string | undefined;
-  try {
-    home = fs.realpath(input.home);
-  } catch {
-    home = undefined;
-  }
-  if (home !== undefined && root === home) return { ok: true, root };
 
   for (const file of CURSOR_REPO_HOOK_FILES) {
     const filePath = path.join(root, file);

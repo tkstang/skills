@@ -169,13 +169,7 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       capabilities: {
         run: {
           args: ['--help'],
-          // Read-only runs pass --setting-sources and --strict-mcp-config.
-          required_output_patterns: [
-            /--print\b/,
-            /--output-format\b/,
-            /--setting-sources\b/,
-            /--strict-mcp-config\b/,
-          ],
+          required_output_patterns: [/--print\b/, /--output-format\b/],
         },
       },
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
@@ -244,10 +238,6 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
             /--json\b/,
             /--output-last-message\b/,
             /--output-schema\b/,
-            // Read-only runs pass these isolation flags (codex-cli 0.170.0).
-            /--ignore-user-config\b/,
-            /--ignore-rules\b/,
-            /--disable\b/,
           ],
         },
       },

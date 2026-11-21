@@ -38,7 +38,7 @@ async function repo(name = 'repo') {
 }
 
 function gate(cwd: string) {
-  return checkCursorRepoHooks({ cwd, home, fs: nodeHostFileSystem });
+  return checkCursorRepoHooks({ cwd, fs: nodeHostFileSystem });
 }
 
 const CURSOR_HOOK = JSON.stringify({
@@ -151,12 +151,6 @@ describe('Cursor read-only repo-hook gate', () => {
     expect(gate(dir)).toMatchObject({ ok: false, root: dir });
   });
 
-  it('does not gate the home directory, whose files are user-level', async () => {
-    await put(home, '.cursor/hooks.json', CURSOR_HOOK);
-
-    expect(gate(home)).toEqual({ ok: true, root: home });
-  });
-
   it('refuses when the working directory cannot be resolved', () => {
     expect(gate(path.join(scratch, 'missing'))).toMatchObject({
       ok: false,
@@ -179,6 +173,22 @@ describe('Codex user defaults for read-only runs', () => {
         ].join('\n'),
       ),
     ).toEqual({ model: 'gpt-test', effort: 'medium' });
+  });
+
+  it('ignores key-like lines inside a multi-line string', () => {
+    expect(
+      parseCodexTopLevelDefaults(
+        [
+          'developer_instructions = """',
+          'model = "from-a-string"',
+          '"""',
+          "notes = '''",
+          "model_reasoning_effort = 'from-a-literal'",
+          "'''",
+          'model = "real"',
+        ].join('\n'),
+      ),
+    ).toEqual({ model: 'real' });
   });
 
   it('ignores values it cannot read as a plain string', () => {
@@ -206,5 +216,19 @@ describe('Codex user defaults for read-only runs', () => {
         nodeHostFileSystem,
       ),
     ).toEqual({});
+    const reads: string[] = [];
+    expect(
+      readCodexUserDefaults(
+        { HOME: home, CODEX_HOME: 'relative-codex-home' },
+        {
+          ...nodeHostFileSystem,
+          readFile: (filePath) => {
+            reads.push(filePath);
+            return 'model = "relative"\n';
+          },
+        },
+      ),
+    ).toEqual({});
+    expect(reads).toEqual([]);
   });
 });
