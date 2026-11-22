@@ -524,6 +524,62 @@ The workflow used `droid --help`, `exec --help` and binary strings of droid
 - **Adjacent ungated tools:** send-message, create/update/delete-task, the
   PR-autofix setters, and Script's top-level confirmation in ACP sessions.
 
+### Coordinator update #14: Gemini CLI over ACP, agy in API-key mode
+
+Recorded for reference; Thomas has decided nothing new, so no work starts
+from it. Dev logs on tstang-dev: `~/acp-spike/logs/gemini-key-report.txt`,
+`gemini-plan-report.txt`, `gem-*` and `agy-key2-*.jsonl`.
+
+**Gemini CLI 0.70.0** (`gemini --acp`, API key, `gemini-3.5-flash-lite`,
+isolated HOME):
+
+- **Auth:** `initialize` advertises `loadSession` and the methods
+  `oauth-personal`, `gemini-api-key`, `vertex-ai` and `gateway`.
+  `authenticate gemini-api-key` works with `GEMINI_API_KEY` in env.
+- **Modes:** `default`, `autoEdit`, `yolo` and `plan`; sessions start in
+  `default`.
+- **`--approval-mode plan` is ignored under ACP.** With the flag alone,
+  writes and shell raise permission requests exactly as in `default`.
+- **`session/set_mode plan` works, but its only echo is an
+  `agent_message_chunk` with text `[MODE_UPDATE] plan`.** No
+  `current_mode_update` arrives, and the marker leaks into the reply. The
+  adapter must parse the marker as mode evidence and strip it from the text.
+- **In `plan`:** writes, shell and outside-cwd writes are refused with no
+  permission request and nothing on disk; reads work. `google_web_search`,
+  `web_fetch`, `invoke_agent` and `activate_skill` stay exposed.
+- **In `default`, deny-all holds:** options are `allow_always`, `allow_once`
+  and `reject_once`; answering `cancel` left the disk clean. Outside-workspace
+  writes are refused before any permission request.
+- **Continuation:** no `session/resume` (`-32601`); `session/load` works and
+  recalls the earlier turn.
+- **Teardown** was clean in every run.
+- **Folder trust is the repo-config gate:**
+  - An untrusted folder (the default under an isolated HOME) skips project
+    hooks, project agents and project MCP. Stderr says "Approval mode
+    overridden to default because the current folder is not trusted", yet
+    `set_mode plan` still applied afterwards.
+  - A trusted folder (isolated HOME with `trustedFolders.json`) spawned the
+    project `.gemini/settings.json` MCP server and hung until timeout; the
+    group kill reaped it.
+  - `GEMINI.md` and `AGENTS.md` load either way (repo content).
+
+**Antigravity in API-key mode:**
+
+- **Setup:** `--gemini-dir=<tmp>` with `{"modelProvider":"gemini"}` in
+  `settings.json`, `GEMINI_API_KEY` in env, and ACP `authenticate` with
+  methodId `gemini-api-key`. Without the `authenticate` call it silently
+  stays on the Google-account login. The settings were written to both
+  `antigravity-cli/settings.json` and `config/settings.json`; which one
+  counts is not isolated.
+- **Models:** Gemini 4 Neon, Carbon, Hydrogen and Argon; 3.8, 3.7 and 3.6
+  Flash; 3.1 Pro.
+- **The default model is `gemini-3.1-pro`,** so the descriptor must set the
+  model explicitly.
+- The `gemini-4-hydrogen` marker prompt passed with no permission requests.
+- **Quota and API errors arrive as agent text with stopReason `end_turn`,**
+  not as errors (a 429 daily free-tier quota on 3.1 Pro; Thomas's key is
+  free tier). Classification must detect quota and API errors in the text.
+
 ## Architecture
 
 ```
@@ -578,7 +634,10 @@ layer 6:
      items listed open in update #6.**
    - Devin: `session/set_mode ask`, or `plan`. Candidate launch levers are
      `--agent-type codemap` and `DEVIN_PERMISSION_MODE`. **[hinges: Q1, Q11]**
-   - Gemini: `--approval-mode plan`. **[hinges: Q1]** Does it hold over ACP?
+   - Gemini: `session/set_mode plan`, confirmed by the `[MODE_UPDATE] plan`
+     marker chunk, which the adapter strips; `--approval-mode plan` is ignored
+     over ACP. Run in an untrusted folder so project hooks, agents and MCP
+     stay off (update #14).
    - Droid: mode `normal`, confirmed by update echo. The ACP default
      `auto-medium` auto-approves writes (update #10). Launch with
      `--settings <tmp>` and `hooksDisabled`; `--only-tools` is ignored in ACP
@@ -601,7 +660,8 @@ layer 6:
 4. **No extra tools.** Send `mcpServers: []`, and neutralize user-configured
    MCP servers or extensions:
    - Droid: `--remove-tools MCP:<server>` / `--only-tools`.
-   - Gemini: `--allowed-mcp-server-names` with no names, and `-e none`.
+   - Gemini: `--allowed-mcp-server-names` with no names, and `-e none`; an
+     untrusted folder already skips project MCP (update #14).
    - Devin: a private `XDG_CONFIG_HOME` with `devin/config.json`
      `read_config_from` all false (verified, update #4).
    - Antigravity: `--gemini-dir=<private tmp> --app-data-dir=<relative>`
@@ -1111,7 +1171,8 @@ is as of coordinator update #6.
 11. **Answered.** Devin uses a private `XDG_CONFIG_HOME` with
     `read_config_from` all false.
 12. **Partly answered.** agy has no read-only mode (`default` plus deny-all).
-    Gemini, Droid and dsh holding over ACP is open.
+    Gemini `plan` holds over ACP via `set_mode` only (update #14). dsh is
+    open.
 13. **Answered (mechanism); live check open.** Use a `PI_ACP_PI_COMMAND`
     wrapper.
 14. **Answered.** See the env table above.
