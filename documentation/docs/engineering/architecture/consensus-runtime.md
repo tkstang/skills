@@ -1,6 +1,6 @@
 ---
 title: 'Consensus Runtime'
-description: 'How converging consensus workflows coordinate wrappers, the deterministic loop, provider CLI subprocesses, structured verdicts, and durable run records.'
+description: 'How converging consensus workflows coordinate wrappers, the deterministic loop, provider CLI subprocesses and the extended-provider ACP adapter, structured verdicts, and durable run records.'
 ---
 
 # Consensus Runtime
@@ -38,7 +38,9 @@ records and host or user direction when resuming an in-flight section.
 Peer execution crosses two child-process boundaries: a wrapper/core process
 invokes the generated consensus CLI, and that CLI invokes the selected provider
 executable. Provider adapters hide incompatible command shapes behind one run
-request. Claude receives output flags and optional inline schema flags;
+request. The core tier (`claude`, `codex`, `cursor`) uses each provider's
+native CLI; the extended tier runs through one ACP adapter, described
+[below](#extended-providers-over-acp). Claude receives output flags and optional inline schema flags;
 Codex uses `exec`, a last-message file, and optional output-schema/config flags;
 Cursor uses its own JSON output flags. Every provider reads the prompt from
 stdin, so a large prompt never reaches argv; an oversized argument such as
@@ -66,6 +68,56 @@ in-repo caller, including the loop, runs in JSON mode (`output_kind: "json"`).
 it turns submit capture off, strips `CONSENSUS_SUBMIT_*` from the child
 environment, and fails unreadable output as `PROVIDER_EMPTY_OUTPUT` or
 `PROVIDER_MALFORMED_RESULT` rather than returning raw text.
+
+### Extended providers over ACP
+
+The extended tier (`antigravity`, `gemini`, `droid`) is experimental and used
+only when named. Each provider is a plain data descriptor in
+[`acp/descriptors.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/acp/descriptors.ts):
+launch arguments, credential and override variables, minimum version, the
+read-only mode and how it is confirmed, how the model is set, auth and
+redaction patterns, error-text patterns, and extra brief lines.
+`acpAdapter(descriptor)` in
+[`acp/adapter.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/acp/adapter.ts)
+turns each into a `ProviderAdapter` with tier `extended`, and the module has
+no provider branches.
+
+- **Transport.** An in-house client speaks newline-delimited JSON-RPC 2.0 over
+  the agent's stdin and stdout. There is no acpx or other dependency, and the
+  agent command is the only process started besides `git`. The client sits
+  behind an `AcpTransport` interface so another backend could be added.
+- **Run hook.** An adapter can supply `run`, which `runStructuredTurn` uses in
+  place of `runProviderSubprocess`; only ACP adapters do. Its result's
+  `stdout` is a serialized, normalized turn result (text, stop reason, session,
+  models, sanitized denials, setup evidence), never raw frames, and the
+  adapter's hooks parse it back. The envelope's text is the answer alone.
+- **Session.** `initialize` advertises no file system or terminal;
+  `authenticate` runs only when the descriptor's API-key variable is set;
+  `session/new` sends `mcpServers: []`. The read-only mode and the model are
+  set and confirmed before `session/prompt`, or the run stops as
+  `not_started`. The mode stays watched: a reported change before the prompt
+  stops the run, and one during the turn cancels it (`acp_mode_changed`). Permission requests get a `reject_once` (else
+  `reject_always`) option chosen by its kind, or `cancelled`; every other
+  agent request gets `-32601`. Denials keep the tool name, kind, and call id,
+  never tool input.
+- **Process group.** The spawn primitive in
+  [`acp/process.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/acp/process.ts)
+  signals the agent's group on every exit path, a normal exit included:
+  `session/close` where advertised, stdin closed, a bounded wait, then SIGTERM
+  and SIGKILL. A timeout or interrupt sends `session/cancel` first.
+- **Model.** `runProviderTurn` requires a model for an extended adapter:
+  `request.model`, else `defaults.provider_models.<id>` from the consensus
+  config (project before user). With neither it refuses the run before launch.
+  A configured model is recorded in the receipt as `default_model`.
+- **Working-tree check.** `runProviderTurn` wraps every extended read-only
+  turn with a snapshot of the git checkout at the working directory
+  ([`working-tree.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/working-tree.ts)).
+  It runs `git` with `shell: false`, git's repository-local environment
+  variables cleared, and no optional locks, and it writes no objects or index.
+  No checkout refuses the run before launch; any change after the turn fails
+  it with `PROVIDER_WORKTREE_CHANGED`. The preflight probe runs only
+  `<command> --version`: it never opens a session, since Droid starts a new
+  pairing code on each one.
 
 ## Guardrails, not isolation
 
@@ -135,7 +187,8 @@ runs the state machine.
   adapter's capability evidence.
 
 Each adapter's continuation capability is either `verified`, `unverified`, or
-`unsupported`, and only `verified` adapters reach a native resume.
+`unsupported`, and only `verified` adapters reach a native resume. Extended
+adapters declare none, so a native resume on them is refused before launch.
 Verification means that a live same-session marker smoke passed for the
 recorded CLI version. It does not certify later versions or every policy
 combination.
