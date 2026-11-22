@@ -167,9 +167,11 @@ export async function probeProviderReadiness(
     ? { id: adapter.id, credential_env: [] }
     : adapter;
   const redact = probeOutputRedactor(adapter, options.runner.env ?? {});
+  // A prerelease that redaction would alter may carry a credential, so an
+  // extended label falls back to the bare release.
   const versionLabel = (output: string): { version?: string } => {
     const version = extended
-      ? releaseLabel(output)
+      ? releaseLabel(output, redact)
       : redact(firstNonEmptyLine(output) ?? '') || undefined;
     return version ? { version } : {};
   };
@@ -496,13 +498,19 @@ function runProbeCommand(
 
 // MAJOR.MINOR.PATCH, plus a prerelease of plain alphanumerics and dots:
 // never build metadata or the rest of the line.
-function releaseLabel(output: string): string | undefined {
+function releaseLabel(
+  output: string,
+  redact: (text: string) => string,
+): string | undefined {
   const parsed = parseVersion(output);
   if (!parsed || parsed.release.length !== 3) return undefined;
   const release = parsed.release.join('.');
   const prerelease = parsed.prerelease.join('.');
-  return prerelease && /^[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*$/.test(prerelease)
-    ? `${release}-${prerelease}`
+  const label = `${release}-${prerelease}`;
+  return prerelease &&
+    /^[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*$/.test(prerelease) &&
+    redact(label) === label
+    ? label
     : release;
 }
 

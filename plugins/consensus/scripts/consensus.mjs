@@ -5102,7 +5102,7 @@ async function probeProviderReadiness(adapter, options) {
   const probed = extended ? { id: adapter.id, credential_env: [] } : adapter;
   const redact = probeOutputRedactor(adapter, options.runner.env ?? {});
   const versionLabel = (output2) => {
-    const version = extended ? releaseLabel(output2) : redact(firstNonEmptyLine2(output2) ?? "") || void 0;
+    const version = extended ? releaseLabel(output2, redact) : redact(firstNonEmptyLine2(output2) ?? "") || void 0;
     return version ? { version } : {};
   };
   const result = await options.runner.run(
@@ -5344,12 +5344,13 @@ function runProbeCommand(command, args, env, options) {
     diagnostics: result.diagnostics
   }));
 }
-function releaseLabel(output) {
+function releaseLabel(output, redact) {
   const parsed = parseVersion(output);
   if (!parsed || parsed.release.length !== 3) return void 0;
   const release = parsed.release.join(".");
   const prerelease = parsed.prerelease.join(".");
-  return prerelease && /^[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*$/.test(prerelease) ? `${release}-${prerelease}` : release;
+  const label = `${release}-${prerelease}`;
+  return prerelease && /^[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*$/.test(prerelease) && redact(label) === label ? label : release;
 }
 function probeOutputRedactor(adapter, env) {
   const secretValues = adapter.credential_env.map((name) => env[name]).filter((value) => typeof value === "string");

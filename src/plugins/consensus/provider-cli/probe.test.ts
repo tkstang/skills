@@ -833,6 +833,29 @@ describe('node probe command runner', () => {
     }
   });
 
+  it('drops an extended prerelease that carries a credential value', async () => {
+    const secret = 'zqliteralcredential4711';
+    const entry = await probeProviderReadiness(
+      providerRegistry().get('droid')!,
+      {
+        runner: fakeRunner({
+          env: { FACTORY_API_KEY: secret },
+          executables: { droid: '/opt/bin/droid' },
+          results: {
+            '/opt/bin/droid --version': {
+              code: 0,
+              stdout: `droid 1.17.0-${secret}+meta\n`,
+              stderr: '',
+            },
+          },
+        }),
+      },
+    );
+
+    expect(entry).toMatchObject({ status: 'ready', version: '1.17.0' });
+    expect(JSON.stringify(entry)).not.toContain(secret);
+  });
+
   it.each([
     ['droid 1.16.0+sha.zq-literal-4711 (build abc)', '1.16.0'],
     ['droid 1.17.0-rc.2 linux', '1.17.0-rc.2'],
