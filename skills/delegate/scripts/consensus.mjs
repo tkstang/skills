@@ -1640,7 +1640,10 @@ function sanitizeTurnResult(result, options) {
   return {
     ...walk(rest),
     schema,
-    text: redactSecretValues(text, options.secretValues)
+    text: (options.patterns ?? []).reduce(
+      (redacted, pattern) => redacted.replace(globalPattern(pattern), REDACTED),
+      redactSecretValues(text, options.secretValues)
+    )
   };
 }
 function globalPattern(pattern) {

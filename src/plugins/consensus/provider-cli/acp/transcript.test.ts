@@ -162,7 +162,20 @@ describe('redactText', () => {
     ).toBe('key <redacted> value <redacted> code <redacted> and <redacted>');
   });
 
-  it('removes only literal secrets from the answer, and fully redacts agent metadata', () => {
+  it('applies descriptor patterns to the answer text as well', () => {
+    const sanitized = sanitizeTurnResult(
+      turn({
+        text: 'Log in with Your code: QZXW-7342 now. Bearer abcdefghijklmnopqrstuv',
+      }),
+      { patterns: [/(?<=Your code:\s*)[A-Z0-9]{4}-[A-Z0-9]{4}\b/g] },
+    );
+
+    expect(sanitized.text).toBe(
+      'Log in with Your code: <redacted> now. Bearer abcdefghijklmnopqrstuv',
+    );
+  });
+
+  it('keeps default credential shapes in the answer but removes literal secrets, and fully redacts agent metadata', () => {
     const sample = 'Bearer abcdefghijklmnopqrstuv';
     const sanitized = sanitizeTurnResult(
       turn({

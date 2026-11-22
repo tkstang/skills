@@ -180,7 +180,9 @@ export function redactSecretValues(
 
 // The result as it may leave the client: every agent-controlled string
 // (metadata, ids, model names, denial fields, even object keys) gets full
-// redaction, and the answer text gets the literal secret values removed.
+// redaction. The answer text loses the literal secret values and the
+// descriptor's own patterns (Droid's pairing code), which are narrow; the
+// broad default credential shapes are not applied to it.
 export function sanitizeTurnResult(
   result: AcpTurnResult,
   options: { patterns?: readonly RegExp[]; secretValues?: readonly string[] },
@@ -200,7 +202,10 @@ export function sanitizeTurnResult(
   return {
     ...(walk(rest) as Omit<AcpTurnResult, 'schema' | 'text'>),
     schema,
-    text: redactSecretValues(text, options.secretValues),
+    text: (options.patterns ?? []).reduce(
+      (redacted, pattern) => redacted.replace(globalPattern(pattern), REDACTED),
+      redactSecretValues(text, options.secretValues),
+    ),
   };
 }
 
