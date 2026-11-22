@@ -1,0 +1,19 @@
+{
+  "source": {
+    "log": "agy-init2.jsonl",
+    "lines": "1-7",
+    "agent": {
+      "name": "Antigravity ACP Server",
+      "version": "1.5.13"
+    },
+    "sanitized": "Sanitized from the ACP spike logs: home paths replaced with /home/user, emails and key or token shapes redacted, availableCommands emptied (they list installed skills), model and option lists trimmed to 5 entries plus the current and requested values; client-sent frames reduced to the expected method."
+  },
+  "steps": [
+    {"expect":"initialize"},
+    {"respond":{"result":{"protocolVersion":1,"agentCapabilities":{"loadSession":true,"load_session":true,"promptCapabilities":{"image":true,"audio":false,"embeddedContext":true},"sessionCapabilities":{"resume":{},"close":{},"load":{},"list":{},"additionalDirectories":{}},"session_capabilities":{"resume":{},"close":{},"load":{},"list":{},"additionalDirectories":{}},"auth":{"logout":{}},"_meta":{"antigravity":{"tier":true,"systemPrompt":{"append":true}}}},"agentInfo":{"name":"Antigravity ACP Server","version":"1.5.13"},"authMethods":[{"id":"oauth-personal","name":"Log in with Google","description":"Log in with your Google account"},{"id":"oauth-business","name":"Log in with Gemini Enterprise","description":"Log in with your Gemini Enterprise account"},{"id":"gemini-api-key","name":"Gemini API key","description":"Use an API key with Gemini Developer API"},{"id":"agent-platform","name":"Gemini Enterprise Agent Platform","description":"Use Gemini Enterprise Agent Platform (formerly Vertex AI) with Application Default Credentials"}]}}},
+    {"expect":"authenticate"},
+    {"respond":{"error":{"code":-32603,"message":"No browser is available here (this is a remote (SSH) session, so the browser's sign-in redirect can't reach this machine). Run `agy acp --login` in a terminal on this machine, then retry; or use a Gemini API key."}}},
+    {"expect":"session/new"},
+    {"respond":{"error":{"code":-32000,"message":"Authentication required"}}}
+  ]
+}

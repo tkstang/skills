@@ -1,0 +1,173 @@
+#!/usr/bin/env node
+// Scenario-driven fake ACP agent for the consensus ACP client tests.
+//
+// usage: fake-acp-agent <scenario.json>
+//
+// The scenario's `steps` run in order. Frames the client sends are read as
+// newline-delimited JSON and, when FAKE_ACP_RECEIVED_LOG is set, appended
+// there one per line so a test can assert what the client sent.
+//
+//   {"expect": "<method>"}      wait for the next client message; it must be
+//                               this request or notification
+//   {"respond": {"result"|"error": ...}}
+//                               answer the latest expected request
+//   {"send": {...}}             write a frame (notification, or an agent
+//                               request with its own id); jsonrpc is added
+//   {"awaitResponse": <id>}     wait for the client's answer to that id
+//   {"stderr": "<text>"}        write to stderr
+//   {"sleepMs": <n>}            pause
+//   {"spawnGrandchild": true}   start a child in this process group that
+//                               ignores SIGTERM; its pid goes to
+//                               FAKE_ACP_PID_FILE once its handler is set
+//   {"writeFile": {"path", "content"}}
+//                               write a file relative to the cwd
+//   {"hang": true}              stop here, still reading and logging input
+//   {"exit": <code>}            exit with that code
+//   {"kill": "<signal>"}        signal this process
+//
+// Top-level options: "onStdinEnd": "exit" (default, exit 0) or "ignore";
+// "ignoreSigterm": true. A message that does not match the current step
+// prints "fake-acp-agent: scenario mismatch ..." to stderr and exits 97.
+
+import { spawn } from 'node:child_process';
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+
+const scenario = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const steps = scenario.steps ?? [];
+const receivedLog = process.env.FAKE_ACP_RECEIVED_LOG;
+let index = 0;
+let lastRequestId;
+let paused = false;
+const inbox = [];
+
+if (scenario.ignoreSigterm) process.on('SIGTERM', () => {});
+
+let buffer = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (chunk) => {
+  buffer += chunk;
+  let newline = buffer.indexOf('\n');
+  while (newline !== -1) {
+    const line = buffer.slice(0, newline);
+    buffer = buffer.slice(newline + 1);
+    if (line.trim() !== '') receive(JSON.parse(line));
+    newline = buffer.indexOf('\n');
+  }
+});
+process.stdin.on('end', () => {
+  if (scenario.onStdinEnd === 'ignore') {
+    setInterval(() => {}, 1000);
+    return;
+  }
+  exitAfterFlush(0);
+});
+
+// Exits once earlier stdout writes have drained, so a final frame is not
+// lost when stdout is an asynchronous pipe.
+function exitAfterFlush(code) {
+  process.stdout.write('', () => process.exit(code));
+}
+
+function receive(message) {
+  if (receivedLog) appendFileSync(receivedLog, `${JSON.stringify(message)}\n`);
+  inbox.push(message);
+  pump();
+}
+
+function write(frame) {
+  process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', ...frame })}\n`);
+}
+
+function mismatch(expected, message) {
+  process.stderr.write(
+    `fake-acp-agent: scenario mismatch at step ${index}: expected ${expected}, got ${JSON.stringify(message).slice(0, 200)}\n`,
+  );
+  process.exit(97);
+}
+
+function pump() {
+  while (!paused && index < steps.length) {
+    const step = steps[index];
+    if ('expect' in step) {
+      const message = inbox.shift();
+      if (!message) return;
+      if (message.method !== step.expect) mismatch(step.expect, message);
+      if ('id' in message) lastRequestId = message.id;
+      index++;
+    } else if ('awaitResponse' in step) {
+      const message = inbox.shift();
+      if (!message) return;
+      if ('method' in message || message.id !== step.awaitResponse) {
+        mismatch(`response to ${JSON.stringify(step.awaitResponse)}`, message);
+      }
+      index++;
+    } else if ('respond' in step) {
+      write({ id: lastRequestId, ...step.respond });
+      index++;
+    } else if ('send' in step) {
+      write(step.send);
+      index++;
+    } else if ('stderr' in step) {
+      process.stderr.write(step.stderr);
+      index++;
+    } else if ('sleepMs' in step) {
+      index++;
+      paused = true;
+      setTimeout(resume, step.sleepMs);
+    } else if ('spawnGrandchild' in step) {
+      index++;
+      paused = true;
+      spawnGrandchild();
+    } else if ('writeFile' in step) {
+      writeFileSync(
+        path.resolve(process.cwd(), step.writeFile.path),
+        step.writeFile.content,
+      );
+      index++;
+    } else if ('hang' in step) {
+      paused = true;
+      setInterval(() => {}, 1000);
+      return;
+    } else if ('exit' in step) {
+      paused = true;
+      exitAfterFlush(step.exit);
+      return;
+    } else if ('kill' in step) {
+      paused = true;
+      process.stdout.write('', () => process.kill(process.pid, step.kill));
+      return;
+    } else {
+      mismatch('a known step', step);
+    }
+  }
+  if (!paused && index >= steps.length && inbox.length > 0) {
+    mismatch('no further messages', inbox[0]);
+  }
+}
+
+function resume() {
+  paused = false;
+  pump();
+}
+
+// The grandchild stays in this process group, ignores SIGTERM so only the
+// group SIGKILL ends it, and exits on its own after a minute so a failed
+// test cannot leak it for long.
+function spawnGrandchild() {
+  const pidFile = process.env.FAKE_ACP_PID_FILE;
+  const ready = `${pidFile}.ready`;
+  const source = [
+    "process.on('SIGTERM', () => {});",
+    `require('node:fs').writeFileSync(${JSON.stringify(ready)}, '1');`,
+    'setInterval(() => {}, 1000);',
+    'setTimeout(() => process.exit(0), 60000);',
+  ].join(' ');
+  const child = spawn(process.execPath, ['-e', source], { stdio: 'ignore' });
+  const poll = setInterval(() => {
+    if (!existsSync(ready)) return;
+    clearInterval(poll);
+    writeFileSync(pidFile, String(child.pid));
+    resume();
+  }, 10);
+}
