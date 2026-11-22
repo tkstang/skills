@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### Added
+
+- `consensus` 0.2.14 registers three experimental extended providers,
+  Antigravity (`antigravity`), Gemini CLI (`gemini`) and Factory Droid
+  (`droid`), each experimental until its live smoke test passes. They run only
+  when named, read-only and text-only, with one attempt, no effort, no
+  `--env-allow` and no native resume. The provider CLI drives each agent's ACP
+  command through its own stdio JSON-RPC client (no new dependency): it
+  confirms the provider's read-only mode and the model before the prompt and
+  watches the mode through the turn, denies every permission request, offers
+  no file system, terminal or MCP servers, prepends read-only brief lines, and
+  stops the agent's process group on every exit. Extended runs need a model:
+  `--model`, or the new `defaults.provider_models.<id>` consensus-config key,
+  recorded in the receipt as `default_model`; with neither the run is refused
+  before launch. Every extended read-only turn is bracketed by a git
+  working-tree check, so the working directory must be a git checkout, and any
+  change fails the run with the new code `PROVIDER_WORKTREE_CHANGED`, listing
+  the paths in `diagnostics.working_tree_changes`. A peer that is denied a tool
+  and ends without an answer fails with the new code
+  `PROVIDER_PERMISSION_DENIED`. `consensus-delegate` 0.2.2 (standalone
+  `delegate`, `consensus:delegate`) accepts the extended providers as
+  read-only peers and reports both codes. The same release carries
+  `consensus-create` 0.1.26, `consensus-decide` 0.1.26, `consensus-plan`
+  0.1.26, `consensus-refine` 0.1.29, `consensus-evaluate` 0.1.30,
+  `consensus-review` 0.3.1, `consensus-panel` 0.1.23, `phone-a-friend` 0.3.5,
+  `session-observer` 1.1.7, `session-observer-collab` 1.0.85, and
+  `session-fork-to-destination` 0.3.12.
+
 ### Changed
 
 - `seshtk-cli` 1.1.0 describes bounded post-compaction readback with Session
@@ -9,8 +37,7 @@
   the omitted end in forward byte-budget warnings. Addresses #172.
 
 - `consensus` 0.2.14 adds provider-CLI groundwork for an extended provider
-  tier; no extended provider is registered yet, and `claude`, `codex` and
-  `cursor` run as before. Adapters now carry their tier, executable override
+  tier, and `claude`, `codex` and `cursor` run as before. Adapters now carry their tier, executable override
   and credential variables, and own their provider-specific run rules through
   hooks. `provider ls` lists core providers only; a named `--provider` still
   resolves any registered adapter, and panel auto-fill and delegate fallback
