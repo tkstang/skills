@@ -251,7 +251,10 @@ export interface AcpClassifyOptions {
   authErrorPatterns?: readonly RegExp[];
   // How to sign in, appended to auth failures.
   authHint?: string;
-  // Provider errors that arrive as answer text with end_turn.
+  // Appended to the message of a turn that timed out after the prompt.
+  timeoutHint?: string;
+  // Provider errors that arrive as answer text with end_turn; the first
+  // matching pattern wins.
   errorTextPatterns?: readonly {
     pattern: RegExp;
     code: Extract<AcpFailureCode, 'PROVIDER_LIMIT_REACHED' | 'PROVIDER_EXIT'>;
@@ -271,7 +274,7 @@ export function classifyAcpTurn(
     return failure(
       'PROVIDER_TIMEOUT',
       result.prompt_sent
-        ? `${name} did not finish the turn before the deadline; the turn was cancelled.`
+        ? `${name} did not finish the turn before the deadline; the turn was cancelled.${options.timeoutHint ? ` ${options.timeoutHint}` : ''}`
         : `${name} did not finish starting the session before the deadline.`,
       'provider_timeout',
       startedTurn,

@@ -520,6 +520,9 @@ describe('extended runs through runProviderTurn', () => {
       },
       continuation: { turn: 'unknown' },
     });
+    expect(envelope.ok === false && envelope.message).toContain(
+      'With GEMINI_API_KEY, Gemini API retries (503 high demand) or an exhausted quota can also cause this.',
+    );
     expect(await waitForExit(grandchild)).toBe(true);
   });
 

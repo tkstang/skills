@@ -59,7 +59,9 @@ var ANTIGRAVITY_DESCRIPTOR = {
   },
   auth_hint: "Sign in with `agy acp --login` from a desktop terminal, or set GEMINI_API_KEY.",
   auth_error_patterns: [/No browser is available/i],
-  // A 429 arrives as answer text with end_turn (agy-key2-default.jsonl).
+  // A 429 arrives as answer text with end_turn (agy-key2-default.jsonl),
+  // inside an "agent executor error" line: first match wins, so the limit
+  // pattern stays first.
   error_text_patterns: [
     {
       pattern: /Error 429|exceeded your current quota/i,
@@ -67,6 +69,9 @@ var ANTIGRAVITY_DESCRIPTOR = {
     },
     { pattern: /agent executor error/i, code: "PROVIDER_EXIT" }
   ],
+  // In key mode agy retries Gemini API 503s (high demand) silently, for
+  // longer than a turn's deadline (2026-11-22 diagnostic).
+  timeout_hint: "With GEMINI_API_KEY, Gemini API retries (503 high demand) or an exhausted quota can also cause this.",
   brief_lines: [
     "Do not use invoke_subagent, swarm, run_workflow or schedule.",
     "Only read files inside the working directory; do not read parent directories."
@@ -1674,7 +1679,7 @@ function classifyAcpTurn(result, options = {}) {
   if (result.abort === "timeout") {
     return failure2(
       "PROVIDER_TIMEOUT",
-      result.prompt_sent ? `${name} did not finish the turn before the deadline; the turn was cancelled.` : `${name} did not finish starting the session before the deadline.`,
+      result.prompt_sent ? `${name} did not finish the turn before the deadline; the turn was cancelled.${options.timeoutHint ? ` ${options.timeoutHint}` : ""}` : `${name} did not finish starting the session before the deadline.`,
       "provider_timeout",
       startedTurn
     );
@@ -2447,7 +2452,8 @@ function acpAdapter(descriptor, options = {}) {
     displayName: descriptor.display_name,
     authHint: descriptor.auth_hint,
     ...descriptor.auth_error_patterns ? { authErrorPatterns: descriptor.auth_error_patterns } : {},
-    ...descriptor.error_text_patterns ? { errorTextPatterns: descriptor.error_text_patterns } : {}
+    ...descriptor.error_text_patterns ? { errorTextPatterns: descriptor.error_text_patterns } : {},
+    ...descriptor.timeout_hint ? { timeoutHint: descriptor.timeout_hint } : {}
   };
   const classify = (stdout) => {
     const result = parseAcpTurnResult(stdout);

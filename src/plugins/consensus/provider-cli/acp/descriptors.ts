@@ -58,6 +58,7 @@ export interface AcpProviderDescriptor {
   // shapes and the credential values.
   redactions?: readonly RegExp[];
   error_text_patterns?: AcpClassifyOptions['errorTextPatterns'];
+  timeout_hint?: string;
   // Added to the prompt after the common read-only brief line.
   brief_lines?: readonly string[];
   not_admitted_reason?: string;
@@ -99,7 +100,9 @@ export const ANTIGRAVITY_DESCRIPTOR: AcpProviderDescriptor = {
   auth_hint:
     'Sign in with `agy acp --login` from a desktop terminal, or set GEMINI_API_KEY.',
   auth_error_patterns: [/No browser is available/i],
-  // A 429 arrives as answer text with end_turn (agy-key2-default.jsonl).
+  // A 429 arrives as answer text with end_turn (agy-key2-default.jsonl),
+  // inside an "agent executor error" line: first match wins, so the limit
+  // pattern stays first.
   error_text_patterns: [
     {
       pattern: /Error 429|exceeded your current quota/i,
@@ -107,6 +110,10 @@ export const ANTIGRAVITY_DESCRIPTOR: AcpProviderDescriptor = {
     },
     { pattern: /agent executor error/i, code: 'PROVIDER_EXIT' },
   ],
+  // In key mode agy retries Gemini API 503s (high demand) silently, for
+  // longer than a turn's deadline (2026-11-22 diagnostic).
+  timeout_hint:
+    'With GEMINI_API_KEY, Gemini API retries (503 high demand) or an exhausted quota can also cause this.',
   brief_lines: [
     'Do not use invoke_subagent, swarm, run_workflow or schedule.',
     'Only read files inside the working directory; do not read parent directories.',

@@ -80,6 +80,9 @@ export function acpAdapter(
     ...(descriptor.error_text_patterns
       ? { errorTextPatterns: descriptor.error_text_patterns }
       : {}),
+    ...(descriptor.timeout_hint
+      ? { timeoutHint: descriptor.timeout_hint }
+      : {}),
   };
   const classify = (stdout: string) => {
     const result = parseAcpTurnResult(stdout);
