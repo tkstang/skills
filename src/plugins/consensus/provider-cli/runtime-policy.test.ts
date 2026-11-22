@@ -484,10 +484,58 @@ describe('provider runtime policy validation', () => {
     [
       'claude',
       ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'],
-      ['OPENAI_API_KEY', 'CURSOR_API_KEY'],
+      ['OPENAI_API_KEY', 'CURSOR_API_KEY', 'GEMINI_API_KEY', 'FACTORY_API_KEY'],
     ],
-    ['codex', ['OPENAI_API_KEY'], ['ANTHROPIC_API_KEY', 'CURSOR_API_KEY']],
-    ['cursor', ['CURSOR_API_KEY'], ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY']],
+    [
+      'codex',
+      ['OPENAI_API_KEY'],
+      [
+        'ANTHROPIC_API_KEY',
+        'CURSOR_API_KEY',
+        'GEMINI_API_KEY',
+        'FACTORY_API_KEY',
+      ],
+    ],
+    [
+      'cursor',
+      ['CURSOR_API_KEY'],
+      [
+        'ANTHROPIC_API_KEY',
+        'OPENAI_API_KEY',
+        'GEMINI_API_KEY',
+        'FACTORY_API_KEY',
+      ],
+    ],
+    [
+      'antigravity',
+      ['GEMINI_API_KEY'],
+      [
+        'ANTHROPIC_API_KEY',
+        'OPENAI_API_KEY',
+        'CURSOR_API_KEY',
+        'FACTORY_API_KEY',
+      ],
+    ],
+    [
+      'gemini',
+      ['GEMINI_API_KEY'],
+      [
+        'ANTHROPIC_API_KEY',
+        'OPENAI_API_KEY',
+        'CURSOR_API_KEY',
+        'FACTORY_API_KEY',
+      ],
+    ],
+    [
+      'droid',
+      ['FACTORY_API_KEY'],
+      [
+        'ANTHROPIC_API_KEY',
+        'OPENAI_API_KEY',
+        'CURSOR_API_KEY',
+        'GEMINI_API_KEY',
+      ],
+    ],
   ] as const)(
     'passes only %s provider credentials plus base and host environment',
     (provider, expectedProviderKeys, omittedProviderKeys) => {
@@ -499,6 +547,8 @@ describe('provider runtime policy validation', () => {
           CLAUDE_CODE_OAUTH_TOKEN: 'claude-token',
           OPENAI_API_KEY: 'openai-secret',
           CURSOR_API_KEY: 'cursor-secret',
+          GEMINI_API_KEY: 'gemini-secret',
+          FACTORY_API_KEY: 'factory-secret',
           SECRET_TOKEN: 'do-not-pass',
         },
         request: request({ provider }),

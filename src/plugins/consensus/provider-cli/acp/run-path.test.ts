@@ -554,6 +554,45 @@ describe('extended runs through runProviderTurn', () => {
     );
   });
 
+  it('fails as changed when a turn that wrote a file then times out', async () => {
+    const scenario = cutAfter(await agySession(), expects('session/prompt'), [
+      { writeFile: { path: 'peer-note.txt', content: 'written\n' } },
+      { hang: true },
+    ]);
+    const { envelope } = await runTurn(ANTIGRAVITY_DESCRIPTOR, scenario, {
+      model: 'gemini-3.8-flash',
+      max_runtime_sec: 1,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_WORKTREE_CHANGED',
+      diagnostics: { working_tree_changes: ['peer-note.txt'] },
+    });
+    expect(envelope.ok === false && envelope.message).toContain(
+      'failed with PROVIDER_TIMEOUT',
+    );
+  });
+
+  it('fails as changed when the checkout cannot be re-checked after the turn', async () => {
+    const scenario = insertAfter(
+      await agySession(),
+      expects('session/prompt'),
+      [{ writeFile: { path: '.git/HEAD', content: 'not a ref\n' } }],
+    );
+    const { envelope } = await runTurn(ANTIGRAVITY_DESCRIPTOR, scenario, {
+      model: 'gemini-3.8-flash',
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_WORKTREE_CHANGED',
+    });
+    expect(envelope.ok === false && envelope.message).toMatch(
+      /could not be re-checked/,
+    );
+  });
+
   it('redacts a credential in the changed paths it reports', async () => {
     const secret = 'zq-literal-credential-4711';
     const scenario = insertAfter(
@@ -764,23 +803,6 @@ describe('extended runs through consensus run --request-json', () => {
       ok: true,
       text: 'marker-85b2d6a11e65\nGemini 3.8 Flash',
       continuation: { default_model: 'gemini-3.8-flash' },
-    });
-  });
-
-  it('fails a run that changes the working tree', async () => {
-    const scenario = insertAfter(
-      await agySession(),
-      expects('session/prompt'),
-      [{ writeFile: { path: 'README.md', content: 'rewritten\n' } }],
-    );
-    const { envelope } = await runCli(ANTIGRAVITY_DESCRIPTOR, scenario, {
-      model: 'gemini-3.8-flash',
-    });
-
-    expect(envelope).toMatchObject({
-      ok: false,
-      code: 'PROVIDER_WORKTREE_CHANGED',
-      diagnostics: { working_tree_changes: ['README.md'] },
     });
   });
 });
