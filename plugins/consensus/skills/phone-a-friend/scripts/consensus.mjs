@@ -5144,7 +5144,7 @@ ${result.stderr}`;
       executable,
       ...versionLabel(output),
       warnings: [
-        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${redact(formatNumericVersion(detectedVersion))} is below required ${adapter.probe.minimum_version}`
+        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${redact(printedNumericVersion(output) ?? formatNumericVersion(detectedVersion))} is below required ${adapter.probe.minimum_version}`
       ]
     });
   }
@@ -5345,7 +5345,7 @@ function runProbeCommand(command, args, env, options) {
 function releaseLabel(output, redact) {
   const parsed = parseVersion(output);
   if (!parsed || parsed.release.length !== 3) return void 0;
-  const release = parsed.release.join(".");
+  const release = parsed.text.split(/[-+]/)[0];
   if (redact(release) !== release) return void 0;
   const prerelease = parsed.prerelease.join(".");
   const label = `${release}-${prerelease}`;
@@ -5422,10 +5422,14 @@ function matchesAny2(value, patterns) {
 function firstNonEmptyLine2(value) {
   return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
 }
+var NUMERIC_VERSION = /\b(\d+(?:\.\d+){2,})\b/;
 function parseNumericVersion(value) {
-  const match = value.match(/\b(\d+(?:\.\d+){2,})\b/);
+  const match = value.match(NUMERIC_VERSION);
   if (!match) return void 0;
   return safeComponents(match[1]);
+}
+function printedNumericVersion(value) {
+  return value.match(NUMERIC_VERSION)?.[1];
 }
 function safeComponents(release) {
   const parts = release.split(".").map(Number);

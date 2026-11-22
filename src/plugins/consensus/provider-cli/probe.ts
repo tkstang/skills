@@ -226,7 +226,7 @@ export async function probeProviderReadiness(
       executable,
       ...versionLabel(output),
       warnings: [
-        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${redact(formatNumericVersion(detectedVersion))} is below required ${adapter.probe.minimum_version}`,
+        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${redact(printedNumericVersion(output) ?? formatNumericVersion(detectedVersion))} is below required ${adapter.probe.minimum_version}`,
       ],
     });
   }
@@ -505,7 +505,9 @@ function releaseLabel(
 ): string | undefined {
   const parsed = parseVersion(output);
   if (!parsed || parsed.release.length !== 3) return undefined;
-  const release = parsed.release.join('.');
+  // Checked and published as printed: normalizing (say, dropping a leading
+  // zero) could turn a credential into digits redaction no longer matches.
+  const release = parsed.text.split(/[-+]/)[0];
   if (redact(release) !== release) return undefined;
   const prerelease = parsed.prerelease.join('.');
   const label = `${release}-${prerelease}`;
@@ -624,15 +626,21 @@ function firstNonEmptyLine(value: string) {
     .find(Boolean);
 }
 
+const NUMERIC_VERSION = /\b(\d+(?:\.\d+){2,})\b/;
+
 function parseNumericVersion(value: string): number[] | undefined {
-  const match = value.match(/\b(\d+(?:\.\d+){2,})\b/);
+  const match = value.match(NUMERIC_VERSION);
   if (!match) return undefined;
   return safeComponents(match[1]);
 }
 
+// The numeric version as the output printed it.
+function printedNumericVersion(value: string): string | undefined {
+  return value.match(NUMERIC_VERSION)?.[1];
+}
+
 // Version components as numbers, or undefined when one is too large to
-// round-trip: a rounded number would no longer match the digits printed,
-// which redaction compares against.
+// compare exactly.
 function safeComponents(release: string): number[] | undefined {
   const parts = release.split('.').map(Number);
   return parts.every((part) => Number.isSafeInteger(part)) ? parts : undefined;

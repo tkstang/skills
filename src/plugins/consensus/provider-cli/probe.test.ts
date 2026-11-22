@@ -834,7 +834,7 @@ describe('node probe command runner', () => {
   });
 
   it('redacts a credential value from the unsupported-version warning', async () => {
-    const secret = '123456';
+    const secret = '0123456';
     const entry = await probeProviderReadiness(
       providerRegistry().get('droid')!,
       {
@@ -855,7 +855,9 @@ describe('node probe command runner', () => {
     expect(entry).toMatchObject({
       status: 'unavailable',
       diagnostics: {
-        warnings: [expect.stringContaining('PROVIDER_VERSION_UNSUPPORTED')],
+        warnings: [
+          'PROVIDER_VERSION_UNSUPPORTED: droid 1.15.<redacted> is below required 1.16.0',
+        ],
       },
     });
     expect(JSON.stringify(entry)).not.toContain(secret);
@@ -869,6 +871,7 @@ describe('node probe command runner', () => {
       'ready',
     ],
     ['123456', 'droid 1.17.123456-rc.2', undefined, 'ready'],
+    ['0123456', 'droid 1.17.0123456', undefined, 'ready'],
     // Too large to round-trip, so the version is unparseable.
     [
       '98765432109876543210',
