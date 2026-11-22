@@ -294,6 +294,33 @@ describe('extended runs through runProviderTurn', () => {
     );
   });
 
+  it('stops before the prompt when Droid reports another mode while normal is being confirmed', async () => {
+    const recorded = await acpFixture('droid-kill');
+    const echo = recorded.steps[7] as { send: { params: any } };
+    const contrary = structuredClone(echo);
+    for (const option of contrary.send.params.update.configOptions) {
+      if (option.id === 'autonomy_level') option.currentValue = 'auto-medium';
+    }
+    const scenario = cutAfter(recorded, expects('session/set_mode'), [
+      echo,
+      contrary,
+      { respond: { result: {} } },
+      { expect: 'session/close' },
+      { respond: { result: {} } },
+    ]);
+    const { envelope, methods } = await runTurn(DROID_DESCRIPTOR, scenario, {
+      model: 'custom:GPT-6-Luna-(Proxy)-0',
+    });
+
+    expect(methods).not.toContain('session/prompt');
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_UNSUPPORTED_OPTION',
+      attempts: { terminal_reason: 'acp_setup_unconfirmed' },
+      continuation: { turn: 'not_started' },
+    });
+  });
+
   it('cancels and fails a turn when the agent leaves read-only mode mid-turn', async () => {
     const scenario = cutAfter(await agySession(), expects('session/prompt'), [
       {

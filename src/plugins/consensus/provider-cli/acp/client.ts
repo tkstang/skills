@@ -610,22 +610,14 @@ class SessionState {
       const value = currentValueOf(options, optionId);
       if (value === watch.step.modeId) watch.echoed ??= 'config_option_update';
     }
-    const held = this.held;
-    if (held) {
-      // The mode option (id `mode`, category `mode`, or the step's own
-      // option, such as Droid's autonomy_level) must keep the held mode.
-      for (const option of options) {
-        if (
-          isRecord(option) &&
-          (option.id === held.step.confirm.configOptionId ||
-            option.id === 'mode' ||
-            option.category === 'mode') &&
-          typeof option.currentValue === 'string' &&
-          option.currentValue !== held.step.modeId
-        ) {
-          this.drifted(option.currentValue);
-        }
-      }
+    // While the mode is being confirmed, and after, any mode option naming
+    // another mode counts against it.
+    const step = watch?.step ?? this.held?.step;
+    if (!step) return;
+    for (const value of modeOptionValues(options, step)) {
+      if (value === step.modeId) continue;
+      if (watch) watch.contrary = true;
+      else this.drifted(value);
     }
   }
 
@@ -794,6 +786,21 @@ function killGroupNow(pid: number | undefined) {
   } catch {
     // Already gone.
   }
+}
+
+// The current values of the options that carry the session mode: id `mode`,
+// category `mode`, or the step's own option (Droid's autonomy_level).
+function modeOptionValues(options: unknown[], step: AcpModeStep): string[] {
+  return options
+    .filter(
+      (option): option is Record<string, unknown> =>
+        isRecord(option) &&
+        (option.id === step.confirm.configOptionId ||
+          option.id === 'mode' ||
+          option.category === 'mode'),
+    )
+    .map((option) => option.currentValue)
+    .filter((value): value is string => typeof value === 'string');
 }
 
 function currentValueOf(options: unknown, id: string): string | undefined {

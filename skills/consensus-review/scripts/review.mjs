@@ -1648,13 +1648,12 @@ var SessionState = class {
       const value = currentValueOf(options, optionId);
       if (value === watch.step.modeId) watch.echoed ??= "config_option_update";
     }
-    const held = this.held;
-    if (held) {
-      for (const option of options) {
-        if (isRecord(option) && (option.id === held.step.confirm.configOptionId || option.id === "mode" || option.category === "mode") && typeof option.currentValue === "string" && option.currentValue !== held.step.modeId) {
-          this.drifted(option.currentValue);
-        }
-      }
+    const step = watch?.step ?? this.held?.step;
+    if (!step) return;
+    for (const value of modeOptionValues(options, step)) {
+      if (value === step.modeId) continue;
+      if (watch) watch.contrary = true;
+      else this.drifted(value);
     }
   }
   holdMode(step) {
@@ -1786,6 +1785,11 @@ function killGroupNow(pid) {
     process.kill(process.platform === "win32" ? pid : -pid, "SIGKILL");
   } catch {
   }
+}
+function modeOptionValues(options, step) {
+  return options.filter(
+    (option) => isRecord(option) && (option.id === step.confirm.configOptionId || option.id === "mode" || option.category === "mode")
+  ).map((option) => option.currentValue).filter((value) => typeof value === "string");
 }
 function currentValueOf(options, id) {
   if (!Array.isArray(options)) return void 0;
