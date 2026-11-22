@@ -3,7 +3,10 @@
 //
 // A snapshot is HEAD plus `git status --porcelain=v1 -z
 // --untracked-files=all` (ignored files are not covered) plus a sha256 of the
-// current content of every path status lists. Nothing writes objects or the
+// current content of every path status lists and of every index entry
+// marked assume-unchanged or skip-worktree, which status never reports.
+// fsmonitor and the untracked cache are disabled for these commands, so a
+// repository setting cannot make status skip a change. Nothing writes objects or the
 // index: no `git add`, and status runs with --no-optional-locks so it never
 // takes index.lock or refreshes the index. git runs with shell:false and
 // with git's repository-local environment variables cleared, so an inherited
@@ -17,6 +20,15 @@ import path from 'node:path';
 const GIT_TIMEOUT_MS = 30_000;
 const GIT_MAX_BUFFER = 64 * 1024 * 1024;
 const MAX_LISTED_PATHS = 20;
+// Status must look at the files themselves: no fsmonitor daemon or hook, no
+// cached untracked-directory results, and no index refresh written back.
+const TRUTHFUL_STATUS_CONFIG = [
+  '--no-optional-locks',
+  '-c',
+  'core.fsmonitor=false',
+  '-c',
+  'core.untrackedCache=false',
+] as const;
 
 export interface WorkingTreeSnapshot {
   root: string;
@@ -24,7 +36,8 @@ export interface WorkingTreeSnapshot {
   head: string;
   // Porcelain status code (XY) by repository-relative path.
   status: ReadonlyMap<string, string>;
-  // Content fingerprint by path: sha256, `deleted`, `dir`, or `link:<sha>`.
+  // Content fingerprint by path, for the status paths and the index entries
+  // status hides: sha256, `deleted`, `dir`, or `link:<sha>`.
   content: ReadonlyMap<string, string>;
 }
 
@@ -55,7 +68,7 @@ export async function snapshotWorkingTree(
       })
     ).trim();
     const raw = await git.run(env, [
-      '--no-optional-locks',
+      ...TRUTHFUL_STATUS_CONFIG,
       'status',
       '--porcelain=v1',
       '-z',
@@ -63,8 +76,11 @@ export async function snapshotWorkingTree(
       '--ignored=no',
     ]);
     const status = parsePorcelainZ(raw);
+    const hidden = parseHiddenIndexEntries(
+      await git.run(env, [...TRUTHFUL_STATUS_CONFIG, 'ls-files', '-v', '-z']),
+    );
     const content = new Map<string, string>();
-    for (const file of status.keys()) {
+    for (const file of new Set([...status.keys(), ...hidden])) {
       content.set(file, await fingerprint(path.join(root, file)));
     }
     return { ok: true, snapshot: { root, head, status, content } };
@@ -91,6 +107,8 @@ export function compareWorkingTrees(
   for (const file of new Set([
     ...before.status.keys(),
     ...after.status.keys(),
+    ...before.content.keys(),
+    ...after.content.keys(),
   ])) {
     if (
       before.status.get(file) !== after.status.get(file) ||
@@ -140,6 +158,18 @@ function parsePorcelainZ(raw: string): Map<string, string> {
     }
   }
   return status;
+}
+
+// `ls-files -v` tags: lowercase means assume-unchanged, `S` (or `s`)
+// skip-worktree. Git does not compare either kind against the working tree.
+function parseHiddenIndexEntries(raw: string): string[] {
+  const hidden: string[] = [];
+  for (const entry of raw.split('\0')) {
+    if (entry.length < 3) continue;
+    const tag = entry[0];
+    if (tag === 'S' || (tag >= 'a' && tag <= 'z')) hidden.push(entry.slice(2));
+  }
+  return hidden;
 }
 
 async function fingerprint(file: string): Promise<string> {
@@ -211,7 +241,7 @@ function gitRunner(cwd: string, options: WorkingTreeOptions) {
             String(stderr).trim().split(/\r?\n/)[0] || error.message;
           reject(
             new Error(
-              `git ${args.filter((arg) => !arg.startsWith('--no-optional')).join(' ')} failed${detail ? `: ${detail}` : ''}`,
+              `git ${args.filter((arg) => !TRUTHFUL_STATUS_CONFIG.includes(arg as never)).join(' ')} failed${detail ? `: ${detail}` : ''}`,
             ),
           );
         },

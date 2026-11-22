@@ -99,6 +99,22 @@ describe('working-tree snapshot', () => {
     expect(await changesAfter(dir, before)).toEqual(expected);
   });
 
+  it.each([
+    ['assume-unchanged', '--assume-unchanged'],
+    ['skip-worktree', '--skip-worktree'],
+  ])(
+    'lists an edit to a tracked file marked %s, which git status hides',
+    async (_label, flag) => {
+      const dir = await repo();
+      git(dir, 'update-index', flag, 'clean.txt');
+      const before = await snapshot(dir);
+      await writeFile(path.join(dir, 'clean.txt'), 'hidden edit\n');
+
+      expect(git(dir, 'status', '--porcelain')).not.toContain('clean.txt');
+      expect(await changesAfter(dir, before)).toEqual(['clean.txt']);
+    },
+  );
+
   it('reports a new commit as a HEAD change', async () => {
     const dir = await repo();
     const before = await snapshot(dir);

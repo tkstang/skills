@@ -5488,6 +5488,13 @@ import path9 from "node:path";
 var GIT_TIMEOUT_MS = 3e4;
 var GIT_MAX_BUFFER = 64 * 1024 * 1024;
 var MAX_LISTED_PATHS = 20;
+var TRUTHFUL_STATUS_CONFIG = [
+  "--no-optional-locks",
+  "-c",
+  "core.fsmonitor=false",
+  "-c",
+  "core.untrackedCache=false"
+];
 async function snapshotWorkingTree(cwd, options = {}) {
   const git = gitRunner(cwd, options);
   try {
@@ -5501,7 +5508,7 @@ async function snapshotWorkingTree(cwd, options = {}) {
       allowExit: [1]
     })).trim();
     const raw = await git.run(env, [
-      "--no-optional-locks",
+      ...TRUTHFUL_STATUS_CONFIG,
       "status",
       "--porcelain=v1",
       "-z",
@@ -5509,8 +5516,11 @@ async function snapshotWorkingTree(cwd, options = {}) {
       "--ignored=no"
     ]);
     const status = parsePorcelainZ(raw);
+    const hidden = parseHiddenIndexEntries(
+      await git.run(env, [...TRUTHFUL_STATUS_CONFIG, "ls-files", "-v", "-z"])
+    );
     const content = /* @__PURE__ */ new Map();
-    for (const file of status.keys()) {
+    for (const file of /* @__PURE__ */ new Set([...status.keys(), ...hidden])) {
       content.set(file, await fingerprint(path9.join(root, file)));
     }
     return { ok: true, snapshot: { root, head, status, content } };
@@ -5525,7 +5535,9 @@ function compareWorkingTrees(before, after) {
   const paths = /* @__PURE__ */ new Set();
   for (const file of /* @__PURE__ */ new Set([
     ...before.status.keys(),
-    ...after.status.keys()
+    ...after.status.keys(),
+    ...before.content.keys(),
+    ...after.content.keys()
   ])) {
     if (before.status.get(file) !== after.status.get(file) || before.content.get(file) !== after.content.get(file)) {
       paths.add(file);
@@ -5563,6 +5575,15 @@ function parsePorcelainZ(raw) {
     }
   }
   return status;
+}
+function parseHiddenIndexEntries(raw) {
+  const hidden = [];
+  for (const entry of raw.split("\0")) {
+    if (entry.length < 3) continue;
+    const tag = entry[0];
+    if (tag === "S" || tag >= "a" && tag <= "z") hidden.push(entry.slice(2));
+  }
+  return hidden;
 }
 async function fingerprint(file) {
   let stats;
@@ -5619,7 +5640,7 @@ function gitRunner(cwd, options) {
         const detail = String(stderr).trim().split(/\r?\n/)[0] || error.message;
         reject(
           new Error(
-            `git ${args.filter((arg) => !arg.startsWith("--no-optional")).join(" ")} failed${detail ? `: ${detail}` : ""}`
+            `git ${args.filter((arg) => !TRUTHFUL_STATUS_CONFIG.includes(arg)).join(" ")} failed${detail ? `: ${detail}` : ""}`
           )
         );
       }
