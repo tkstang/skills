@@ -109,10 +109,14 @@ that moves itself to another process group or session escapes this cleanup.
 On Windows only the provider process is signalled, as before.
 
 Extended providers differ in one way: their process group is signalled on
-every exit path, a normal exit included. Consensus closes the ACP session
-where the agent supports that, closes its stdin, waits about two seconds, then
-sends SIGTERM and SIGKILL to the group, so helpers such as MCP servers do not
-outlive the run. On a timeout it first cancels the prompt and waits briefly.
+every exit path, a normal exit included (on Windows, the agent process only).
+Consensus closes the ACP session where the agent supports that (not after an
+output-cap breach), closes its stdin, and waits up to two seconds for the
+agent to exit (no wait after an interrupt). It then signals the group with
+SIGTERM, or the forwarded interrupt signal, and sends SIGKILL half a second
+later if anything in the group survives, so helpers such as MCP servers do not
+outlive the run. When a timeout, output-cap breach, interrupt, or mode change
+stops a turn whose prompt is in flight, it sends `session/cancel` first.
 `diagnostics.acp.teardown` records what was sent.
 
 ## Claude permission profiles
@@ -181,19 +185,24 @@ read-only, text-only, and single-attempt, and needs a model. Consensus confirms
 the provider's read-only mode and the model before it sends the prompt, and
 answers every permission request with a denial.
 
+An extended peer loads its own CLI's configuration, except an Antigravity run
+on `GEMINI_API_KEY`, which uses a private temporary settings directory that is
+removed after the run.
+
 ### Working-tree check
 
-Consensus checks the git checkout at the working directory around every
-extended read-only turn, so direct `consensus run` calls are covered as well
-as delegate:
+Consensus checks the whole git work tree that contains the working directory
+around every extended read-only turn, so direct `consensus run` calls are
+covered as well as delegate:
 
 - Before launch it records `HEAD`, the entries of
   `git status --porcelain=v1 -z --untracked-files=all`, and a SHA-256 of the
   current content of every path that status lists and of every index entry
-  marked assume-unchanged or skip-worktree, which status never reports. It
-  writes nothing: no `git add`, no index refresh. git runs with fsmonitor and
-  the untracked cache turned off, so a repository setting cannot hide a
-  change, and with its repository-local environment variables cleared.
+  marked assume-unchanged or skip-worktree, which status never reports, plus
+  `.git/info/exclude`. It writes nothing: no `git add`, no index refresh. git
+  runs with fsmonitor and the untracked cache turned off and `core.filemode`
+  on, so a repository setting cannot hide a content or file-mode change, and
+  with its repository-local environment variables cleared.
 - If the working directory is not inside a git work tree, or the snapshot
   fails, the run is refused before launch with `PROVIDER_UNSUPPORTED_OPTION`
   and `attempts.terminal_reason: "working_tree_unavailable"`.
@@ -204,11 +213,17 @@ as delegate:
   succeeded. The message names up to 20 changed paths, `HEAD` first when it
   moved, and says how the turn itself ended; `diagnostics.working_tree_changes`
   lists them all. A checkout that cannot be read afterwards is reported as
-  changed. The receipt's `turn` keeps the turn's own state.
+  changed, without a list. The receipt's `turn` keeps the turn's own state.
 
-The check cannot tell the agent's changes from your own edits made during the
-run, and it does not cover ignored files or paths outside the checkout. Read-only
-mode and the denials are what keep the agent from writing there.
+The check is a loud backstop, not the prevention: the confirmed read-only mode
+and the denials are what keep the agent from writing. It cannot tell the
+agent's changes from your own edits made during the run, and it does not see:
+
+- ignored files;
+- a change that a repository clean filter normalizes away;
+- a case-only rename on a case-insensitive file system;
+- changes inside an untracked nested git repository;
+- writes outside the work tree.
 
 ### Failure codes
 
@@ -216,19 +231,30 @@ mode and the denials are what keep the agent from writing there.
   was denied, and ended the turn without an answer (an empty reply, or a
   cancelled turn, as Droid does). The message names the denied tools;
   `turn` is `completed`. A turn that was denied a tool but still answered
-  succeeds, with `diagnostics.permission_denials` filled.
+  succeeds, with a warning. In both cases `diagnostics.permission_denials`
+  gives `count`, `tools`, and `requests`: each denied request's `tool`, ACP
+  `kind`, and first `path`, relative to the working directory when inside it.
+  It never holds tool input or file content.
 - `PROVIDER_WORKTREE_CHANGED`: see above.
 - `PROVIDER_AUTH_REQUIRED`: the agent is not signed in; the message adds the
   provider's sign-in hint.
-- `PROVIDER_UNSUPPORTED_OPTION` before launch: an unsupported option, no
-  model (`model_required`), no git checkout, or a read-only mode or model the
-  agent did not confirm (`acp_setup_unconfirmed`).
+- `PROVIDER_UNSUPPORTED_OPTION`, refused before launch: an unsupported
+  option, no model (`model_required`), or no git checkout
+  (`working_tree_unavailable`). After launch but before the prompt is sent,
+  with `turn: "not_started"`: a model the agent does not offer
+  (`provider_unsupported_option`; the message names up to five that it does),
+  or a read-only mode or model the agent did not confirm, or any contrary mode
+  or autonomy update before the prompt (`acp_setup_unconfirmed`).
 - `PROVIDER_LIMIT_REACHED`: a `max_tokens` or `max_turn_requests` stop, or a
   quota error the provider returned as answer text.
 - `PROVIDER_EMPTY_OUTPUT`: the turn ended with no answer text and no denial.
 - `PROVIDER_EXIT` with `attempts.terminal_reason: "acp_mode_changed"`: the
   agent reported leaving its read-only mode during the turn. Consensus
-  cancelled the turn and discarded its answer; `turn` is `unknown`.
+  cancelled the turn and does not return it as an answer; `turn` is
+  `unknown`.
+
+A failure envelope's `stdout` holds only the answer text gathered before the
+failure, with credential values redacted, never the internal turn record.
 
 `diagnostics.acp` records the agent's name and version, whether the run used
 an API key or the saved sign-in, each setup step and what confirmed it, the

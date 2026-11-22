@@ -8,9 +8,11 @@
   Antigravity (`antigravity`), Gemini CLI (`gemini`) and Factory Droid
   (`droid`). Each passed a live smoke test on 2026-11-21 (agy 1.5.13 on its
   desktop login and `GEMINI_API_KEY`, Gemini CLI 0.70.0 on `GEMINI_API_KEY`,
-  Droid 1.16.0 on its desktop login). They run only when named, read-only and text-only, with one attempt, no effort, no
-  `--env-allow` and no native resume. The provider CLI drives each agent's ACP
-  command through its own stdio JSON-RPC client (no new dependency): it
+  Droid 1.16.0 on its desktop login; see
+  `.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md`). They
+  run only when named, read-only and text-only, with one attempt, no effort,
+  no `--env-allow` and no native resume. The provider CLI drives each agent's
+  ACP command through its own stdio JSON-RPC client (no new dependency): it
   confirms the provider's read-only mode and the model before the prompt and
   watches the mode through the turn, denies every permission request, offers
   no file system, terminal or MCP servers, prepends read-only brief lines, and
@@ -18,18 +20,28 @@
   `--model`, or the new `defaults.provider_models.<id>` consensus-config key,
   recorded in the receipt as `default_model`; with neither the run is refused
   before launch. Every extended read-only turn is bracketed by a git
-  working-tree check, so the working directory must be a git checkout, and any
-  change fails the run with the new code `PROVIDER_WORKTREE_CHANGED`, listing
-  the paths in `diagnostics.working_tree_changes`. A peer that is denied a tool
-  and ends without an answer fails with the new code
-  `PROVIDER_PERMISSION_DENIED`. `consensus-delegate` 0.2.2 (standalone
-  `delegate`, `consensus:delegate`) accepts the extended providers as
-  read-only peers and reports both codes. The same release carries
-  `consensus-create` 0.1.26, `consensus-decide` 0.1.26, `consensus-plan`
-  0.1.26, `consensus-refine` 0.1.29, `consensus-evaluate` 0.1.30,
-  `consensus-review` 0.3.1, `consensus-panel` 0.1.23, `phone-a-friend` 0.3.5,
-  `session-observer` 1.1.7, `session-observer-collab` 1.0.85, and
-  `session-fork-to-destination` 0.3.12.
+  working-tree check, so the working directory must be a git checkout. A
+  changed HEAD, or any change to a tracked or non-ignored untracked path,
+  fails the run with the new code `PROVIDER_WORKTREE_CHANGED`, which lists
+  `HEAD` and the paths in `diagnostics.working_tree_changes`; ignored files
+  are not checked. A peer that is denied a tool and ends without an answer
+  fails with the new code `PROVIDER_PERMISSION_DENIED`. Extended run
+  envelopes add `diagnostics.acp` (agent, auth route, phase, stop reason,
+  setup evidence, teardown) and `diagnostics.permission_denials.requests`,
+  which gives each denied request's tool, ACP kind and first path (relative
+  to the working directory) and never tool input. Envelope `stdout`, on
+  success and failure, is the answer text only; the values of the provider's
+  credential variables and provider patterns such as Droid's pairing code are
+  redacted from answer text, metadata, denial details, change paths and
+  stderr. Preflight probes extended providers with `--version` only, without
+  their credentials, and reports only the numeric version.
+  `consensus-delegate` 0.2.2 (standalone `delegate`, `consensus:delegate`)
+  accepts the extended providers as read-only peers and reports both codes.
+  The same release carries `consensus-create` 0.1.26, `consensus-decide`
+  0.1.26, `consensus-plan` 0.1.26, `consensus-refine` 0.1.29,
+  `consensus-evaluate` 0.1.30, `consensus-review` 0.3.1, `consensus-panel`
+  0.1.23, `phone-a-friend` 0.3.5, `session-observer` 1.1.7,
+  `session-observer-collab` 1.0.85, and `session-fork-to-destination` 0.3.12.
 
 ### Changed
 

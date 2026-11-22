@@ -138,19 +138,19 @@ Only `schema_version` is required in the root object; `defaults` and each of its
 fields are optional. Inside an agent object, `provider` is required. Unknown keys are rejected at every level;
 omit optional values rather than setting them to `null`.
 
-| JSON field                   | Type and constraints                                        | When omitted / behavior                                                                                                            |
-| ---------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `schema_version`             | Required string, exactly `"v1"`                             | Invalid if missing.                                                                                                                |
-| `defaults`                   | Object                                                      | This file supplies no overrides.                                                                                                   |
-| `defaults.peers`             | Array of exactly two agent objects, distinct providers      | Falls through to lower-precedence peer defaults, then built-ins.                                                                   |
-| `defaults.panelists`         | Array of at least two agent objects, distinct providers     | Falls through to lower-precedence panel defaults, then built-ins.                                                                  |
-| `defaults.panel_size`        | Integer ≥ 2, not a numeric string                           | Uses a lower-precedence size when applicable, otherwise the selected list length, or 2.                                            |
-| `defaults.reviewers`         | Nonempty ordered array of agent objects, distinct providers | Falls through to lower-precedence Review defaults, then Claude followed by Codex. The host is excluded during automatic selection. |
-| `defaults.roles`             | Object with only the three keys below                       | Reserved configuration; not applied by current workflow composition resolvers.                                                     |
-| `defaults.roles.panelist`    | Array of at least one agent object, distinct providers      | Reserved; not an alternative to `defaults.panelists`.                                                                              |
-| `defaults.roles.advisor`     | One agent object                                            | Reserved; does not automatically select Phone a Friend's peer.                                                                     |
-| `defaults.roles.synthesizer` | One agent object                                            | Reserved; does not replace `--synthesizer`.                                                                                        |
-| `defaults.provider_models`   | Object mapping an extended provider ID to a model ID        | An extended provider needs `--model` on every run. See [Extended provider models](#extended-provider-models).                      |
+| JSON field                   | Type and constraints                                        | When omitted / behavior                                                                                                                                 |
+| ---------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `schema_version`             | Required string, exactly `"v1"`                             | Invalid if missing.                                                                                                                                     |
+| `defaults`                   | Object                                                      | This file supplies no overrides.                                                                                                                        |
+| `defaults.peers`             | Array of exactly two agent objects, distinct providers      | Falls through to lower-precedence peer defaults, then built-ins.                                                                                        |
+| `defaults.panelists`         | Array of at least two agent objects, distinct providers     | Falls through to lower-precedence panel defaults, then built-ins.                                                                                       |
+| `defaults.panel_size`        | Integer ≥ 2, not a numeric string                           | Uses a lower-precedence size when applicable, otherwise the selected list length, or 2.                                                                 |
+| `defaults.reviewers`         | Nonempty ordered array of agent objects, distinct providers | Falls through to lower-precedence Review defaults, then Claude followed by Codex. The host is excluded during automatic selection.                      |
+| `defaults.roles`             | Object with only the three keys below                       | Reserved configuration; not applied by current workflow composition resolvers.                                                                          |
+| `defaults.roles.panelist`    | Array of at least one agent object, distinct providers      | Reserved; not an alternative to `defaults.panelists`.                                                                                                   |
+| `defaults.roles.advisor`     | One agent object                                            | Reserved; does not automatically select Phone a Friend's peer.                                                                                          |
+| `defaults.roles.synthesizer` | One agent object                                            | Reserved; does not replace `--synthesizer`.                                                                                                             |
+| `defaults.provider_models`   | Object mapping an extended provider ID to a model ID        | An extended provider needs a model on every run; this supplies it when `--model` is omitted. See [Extended provider models](#extended-provider-models). |
 
 An **agent object** has this shape:
 
@@ -343,8 +343,9 @@ node plugins/consensus/skills/panel/scripts/consensus-panel.mjs \
 `--panelists` must list at least two provider ids. `--panel-size` must be 2 or
 larger. If `--panel-size` is smaller than the configured panelist list, the first
 N configured panelists are selected. If it is larger, the resolver appends ready
-core providers from inventory order when possible; an extended provider joins a
-panel only when it is listed.
+core providers from inventory order when possible. It never adds an extended
+provider, and a listed one cannot answer a panel: panel runs are JSON-mode and
+extended providers are text-only.
 
 ## Synthesizer
 

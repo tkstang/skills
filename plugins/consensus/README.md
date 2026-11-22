@@ -84,7 +84,7 @@ If `skills` is already configured as a marketplace from another local checkout, 
 
 - Node.js 22 or newer.
 - The generated consensus CLI from this plugin, used for provider inventory, preflight, peer invocation, and peer verdict submission.
-- Local provider CLIs for the requested peers. The supported provider floor is `claude`, `codex`, and `cursor`. The extended providers `antigravity`, `gemini`, and `droid` are experimental (smoke-tested live on 2026-11-21 on their documented sign-in routes), run read-only only, and are used only when named.
+- Local provider CLIs for the requested peers. The supported provider floor is `claude`, `codex`, and `cursor`. The extended providers `antigravity`, `gemini`, and `droid` are experimental, run read-only only, and are used only when named. They were [smoke-tested live on 2026-11-21](https://github.com/tkstang/skills/blob/main/.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md): Antigravity on its desktop login and on `GEMINI_API_KEY`, Gemini CLI on `GEMINI_API_KEY` only, and Droid on its desktop login only (its `FACTORY_API_KEY` route is untested).
 
 The wrappers always invoke peers through the generated provider CLI. There is no alternate backend selector in v0.1.
 
@@ -297,9 +297,10 @@ ordinary verification failures within the original task go back to the same peer
 with the same session and permissions; the host checks every follow-up. It never merges or
 pushes; the user decides what to keep. Codex and Claude can write and continue
 a session; Cursor and the extended providers are read-only. An extended peer
-needs a model (`--model` or `defaults.provider_models`), and the consensus CLI
-checks the git checkout before and after its turn, failing the run with
-`PROVIDER_WORKTREE_CHANGED` if anything changed. See `skills/delegate/SKILL.md` and the
+needs a model (`--model` or `defaults.provider_models`) and a git checkout.
+The consensus CLI snapshots the checkout before and after the turn and fails
+the run with `PROVIDER_WORKTREE_CHANGED` if HEAD or any tracked or
+non-ignored untracked path changed; ignored files are not checked. See `skills/delegate/SKILL.md` and the
 [Delegate guide](https://tkstang.github.io/skills/user-guide/consensus/delegate/).
 
 ## Permissions
@@ -362,7 +363,7 @@ consensus provider ls --json
 consensus preflight --json --provider claude --capability run
 ```
 
-The supported provider floor is `claude`, `codex`, and `cursor`. `provider ls` lists these core providers only; a provider outside the core tier is used only when named with `preflight --provider` or `run --provider`. The extended tier registers `antigravity`, `gemini`, and `droid`, driven through the CLI's own ACP client; each is experimental, and was smoke-tested live on 2026-11-21 on its documented sign-in route. See [Extended providers](https://tkstang.github.io/skills/user-guide/consensus/provider-setup/#extended-providers). Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_VERSION_UNPARSEABLE`, `PROVIDER_VERSION_UNSUPPORTED`, `PROVIDER_CAPABILITY_MISSING`, and `PROVIDER_UNSUPPORTED_OPTION`, and keep any inventory or preflight `install_hint` in their unavailable errors. See [Prerequisites, version pins, and admission](https://github.com/tkstang/skills/blob/main/documentation/docs/user-guide/consensus/provider-setup.md#prerequisites-version-pins-and-admission).
+The supported provider floor is `claude`, `codex`, and `cursor`. `provider ls` lists these core providers only; a provider outside the core tier is used only when named with `preflight --provider` or `run --provider`. The extended tier registers `antigravity`, `gemini`, and `droid`, driven through the CLI's own ACP client; Each is experimental. [Live smoke tests on 2026-11-21](https://github.com/tkstang/skills/blob/main/.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md) covered Antigravity on its desktop login and `GEMINI_API_KEY`, Gemini CLI on `GEMINI_API_KEY` only, and Droid on its desktop login only. See [Extended providers](https://tkstang.github.io/skills/user-guide/consensus/provider-setup/#extended-providers). Requested peers must be present and usable in provider inventory/preflight before live use. For an extended provider, preflight checks only that its CLI is installed at the minimum version; sign-in and the model are first checked by a run. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_VERSION_UNPARSEABLE`, `PROVIDER_VERSION_UNSUPPORTED`, `PROVIDER_CAPABILITY_MISSING`, and `PROVIDER_UNSUPPORTED_OPTION`, and keep any inventory or preflight `install_hint` in their unavailable errors. See [Prerequisites, version pins, and admission](https://github.com/tkstang/skills/blob/main/documentation/docs/user-guide/consensus/provider-setup.md#prerequisites-version-pins-and-admission).
 
 Cursor accepts `--model <id>` in both default and read-only profiles, for example
 `--model composer-2.5`; list IDs with `cursor-agent --list-models`. Effort remains

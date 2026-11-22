@@ -116,7 +116,8 @@ behaviour.
   untracked files in your checkout and reports any difference. Ignored paths,
   such as `.env` or build outputs, are outside that check.
 - **Extended peers** run in the provider's read-only mode, confirmed before
-  the prompt, and every permission request they make is denied. Consensus
+  the prompt and held for the whole turn (a mode change cancels the turn and
+  discards its answer), and every permission request they make is denied. Consensus
   tells them not to edit files or run commands, so the brief asks for
   file:line evidence rather than a verification command.
 
@@ -137,7 +138,8 @@ For an extended peer, `PROVIDER_WORKTREE_CHANGED` means the checkout changed
 during the turn. The host reports the message and the changed paths verbatim
 and leaves them for you to review; the change may be your own edit made during
 the run. `PROVIDER_PERMISSION_DENIED` means the peer tried to act outside
-read-only and ended without an answer; the host reports the denied tools.
+read-only and ended without an answer; the host reports each denied request:
+its tool, kind, and the first path it named.
 
 ## Continuing
 

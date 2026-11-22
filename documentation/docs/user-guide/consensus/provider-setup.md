@@ -46,8 +46,9 @@ node plugins/consensus/scripts/consensus.mjs preflight --json --provider <select
 Readiness is a state machine, not a boolean. `consensus run` is a separate
 command that never probes. Completed success and provider-failure envelopes
 exit 0; usage errors exit 2. An interrupted CLI re-raises the signal and exits
-by that signal. The diagram below covers the core providers; the next section
-adds the states a provider with prerequisites or pending admission can reach.
+by that signal. The diagram below covers the registered providers; the next
+section adds the states a provider with prerequisites or pending admission
+could reach (no registered provider has either today).
 
 ```mermaid
 stateDiagram-v2
@@ -110,8 +111,9 @@ _Mermaid updated 2026-11-13_
 ### Prerequisites, version pins, and admission
 
 A provider adapter can declare prerequisites: programs that must be installed
-before the provider can run, such as a launcher or the agent CLI it starts. The
-core providers declare none. Probes check prerequisites in order, before the
+before the provider can run, such as a launcher or the agent CLI it starts. No
+registered provider declares prerequisites today, and all three extended
+providers are admitted; this section describes the mechanism. Probes check prerequisites in order, before the
 provider's own binary:
 
 - A prerequisite without a version is checked for presence only. One that is
@@ -140,8 +142,8 @@ provider's own binary:
 
 `consensus run` checks the same prerequisites before it starts the provider. A
 failure returns `PROVIDER_MISSING`, `PROVIDER_UNSUPPORTED` or
-`PROVIDER_UNAVAILABLE` with the install hint in the message and
-`continuation.turn: "not_started"`. On success the absolute path of each
+`PROVIDER_UNAVAILABLE` and `continuation.turn: "not_started"`; a missing or
+out-of-pin prerequisite also puts its install hint in the message. On success the absolute path of each
 checked prerequisite reaches the adapter's invocation builder, so the run
 launches what was checked; the override variables that selected them are not
 passed to the provider.
@@ -156,10 +158,11 @@ it as `unsupported` with `PROVIDER_NOT_ADMITTED: registered, not admitted:
 
 Three extended providers are registered: Antigravity (`antigravity`), Gemini
 CLI (`gemini`), and Factory Droid (`droid`). They are **experimental**. Each
-passed a live smoke test on 2026-11-21 (an answer, a read, and a refused edit,
-with a clean working tree and no leftover processes) at the minimum version
-below, on the sign-in route its section names as tested. Other routes and
-later versions are untested.
+passed a live smoke test on 2026-11-21 at the minimum version below, on the
+sign-in route its section names as tested: an answer, a read, and an edit
+request that changed nothing, with a clean working tree and no leftover
+processes. See the [smoke record](https://github.com/tkstang/skills/blob/main/.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md). Other routes and later versions are
+untested.
 
 Consensus drives each one through its Agent Client Protocol (ACP) command over
 the agent's stdin and stdout, with its own client: nothing else is installed or
@@ -186,33 +189,40 @@ delegate fallback, and panel auto-fill never pick them.
   Consensus never falls back to the provider's own default model.
 - **Read-only setup before the prompt.** Consensus sets the provider's
   read-only mode and the model, and sends the prompt only once the agent has
-  confirmed both. An unconfirmed mode or model, or a model the agent does not
-  offer, fails with `PROVIDER_UNSUPPORTED_OPTION` and `turn: "not_started"`.
-  For Antigravity and Droid the message lists some of the models on offer.
-  Consensus keeps watching the mode: if the agent reports leaving it during
-  the turn, the turn is cancelled and fails with `PROVIDER_EXIT`
-  (`acp_mode_changed`).
+  confirmed both. An unconfirmed mode or model, a model the agent does not
+  offer, or any contrary mode or autonomy update before the prompt fails with
+  `PROVIDER_UNSUPPORTED_OPTION` and `turn: "not_started"`. For Antigravity and
+  Droid the message lists up to five models on offer. Consensus keeps
+  watching the mode: if the agent reports leaving it during the turn, the turn
+  is cancelled and fails with `PROVIDER_EXIT` (`acp_mode_changed`).
 - **Deny-all.** Every permission request the agent sends is rejected, and the
   client offers the agent no file system or terminal and no MCP servers of its
   own. A turn that is denied a tool and still answers succeeds, with
   `diagnostics.permission_denials` filled; one that ends without an answer
   fails with `PROVIDER_PERMISSION_DENIED`.
+- **Redaction.** The values of the provider's credential variables, and
+  provider patterns such as Droid's pairing code, are removed from answer
+  text, metadata, denial details, working-tree change paths, and stderr.
 - **Brief lines.** Before your prompt, consensus adds: "This is a read-only
   run. Use only read and search tools. Do not edit files or run shell
   commands; such requests are denied and end the turn." Some providers get one
   more line, listed below.
 - **A working-tree check.** The working directory must be a git checkout.
-  Consensus compares it before and after the turn and fails a run that changed
-  it with `PROVIDER_WORKTREE_CHANGED`; see
+  Consensus compares HEAD and the tracked and untracked files before and after
+  the turn, and fails a run that changed them with
+  `PROVIDER_WORKTREE_CHANGED`. Ignored files are not checked; see
   [Provider run controls](provider-run-controls.md#extended-provider-runs).
 - **Cleanup.** When the turn ends, consensus closes the session where the agent
-  supports that, then stops the agent's whole process group, even after a normal exit, so helpers the agent
-  started do not outlive the run.
+  supports that, then stops the agent's whole process group (on Windows, the
+  agent process only), even after a normal exit, so helpers the agent started
+  do not outlive the run.
 
 ### Sign-in
 
-Preflight runs only `<command> --version` and checks the minimum version. It
-never opens an ACP session, so `ready` does not prove the agent is signed in.
+Preflight runs only `<command> --version`, without the provider's credential
+variables, checks the minimum version, and reports only the numeric version.
+It never opens an ACP session, so `ready` proves neither the sign-in nor the
+model; both are first checked by a run.
 
 When the provider's credential variable is set in the environment that starts
 consensus, the run authenticates with it, even if you are also signed in;
@@ -254,7 +264,8 @@ current quota`) fails with `PROVIDER_LIMIT_REACHED`; `agent executor error`
   terminal may also work, but is untested.
 - The model is passed at launch with `-m`, and the session must report it.
 - Read-only mode is `plan`, set inside the session. Gemini confirms it with a
-  `[MODE_UPDATE] plan` message, which consensus removes from the reply.
+  `[MODE_UPDATE] plan` message (or a mode update naming `plan`) before the
+  prompt is sent, so the message never reaches the reply.
 - No extra brief line.
 
 ### Droid
@@ -270,8 +281,7 @@ current quota`) fails with `PROVIDER_LIMIT_REACHED`; `agent executor error`
 - Droid ends the whole turn when a tool is denied, so a denied run fails with
   `PROVIDER_PERMISSION_DENIED`.
 - Signed out, Droid answers with a device-pairing code, and starts a new code
-  for every session. Consensus removes the code from error messages and
-  stderr.
+  for every session. Consensus redacts the code wherever it reports it.
 
 ## Diagnostics
 

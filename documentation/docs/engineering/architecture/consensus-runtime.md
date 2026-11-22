@@ -90,34 +90,58 @@ no provider branches.
   place of `runProviderSubprocess`; only ACP adapters do. Its result's
   `stdout` is a serialized, normalized turn result (text, stop reason, session,
   models, sanitized denials, setup evidence), never raw frames, and the
-  adapter's hooks parse it back. The envelope's text is the answer alone.
+  adapter's hooks parse it back. The envelope's `text`, and a failure
+  envelope's `stdout`, hold only the answer text, never the turn record.
 - **Session.** `initialize` advertises no file system or terminal;
   `authenticate` runs only when the descriptor's API-key variable is set;
   `session/new` sends `mcpServers: []`. The read-only mode and the model are
   set and confirmed before `session/prompt`, or the run stops as
-  `not_started`. The mode stays watched: a reported change before the prompt
-  stops the run, and one during the turn cancels it (`acp_mode_changed`).
-  Permission requests get a `reject_once` (else `reject_always`) option
-  chosen by its kind, or `cancelled`; every other agent request gets
-  `-32601`. Denials keep only identifying fields, never tool input.
-- **Process group.** The spawn primitive in
-  [`acp/process.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/acp/process.ts)
-  signals the agent's group on every exit path, a normal exit included:
-  `session/close` where advertised, stdin closed, a bounded wait, then SIGTERM
-  and SIGKILL. A timeout or interrupt sends `session/cancel` first.
+  `not_started`. The mode stays watched: any contrary mode or autonomy update
+  before the prompt stops the run as `not_started`, and one during the turn
+  cancels it (`PROVIDER_EXIT`, `acp_mode_changed`). Permission requests get a
+  `reject_once` (else `reject_always`) option chosen by its kind, or
+  `cancelled`; every other agent request gets `-32601`. Each denial keeps only
+  the tool, its ACP kind, and the first path it named (relative to the
+  working directory when inside it), reported in
+  `diagnostics.permission_denials.requests`; never tool input.
+- **Redaction.** The values of the descriptor's credential variables and its
+  redaction patterns (such as Droid's pairing code) are removed from answer
+  text, metadata, denial details, working-tree change paths, and stderr.
+- **Process group.** The ACP client tears down the agent's process group on
+  every exit path, a normal exit included (a single process on Windows),
+  using the spawn primitive in
+  [`acp/process.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/acp/process.ts).
+  The client sends `session/close` where the agent advertises it (not after
+  an output-cap breach), closes stdin, and waits a bounded time for exit (no
+  wait after an interrupt). It then signals the group with SIGTERM, or the
+  forwarded interrupt signal, and escalates to SIGKILL only if the group
+  outlives the grace period. When a timeout, output-cap breach, interrupt, or
+  mode change stops a turn whose prompt is in flight, it sends
+  `session/cancel` first.
 - **Model.** `runProviderTurn` requires a model for an extended adapter:
   `request.model`, else `defaults.provider_models.<id>` from the consensus
   config (project before user). With neither it refuses the run before launch.
   A configured model is recorded in the receipt as `default_model`.
 - **Working-tree check.** `runProviderTurn` wraps every extended read-only
-  turn with a snapshot of the git checkout at the working directory
+  turn with a snapshot of the whole git work tree that contains the working
+  directory
   ([`working-tree.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/working-tree.ts)).
   It runs `git` with `shell: false`, git's repository-local environment
   variables cleared, and no optional locks, and it writes no objects or index.
-  No checkout refuses the run before launch; any change after the turn fails
-  it with `PROVIDER_WORKTREE_CHANGED`. The preflight probe runs only
-  `<command> --version`: it never opens a session, since Droid starts a new
-  pairing code on each one.
+  No checkout refuses the run before launch. A changed HEAD, or any change to
+  a tracked or non-ignored untracked path (content or file mode), to an
+  assume-unchanged or skip-worktree entry, or to `.git/info/exclude`, fails the
+  run with `PROVIDER_WORKTREE_CHANGED` and lists the paths in
+  `diagnostics.working_tree_changes`; a checkout that cannot be re-read fails
+  the same way. It is a backstop behind the read-only mode and deny-all, and
+  it does not see ignored files, changes a clean filter normalizes, case-only
+  renames on a case-insensitive file system, changes inside an untracked
+  nested repository, or writes outside the work tree.
+- **Preflight.** The probe runs only `<command> --version`, without the
+  provider's credential variables, and reports only the parsed version. It
+  never opens a session, because Droid mints a new pairing code on each one,
+  so a `ready` extended provider is installed at or above its minimum
+  version, but its sign-in and model are first checked by a run.
 
 ## Guardrails, not isolation
 
@@ -188,7 +212,10 @@ runs the state machine.
 
 Each adapter's continuation capability is either `verified`, `unverified`, or
 `unsupported`, and only `verified` adapters reach a native resume. Extended
-adapters declare none, so a native resume on them is refused before launch.
+adapters declare none, so they never reach one. A `--resume` request is
+refused before launch with `PROVIDER_UNSUPPORTED_OPTION`
+(`native_resume_unsupported`), unless `--resume-fallback reconstructed`
+supplies a packet, which then runs a new reconstructed session.
 Verification means that a live same-session marker smoke passed for the
 recorded CLI version. It does not certify later versions or every policy
 combination.
