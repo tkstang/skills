@@ -162,6 +162,18 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
     abortReason = reason;
     resolveAbort({ kind: 'aborted' });
   };
+  // An exception in the client itself (a failed stdin write, a bug): the
+  // run stops waiting and goes straight to teardown.
+  const clientFailure = (error: unknown) => {
+    if (!result.error) {
+      result.error = {
+        phase: result.phase,
+        kind: 'client_error',
+        message: redact(error instanceof Error ? error.message : String(error)),
+      };
+    }
+    resolveAbort({ kind: 'aborted' });
+  };
 
   // A mode change after the read-only mode was confirmed: before the
   // prompt it stops the run; during the turn it cancels the turn.
@@ -171,7 +183,13 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
   // Set once spawned; nothing is written before that.
   const io: { group?: ProcessGroupHandle } = {};
   const connection = new JsonRpcConnection({
-    write: (line) => io.group?.write(line),
+    write: (line) => {
+      try {
+        io.group?.write(line);
+      } catch (error) {
+        clientFailure(error);
+      }
+    },
     onRequest: (request) => {
       if (request.method === 'session/request_permission') {
         const { response, denial } = denyPermissionRequest(request.params, {
@@ -233,8 +251,20 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
 
   let promptOutcome: Promise<JsonRpcOutcome> | undefined;
   let teardown: GroupTeardown | undefined;
-  await drive();
-  await finish();
+  // The process group is torn down whatever driving or closing the session
+  // throws; the run then reports the failure instead of rejecting.
+  try {
+    await drive();
+  } catch (error) {
+    clientFailure(error);
+  }
+  try {
+    await finish();
+  } catch (error) {
+    clientFailure(error);
+  } finally {
+    await tearDownGroup();
+  }
 
   const exit = group.hasExited() ? await group.exit : undefined;
   return finalize();
@@ -430,14 +460,23 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
       );
       result.session_closed = closed !== 'timeout' && closed.kind === 'result';
     }
-    teardown = await group.teardown({
-      exitGraceMs: timing.exitGraceMs,
-      killGraceMs: timing.killGraceMs,
-      settleMs: timing.settleMs,
-      firstSignal: interruptSignal ?? 'SIGTERM',
-      waitForExit: abortReason !== 'interrupt',
-    });
-    connection.close();
+  }
+
+  async function tearDownGroup() {
+    try {
+      teardown = await group.teardown({
+        exitGraceMs: timing.exitGraceMs,
+        killGraceMs: timing.killGraceMs,
+        settleMs: timing.settleMs,
+        firstSignal: interruptSignal ?? 'SIGTERM',
+        waitForExit: abortReason !== 'interrupt',
+      });
+    } catch (error) {
+      clientFailure(error);
+      killGroupNow(group.pid);
+    } finally {
+      connection.close();
+    }
   }
 
   function finalize(): AcpRunOutcome {
@@ -692,6 +731,16 @@ class SessionState {
     if (watch && marker !== undefined && content.text === marker) {
       watch.echoed ??= 'marker';
     }
+  }
+}
+
+// Last resort when teardown itself failed.
+function killGroupNow(pid: number | undefined) {
+  if (pid === undefined) return;
+  try {
+    process.kill(process.platform === 'win32' ? pid : -pid, 'SIGKILL');
+  } catch {
+    // Already gone.
   }
 }
 

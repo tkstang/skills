@@ -8,6 +8,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { fixtureBin } from '../../../../../tests/helpers/process.mjs';
 import type { AcpRunOutcome, AcpSessionPlan } from './client.js';
 import { runAcpTurn } from './client.js';
+import type { SpawnProcessGroup } from './process.js';
+import { spawnProcessGroup } from './process.js';
 import { classifyAcpTurn, serializeAcpTurnResult } from './transcript.js';
 
 // Scenarios replay sanitized frames from the ACP spike logs (see each
@@ -78,6 +80,7 @@ async function run(
     timeoutMs?: number;
     maxOutputBytes?: number;
     env?: NodeJS.ProcessEnv;
+    wrapSpawn?: (spawn: SpawnProcessGroup) => SpawnProcessGroup;
   } = {},
 ) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'consensus-acp-'));
@@ -102,6 +105,9 @@ async function run(
     timeoutMs: options.timeoutMs ?? 10_000,
     maxOutputBytes: options.maxOutputBytes,
     timing: FAST_TIMING,
+    ...(options.wrapSpawn
+      ? { spawn: options.wrapSpawn(spawnProcessGroup) }
+      : {}),
   });
   const received = (await readFile(receivedLog, 'utf8').catch(() => ''))
     .split('\n')
@@ -587,6 +593,54 @@ describe('ACP session driver', () => {
         signals: ['SIGTERM', 'SIGKILL'],
         settled_by: 'sigkill',
       });
+      expect(await waitForExit(grandchild)).toBe(true);
+    });
+
+    it('tears the group down and reports a failure when a stdin write throws', async () => {
+      const recorded = await fixture('agy-key-default');
+      const scenario = {
+        ...recorded,
+        onStdinEnd: 'ignore' as const,
+        ignoreSigterm: true,
+        steps: [{ spawnGrandchild: true }, ...recorded.steps],
+      };
+      let agentPid: number | undefined;
+      const { outcome, pidFile } = await run(
+        scenario,
+        { mode: AGY_MODE, configOptions: AGY_CONFIG },
+        {
+          wrapSpawn: (spawn) => async (options) => {
+            const spawned = await spawn(options);
+            if (!spawned.ok) return spawned;
+            const handle = spawned.handle;
+            agentPid = handle.pid;
+            return {
+              ok: true,
+              handle: Object.assign(Object.create(handle), {
+                write(line: string) {
+                  if (line.includes('"session/prompt"')) {
+                    throw new Error('EPIPE: broken pipe');
+                  }
+                  handle.write(line);
+                },
+              }),
+            };
+          },
+        },
+      );
+
+      expect(outcome.result.error).toMatchObject({
+        kind: 'client_error',
+        message: 'EPIPE: broken pipe',
+      });
+      expect(classifyAcpTurn(outcome.result)).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_EXIT',
+        terminal_reason: 'acp_client_error',
+      });
+      expect(outcome.teardown?.signals).toContain('SIGKILL');
+      const grandchild = Number(await readFile(pidFile, 'utf8'));
+      expect(await waitForExit(agentPid!)).toBe(true);
       expect(await waitForExit(grandchild)).toBe(true);
     });
 

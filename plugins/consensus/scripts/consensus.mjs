@@ -1714,6 +1714,14 @@ function classifyAcpTurn(result, options = {}) {
         error.phase === "prompt" ? "unknown" : "not_started"
       );
     }
+    if (error.kind === "client_error") {
+      return failure2(
+        "PROVIDER_EXIT",
+        `The consensus ACP client failed during ${error.phase}: ${error.message}`,
+        "acp_client_error",
+        startedTurn
+      );
+    }
     if (error.kind === "agent_exit") {
       return failure2(
         "PROVIDER_EXIT",
@@ -1858,12 +1866,28 @@ async function runAcpTurn(input) {
     abortReason = reason;
     resolveAbort({ kind: "aborted" });
   };
+  const clientFailure = (error) => {
+    if (!result.error) {
+      result.error = {
+        phase: result.phase,
+        kind: "client_error",
+        message: redact(error instanceof Error ? error.message : String(error))
+      };
+    }
+    resolveAbort({ kind: "aborted" });
+  };
   const session = new SessionState(result, () => {
     if (result.prompt_sent) abort("mode_changed");
   });
   const io = {};
   const connection = new JsonRpcConnection({
-    write: (line) => io.group?.write(line),
+    write: (line) => {
+      try {
+        io.group?.write(line);
+      } catch (error) {
+        clientFailure(error);
+      }
+    },
     onRequest: (request) => {
       if (request.method === "session/request_permission") {
         const { response, denial } = denyPermissionRequest(request.params, {
@@ -1918,8 +1942,18 @@ async function runAcpTurn(input) {
   const call = (method, params) => Promise.race([connection.request(method, params).outcome, aborted]);
   let promptOutcome;
   let teardown;
-  await drive();
-  await finish();
+  try {
+    await drive();
+  } catch (error) {
+    clientFailure(error);
+  }
+  try {
+    await finish();
+  } catch (error) {
+    clientFailure(error);
+  } finally {
+    await tearDownGroup();
+  }
   const exit = group.hasExited() ? await group.exit : void 0;
   return finalize();
   async function drive() {
@@ -2088,14 +2122,22 @@ async function runAcpTurn(input) {
       );
       result.session_closed = closed !== "timeout" && closed.kind === "result";
     }
-    teardown = await group.teardown({
-      exitGraceMs: timing.exitGraceMs,
-      killGraceMs: timing.killGraceMs,
-      settleMs: timing.settleMs,
-      firstSignal: interruptSignal ?? "SIGTERM",
-      waitForExit: abortReason !== "interrupt"
-    });
-    connection.close();
+  }
+  async function tearDownGroup() {
+    try {
+      teardown = await group.teardown({
+        exitGraceMs: timing.exitGraceMs,
+        killGraceMs: timing.killGraceMs,
+        settleMs: timing.settleMs,
+        firstSignal: interruptSignal ?? "SIGTERM",
+        waitForExit: abortReason !== "interrupt"
+      });
+    } catch (error) {
+      clientFailure(error);
+      killGroupNow(group.pid);
+    } finally {
+      connection.close();
+    }
   }
   function finalize() {
     if (abortReason) result.abort = abortReason;
@@ -2297,6 +2339,13 @@ var SessionState = class {
     }
   }
 };
+function killGroupNow(pid) {
+  if (pid === void 0) return;
+  try {
+    process.kill(process.platform === "win32" ? pid : -pid, "SIGKILL");
+  } catch {
+  }
+}
 function currentValueOf(options, id) {
   if (!Array.isArray(options)) return void 0;
   const option = options.find((entry) => isRecord2(entry) && entry.id === id);

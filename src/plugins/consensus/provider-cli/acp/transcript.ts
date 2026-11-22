@@ -50,7 +50,9 @@ export interface AcpTurnError {
     | 'unsupported_option'
     | 'unconfirmed_setup'
     | 'agent_exit'
-    | 'malformed';
+    | 'malformed'
+    // consensus's own client failed (a stdin write threw, or a bug).
+    | 'client_error';
   // JSON-RPC error code, for kind `jsonrpc`.
   code?: number;
   // Redacted.
@@ -335,6 +337,14 @@ export function classifyAcpTurn(
         `${name} needs authentication: ${error.message}.${hint}`,
         'provider_auth_required',
         error.phase === 'prompt' ? 'unknown' : 'not_started',
+      );
+    }
+    if (error.kind === 'client_error') {
+      return failure(
+        'PROVIDER_EXIT',
+        `The consensus ACP client failed during ${error.phase}: ${error.message}`,
+        'acp_client_error',
+        startedTurn,
       );
     }
     if (error.kind === 'agent_exit') {
