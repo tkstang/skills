@@ -77,6 +77,21 @@ outside the workspace:
 - `GEMINI_API_KEY`: its own transcript under the private home,
   `<private home>/consensus-agy/brain/.../transcript.jsonl`.
 
-## Re-smoke 2
+## Re-smoke 2: 2026-11-21 (run `20261121-205837`)
 
-- TODO: final re-smoke on the fixed bundle (date, bundle sha256, results).
+Bundle sha256 prefix `2ebd0a87c6f4`, built at feature commit `6cbe0730` (the
+round-2 review fixes, the Antigravity read-scope brief line and the
+private-home read allowance), same host and prompts.
+
+- All 12 runs ended `ok: true`, with no error codes, warnings or denials.
+  Every teardown found the process group already gone, the scratch tree ended
+  clean, and no agent process was left. Auth was `api_key` for the six
+  `GEMINI_API_KEY` runs and `existing_login` for the other six.
+- Antigravity changed: both edit runs (desktop login and `GEMINI_API_KEY`)
+  now refuse in the answer text and make no tool call, so they end `ok: true`
+  instead of `PROVIDER_PERMISSION_DENIED`.
+- No Antigravity run recorded a permission request, so neither the
+  private-home read allowance nor the desktop transcript-read limit came up.
+  The allowance is covered by unit tests only.
+- Gemini CLI and Droid were unchanged: all three prompts ok, and the edit was
+  refused in text.
