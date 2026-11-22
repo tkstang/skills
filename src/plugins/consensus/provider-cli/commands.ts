@@ -102,7 +102,12 @@ export type ConfigFieldSource = 'user' | 'project';
 
 export type ConfigFieldSources = Partial<
   Record<
-    'peers' | 'panelists' | 'panel-size' | 'reviewers' | 'roles',
+    | 'peers'
+    | 'panelists'
+    | 'panel-size'
+    | 'reviewers'
+    | 'roles'
+    | 'provider-models',
     ConfigFieldSource
   >
 >;
@@ -593,6 +598,7 @@ function effectiveFieldSources(
     ['panel-size', 'panel_size'],
     ['reviewers', 'reviewers'],
     ['roles', 'roles'],
+    ['provider-models', 'provider_models'],
   ] as const;
   for (const [key, field] of fields) {
     if (project?.defaults?.[field] !== undefined) {
@@ -626,6 +632,14 @@ function mergeConfigFields(
   if (source.panel_size !== undefined) target.panel_size = source.panel_size;
   if (source.reviewers !== undefined) target.reviewers = source.reviewers;
   if (source.roles !== undefined) target.roles = source.roles;
+  // Per provider: a project entry replaces only that provider's user entry,
+  // as on the run path.
+  if (source.provider_models !== undefined) {
+    target.provider_models = {
+      ...target.provider_models,
+      ...source.provider_models,
+    };
+  }
 }
 
 function configHasDefaults(
@@ -702,7 +716,8 @@ function configDefaultsHasValues(
       defaults.panelists !== undefined ||
       defaults.panel_size !== undefined ||
       defaults.reviewers !== undefined ||
-      defaults.roles !== undefined)
+      defaults.roles !== undefined ||
+      defaults.provider_models !== undefined)
   );
 }
 

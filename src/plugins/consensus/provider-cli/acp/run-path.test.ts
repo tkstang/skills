@@ -3,7 +3,14 @@
 // with the fake ACP agent in place of the provider command, in a temporary
 // git checkout so the working-tree check runs as it does for callers.
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -72,15 +79,28 @@ interface Run {
   cwd: string;
 }
 
+interface SetupOptions {
+  cwd?: string;
+  // Written as the user consensus config.
+  userConfig?: unknown;
+}
+
 async function setup(
   descriptor: AcpProviderDescriptor,
   scenario: Scenario,
-  options: { cwd?: string } = {},
+  options: SetupOptions = {},
 ) {
   const harness = await fakeAgentHarness(scenario);
   cleanup.push(() => harness.cleanup());
   const cwd = options.cwd ?? (await checkout());
   const home = await tempDir('consensus-acp-home-');
+  if (options.userConfig) {
+    await mkdir(path.join(home, '.config', 'consensus'), { recursive: true });
+    await writeFile(
+      path.join(home, '.config', 'consensus', 'config.json'),
+      JSON.stringify(options.userConfig),
+    );
+  }
   const parentEnv = {
     PATH: process.env.PATH,
     HOME: home,
@@ -97,7 +117,7 @@ async function runTurn(
   descriptor: AcpProviderDescriptor,
   scenario: Scenario,
   request: Partial<ConsensusCliRunRequest> = {},
-  options: { cwd?: string } = {},
+  options: SetupOptions = {},
 ): Promise<Run> {
   const { harness, cwd, parentEnv, registry } = await setup(
     descriptor,
@@ -419,9 +439,31 @@ describe('extended runs through runProviderTurn', () => {
       attempts: { cli_attempts: 0, terminal_reason: 'model_required' },
       continuation: { turn: 'not_started' },
     });
-    expect(envelope.ok === false && envelope.message).toMatch(
-      /^antigravity needs a model: pass --model/,
+    expect(envelope.ok === false && envelope.message).toBe(
+      'antigravity needs a model: pass --model or set defaults.provider_models.antigravity.',
     );
+  });
+
+  it('runs the configured default model and reports it apart from the requested one', async () => {
+    const { envelope, harness } = await runTurn(
+      ANTIGRAVITY_DESCRIPTOR,
+      await agySession(),
+      {},
+      {
+        userConfig: {
+          schema_version: 'v1',
+          defaults: { provider_models: { antigravity: 'gemini-3.8-flash' } },
+        },
+      },
+    );
+
+    expect(harness.launches).toHaveLength(1);
+    expect(envelope.ok).toBe(true);
+    expect(envelope.continuation).toMatchObject({
+      default_model: 'gemini-3.8-flash',
+      observed_models: ['gemini-3.8-flash'],
+    });
+    expect(envelope.continuation).not.toHaveProperty('requested_model');
   });
 });
 
@@ -430,11 +472,22 @@ describe('extended runs through consensus run --request-json', () => {
     descriptor: AcpProviderDescriptor,
     scenario: Scenario,
     request: Record<string, unknown>,
+    projectConfig?: unknown,
   ) {
     const { harness, cwd, parentEnv, registry } = await setup(
       descriptor,
       scenario,
     );
+    if (projectConfig) {
+      // Committed, so the checkout is clean apart from what the peer does.
+      await mkdir(path.join(cwd, '.consensus'));
+      await writeFile(
+        path.join(cwd, '.consensus', 'config.json'),
+        JSON.stringify(projectConfig),
+      );
+      git(cwd, 'add', '.');
+      git(cwd, 'commit', '-q', '-m', 'config');
+    }
     const requestDir = await tempDir('consensus-acp-request-');
     const requestPath = path.join(requestDir, 'request.json');
     await writeFile(
@@ -466,17 +519,22 @@ describe('extended runs through consensus run --request-json', () => {
     return { code, envelope: JSON.parse(stdout), harness };
   }
 
-  it('runs a registry adapter and returns the text envelope', async () => {
+  it('runs a registry adapter on the project default model and returns the text envelope', async () => {
     const { code, envelope } = await runCli(
       ANTIGRAVITY_DESCRIPTOR,
       await agySession(),
-      { model: 'gemini-3.8-flash' },
+      {},
+      {
+        schema_version: 'v1',
+        defaults: { provider_models: { antigravity: 'gemini-3.8-flash' } },
+      },
     );
 
     expect(code).toBe(0);
     expect(envelope).toMatchObject({
       ok: true,
       text: 'marker-85b2d6a11e65\nGemini 3.8 Flash',
+      continuation: { default_model: 'gemini-3.8-flash' },
     });
   });
 

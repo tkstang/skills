@@ -2,6 +2,7 @@ import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { resolveProviderDefaultModel } from '../config/consensus-config.js';
 import { providerExecutableEnvNames, providerRegistry } from './adapters.js';
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
 import {
@@ -168,7 +169,7 @@ export async function runProviderTurn(
   // to a provider default the caller did not choose.
   let turnRequest = request;
   if (adapter?.tier === 'extended') {
-    const model = await extendedProviderModel(request);
+    const model = await extendedProviderModel(request, dependencies);
     if (!model.ok) {
       return withReceipt(
         preInvocationFailure({
@@ -328,12 +329,35 @@ type ExtendedModelResult =
 
 async function extendedProviderModel(
   request: ConsensusCliRunRequest,
+  dependencies: RunProviderTurnDependencies,
 ): Promise<ExtendedModelResult> {
   if (request.model) return { ok: true, model: request.model };
+  let configured: Awaited<ReturnType<typeof resolveProviderDefaultModel>>;
+  try {
+    configured = await resolveProviderDefaultModel({
+      provider: request.provider,
+      cwd: request.cwd ?? process.cwd(),
+      env: dependencies.parentEnv ?? process.env,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      code: 'CONSENSUS_CLI_USAGE',
+      message: `Could not read the consensus config for the ${request.provider} default model: ${error instanceof Error ? error.message : String(error)}`,
+      terminalReason: 'consensus_config_invalid',
+    };
+  }
+  if (configured) {
+    return {
+      ok: true,
+      model: configured.model,
+      defaultModel: configured.model,
+    };
+  }
   return {
     ok: false,
     code: 'PROVIDER_UNSUPPORTED_OPTION',
-    message: `${request.provider} needs a model: pass --model.`,
+    message: `${request.provider} needs a model: pass --model or set defaults.provider_models.${request.provider}.`,
     terminalReason: 'model_required',
   };
 }

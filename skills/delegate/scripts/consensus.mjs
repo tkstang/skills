@@ -22,6 +22,102 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
+// src/plugins/consensus/provider-cli/acp/descriptors.ts
+var ANTIGRAVITY_DESCRIPTOR = {
+  id: "antigravity",
+  display_name: "Antigravity",
+  executable: "agy",
+  executable_env: "CONSENSUS_ANTIGRAVITY_EXECUTABLE",
+  credential_env: ["GEMINI_API_KEY"],
+  install_hint: "Install Google Antigravity and its `agy` command, then sign in with `agy acp --login` from a desktop terminal.",
+  minimum_version: "1.5.13",
+  launch_args: ["acp"],
+  model: { kind: "config_option", config_id: "model" },
+  // models.currentModelId joins model and thinking level
+  // (gemini-3.8-flash-high) and is not updated by set_config_option.
+  model_sources: ["config_model", "current_model_id"],
+  // agy answers set_mode with {} and no echo, so `default` is confirmed by
+  // session/new reporting it. Never accept-edits, auto or plan.
+  mode: {
+    modeId: "default",
+    confirm: { initialState: true, currentModeUpdate: true }
+  },
+  // Without an explicit authenticate, a --gemini-dir run silently used the
+  // desktop login (agy-key-default.jsonl).
+  api_key: {
+    env: "GEMINI_API_KEY",
+    method_id: "gemini-api-key",
+    private_home: {
+      dir_flag: "--gemini-dir",
+      app_data_flag: "--app-data-dir",
+      app_data_name: "consensus-agy",
+      settings_files: ["antigravity-cli/settings.json", "config/settings.json"],
+      settings: { modelProvider: "gemini" }
+    }
+  },
+  auth_hint: "Sign in with `agy acp --login` from a desktop terminal, or set GEMINI_API_KEY.",
+  auth_error_patterns: [/No browser is available/i],
+  // A 429 arrives as answer text with end_turn (agy-key2-default.jsonl).
+  error_text_patterns: [
+    {
+      pattern: /Error 429|exceeded your current quota/i,
+      code: "PROVIDER_LIMIT_REACHED"
+    },
+    { pattern: /agent executor error/i, code: "PROVIDER_EXIT" }
+  ],
+  brief_lines: ["Do not use invoke_subagent, swarm, run_workflow or schedule."]
+};
+var GEMINI_DESCRIPTOR = {
+  id: "gemini",
+  display_name: "Gemini CLI",
+  executable: "gemini",
+  executable_env: "CONSENSUS_GEMINI_EXECUTABLE",
+  credential_env: ["GEMINI_API_KEY"],
+  install_hint: "Install Gemini CLI with `npm install -g @google/gemini-cli`, then sign in by running `gemini` once, or set GEMINI_API_KEY.",
+  minimum_version: "0.70.0",
+  launch_args: ["--acp"],
+  // Gemini advertises no configOptions; -m at launch is the only lever.
+  model: { kind: "launch_flag", flag: "-m" },
+  model_sources: ["usage_models", "current_model_id"],
+  // Plan mode's only echo is this chunk, sent before the set_mode response.
+  mode: {
+    modeId: "plan",
+    confirm: { marker: "[MODE_UPDATE] plan", currentModeUpdate: true }
+  },
+  api_key: { env: "GEMINI_API_KEY", method_id: "gemini-api-key" },
+  auth_hint: "Sign in by running `gemini` once in a terminal, or set GEMINI_API_KEY."
+};
+var DROID_DESCRIPTOR = {
+  id: "droid",
+  display_name: "Droid",
+  executable: "droid",
+  executable_env: "CONSENSUS_DROID_EXECUTABLE",
+  credential_env: ["FACTORY_API_KEY"],
+  install_hint: "Install Factory Droid (https://docs.factory.ai), then sign in by running `droid` in a desktop terminal, or set FACTORY_API_KEY.",
+  minimum_version: "1.16.0",
+  launch_args: ["exec", "--output-format", "acp"],
+  model: { kind: "config_option", config_id: "model" },
+  model_sources: ["config_model"],
+  // The ACP default is auto-medium, which auto-approves writes. normal is
+  // echoed by current_mode_update and the autonomy_level config option.
+  mode: {
+    modeId: "normal",
+    confirm: { currentModeUpdate: true, configOptionId: "autonomy_level" }
+  },
+  api_key: { env: "FACTORY_API_KEY", method_id: "factory-api-key" },
+  auth_hint: "Sign in by running `droid` in a desktop terminal, or set FACTORY_API_KEY.",
+  // The auth-required message carries a live device-pairing code.
+  redactions: [/(?<=Your code:\s*)[A-Z0-9]{4}-[A-Z0-9]{4}\b/g],
+  brief_lines: [
+    "Do not use loop, ConnectApp, automation, or cloud/computer tools."
+  ]
+};
+var ACP_PROVIDER_DESCRIPTORS = [
+  ANTIGRAVITY_DESCRIPTOR,
+  GEMINI_DESCRIPTOR,
+  DROID_DESCRIPTOR
+];
+
 // src/plugins/consensus/provider-cli/types.ts
 var CORE_PROVIDER_IDS = ["claude", "codex", "cursor"];
 var PROVIDER_PREFLIGHT_CAPABILITIES = ["run"];
@@ -41,8 +137,12 @@ var DEFAULTS_KEYS = /* @__PURE__ */ new Set([
   "panelists",
   "panel_size",
   "reviewers",
-  "roles"
+  "roles",
+  "provider_models"
 ]);
+var EXTENDED_PROVIDER_IDS = new Set(
+  ACP_PROVIDER_DESCRIPTORS.map((descriptor) => descriptor.id)
+);
 var AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
 var ROLE_KEYS = /* @__PURE__ */ new Set(["panelist", "advisor", "synthesizer"]);
 function parseConsensusDefaultsConfig(value) {
@@ -90,7 +190,41 @@ function parseConsensusDefaults(value) {
   if (value.roles !== void 0) {
     defaults.roles = parseRolesConfig(value.roles);
   }
+  if (value.provider_models !== void 0) {
+    defaults.provider_models = parseProviderModels(value.provider_models);
+  }
   return defaults;
+}
+function parseProviderModels(value) {
+  const label = "Consensus config provider_models";
+  if (!isRecord(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  const models = {};
+  for (const [provider, model] of Object.entries(value)) {
+    if (!EXTENDED_PROVIDER_IDS.has(provider)) {
+      throw new Error(
+        `${label} accepts only registered extended providers (${[...EXTENDED_PROVIDER_IDS].join(", ")}), not: ${provider}`
+      );
+    }
+    if (typeof model !== "string" || model.trim() === "") {
+      throw new Error(`${label}.${provider} must be a non-empty string`);
+    }
+    models[provider] = model;
+  }
+  return models;
+}
+async function resolveProviderDefaultModel(input) {
+  for (const scope of ["project", "user"]) {
+    const config = await readConsensusConfig({
+      scope,
+      cwd: input.cwd,
+      env: input.env
+    });
+    const model = config?.defaults?.provider_models?.[input.provider];
+    if (model) return { model, source: scope };
+  }
+  return void 0;
 }
 async function readConsensusConfig(input) {
   const configPath = await consensusConfigPath(input);
@@ -442,7 +576,7 @@ function assertKnownKeys(record, knownKeys, label) {
   }
 }
 function hasConsensusDefaults(value) {
-  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.reviewers !== void 0 || value.roles !== void 0;
+  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.reviewers !== void 0 || value.roles !== void 0 || value.provider_models !== void 0;
 }
 function isProviderId(value) {
   return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
@@ -2401,102 +2535,6 @@ function extractAcpPermissionDenials(stdout) {
     ]
   };
 }
-
-// src/plugins/consensus/provider-cli/acp/descriptors.ts
-var ANTIGRAVITY_DESCRIPTOR = {
-  id: "antigravity",
-  display_name: "Antigravity",
-  executable: "agy",
-  executable_env: "CONSENSUS_ANTIGRAVITY_EXECUTABLE",
-  credential_env: ["GEMINI_API_KEY"],
-  install_hint: "Install Google Antigravity and its `agy` command, then sign in with `agy acp --login` from a desktop terminal.",
-  minimum_version: "1.5.13",
-  launch_args: ["acp"],
-  model: { kind: "config_option", config_id: "model" },
-  // models.currentModelId joins model and thinking level
-  // (gemini-3.8-flash-high) and is not updated by set_config_option.
-  model_sources: ["config_model", "current_model_id"],
-  // agy answers set_mode with {} and no echo, so `default` is confirmed by
-  // session/new reporting it. Never accept-edits, auto or plan.
-  mode: {
-    modeId: "default",
-    confirm: { initialState: true, currentModeUpdate: true }
-  },
-  // Without an explicit authenticate, a --gemini-dir run silently used the
-  // desktop login (agy-key-default.jsonl).
-  api_key: {
-    env: "GEMINI_API_KEY",
-    method_id: "gemini-api-key",
-    private_home: {
-      dir_flag: "--gemini-dir",
-      app_data_flag: "--app-data-dir",
-      app_data_name: "consensus-agy",
-      settings_files: ["antigravity-cli/settings.json", "config/settings.json"],
-      settings: { modelProvider: "gemini" }
-    }
-  },
-  auth_hint: "Sign in with `agy acp --login` from a desktop terminal, or set GEMINI_API_KEY.",
-  auth_error_patterns: [/No browser is available/i],
-  // A 429 arrives as answer text with end_turn (agy-key2-default.jsonl).
-  error_text_patterns: [
-    {
-      pattern: /Error 429|exceeded your current quota/i,
-      code: "PROVIDER_LIMIT_REACHED"
-    },
-    { pattern: /agent executor error/i, code: "PROVIDER_EXIT" }
-  ],
-  brief_lines: ["Do not use invoke_subagent, swarm, run_workflow or schedule."]
-};
-var GEMINI_DESCRIPTOR = {
-  id: "gemini",
-  display_name: "Gemini CLI",
-  executable: "gemini",
-  executable_env: "CONSENSUS_GEMINI_EXECUTABLE",
-  credential_env: ["GEMINI_API_KEY"],
-  install_hint: "Install Gemini CLI with `npm install -g @google/gemini-cli`, then sign in by running `gemini` once, or set GEMINI_API_KEY.",
-  minimum_version: "0.70.0",
-  launch_args: ["--acp"],
-  // Gemini advertises no configOptions; -m at launch is the only lever.
-  model: { kind: "launch_flag", flag: "-m" },
-  model_sources: ["usage_models", "current_model_id"],
-  // Plan mode's only echo is this chunk, sent before the set_mode response.
-  mode: {
-    modeId: "plan",
-    confirm: { marker: "[MODE_UPDATE] plan", currentModeUpdate: true }
-  },
-  api_key: { env: "GEMINI_API_KEY", method_id: "gemini-api-key" },
-  auth_hint: "Sign in by running `gemini` once in a terminal, or set GEMINI_API_KEY."
-};
-var DROID_DESCRIPTOR = {
-  id: "droid",
-  display_name: "Droid",
-  executable: "droid",
-  executable_env: "CONSENSUS_DROID_EXECUTABLE",
-  credential_env: ["FACTORY_API_KEY"],
-  install_hint: "Install Factory Droid (https://docs.factory.ai), then sign in by running `droid` in a desktop terminal, or set FACTORY_API_KEY.",
-  minimum_version: "1.16.0",
-  launch_args: ["exec", "--output-format", "acp"],
-  model: { kind: "config_option", config_id: "model" },
-  model_sources: ["config_model"],
-  // The ACP default is auto-medium, which auto-approves writes. normal is
-  // echoed by current_mode_update and the autonomy_level config option.
-  mode: {
-    modeId: "normal",
-    confirm: { currentModeUpdate: true, configOptionId: "autonomy_level" }
-  },
-  api_key: { env: "FACTORY_API_KEY", method_id: "factory-api-key" },
-  auth_hint: "Sign in by running `droid` in a desktop terminal, or set FACTORY_API_KEY.",
-  // The auth-required message carries a live device-pairing code.
-  redactions: [/(?<=Your code:\s*)[A-Z0-9]{4}-[A-Z0-9]{4}\b/g],
-  brief_lines: [
-    "Do not use loop, ConnectApp, automation, or cloud/computer tools."
-  ]
-};
-var ACP_PROVIDER_DESCRIPTORS = [
-  ANTIGRAVITY_DESCRIPTOR,
-  GEMINI_DESCRIPTOR,
-  DROID_DESCRIPTOR
-];
 
 // src/plugins/consensus/provider-cli/invocation.ts
 import { randomUUID as randomUUID2 } from "node:crypto";
@@ -5661,7 +5699,7 @@ async function runProviderTurn(request, dependencies = {}) {
   }
   let turnRequest = request;
   if (adapter?.tier === "extended") {
-    const model = await extendedProviderModel(request);
+    const model = await extendedProviderModel(request, dependencies);
     if (!model.ok) {
       return withReceipt(
         preInvocationFailure({
@@ -5770,12 +5808,34 @@ function withRejectedResume(envelope, rejected) {
     }
   };
 }
-async function extendedProviderModel(request) {
+async function extendedProviderModel(request, dependencies) {
   if (request.model) return { ok: true, model: request.model };
+  let configured;
+  try {
+    configured = await resolveProviderDefaultModel({
+      provider: request.provider,
+      cwd: request.cwd ?? process.cwd(),
+      env: dependencies.parentEnv ?? process.env
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      code: "CONSENSUS_CLI_USAGE",
+      message: `Could not read the consensus config for the ${request.provider} default model: ${error instanceof Error ? error.message : String(error)}`,
+      terminalReason: "consensus_config_invalid"
+    };
+  }
+  if (configured) {
+    return {
+      ok: true,
+      model: configured.model,
+      defaultModel: configured.model
+    };
+  }
   return {
     ok: false,
     code: "PROVIDER_UNSUPPORTED_OPTION",
-    message: `${request.provider} needs a model: pass --model.`,
+    message: `${request.provider} needs a model: pass --model or set defaults.provider_models.${request.provider}.`,
     terminalReason: "model_required"
   };
 }
@@ -6683,7 +6743,8 @@ function effectiveFieldSources(user, project) {
     ["panelists", "panelists"],
     ["panel-size", "panel_size"],
     ["reviewers", "reviewers"],
-    ["roles", "roles"]
+    ["roles", "roles"],
+    ["provider-models", "provider_models"]
   ];
   for (const [key, field] of fields) {
     if (project?.defaults?.[field] !== void 0) {
@@ -6709,6 +6770,12 @@ function mergeConfigFields(target, source) {
   if (source.panel_size !== void 0) target.panel_size = source.panel_size;
   if (source.reviewers !== void 0) target.reviewers = source.reviewers;
   if (source.roles !== void 0) target.roles = source.roles;
+  if (source.provider_models !== void 0) {
+    target.provider_models = {
+      ...target.provider_models,
+      ...source.provider_models
+    };
+  }
 }
 function configHasDefaults(config) {
   return config !== null && configDefaultsHasValues(config.defaults);
@@ -6761,7 +6828,7 @@ function configWithDefaultsPatch(base, patch) {
   return config;
 }
 function configDefaultsHasValues(defaults) {
-  return defaults !== void 0 && (defaults.peers !== void 0 || defaults.panelists !== void 0 || defaults.panel_size !== void 0 || defaults.reviewers !== void 0 || defaults.roles !== void 0);
+  return defaults !== void 0 && (defaults.peers !== void 0 || defaults.panelists !== void 0 || defaults.panel_size !== void 0 || defaults.reviewers !== void 0 || defaults.roles !== void 0 || defaults.provider_models !== void 0);
 }
 function parseAgentSpecList(value) {
   return value.split(",").map((item) => item.trim()).filter((item) => item.length > 0).map(parseAgentSpec);

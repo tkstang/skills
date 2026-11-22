@@ -185,6 +185,7 @@ describe('provider CLI consensus config commands', () => {
           defaults: {
             peers: [{ provider: 'claude' }, { provider: 'codex' }],
             reviewers: [{ provider: 'codex' }],
+            provider_models: { gemini: 'user-gemini', droid: 'user-droid' },
           },
         },
       });
@@ -201,6 +202,7 @@ describe('provider CLI consensus config commands', () => {
               { provider: 'cursor' },
             ],
             panel_size: 3,
+            provider_models: { gemini: 'project-gemini' },
           },
         },
       });
@@ -222,6 +224,16 @@ describe('provider CLI consensus config commands', () => {
             reviewers: 'user',
             panelists: 'project',
             'panel-size': 'project',
+            'provider-models': 'project',
+          },
+          // Merged per provider, as the run path resolves it.
+          config: {
+            defaults: {
+              provider_models: {
+                gemini: 'project-gemini',
+                droid: 'user-droid',
+              },
+            },
           },
         },
       });

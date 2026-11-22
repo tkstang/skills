@@ -9,6 +9,7 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 
+import { ACP_PROVIDER_DESCRIPTORS } from '../provider-cli/acp/descriptors.js';
 import { CORE_PROVIDER_IDS } from '../provider-cli/types.js';
 import type {
   ProviderId,
@@ -48,6 +49,10 @@ export interface ConsensusDefaults {
   panel_size?: number;
   reviewers?: ConsensusAgentRef[];
   roles?: ConsensusRolesConfig;
+  // The model each extended provider runs when the caller names none,
+  // keyed by provider id. Extended providers never fall back to their own
+  // default model.
+  provider_models?: Record<string, string>;
 }
 
 export interface ConsensusDefaultsConfig {
@@ -97,7 +102,11 @@ const DEFAULTS_KEYS = new Set([
   'panel_size',
   'reviewers',
   'roles',
+  'provider_models',
 ]);
+const EXTENDED_PROVIDER_IDS: ReadonlySet<string> = new Set(
+  ACP_PROVIDER_DESCRIPTORS.map((descriptor) => descriptor.id),
+);
 const AGENT_KEYS = new Set(['provider', 'model', 'effort']);
 const ROLE_KEYS = new Set(['panelist', 'advisor', 'synthesizer']);
 
@@ -154,8 +163,50 @@ function parseConsensusDefaults(value: unknown): ConsensusDefaults {
   if (value.roles !== undefined) {
     defaults.roles = parseRolesConfig(value.roles);
   }
+  if (value.provider_models !== undefined) {
+    defaults.provider_models = parseProviderModels(value.provider_models);
+  }
 
   return defaults;
+}
+
+function parseProviderModels(value: unknown): Record<string, string> {
+  const label = 'Consensus config provider_models';
+  if (!isRecord(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  const models: Record<string, string> = {};
+  for (const [provider, model] of Object.entries(value)) {
+    if (!EXTENDED_PROVIDER_IDS.has(provider)) {
+      throw new Error(
+        `${label} accepts only registered extended providers (${[...EXTENDED_PROVIDER_IDS].join(', ')}), not: ${provider}`,
+      );
+    }
+    if (typeof model !== 'string' || model.trim() === '') {
+      throw new Error(`${label}.${provider} must be a non-empty string`);
+    }
+    models[provider] = model;
+  }
+  return models;
+}
+
+// The configured model for an extended provider: the nearest project config
+// that names one, else the user config.
+export async function resolveProviderDefaultModel(input: {
+  provider: ProviderId;
+  cwd: string;
+  env?: Record<string, string | undefined>;
+}): Promise<{ model: string; source: 'project' | 'user' } | undefined> {
+  for (const scope of ['project', 'user'] as const) {
+    const config = await readConsensusConfig({
+      scope,
+      cwd: input.cwd,
+      env: input.env,
+    });
+    const model = config?.defaults?.provider_models?.[input.provider];
+    if (model) return { model, source: scope };
+  }
+  return undefined;
 }
 
 export async function readConsensusConfig(
@@ -632,7 +683,8 @@ function hasConsensusDefaults(value: ConsensusDefaults): boolean {
     value.panelists !== undefined ||
     value.panel_size !== undefined ||
     value.reviewers !== undefined ||
-    value.roles !== undefined
+    value.roles !== undefined ||
+    value.provider_models !== undefined
   );
 }
 

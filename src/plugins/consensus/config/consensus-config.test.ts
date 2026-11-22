@@ -9,6 +9,7 @@ import {
   parseConsensusDefaultsConfig,
   readConsensusConfig,
   resolveConsensusComposition,
+  resolveProviderDefaultModel,
   writeConsensusConfig,
 } from '../config/consensus-config.js';
 import type { ProviderInventoryEntry } from '../provider-cli/types.js';
@@ -684,6 +685,95 @@ describe('consensus config schema and resolver', () => {
         { provider: 'claude' },
         { provider: 'codex' },
       ]);
+    });
+  });
+
+  it('accepts provider_models only for registered extended providers, with non-empty models', () => {
+    const parse = (provider_models: unknown) => () =>
+      parseConsensusDefaultsConfig({
+        schema_version: 'v1',
+        defaults: { provider_models },
+      });
+
+    expect(parse({ droid: 'custom:GPT-6-Luna-(Proxy)-0' })()).toEqual({
+      schema_version: 'v1',
+      defaults: { provider_models: { droid: 'custom:GPT-6-Luna-(Proxy)-0' } },
+    });
+    // A core provider keeps its own default model, so naming one would be a
+    // silent no-op.
+    expect(parse({ claude: 'opus' })).toThrow(
+      'Consensus config provider_models accepts only registered extended providers (antigravity, gemini, droid), not: claude',
+    );
+    expect(parse({ devin: 'x' })).toThrow('not: devin');
+    expect(parse({ gemini: ' ' })).toThrow(
+      'Consensus config provider_models.gemini must be a non-empty string',
+    );
+    expect(parse(['gemini'])).toThrow(
+      'Consensus config provider_models must be an object',
+    );
+  });
+
+  it('resolves an extended default model per provider, project before user', async () => {
+    await withTempConfig(async ({ cwd, env }) => {
+      const resolve = (provider: string) =>
+        resolveProviderDefaultModel({ provider, cwd, env });
+      await expect(resolve('gemini')).resolves.toBeUndefined();
+
+      await writeConsensusConfig({
+        scope: 'user',
+        cwd,
+        env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            provider_models: { gemini: 'user-gemini', droid: 'user-droid' },
+          },
+        },
+      });
+      await writeConsensusConfig({
+        scope: 'project',
+        cwd,
+        env,
+        config: {
+          schema_version: 'v1',
+          defaults: { provider_models: { gemini: 'project-gemini' } },
+        },
+      });
+
+      await expect(resolve('gemini')).resolves.toEqual({
+        model: 'project-gemini',
+        source: 'project',
+      });
+      await expect(resolve('droid')).resolves.toEqual({
+        model: 'user-droid',
+        source: 'user',
+      });
+    });
+  });
+
+  it('keeps provider_models when another key is cleared', async () => {
+    await withTempConfig(async ({ cwd, env }) => {
+      await writeConsensusConfig({
+        scope: 'project',
+        cwd,
+        env,
+        config: {
+          schema_version: 'v1',
+          defaults: {
+            peers: [{ provider: 'claude' }, { provider: 'codex' }],
+            provider_models: { gemini: 'gemini-3.5-flash-lite' },
+          },
+        },
+      });
+
+      await clearConsensusConfig({ scope: 'project', cwd, env, key: 'peers' });
+
+      expect(await readConsensusConfig({ scope: 'project', cwd, env })).toEqual(
+        {
+          schema_version: 'v1',
+          defaults: { provider_models: { gemini: 'gemini-3.5-flash-lite' } },
+        },
+      );
     });
   });
 

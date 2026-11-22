@@ -3823,2016 +3823,21 @@ function describeVersionPin(pin) {
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts
-import { readFile, rm as rm3 } from "node:fs/promises";
-import path9 from "node:path";
+import { readFile as readFile2, rm as rm4 } from "node:fs/promises";
+import path10 from "node:path";
 import { fileURLToPath } from "node:url";
 
-// src/plugins/consensus/provider-cli/continuation.ts
-import { randomUUID as randomUUID2 } from "node:crypto";
-import path6 from "node:path";
-var UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-var NOT_STARTED_FAILURE_CODES = [
-  "PROVIDER_MISSING",
-  "PROVIDER_ARGV_TOO_LARGE",
-  "PROVIDER_AUTH_REQUIRED",
-  "PROVIDER_UNSUPPORTED_OPTION",
-  "PROVIDER_SESSION_NOT_FOUND"
-];
-function isProviderSessionId(value) {
-  return UUID_PATTERN.test(value);
-}
-function continuationMode(request) {
-  return request.continuation?.mode ?? "new";
-}
-function continuationUsageError(request, isSessionId) {
-  const continuation = request.continuation;
-  if (!continuation) return void 0;
-  const { mode } = continuation;
-  if (continuation.round !== void 0) {
-    if (!Number.isInteger(continuation.round) || continuation.round < 1) {
-      return "Continuation round must be a positive integer.";
-    }
-    if (mode === "new" && continuation.round !== 1) {
-      return "A new consultation starts at round 1; use --resume or --continuation reconstructed for later rounds.";
-    }
-    if (mode !== "new" && continuation.round < 2) {
-      return "A continuation round must be 2 or greater.";
-    }
-  }
-  if (continuation.consultation_id !== void 0 && continuation.consultation_id.trim() === "") {
-    return "Continuation consultation_id must be a non-empty string.";
-  }
-  if (mode !== "native-resume") {
-    if (continuation.session_id !== void 0) {
-      return `A ${mode} run cannot target an existing session; use --resume for native resume.`;
-    }
-    if (continuation.fallback !== void 0 || continuation.fallback_prompt !== void 0) {
-      return "Resume fallback options apply only to native resume (--resume).";
-    }
-  }
-  if (mode === "new" && continuation.previous_session_id !== void 0) {
-    return "A predecessor session implies a continuation; use --continuation reconstructed.";
-  }
-  if (mode === "reconstructed" && continuation.previous_session_id !== void 0 && continuation.previous_session_id.trim() === "") {
-    return "Previous session id must be a non-empty string.";
-  }
-  if (mode !== "native-resume") return void 0;
-  if (!continuation.session_id) {
-    return "Native resume requires an explicit provider session id.";
-  }
-  if (!isSessionId && !isProviderSessionId(continuation.session_id)) {
-    return 'Native resume requires a lowercase provider session UUID, as reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
-  }
-  if (isSessionId && !isSessionId(continuation.session_id)) {
-    return 'Native resume requires the provider session id reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
-  }
-  if (continuation.previous_session_id !== void 0) {
-    return "Native resume continues the --resume session itself; --previous-session applies only to reconstructed continuation.";
-  }
-  if ((request.max_attempts ?? 1) > 1) {
-    return "Native resume is single-attempt: a failed or malformed turn may already be recorded in the session, so the wrapper never resubmits it.";
-  }
-  const fallback = continuation.fallback ?? "error";
-  const fallbackPrompt = continuation.fallback_prompt;
-  if (fallback === "error" && fallbackPrompt !== void 0) {
-    return "A fallback prompt requires --resume-fallback reconstructed.";
-  }
-  if (fallback === "reconstructed") {
-    if (!fallbackPrompt || fallbackPrompt.trim() === "") {
-      return "Reconstructed fallback requires a continuation packet (--fallback-prompt-file).";
-    }
-    if (fallbackPrompt.trim() === request.prompt.trim()) {
-      return "The fallback continuation packet must carry reconstructed context, not repeat the native follow-up prompt.";
-    }
-  }
-  return void 0;
-}
-function reconstructedContinuationPrompt(packet, fallbackReason) {
-  return [
-    "Continuation notice (added by the consensus wrapper):",
-    "- This is a NEW provider session. You have no memory of earlier rounds, and no earlier transcript is available to you.",
-    "- The host reconstructed the context below from earlier rounds. It is a summary, may be incomplete, and is not the original transcript.",
-    ...fallbackReason ? [
-      `- A native resume of the earlier session was requested but unavailable (${fallbackReason}).`
-    ] : [],
-    "- Judge the current candidate on its merits. Name material blockers, explain any disagreement, and state whether the exact candidate is acceptable. You are not obligated to agree.",
-    "",
-    packet
-  ].join("\n");
-}
-function turnStateFor(trace) {
-  if (!trace.process) return "not_started";
-  if (trace.turn) return trace.turn;
-  if (trace.process.ok) return "completed";
-  if (trace.process.stdout.trim() === "" && trace.failure_code && NOT_STARTED_FAILURE_CODES.includes(trace.failure_code)) {
-    return "not_started";
-  }
-  return "unknown";
-}
-function continuationReceipt(input) {
-  const { request, adapter, mode, trace } = input;
-  const observation = adapter && trace.process ? adapter.extractSession(trace.process.stdout) : {};
-  const continuation = request.continuation;
-  const round = continuation?.round ?? (mode === "new" && !input.fallbackReason ? 1 : void 0);
-  return {
-    mode,
-    provider: request.provider,
-    ...observation.session_id ? { session_id: observation.session_id } : {},
-    ...continuation?.mode === "native-resume" && continuation.session_id ? { requested_session_id: continuation.session_id } : {},
-    ...mode === "reconstructed" && previousSessionId(request) ? { previous_session_id: previousSessionId(request) } : {},
-    consultation_id: input.consultationId,
-    ...round !== void 0 ? { round } : {},
-    cwd: path6.resolve(request.cwd ?? process.cwd()),
-    ...request.model ? { requested_model: request.model } : {},
-    ...input.defaultModel ? { default_model: input.defaultModel } : {},
-    ...request.effort ? { requested_effort: request.effort } : {},
-    ...observation.observed_models ? { observed_models: observation.observed_models } : {},
-    runtime_policy: redactedRuntimePolicyDiagnostics(request.runtime_policy),
-    turn: turnStateFor(trace),
-    ...input.fallbackReason ? { fallback_reason: input.fallbackReason } : {},
-    ...adapter?.capabilities.continuation ? { capability: adapter.capabilities.continuation } : {}
-  };
-}
-function consultationIdFor(request) {
-  return request.continuation?.consultation_id ?? randomUUID2();
-}
-function previousSessionId(request) {
-  const continuation = request.continuation;
-  if (!continuation) return void 0;
-  return continuation.mode === "native-resume" ? continuation.session_id : continuation.previous_session_id;
-}
-
-// src/plugins/consensus/provider-cli/envelope.ts
-function successEnvelope(input) {
-  const envelope = {
-    schema_version: "v1",
-    ok: true,
-    provider: input.provider,
-    args: input.args,
-    stdout: input.stdout,
-    output_kind: "json",
-    json: input.json,
-    attempts: buildAttemptSummary(input.attempts, false)
-  };
-  if (input.stderr !== void 0) envelope.stderr = input.stderr;
-  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
-  return envelope;
-}
-function textSuccessEnvelope(input) {
-  const envelope = {
-    schema_version: "v1",
-    ok: true,
-    provider: input.provider,
-    args: input.args,
-    stdout: input.stdout,
-    output_kind: "text",
-    text: input.text,
-    json: null,
-    attempts: buildAttemptSummary(input.attempts, false)
-  };
-  if (input.stderr !== void 0) envelope.stderr = input.stderr;
-  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
-  return envelope;
-}
-function failureEnvelope(input) {
-  const envelope = {
-    schema_version: "v1",
-    ok: false,
-    code: input.code,
-    message: input.message,
-    retryable: input.retryable,
-    attempts: buildAttemptSummary(
-      {
-        ...input.attempts,
-        terminal_reason: input.terminal_reason ?? input.attempts?.terminal_reason
-      },
-      input.retryable
-    )
-  };
-  if (input.provider) envelope.provider = input.provider;
-  if (input.stdout !== void 0) envelope.stdout = input.stdout;
-  if (input.stderr !== void 0) envelope.stderr = input.stderr;
-  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
-  return envelope;
-}
-function buildAttemptSummary(attempts, retryable) {
-  return {
-    cli_attempts: attempts?.cli_attempts ?? 1,
-    ...attempts?.provider_internal_attempts === void 0 ? {} : { provider_internal_attempts: attempts.provider_internal_attempts },
-    ...attempts?.terminal_reason === void 0 ? {} : { terminal_reason: attempts.terminal_reason },
-    retryable
-  };
-}
-
-// src/plugins/consensus/provider-cli/submit-capture.ts
-import { randomUUID as randomUUID3 } from "node:crypto";
-import path7 from "node:path";
-var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
-var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
-var CONSENSUS_SUBMIT_CAPTURE_DIR = ".consensus/submit";
-var SubmitCaptureLimitError = class extends Error {
-  bytes;
-  maxBytes;
-  constructor(bytes, maxBytes) {
-    super(submitCaptureLimitMessage(bytes, maxBytes));
-    this.bytes = bytes;
-    this.maxBytes = maxBytes;
-  }
-};
-function submitCaptureMaxBytes(maxOutputBytes) {
-  return maxOutputBytes ?? DEFAULT_SUBMIT_CAPTURE_MAX_BYTES;
-}
-function byteLength(value) {
-  return Buffer.byteLength(value, "utf8");
-}
-function assertWithinSubmitCaptureLimit(value, maxBytes) {
-  const bytes = byteLength(value);
-  if (bytes > maxBytes) {
-    throw new SubmitCaptureLimitError(bytes, maxBytes);
-  }
-}
-function submitCaptureLimitMessage(bytes, maxBytes) {
-  return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
-}
-function submitCaptureDirectory(cwd) {
-  return path7.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
-}
-function submitCaptureFilePath(cwd, id = randomUUID3()) {
-  return path7.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
-}
-
-// src/plugins/consensus/provider-cli/working-tree.ts
-import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
-import { lstat, readlink } from "node:fs/promises";
-import path8 from "node:path";
-var GIT_TIMEOUT_MS = 3e4;
-var GIT_MAX_BUFFER = 64 * 1024 * 1024;
-var MAX_LISTED_PATHS = 20;
-async function snapshotWorkingTree(cwd, options = {}) {
-  const git = gitRunner(cwd, options);
-  try {
-    const env = await git.cleanEnv();
-    const inside2 = await git.run(env, ["rev-parse", "--is-inside-work-tree"]);
-    if (inside2.trim() !== "true") {
-      return { ok: false, message: `${cwd} is not inside a git work tree` };
-    }
-    const root = (await git.run(env, ["rev-parse", "--show-toplevel"])).trim();
-    const head = (await git.run(env, ["rev-parse", "--verify", "--quiet", "HEAD"], {
-      allowExit: [1]
-    })).trim();
-    const raw = await git.run(env, [
-      "--no-optional-locks",
-      "status",
-      "--porcelain=v1",
-      "-z",
-      "--untracked-files=all",
-      "--ignored=no"
-    ]);
-    const status = parsePorcelainZ(raw);
-    const content = /* @__PURE__ */ new Map();
-    for (const file of status.keys()) {
-      content.set(file, await fingerprint(path8.join(root, file)));
-    }
-    return { ok: true, snapshot: { root, head, status, content } };
-  } catch (error) {
-    return {
-      ok: false,
-      message: error instanceof Error ? error.message : String(error)
-    };
-  }
-}
-function compareWorkingTrees(before, after) {
-  const paths = /* @__PURE__ */ new Set();
-  for (const file of /* @__PURE__ */ new Set([
-    ...before.status.keys(),
-    ...after.status.keys()
-  ])) {
-    if (before.status.get(file) !== after.status.get(file) || before.content.get(file) !== after.content.get(file)) {
-      paths.add(file);
-    }
-  }
-  return {
-    head_changed: before.head !== after.head,
-    paths: [...paths].toSorted()
-  };
-}
-function hasWorkingTreeChanges(changes) {
-  return changes.head_changed || changes.paths.length > 0;
-}
-function workingTreeChangeList(changes) {
-  return [...changes.head_changed ? ["HEAD"] : [], ...changes.paths];
-}
-function describeWorkingTreeChanges(changes) {
-  const list = workingTreeChangeList(changes);
-  const shown = list.slice(0, MAX_LISTED_PATHS).join(", ");
-  const more = list.length > MAX_LISTED_PATHS ? ` and ${list.length - MAX_LISTED_PATHS} more` : "";
-  return `${shown}${more}`;
-}
-function parsePorcelainZ(raw) {
-  const status = /* @__PURE__ */ new Map();
-  const tokens = raw.split("\0");
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (token.length < 4) continue;
-    const code = token.slice(0, 2);
-    status.set(token.slice(3), code);
-    if (code.includes("R") || code.includes("C")) {
-      const source = tokens[index + 1];
-      if (source) status.set(source, `${code}<`);
-      index += 1;
-    }
-  }
-  return status;
-}
-async function fingerprint(file) {
-  let stats;
-  try {
-    stats = await lstat(file);
-  } catch (error) {
-    if (isMissing(error)) return "deleted";
-    throw error;
-  }
-  if (stats.isSymbolicLink()) {
-    return `link:${sha256(await readlink(file))}`;
-  }
-  if (stats.isDirectory()) return "dir";
-  return hashFile(file);
-}
-function hashFile(file) {
-  return new Promise((resolve, reject) => {
-    const hash = createHash("sha256");
-    createReadStream(file).on("data", (chunk) => hash.update(chunk)).on("error", (error) => {
-      if (isMissing(error)) resolve("deleted");
-      else reject(error);
-    }).on("end", () => resolve(hash.digest("hex")));
-  });
-}
-function sha256(value) {
-  return createHash("sha256").update(value).digest("hex");
-}
-function isMissing(error) {
-  const code = error?.code;
-  return code === "ENOENT" || code === "ENOTDIR";
-}
-function gitRunner(cwd, options) {
-  const command = options.git ?? "git";
-  const base = options.env ?? process.env;
-  const run = (env, args, runOptions = {}) => new Promise((resolve, reject) => {
-    execFile(
-      command,
-      args,
-      {
-        cwd,
-        env,
-        encoding: "utf8",
-        maxBuffer: GIT_MAX_BUFFER,
-        timeout: GIT_TIMEOUT_MS,
-        shell: false,
-        windowsHide: true
-      },
-      (error, stdout, stderr) => {
-        const exitCode = error && typeof error.code === "number" ? error.code : void 0;
-        if (!error || runOptions.allowExit?.includes(exitCode ?? -1)) {
-          resolve(error ? "" : stdout);
-          return;
-        }
-        const detail = String(stderr).trim().split(/\r?\n/)[0] || error.message;
-        reject(
-          new Error(
-            `git ${args.filter((arg) => !arg.startsWith("--no-optional")).join(" ")} failed${detail ? `: ${detail}` : ""}`
-          )
-        );
-      }
-    );
-  });
-  return {
-    run,
-    // Drops the variables git itself names as repository-local.
-    async cleanEnv() {
-      const names = await run(base, ["rev-parse", "--local-env-vars"]);
-      const env = { ...base, GIT_OPTIONAL_LOCKS: "0" };
-      for (const name of names.split(/\r?\n/)) {
-        if (name) delete env[name];
-      }
-      return env;
-    }
-  };
-}
-
-// src/plugins/consensus/provider-cli/structured-output.ts
-function selectStructuredOutputStrategy(adapter, options = {}) {
-  if (options.output === "text") return "text";
-  if (options.strategy) return options.strategy;
-  if (options.submitCaptureEnabled && adapter.capabilities.schema_strategies.includes("constrained_native") && adapter.capabilities.schema_strategies.includes("prompt_only")) {
-    return "prompt_only";
-  }
-  if (adapter.capabilities.schema_strategies.includes("constrained_native")) {
-    return "constrained_native";
-  }
-  if (adapter.capabilities.schema_strategies.includes("provider_validated")) {
-    return "provider_validated";
-  }
-  return "prompt_only";
-}
-async function runProviderTurn(request, dependencies = {}) {
-  const registry = dependencies.registry ?? providerRegistry();
-  const adapter = registry.get(request.provider);
-  const consultationId = consultationIdFor(request);
-  const mode = continuationMode(request);
-  let defaultModel;
-  const withReceipt = (envelope2, receiptMode, trace2, fallbackReason) => ({
-    ...envelope2,
-    continuation: continuationReceipt({
-      request,
-      adapter,
-      mode: receiptMode,
-      consultationId,
-      trace: trace2,
-      fallbackReason,
-      defaultModel
-    })
-  });
-  if (adapter?.not_admitted_reason) {
-    return withReceipt(
-      preInvocationFailure({
-        provider: request.provider,
-        code: "PROVIDER_UNSUPPORTED",
-        message: `Provider ${request.provider} is registered but not admitted: ${adapter.not_admitted_reason}`,
-        terminalReason: "provider_not_admitted"
-      }),
-      mode,
-      {}
-    );
-  }
-  const usageError = continuationUsageError(request, adapter?.isSessionId);
-  if (usageError) {
-    return withReceipt(
-      preInvocationFailure({
-        provider: request.provider,
-        code: "CONSENSUS_CLI_USAGE",
-        message: usageError,
-        terminalReason: "continuation_usage"
-      }),
-      mode,
-      {}
-    );
-  }
-  let turnRequest = request;
-  if (adapter?.tier === "extended") {
-    const model = await extendedProviderModel(request);
-    if (!model.ok) {
-      return withReceipt(
-        preInvocationFailure({
-          provider: request.provider,
-          code: model.code,
-          message: model.message,
-          terminalReason: model.terminalReason
-        }),
-        mode,
-        {}
-      );
-    }
-    defaultModel = model.defaultModel;
-    turnRequest = { ...request, model: model.model };
-  }
-  const runTurn = adapter?.tier === "extended" ? runCheckedExtendedTurn : runStructuredTurn;
-  const continuation = request.continuation;
-  const runReconstructed = async (packet, fallbackReason, rejected) => {
-    const trace2 = {};
-    const envelope2 = await runTurn(
-      {
-        ...turnRequest,
-        prompt: reconstructedContinuationPrompt(packet, fallbackReason)
-      },
-      dependencies,
-      trace2
-    );
-    return withReceipt(
-      rejected ? withRejectedResume(envelope2, rejected) : envelope2,
-      "reconstructed",
-      trace2,
-      fallbackReason
-    );
-  };
-  if (mode === "reconstructed") {
-    return runReconstructed(request.prompt);
-  }
-  if (mode !== "native-resume" || !continuation?.session_id) {
-    const trace2 = {};
-    const envelope2 = await runTurn(turnRequest, dependencies, trace2);
-    return withReceipt(envelope2, "new", trace2);
-  }
-  const requestedSessionId = continuation.session_id;
-  const fallbackPacket = continuation.fallback === "reconstructed" ? continuation.fallback_prompt : void 0;
-  const resumeStatus = adapter?.capabilities.continuation?.native_resume;
-  if (adapter && resumeStatus !== "verified") {
-    const reason = `native_resume_${resumeStatus ?? "unsupported"}`;
-    if (fallbackPacket) return runReconstructed(fallbackPacket, reason);
-    return withReceipt(
-      preInvocationFailure({
-        provider: request.provider,
-        code: "PROVIDER_UNSUPPORTED_OPTION",
-        message: `Native resume is ${resumeStatus ?? "unsupported"} for provider ${request.provider}; use --resume-fallback reconstructed with a continuation packet, or --continuation reconstructed.`,
-        terminalReason: reason
-      }),
-      "native-resume",
-      {}
-    );
-  }
-  const trace = {};
-  const envelope = await runTurn(turnRequest, dependencies, trace, {
-    resumeSessionId: requestedSessionId
-  });
-  const receipt = continuationReceipt({
-    request,
-    adapter,
-    mode: "native-resume",
-    consultationId,
-    trace,
-    defaultModel
-  });
-  if (!envelope.ok && envelope.code === "PROVIDER_SESSION_NOT_FOUND" && receipt.turn === "not_started" && fallbackPacket) {
-    return runReconstructed(fallbackPacket, "session_not_found", envelope);
-  }
-  if (receipt.turn === "completed" && receipt.session_id !== requestedSessionId) {
-    return {
-      ...failureEnvelope({
-        provider: request.provider,
-        code: "PROVIDER_SESSION_MISMATCH",
-        message: receipt.session_id ? `Provider reported session ${receipt.session_id} instead of the requested ${requestedSessionId}; the turn was not a native resume.` : `Provider output did not confirm the requested session ${requestedSessionId}.`,
-        retryable: false,
-        stdout: envelope.stdout,
-        stderr: envelope.stderr,
-        attempts: {
-          cli_attempts: envelope.attempts.cli_attempts,
-          terminal_reason: "provider_session_mismatch"
-        },
-        diagnostics: envelope.diagnostics
-      }),
-      continuation: receipt
-    };
-  }
-  return { ...envelope, continuation: receipt };
-}
-function withRejectedResume(envelope, rejected) {
-  const note = `Native resume was rejected (${rejected.ok ? "ok" : rejected.code}) before a turn started; a reconstructed session answered instead.`;
-  return {
-    ...envelope,
-    attempts: {
-      ...envelope.attempts,
-      cli_attempts: envelope.attempts.cli_attempts + rejected.attempts.cli_attempts
-    },
-    diagnostics: {
-      ...envelope.diagnostics,
-      warnings: [...envelope.diagnostics?.warnings ?? [], note]
-    }
-  };
-}
-async function extendedProviderModel(request) {
-  if (request.model) return { ok: true, model: request.model };
-  return {
-    ok: false,
-    code: "PROVIDER_UNSUPPORTED_OPTION",
-    message: `${request.provider} needs a model: pass --model.`,
-    terminalReason: "model_required"
-  };
-}
-async function runCheckedExtendedTurn(request, dependencies, trace, turnOptions = {}) {
-  if (defaultRuntimePolicy(request.runtime_policy).permission_mode !== "read-only") {
-    return runStructuredTurn(request, dependencies, trace, turnOptions);
-  }
-  const cwd = path9.resolve(request.cwd ?? process.cwd());
-  const env = dependencies.parentEnv ?? process.env;
-  const before = await snapshotWorkingTree(cwd, { env });
-  if (!before.ok) {
-    return preInvocationFailure({
-      provider: request.provider,
-      code: "PROVIDER_UNSUPPORTED_OPTION",
-      message: `Extended read-only runs need a git checkout so the working tree can be checked before and after the turn: ${before.message}`,
-      terminalReason: "working_tree_unavailable"
-    });
-  }
-  const envelope = await runStructuredTurn(
-    request,
-    dependencies,
-    trace,
-    turnOptions
-  );
-  if (!trace.process) return envelope;
-  const after = await snapshotWorkingTree(cwd, { env });
-  const changes = after.ok ? compareWorkingTrees(before.snapshot, after.snapshot) : void 0;
-  if (changes && !hasWorkingTreeChanges(changes)) return envelope;
-  const outcome = envelope.ok ? "succeeded" : `failed with ${envelope.code}`;
-  const message = after.ok ? `The working tree changed during a read-only ${request.provider} run: ${describeWorkingTreeChanges(changes)}. Review and revert these changes; the turn ${outcome}.` : `The working tree could not be re-checked after a read-only ${request.provider} run (${after.message}); treat it as changed and review it. The turn ${outcome}.`;
-  return failureEnvelope({
-    provider: request.provider,
-    code: "PROVIDER_WORKTREE_CHANGED",
-    message,
-    retryable: false,
-    stdout: envelope.stdout,
-    stderr: envelope.stderr,
-    attempts: {
-      cli_attempts: envelope.attempts.cli_attempts,
-      terminal_reason: "working_tree_changed"
-    },
-    diagnostics: {
-      ...envelope.diagnostics,
-      ...changes ? { working_tree_changes: workingTreeChangeList(changes) } : {}
-    }
-  });
-}
-async function runStructuredTurn(request, dependencies, trace, turnOptions = {}) {
-  const registry = dependencies.registry ?? providerRegistry();
-  const adapter = registry.get(request.provider);
-  if (!adapter) {
-    return preInvocationFailure({
-      provider: request.provider,
-      code: "PROVIDER_UNSUPPORTED",
-      message: `Provider is not supported: ${request.provider}`,
-      terminalReason: "unsupported_provider"
-    });
-  }
-  const optionValidation = validateProviderOptions(request, adapter);
-  if (!optionValidation.ok) {
-    return preInvocationFailure({
-      provider: request.provider,
-      code: optionValidation.code,
-      message: optionValidation.message,
-      terminalReason: optionValidation.option
-    });
-  }
-  const hostGuard = evaluateHostGuard({
-    host: request.host,
-    provider: request.provider
-  });
-  if (!hostGuard.allowed) {
-    return preInvocationFailure({
-      provider: request.provider,
-      code: hostGuard.code,
-      message: hostGuard.message,
-      terminalReason: "host_recursion_blocked",
-      diagnostics: hostGuard.diagnostics
-    });
-  }
-  const textMode = request.output === "text";
-  const schemaPath = request.schema_path;
-  if (textMode && schemaPath !== void 0) {
-    return preInvocationFailure({
-      provider: request.provider,
-      code: "CONSENSUS_CLI_USAGE",
-      message: "Text output does not accept a schema path.",
-      terminalReason: "schema_with_text_output"
-    });
-  }
-  let schema;
-  let inlineJsonSchema;
-  if (!textMode) {
-    if (!schemaPath) {
-      return preInvocationFailure({
-        provider: request.provider,
-        code: "CONSENSUS_CLI_USAGE",
-        message: "JSON output requires a schema path.",
-        terminalReason: "schema_missing"
-      });
-    }
-    const readSchema = dependencies.readSchema ?? readJsonSchema;
-    try {
-      schema = await readSchema(schemaPath);
-    } catch (error) {
-      return preInvocationFailure({
-        provider: request.provider,
-        code: "CONSENSUS_CLI_USAGE",
-        message: `Could not read schema: ${error instanceof Error ? error.message : String(error)}`,
-        terminalReason: "schema_read_failed"
-      });
-    }
-    inlineJsonSchema = JSON.stringify(schema);
-    if (inlineJsonSchema === void 0) {
-      return preInvocationFailure({
-        provider: request.provider,
-        code: "CONSENSUS_CLI_USAGE",
-        message: "Schema must be JSON-serializable.",
-        terminalReason: "schema_read_failed"
-      });
-    }
-  }
-  const effectiveRequest = {
-    ...request,
-    runtime_policy: defaultRuntimePolicy(request.runtime_policy)
-  };
-  const maxAttempts = effectiveRequest.max_attempts ?? 1;
-  const submitCaptureEnabled = !textMode && (dependencies.transport?.submitCaptureEnabled ?? true) && (adapter.submitCaptureEligible?.(request) ?? true);
-  const strategy = selectStructuredOutputStrategy(adapter, {
-    output: request.output,
-    submitCaptureEnabled,
-    strategy: dependencies.transport?.strategy
-  });
-  if (!adapter.capabilities.schema_strategies.includes(strategy) || !textMode && strategy === "text") {
-    return preInvocationFailure({
-      provider: request.provider,
-      code: "PROVIDER_UNSUPPORTED_OPTION",
-      message: `Provider does not support structured-output strategy: ${strategy}.`,
-      terminalReason: "structured_output_strategy"
-    });
-  }
-  const runSubprocess = adapter.run ?? dependencies.runSubprocess ?? runProviderSubprocess;
-  const parentEnv = dependencies.parentEnv ?? process.env;
-  const resolvedExecutable = resolveProviderExecutable(adapter, parentEnv);
-  if (!resolvedExecutable.ok) {
-    return preInvocationFailure({
-      provider: request.provider,
-      code: "PROVIDER_MISSING",
-      message: resolvedExecutable.message,
-      terminalReason: "provider_executable_invalid"
-    });
-  }
-  const finder = dependencies.probeRunner ?? nodeProbeCommandRunner(parentEnv);
-  let prerequisiteExecutables;
-  if (adapter.probe.prerequisites?.length) {
-    const prerequisites = await checkProviderPrerequisites(adapter, finder);
-    if (!prerequisites.ok) {
-      const prerequisite = prerequisites.failure;
-      return preInvocationFailure({
-        provider: request.provider,
-        code: PREREQUISITE_FAILURE_CODES[prerequisite.status],
-        message: withInstallHint(
-          prerequisite.message,
-          prerequisite.install_hint
-        ),
-        terminalReason: `provider_prerequisite_${prerequisite.status}`,
-        diagnostics: { warnings: [prerequisite.warning] }
-      });
-    }
-    prerequisiteExecutables = prerequisites.executables;
-  }
-  const executable = await finder.findExecutable(resolvedExecutable.executable);
-  if (!executable || !path9.isAbsolute(executable)) {
-    return preInvocationFailure({
-      provider: request.provider,
-      code: "PROVIDER_MISSING",
-      message: withInstallHint(
-        `Provider executable not found: ${resolvedExecutable.executable}`,
-        adapter.install_hint
-      ),
-      terminalReason: "provider_missing",
-      diagnostics: hostGuard.diagnostics
-    });
-  }
-  const submitCapturePath = submitCaptureEnabled ? submitCaptureFilePath(effectiveRequest.cwd ?? process.cwd()) : void 0;
-  const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
-  const submitCommand = submitCaptureEnabled ? dependencies.submitCommand ?? buildConsensusSubmitCommand() : void 0;
-  const childEnv = buildChildEnvironment({
-    parentEnv,
-    request: effectiveRequest,
-    credentialEnv: adapter.credential_env,
-    executableOverrideEnv: providerExecutableEnvNames(registry),
-    hostEnv: {
-      ...hostGuard.child_env,
-      ...submitCaptureEnabled && submitCommand && submitCapturePath && schemaPath ? {
-        CONSENSUS_SUBMIT_COMMAND: submitCommand,
-        CONSENSUS_SUBMIT_FILE: submitCapturePath,
-        [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path9.resolve(schemaPath)
-      } : {}
-    }
-  });
-  let validationFeedback;
-  let lastInvocation;
-  let exitClassification;
-  try {
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      if (submitCapturePath) {
-        await cleanupSubmitCaptureFile(submitCapturePath);
-      }
-      const invocationRequest = {
-        ...effectiveRequest,
-        prompt: textMode || inlineJsonSchema === void 0 ? request.prompt : promptForStrategy({
-          prompt: request.prompt,
-          strategy,
-          inlineJsonSchema,
-          submitCaptureEnabled,
-          submitCommand,
-          validationFeedback
-        })
-      };
-      const invocation2 = buildProviderInvocation(adapter, invocationRequest, {
-        strategy,
-        inlineJsonSchema,
-        lastMessageFile: dependencies.transport?.lastMessageFile,
-        preserveLastMessageFile: dependencies.transport?.preserveLastMessageFile,
-        resumeSessionId: turnOptions.resumeSessionId,
-        executable,
-        ...prerequisiteExecutables ? { prerequisiteExecutables } : {}
-      });
-      lastInvocation = invocation2;
-      const processResult = await runSubprocess(invocation2, {
-        env: childEnv,
-        maxOutputBytes: request.max_output_bytes,
-        timeoutSec: request.max_runtime_sec
-      });
-      trace.process = processResult;
-      trace.failure_code = void 0;
-      trace.turn = void 0;
-      const diagnostics = mergeDiagnostics(
-        {
-          strategy_used: strategy,
-          output_mode: invocation2.output_mode,
-          redacted_command: invocation2.redacted_command,
-          ...invocation2.permission_profile ? { permission_profile: invocation2.permission_profile } : {}
-        },
-        hostGuard.diagnostics,
-        processResult.diagnostics,
-        permissionDenialDiagnostics(adapter, processResult.stdout),
-        exitClassificationDiagnostics(exitClassification)
-      );
-      const reportedFailure = processResult.ok || processResult.code === "PROVIDER_EXIT" && !processResult.signal && !processResult.diagnostics?.termination ? adapter.classifyReportedFailure?.(processResult.stdout) : void 0;
-      if (!processResult.ok || reportedFailure) {
-        const classification = processResult.ok ? reportedFailure : reportedFailure ?? adapter.classifyRunFailure(processResult);
-        trace.turn = classification.turn ? attempt === 1 ? classification.turn : "unknown" : void 0;
-        trace.failure_code = classification.code;
-        exitClassification = classification.exit_classification;
-        const failureDiagnostics = mergeDiagnostics(
-          diagnostics,
-          exitClassificationDiagnostics(exitClassification)
-        );
-        if (classification.retryable && attempt < maxAttempts) {
-          continue;
-        }
-        return failureEnvelope({
-          provider: request.provider,
-          code: classification.code,
-          // The binary was found but could not be started (removed or
-          // replaced after lookup): keep the install hint here too.
-          message: classification.code === "PROVIDER_MISSING" ? withInstallHint(classification.message, adapter.install_hint) : classification.message,
-          retryable: false,
-          stdout: processResult.stdout,
-          stderr: processResult.stderr,
-          attempts: {
-            cli_attempts: attempt,
-            terminal_reason: classification.terminal_reason
-          },
-          diagnostics: failureDiagnostics
-        });
-      }
-      if (textMode) {
-        const extracted = (adapter.extractText ?? extractProviderResultText)(
-          invocation2,
-          processResult
-        );
-        if (!extracted.ok) {
-          return failureEnvelope({
-            provider: request.provider,
-            code: extracted.code,
-            message: extracted.message,
-            retryable: false,
-            stdout: processResult.stdout,
-            stderr: processResult.stderr,
-            attempts: {
-              cli_attempts: attempt,
-              terminal_reason: extracted.terminal_reason
-            },
-            diagnostics
-          });
-        }
-        return textSuccessEnvelope({
-          provider: request.provider,
-          args: invocation2.redacted_command,
-          stdout: extracted.raw,
-          stderr: processResult.stderr,
-          text: extracted.text,
-          attempts: {
-            cli_attempts: attempt,
-            terminal_reason: "success"
-          },
-          diagnostics
-        });
-      }
-      const submittedVerdict = submitCapturePath ? await readSubmittedVerdict(submitCapturePath, schema, maxSubmitBytes) : { ok: false };
-      if (submittedVerdict.ok) {
-        return successEnvelope({
-          provider: request.provider,
-          args: invocation2.redacted_command,
-          stdout: submittedVerdict.raw,
-          stderr: processResult.stderr,
-          json: submittedVerdict.value,
-          attempts: {
-            cli_attempts: attempt,
-            terminal_reason: "success"
-          },
-          diagnostics: mergeDiagnostics(diagnostics, {
-            verdict_source: "submit"
-          })
-        });
-      }
-      const providerOutput = extractProviderOutput(invocation2, processResult);
-      const finalMessageDiagnostics = mergeDiagnostics(diagnostics, {
-        verdict_source: "final_message"
-      });
-      if (!providerOutput.ok) {
-        if (attempt < maxAttempts) {
-          validationFeedback = providerOutput.message;
-          continue;
-        }
-        return failureEnvelope({
-          provider: request.provider,
-          code: "PROVIDER_INVALID_JSON",
-          message: providerOutput.message,
-          retryable: false,
-          stdout: processResult.stdout,
-          stderr: processResult.stderr,
-          attempts: {
-            cli_attempts: attempt,
-            terminal_reason: "missing_provider_output"
-          },
-          diagnostics: finalMessageDiagnostics
-        });
-      }
-      const parsed = parseProviderJson(providerOutput.value);
-      if (!parsed.ok) {
-        if (attempt < maxAttempts) {
-          validationFeedback = parsed.message;
-          continue;
-        }
-        return failureEnvelope({
-          provider: request.provider,
-          code: "PROVIDER_INVALID_JSON",
-          message: parsed.message,
-          retryable: false,
-          stdout: providerOutput.value,
-          stderr: processResult.stderr,
-          attempts: {
-            cli_attempts: attempt,
-            terminal_reason: "invalid_json"
-          },
-          diagnostics: finalMessageDiagnostics
-        });
-      }
-      const verdictJson = (adapter.extractStructuredValue ?? extractStructuredJsonValue)(parsed.value);
-      const validation = validateSchemaSubset(verdictJson, schema);
-      if (!validation.ok) {
-        if (attempt < maxAttempts) {
-          validationFeedback = validation.message;
-          continue;
-        }
-        return failureEnvelope({
-          provider: request.provider,
-          code: "PROVIDER_SCHEMA_VALIDATION",
-          message: validation.message,
-          retryable: false,
-          stdout: providerOutput.value,
-          stderr: processResult.stderr,
-          attempts: {
-            cli_attempts: attempt,
-            terminal_reason: "schema_validation"
-          },
-          diagnostics: finalMessageDiagnostics
-        });
-      }
-      return successEnvelope({
-        provider: request.provider,
-        args: invocation2.redacted_command,
-        stdout: providerOutput.value,
-        stderr: processResult.stderr,
-        json: verdictJson,
-        attempts: {
-          cli_attempts: attempt,
-          terminal_reason: "success"
-        },
-        diagnostics: finalMessageDiagnostics
-      });
-    }
-    return failureEnvelope({
-      provider: request.provider,
-      code: "PROVIDER_EXIT",
-      message: "Provider run ended without a terminal result.",
-      retryable: false,
-      attempts: {
-        cli_attempts: maxAttempts,
-        terminal_reason: "attempt_budget_exhausted"
-      },
-      diagnostics: lastInvocation ? {
-        strategy_used: strategy,
-        output_mode: lastInvocation.output_mode,
-        redacted_command: lastInvocation.redacted_command
-      } : void 0
-    });
-  } finally {
-    if (submitCapturePath) {
-      await cleanupSubmitCaptureFile(submitCapturePath);
-    }
-  }
-}
-function permissionDenialDiagnostics(adapter, stdout) {
-  const denials = adapter.extractPermissionDenials?.(stdout);
-  if (!denials) return void 0;
-  return {
-    permission_denials: denials,
-    warnings: [
-      `${adapter.display_name} reported ${denials.count} denied tool call(s); verify task completeness independently of schema and transport success.`
-    ]
-  };
-}
-async function readJsonSchema(schemaPath) {
-  return JSON.parse(await readFile(schemaPath, "utf8"));
-}
-function withInstallHint(message, installHint) {
-  if (!installHint) return message;
-  return `${message.endsWith(".") ? message : `${message}.`} Install hint: ${installHint}`;
-}
-var PREREQUISITE_FAILURE_CODES = {
-  missing: "PROVIDER_MISSING",
-  unsupported: "PROVIDER_UNSUPPORTED",
-  unavailable: "PROVIDER_UNAVAILABLE"
-};
-function preInvocationFailure(input) {
-  return failureEnvelope({
-    provider: input.provider,
-    code: input.code,
-    message: input.message,
-    retryable: false,
-    attempts: {
-      cli_attempts: 0,
-      terminal_reason: input.terminalReason
-    },
-    diagnostics: input.diagnostics
-  });
-}
-function extractProviderOutput(invocation2, result) {
-  if (invocation2.output_mode !== "last_message_file") {
-    return { ok: true, value: result.stdout };
-  }
-  if (result.ok && result.last_message?.trim()) {
-    return { ok: true, value: result.last_message };
-  }
-  return {
-    ok: false,
-    message: "Provider did not write a last-message file response."
-  };
-}
-function parseProviderJson(stdout) {
-  try {
-    return { ok: true, value: JSON.parse(stdout.trim()) };
-  } catch (error) {
-    return {
-      ok: false,
-      message: `Provider returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`
-    };
-  }
-}
-async function readSubmittedVerdict(filePath, schema, maxBytes) {
-  const capture = await readBoundedRegularFile(filePath, maxBytes);
-  if (!capture.ok) return { ok: false };
-  const raw = capture.contents;
-  try {
-    assertWithinSubmitCaptureLimit(raw, maxBytes);
-  } catch {
-    return { ok: false };
-  }
-  if (!raw.trim()) return { ok: false };
-  const parsed = parseProviderJson(raw);
-  if (!parsed.ok) return { ok: false };
-  const validation = validateSchemaSubset(parsed.value, schema);
-  if (!validation.ok) return { ok: false };
-  return { ok: true, raw, value: parsed.value };
-}
-async function cleanupSubmitCaptureFile(filePath) {
-  try {
-    await rm3(filePath, { force: true });
-  } catch {
-  }
-}
-function promptForStrategy(input) {
-  const parts = [input.prompt];
-  if (input.submitCaptureEnabled) {
-    const submitCommand = input.submitCommand ?? buildConsensusSubmitCommand();
-    parts.push(
-      "Verdict submission:",
-      "Before ending the turn, submit the final verdict by running this exact command and passing the JSON verdict on stdin:",
-      `\`${submitCommand}\``,
-      "The same command is injected as CONSENSUS_SUBMIT_COMMAND; do not substitute a bare `consensus` executable.",
-      "The command validates against the active schema from CONSENSUS_SUBMIT_SCHEMA and captures to CONSENSUS_SUBMIT_FILE.",
-      "If submission fails, fix the reported schema error and run the command again.",
-      "Also keep the final-message JSON fallback: end with only the same JSON object matching the schema."
-    );
-  }
-  if (input.validationFeedback) {
-    parts.push(
-      `Schema validation failed: ${input.validationFeedback}`,
-      "Return only JSON matching the schema."
-    );
-  }
-  if (input.strategy === "prompt_only") {
-    parts.push(
-      "Structured output requirements:",
-      "Return only one JSON object matching this JSON Schema.",
-      "Do not wrap the JSON in Markdown.",
-      "Do not include prose before or after the JSON object.",
-      "<JSON_SCHEMA>",
-      input.inlineJsonSchema,
-      "</JSON_SCHEMA>"
-    );
-  }
-  return parts.join("\n\n");
-}
-function mergeDiagnostics(...diagnostics) {
-  const merged = {};
-  const warnings = [];
-  for (const item of diagnostics) {
-    if (!item) continue;
-    Object.assign(merged, item);
-    if (item.warnings) warnings.push(...item.warnings);
-  }
-  if (warnings.length > 0) merged.warnings = warnings;
-  return merged;
-}
-function exitClassificationDiagnostics(exitClassification) {
-  return exitClassification ? { exit_classification: exitClassification } : void 0;
-}
-function buildConsensusSubmitCommand(input = {}) {
-  const nodePath = input.nodePath ?? process.execPath;
-  const cliPath = input.cliPath ?? currentConsensusCliPath();
-  return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
-}
-function currentConsensusCliPath() {
-  if (process.argv[1]) return path9.resolve(process.argv[1]);
-  return fileURLToPath(import.meta.url);
-}
-function shellQuote(value) {
-  return `'${value.replaceAll("'", "'\\''")}'`;
-}
-
-// src/plugins/consensus/shared/cli-helpers-core.ts
-import { lstat as lstat2 } from "node:fs/promises";
-import path10 from "node:path";
-function inside(root, target) {
-  const relative = path10.relative(root, target);
-  return relative === "" || !relative.startsWith("..") && !path10.isAbsolute(relative);
-}
-function pathExists(targetPath) {
-  return lstat2(targetPath).then(() => true).catch((error) => {
-    if (error.code === "ENOENT") return false;
-    throw error;
-  });
-}
-async function nearestExistingPath(targetPath) {
-  if (await pathExists(targetPath)) return targetPath;
-  const parent = path10.dirname(targetPath);
-  if (parent === targetPath) return targetPath;
-  return await nearestExistingPath(parent);
-}
-function encodePromptBlockData(text) {
-  return String(text ?? "").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-}
-
-// src/skills/consensus-review/src/scope.ts
-import { execFile as execFile2, spawn as spawn3 } from "node:child_process";
-import { createHash as createHash2, randomUUID as randomUUID4 } from "node:crypto";
-import {
-  chmod,
-  lstat as lstat3,
-  mkdir as mkdir2,
-  open as open2,
-  readlink as readlink2,
-  realpath
-} from "node:fs/promises";
-import os2 from "node:os";
-import path11 from "node:path";
-import { promisify } from "node:util";
-var execFileAsync = promisify(execFile2);
-var REVIEW_SCOPE_LIMITS = {
-  // A rename or copy counts once.
-  maxSelectedFiles: 100,
-  // Charged per path as max(target, base) textual bytes, so evidence.json can
-  // retain up to twice this when both versions of every path are large.
-  maxEvidenceBytes: 8 * 1024 * 1024,
-  // One git call returns at most one blob, so it shares the evidence bound
-  // plus room for metadata output such as an index listing.
-  maxGitOutputBytes: 8 * 1024 * 1024 + 1024 * 1024
-};
-var REVIEW_SCOPE_WORKAROUND = "Narrow the scope with --files <paths...>, use a closer base_branch=<ref>, or use range=<base>..<head> for committed-only evidence. After merging upstream, choose its intended current tip as the range base; an older base includes intervening upstream changes.";
-async function captureReviewScope(input) {
-  const canonicalWorktree = await canonicalGitWorktree(input.cwd);
-  const head = await gitOptionalHead(canonicalWorktree);
-  let resolvedBaseRef;
-  let resolvedHeadRef;
-  let mergeBase;
-  let selectedPaths = [];
-  let externalDocuments = [];
-  const versions = [];
-  let rangeCaptureState;
-  if (input.request.kind === "range") {
-    resolvedBaseRef = await resolveCommitRef(
-      canonicalWorktree,
-      input.request.baseRef,
-      "base"
-    );
-    resolvedHeadRef = await resolveCommitRef(
-      canonicalWorktree,
-      input.request.headRef,
-      "head"
-    );
-    const changed = await changedTrackedPaths(
-      canonicalWorktree,
-      resolvedBaseRef,
-      resolvedHeadRef
-    );
-    selectedPaths = changed.paths;
-    enforceFileCount(selectedPaths, changed.countedFiles);
-    rangeCaptureState = await captureScopeState({
-      canonicalWorktree,
-      selectedPaths,
-      externalDocuments
-    });
-    for (const relativePath of selectedPaths) {
-      versions.push(
-        await captureGitVersion(
-          canonicalWorktree,
-          resolvedHeadRef,
-          relativePath,
-          "head"
-        )
-      );
-      versions.push(
-        await captureGitVersion(
-          canonicalWorktree,
-          resolvedBaseRef,
-          relativePath
-        )
-      );
-      enforceEvidenceBudget(versions, "partial");
-    }
-  } else if (input.request.kind === "base_branch") {
-    if (head === null) {
-      throw new Error("base_scope_requires_head");
-    }
-    const ref = input.request.ref;
-    assertRef(ref);
-    await rejectUnresolvedMerges(canonicalWorktree);
-    resolvedBaseRef = await gitText(canonicalWorktree, [
-      "rev-parse",
-      "--verify",
-      `${ref}^{commit}`
-    ]).catch(() => {
-      throw new Error(`base_ref_invalid: could not resolve ${ref}`);
-    });
-    mergeBase = await gitText(canonicalWorktree, [
-      "merge-base",
-      resolvedBaseRef,
-      head
-    ]).catch(() => {
-      throw new Error(
-        `base_ref_invalid: could not resolve a merge base for ${ref}`
-      );
-    });
-    const changed = await changedTrackedPaths(canonicalWorktree, mergeBase);
-    selectedPaths = changed.paths;
-    enforceFileCount(selectedPaths, changed.countedFiles);
-    for (const relativePath of selectedPaths) {
-      versions.push(
-        await captureWorktreeVersion(canonicalWorktree, relativePath)
-      );
-      versions.push(
-        await captureGitVersion(canonicalWorktree, mergeBase, relativePath)
-      );
-      enforceEvidenceBudget(versions, "partial");
-    }
-  } else if (input.request.kind === "files") {
-    if (input.request.paths.length === 0) {
-      throw new Error("scope_required: --files requires at least one path");
-    }
-    selectedPaths = unique(input.request.paths).map(
-      (candidate) => normalizeRepositoryPath(candidate)
-    );
-    enforceFileCount(selectedPaths, selectedPaths.length);
-    for (const relativePath of selectedPaths) {
-      versions.push(
-        await captureWorktreeVersion(canonicalWorktree, relativePath, true)
-      );
-      enforceEvidenceBudget(versions, "partial");
-    }
-  } else {
-    if (!input.request.path.trim()) {
-      throw new Error("scope_required: --document requires a path");
-    }
-    const document = await resolveDocument(
-      canonicalWorktree,
-      input.request.path
-    );
-    if (document.location === "worktree") selectedPaths = [document.path];
-    else externalDocuments = [document.path];
-    versions.push(document.version);
-  }
-  rejectBinaryOnlyScope(versions);
-  const evidenceBytes = versions.reduce(
-    (total, version) => total + textualBytes(version),
-    0
-  );
-  const chargedBytes = enforceEvidenceBudget(versions, "complete");
-  const scopeWithoutState = {
-    request: input.request,
-    canonicalWorktree,
-    head,
-    ...resolvedBaseRef ? { resolvedBaseRef } : {},
-    ...resolvedHeadRef ? { resolvedHeadRef } : {},
-    ...mergeBase ? { mergeBase } : {},
-    selectedPaths,
-    externalDocuments,
-    versions,
-    evidenceBytes,
-    chargedBytes
-  };
-  const captureState = await captureScopeState(scopeWithoutState);
-  const captureComparison = compareCapturedScopeToState(
-    {
-      ...scopeWithoutState,
-      ...rangeCaptureState ? { captureState: rangeCaptureState } : {}
-    },
-    captureState
-  );
-  if (!captureComparison.stable) {
-    throw new Error(
-      `scope_changed_during_capture: ${captureComparison.differences.join("; ")}`
-    );
-  }
-  const token = sha2562(
-    JSON.stringify({
-      ...scopeWithoutState,
-      captureState,
-      versions: versions.map(({ text: _text, ...version }) => version)
-    })
-  );
-  return {
-    token,
-    ...scopeWithoutState,
-    captureState
-  };
-}
-async function captureScopeState(scope) {
-  const [head, index, status] = await Promise.all([
-    gitOptionalHead(scope.canonicalWorktree),
-    gitBytes(scope.canonicalWorktree, ["ls-files", "-s", "-z"]).then(sha2562),
-    gitBytes(scope.canonicalWorktree, [
-      "status",
-      "--porcelain=v1",
-      "-z",
-      "--untracked-files=all"
-    ]).then(sha2562)
-  ]);
-  const selected = [];
-  for (const relativePath of scope.selectedPaths) {
-    selected.push(
-      stateFromVersion(
-        await captureWorktreeVersion(
-          scope.canonicalWorktree,
-          relativePath,
-          false,
-          false
-        ),
-        "worktree"
-      )
-    );
-  }
-  for (const documentPath of scope.externalDocuments) {
-    selected.push(
-      stateFromVersion(
-        await captureAbsoluteFile(documentPath, "live"),
-        "external"
-      )
-    );
-  }
-  return { head, index, status, selected };
-}
-function compareScopeState(before, after) {
-  const limitation = "Content changes outside the selected set may go undetected when Git status is unchanged; ignored, unselected, external, and transient write-then-revert activity are not fully monitored.";
-  if (after instanceof Error) {
-    return {
-      checked: false,
-      stable: false,
-      differences: [`after_scan_failed: ${after.message}`],
-      limitation,
-      before,
-      after: null
-    };
-  }
-  const differences = [];
-  if (before.head !== after.head) differences.push("HEAD changed");
-  if (before.index !== after.index) differences.push("index changed");
-  if (before.status !== after.status) differences.push("Git status changed");
-  const prior = new Map(
-    before.selected.map((entry) => [stateKey(entry), JSON.stringify(entry)])
-  );
-  const next = new Map(
-    after.selected.map((entry) => [stateKey(entry), JSON.stringify(entry)])
-  );
-  for (const key of /* @__PURE__ */ new Set([...prior.keys(), ...next.keys()])) {
-    if (prior.get(key) !== next.get(key)) {
-      differences.push(`selected path changed: ${key}`);
-    }
-  }
-  return {
-    checked: true,
-    stable: differences.length === 0,
-    differences,
-    limitation,
-    before,
-    after
-  };
-}
-function compareCapturedScopeToState(scope, state) {
-  if (scope.request.kind === "range") {
-    return compareScopeState(
-      { ...scope.captureState ?? state, head: scope.head },
-      state
-    );
-  }
-  const expected = {
-    head: scope.head,
-    index: state.index,
-    status: state.status,
-    selected: scope.versions.filter((version) => version.source === "live").map(
-      (version) => stateFromVersion(
-        version,
-        scope.externalDocuments.includes(version.path) ? "external" : "worktree"
-      )
-    )
-  };
-  return compareScopeState(expected, state);
-}
-async function createReviewRunState(input) {
-  const canonicalWorktree = await canonicalGitWorktree(input.cwd);
-  const env = input.env ?? process.env;
-  const configuredRoot = env.XDG_STATE_HOME;
-  if (configuredRoot && !path11.isAbsolute(configuredRoot)) {
-    throw new Error("XDG_STATE_HOME must be absolute");
-  }
-  const home = env.HOME || os2.homedir();
-  if (!configuredRoot && !path11.isAbsolute(home)) {
-    throw new Error("HOME must resolve to an absolute path");
-  }
-  const stateRoot = path11.resolve(
-    configuredRoot ?? path11.join(home, ".local", "state"),
-    "consensus"
-  );
-  await mkdir2(stateRoot, { recursive: true, mode: 448 });
-  const canonicalStateRoot = await realpath(stateRoot);
-  if (inside(canonicalWorktree, canonicalStateRoot)) {
-    throw new Error("review_state_inside_worktree");
-  }
-  const worktreeKey = sha2562(canonicalWorktree);
-  const reviews = path11.join(canonicalStateRoot, worktreeKey, "reviews");
-  await mkdir2(reviews, { recursive: true, mode: 448 });
-  await chmod(path11.join(canonicalStateRoot, worktreeKey), 448);
-  await chmod(reviews, 448);
-  const runId = input.runId ?? randomUUID4();
-  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(runId)) {
-    throw new Error("run_id_invalid");
-  }
-  const runDirectory = path11.join(reviews, runId);
-  await mkdir2(runDirectory, { mode: 448 });
-  const canonicalRunDirectory = await realpath(runDirectory);
-  if (canonicalRunDirectory !== runDirectory || !inside(canonicalStateRoot, canonicalRunDirectory) || inside(canonicalWorktree, canonicalRunDirectory)) {
-    throw new Error("review_state_boundary_invalid");
-  }
-  const info = await lstat3(canonicalRunDirectory);
-  const uid = process.getuid?.();
-  if (!info.isDirectory() || (info.mode & 63) !== 0 || uid !== void 0 && info.uid !== uid) {
-    throw new Error("review_state_not_private");
-  }
-  return {
-    stateRoot: canonicalStateRoot,
-    worktreeKey,
-    runId,
-    runDirectory: canonicalRunDirectory
-  };
-}
-async function canonicalGitWorktree(cwd) {
-  const worktree = await gitText(path11.resolve(cwd), [
-    "rev-parse",
-    "--show-toplevel"
-  ]).catch(() => {
-    throw new Error("review_scope_requires_git_worktree");
-  });
-  return await realpath(worktree);
-}
-async function changedTrackedPaths(cwd, baseRevision, headRevision) {
-  const output = await gitBytes(cwd, [
-    "diff",
-    "--name-status",
-    "-z",
-    "--find-renames",
-    "--no-ext-diff",
-    baseRevision,
-    ...headRevision ? [headRevision] : [],
-    "--"
-  ]);
-  const fields = splitNul(output);
-  const paths = [];
-  let countedFiles = 0;
-  for (let index = 0; index < fields.length; ) {
-    const status = fields[index++];
-    if (!status) break;
-    const first = fields[index++];
-    if (first === void 0) throw new Error("git_diff_malformed");
-    paths.push(normalizeRepositoryPath(first));
-    countedFiles += 1;
-    if (status.startsWith("R") || status.startsWith("C")) {
-      const second = fields[index++];
-      if (second === void 0) throw new Error("git_diff_malformed");
-      paths.push(normalizeRepositoryPath(second));
-    }
-  }
-  return { paths: unique(paths).toSorted(), countedFiles };
-}
-async function rejectUnresolvedMerges(cwd) {
-  const unresolved = await gitBytes(cwd, [
-    "diff",
-    "--name-only",
-    "--diff-filter=U",
-    "-z",
-    "--"
-  ]);
-  if (unresolved.length > 0) throw new Error("unresolved_merge_not_supported");
-}
-async function captureWorktreeVersion(root, relativePath, requirePresent = false, includeText = true) {
-  const normalized = normalizeRepositoryPath(relativePath);
-  const requested = path11.resolve(root, normalized);
-  if (!inside(root, requested)) throw new Error(`path_escape: ${relativePath}`);
-  let info;
-  try {
-    info = await lstat3(requested);
-  } catch (error) {
-    if (isMissing2(error) && !requirePresent) {
-      return deletedVersion(normalized, "live");
-    }
-    throw new Error(
-      `scope_path_unreadable: ${normalized}: ${fsMessage(error)}`,
-      { cause: error }
-    );
-  }
-  if (info.isSymbolicLink()) {
-    const canonicalParent = await realpath(path11.dirname(requested));
-    if (!inside(root, canonicalParent)) {
-      throw new Error(`path_escape: ${normalized}`);
-    }
-    const canonicalLink = path11.join(canonicalParent, path11.basename(requested));
-    const target = await readlink2(canonicalLink, {
-      encoding: "buffer"
-    }).catch((error) => {
-      throw new Error(
-        `scope_path_unreadable: ${normalized}: ${fsMessage(error)}`,
-        { cause: error }
-      );
-    });
-    return versionFromBytes(
-      normalized,
-      "live",
-      40960,
-      target,
-      includeText,
-      null,
-      "symlink"
-    );
-  }
-  if (!info.isFile()) {
-    throw new Error(`scope_path_not_regular: ${normalized}`);
-  }
-  const canonical = await realpath(requested);
-  if (!inside(root, canonical)) throw new Error(`path_escape: ${normalized}`);
-  const bytes = await boundedRead(canonical);
-  return versionFromBytes(
-    normalized,
-    "live",
-    info.mode & 511,
-    bytes,
-    includeText
-  );
-}
-async function captureGitVersion(root, revision, relativePath, source = "base") {
-  const normalized = normalizeRepositoryPath(relativePath);
-  const tree = await gitBytes(root, [
-    "ls-tree",
-    "-z",
-    revision,
-    "--",
-    normalized
-  ]);
-  if (tree.length === 0) return deletedVersion(normalized, source);
-  const header = tree.toString("utf8").split("	", 1)[0];
-  const [mode, kind, blobId] = header.split(" ");
-  if (kind !== "blob" || !/^[0-7]{6}$/u.test(mode) || !/^[a-f0-9]{40,64}$/u.test(blobId)) {
-    throw new Error(`unsupported_git_entry: ${normalized}`);
-  }
-  const size = Number(
-    await gitText(root, ["cat-file", "-s", blobId]).catch((error) => {
-      throw new Error(
-        `scope_${source}_unreadable: ${normalized}: ${fsMessage(error)}`,
-        { cause: error }
-      );
-    })
-  );
-  if (!Number.isSafeInteger(size) || size < 0) {
-    throw new Error(
-      `scope_${source}_unreadable: ${normalized}: invalid blob size`
-    );
-  }
-  let bytes;
-  if (size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-    bytes = await hashLargeGitBlob(root, blobId, normalized, size, source);
-  } else {
-    try {
-      bytes = await gitBytes(root, ["cat-file", "blob", blobId]);
-    } catch (error) {
-      throw new Error(
-        `scope_${source}_unreadable: ${normalized}: ${fsMessage(error)}`,
-        { cause: error }
-      );
-    }
-    if (bytes.length !== size) {
-      throw new Error(
-        `scope_${source}_unreadable: ${normalized}: short blob read`
-      );
-    }
-  }
-  const symlink = mode === "120000";
-  return versionFromBytes(
-    normalized,
-    source,
-    symlink ? 40960 : Number.parseInt(mode, 8) & 511,
-    bytes,
-    true,
-    blobId,
-    symlink ? "symlink" : "file"
-  );
-}
-async function resolveDocument(root, candidate) {
-  const requested = path11.isAbsolute(candidate) ? path11.resolve(candidate) : path11.resolve(root, candidate);
-  const canonical = await realpath(requested).catch((error) => {
-    throw new Error(`document_unreadable: ${fsMessage(error)}`);
-  });
-  const location = inside(root, canonical) ? "worktree" : "external";
-  if (location === "worktree") {
-    const relativePath = normalizeRepositoryPath(
-      path11.relative(root, canonical)
-    );
-    return {
-      location,
-      path: relativePath,
-      version: await captureWorktreeVersion(root, relativePath, true)
-    };
-  }
-  return {
-    location,
-    path: canonical,
-    version: await captureAbsoluteFile(canonical, "live")
-  };
-}
-async function captureAbsoluteFile(canonicalPath, source) {
-  const info = await lstat3(canonicalPath).catch((error) => {
-    if (isMissing2(error)) return null;
-    throw error;
-  });
-  if (!info) return deletedVersion(canonicalPath, source);
-  if (info.isSymbolicLink() || !info.isFile()) {
-    throw new Error(`scope_path_not_regular: ${canonicalPath}`);
-  }
-  const bytes = await boundedRead(canonicalPath);
-  return versionFromBytes(
-    canonicalPath,
-    source,
-    info.mode & 511,
-    bytes,
-    true
-  );
-}
-var BINARY_SNIFF_BYTES = 8e3;
-var HASH_CHUNK_BYTES = 1024 * 1024;
-async function boundedRead(filePath) {
-  const handle = await open2(filePath, "r");
-  try {
-    const current = await handle.stat();
-    if (current.size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-      return await hashLargeBinary(handle, filePath, current.size);
-    }
-    const buffer = Buffer.alloc(current.size);
-    let offset = 0;
-    while (offset < buffer.length) {
-      const read = await handle.read(
-        buffer,
-        offset,
-        buffer.length - offset,
-        offset
-      );
-      if (read.bytesRead === 0) break;
-      offset += read.bytesRead;
-    }
-    const final = await handle.stat();
-    if (final.size !== current.size || offset !== current.size) {
-      throw new Error(`scope_changed_during_read: ${filePath}`);
-    }
-    return buffer;
-  } finally {
-    await handle.close();
-  }
-}
-async function hashLargeBinary(handle, filePath, size) {
-  const hash = createHash2("sha256");
-  const chunk = Buffer.alloc(HASH_CHUNK_BYTES);
-  let offset = 0;
-  while (offset < size) {
-    const { bytesRead } = await handle.read(chunk, 0, chunk.length, offset);
-    if (bytesRead === 0) break;
-    if (offset === 0 && !chunk.subarray(0, Math.min(bytesRead, BINARY_SNIFF_BYTES)).includes(0)) {
-      throw oversizedFile(filePath, size);
-    }
-    hash.update(chunk.subarray(0, bytesRead));
-    offset += bytesRead;
-  }
-  const final = await handle.stat();
-  if (final.size !== size || offset !== size) {
-    throw new Error(`scope_changed_during_read: ${filePath}`);
-  }
-  return { size, sha256: hash.digest("hex") };
-}
-function hashLargeGitBlob(root, blobId, filePath, size, source) {
-  return new Promise((resolve, reject) => {
-    const child = spawn3("git", ["cat-file", "blob", blobId], {
-      cwd: root,
-      env: gitEnv(),
-      stdio: ["ignore", "pipe", "ignore"]
-    });
-    const hash = createHash2("sha256");
-    let prefix = Buffer.alloc(0);
-    let sniffed = false;
-    let received = 0;
-    let failure3;
-    child.stdout.on("data", (data) => {
-      if (failure3) return;
-      received += data.length;
-      hash.update(data);
-      if (!sniffed) {
-        prefix = Buffer.concat([prefix, data]).subarray(0, BINARY_SNIFF_BYTES);
-        if (prefix.includes(0)) sniffed = true;
-        else if (prefix.length >= BINARY_SNIFF_BYTES) {
-          failure3 = oversizedFile(filePath, size);
-          child.kill();
-        }
-      }
-    });
-    child.on("error", (error) => {
-      failure3 ??= new Error(
-        `scope_${source}_unreadable: ${filePath}: ${fsMessage(error)}`,
-        { cause: error }
-      );
-    });
-    child.on("close", (code) => {
-      if (!failure3 && (code !== 0 || received !== size)) {
-        failure3 = new Error(
-          `scope_${source}_unreadable: ${filePath}: short blob read`
-        );
-      }
-      if (!failure3 && !sniffed) failure3 = oversizedFile(filePath, size);
-      if (failure3) reject(failure3);
-      else resolve({ size, sha256: hash.digest("hex") });
-    });
-  });
-}
-function versionFromBytes(filePath, source, mode, bytes, includeText, blobId = null, kind = "file") {
-  if (!Buffer.isBuffer(bytes)) {
-    return {
-      source,
-      path: filePath,
-      kind: "binary_skipped",
-      mode,
-      bytes: bytes.size,
-      sha256: bytes.sha256,
-      blobId,
-      text: null
-    };
-  }
-  if (bytes.includes(0)) {
-    return {
-      source,
-      path: filePath,
-      kind: "binary_skipped",
-      mode,
-      bytes: bytes.length,
-      sha256: sha2562(bytes),
-      blobId,
-      text: null
-    };
-  }
-  return {
-    source,
-    path: filePath,
-    kind,
-    mode,
-    bytes: bytes.length,
-    sha256: sha2562(bytes),
-    blobId,
-    text: includeText ? bytes.toString("utf8") : null
-  };
-}
-function deletedVersion(filePath, source) {
-  return {
-    source,
-    path: filePath,
-    kind: "deleted",
-    mode: null,
-    bytes: 0,
-    sha256: null,
-    blobId: null,
-    text: null
-  };
-}
-function stateFromVersion(version, location) {
-  return {
-    path: version.path,
-    location,
-    kind: version.kind,
-    mode: version.mode,
-    bytes: version.bytes,
-    sha256: version.sha256
-  };
-}
-async function gitText(cwd, args) {
-  return (await gitBytes(cwd, args)).toString("utf8").trim();
-}
-async function gitOptionalHead(cwd) {
-  try {
-    return await gitText(cwd, ["rev-parse", "--verify", "HEAD"]);
-  } catch (error) {
-    try {
-      await gitText(cwd, ["symbolic-ref", "-q", "HEAD"]);
-      return null;
-    } catch {
-      throw error;
-    }
-  }
-}
-function gitEnv() {
-  return {
-    ...process.env,
-    GIT_CONFIG_COUNT: "2",
-    GIT_CONFIG_KEY_0: "diff.external",
-    GIT_CONFIG_VALUE_0: "",
-    GIT_CONFIG_KEY_1: "core.attributesFile",
-    GIT_CONFIG_VALUE_1: "/dev/null"
-  };
-}
-async function gitBytes(cwd, args) {
-  const result = await execFileAsync("git", args, {
-    cwd,
-    encoding: "buffer",
-    maxBuffer: REVIEW_SCOPE_LIMITS.maxGitOutputBytes,
-    env: gitEnv()
-  });
-  return result.stdout;
-}
-async function resolveCommitRef(root, ref, source) {
-  assertRef(ref, source);
-  return await gitText(root, [
-    "rev-parse",
-    "--verify",
-    `${ref}^{commit}`
-  ]).catch(() => {
-    throw new Error(`${source}_ref_invalid: could not resolve ${ref}`);
-  });
-}
-function assertRef(ref, source = "base") {
-  if (!ref.trim() || ref.startsWith("-") || ref.includes("\0")) {
-    throw new Error(`${source}_ref_invalid: ${ref}`);
-  }
-}
-function normalizeRepositoryPath(candidate) {
-  if (!candidate || candidate.includes("\0") || path11.isAbsolute(candidate)) {
-    throw new Error(`scope_path_invalid: ${candidate}`);
-  }
-  const normalized = path11.normalize(candidate);
-  if (normalized === "." || normalized === ".." || normalized.startsWith(`..${path11.sep}`)) {
-    throw new Error(`path_escape: ${candidate}`);
-  }
-  return normalized.split(path11.sep).join("/");
-}
-function enforceFileCount(paths, countedFiles) {
-  if (countedFiles <= REVIEW_SCOPE_LIMITS.maxSelectedFiles) return;
-  const directories = /* @__PURE__ */ new Map();
-  for (const candidate of paths) {
-    const directory = path11.posix.dirname(candidate);
-    const key = directory === "." ? "./" : `${directory}/`;
-    directories.set(key, (directories.get(key) ?? 0) + 1);
-  }
-  throw new Error(
-    `scope_too_large: ${countedFiles} changed files selected, over the ${REVIEW_SCOPE_LIMITS.maxSelectedFiles}-file limit (a rename counts once). Largest directories: ${largestOffenders(
-      [...directories.entries()].map(([name, size]) => ({
-        name,
-        size,
-        unit: "files"
-      }))
-    )}. ${REVIEW_SCOPE_WORKAROUND}`
-  );
-}
-function oversizedFile(filePath, size) {
-  return new Error(
-    `scope_too_large: ${filePath} is ${size} bytes, over the ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes}-byte per-file limit. ${REVIEW_SCOPE_WORKAROUND}`
-  );
-}
-function largestOffenders(entries) {
-  return entries.toSorted(
-    (left, right) => right.size - left.size || left.name.localeCompare(right.name)
-  ).slice(0, 5).map((entry) => `${entry.name} (${entry.size} ${entry.unit})`).join(", ");
-}
-function enforceEvidenceBudget(versions, extent) {
-  const charges = chargedBytesByPath(versions);
-  const chargedBytes = [...charges.values()].reduce(
-    (total, bytes) => total + bytes,
-    0
-  );
-  if (chargedBytes > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
-    throw new Error(
-      `scope_too_large: selected textual evidence is ${extent === "partial" ? "at least " : ""}${chargedBytes} bytes, over the ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes}-byte limit (each path is charged the larger of its target and base versions). Largest${extent === "partial" ? " read so far" : ""}: ${largestOffenders(
-        [...charges.entries()].map(([name, bytes]) => ({
-          name,
-          size: bytes,
-          unit: "bytes"
-        }))
-      )}. ${REVIEW_SCOPE_WORKAROUND}`
-    );
-  }
-  return chargedBytes;
-}
-function textualBytes(version) {
-  return version.kind === "file" || version.kind === "symlink" ? version.bytes : 0;
-}
-function chargedBytesByPath(versions) {
-  const charges = /* @__PURE__ */ new Map();
-  for (const version of versions) {
-    charges.set(
-      version.path,
-      Math.max(charges.get(version.path) ?? 0, textualBytes(version))
-    );
-  }
-  return charges;
-}
-function rejectBinaryOnlyScope(versions) {
-  const binaries = versions.filter(
-    (version) => version.kind === "binary_skipped"
-  );
-  if (binaries.length === 0) return;
-  const textual = (version) => version.kind === "file" || version.kind === "symlink";
-  const deletedTarget = new Set(
-    versions.filter(
-      (version) => version.source !== "base" && version.kind === "deleted"
-    ).map((version) => version.path)
-  );
-  if (versions.some(
-    (version) => textual(version) && (version.source !== "base" || deletedTarget.has(version.path))
-  )) {
-    return;
-  }
-  throw new Error(
-    `binary_scope_not_supported: every changed version is binary (${unique(
-      binaries.map((version) => version.path)
-    ).join(", ")})`
-  );
-}
-function unique(values) {
-  return [...new Set(values)];
-}
-function splitNul(value) {
-  const parts = value.toString("utf8").split("\0");
-  if (parts.at(-1) === "") parts.pop();
-  return parts;
-}
-function sha2562(value) {
-  return createHash2("sha256").update(value).digest("hex");
-}
-function stateKey(value) {
-  return `${value.location}:${value.path}`;
-}
-function isMissing2(error) {
-  return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-function fsMessage(error) {
-  return error instanceof Error ? error.message : String(error);
-}
-
-// src/skills/consensus-review/src/selection.ts
-import { createHash as createHash3 } from "node:crypto";
-import path13 from "node:path";
-
 // src/plugins/consensus/config/consensus-config.ts
-import { randomUUID as randomUUID5 } from "node:crypto";
+import { randomUUID as randomUUID2 } from "node:crypto";
 import {
   access as access2,
-  mkdir as mkdir3,
-  readFile as readFile2,
+  mkdir as mkdir2,
+  readFile,
   rename,
-  rm as rm4,
+  rm as rm3,
   writeFile as writeFile2
 } from "node:fs/promises";
-import path12 from "node:path";
+import path6 from "node:path";
 
 // src/plugins/consensus/provider-cli/types.ts
 var CORE_PROVIDER_IDS = ["claude", "codex", "cursor"];
@@ -5845,8 +3850,12 @@ var DEFAULTS_KEYS = /* @__PURE__ */ new Set([
   "panelists",
   "panel_size",
   "reviewers",
-  "roles"
+  "roles",
+  "provider_models"
 ]);
+var EXTENDED_PROVIDER_IDS = new Set(
+  ACP_PROVIDER_DESCRIPTORS.map((descriptor) => descriptor.id)
+);
 var AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
 var ROLE_KEYS = /* @__PURE__ */ new Set(["panelist", "advisor", "synthesizer"]);
 function parseConsensusDefaultsConfig(value) {
@@ -5894,13 +3903,47 @@ function parseConsensusDefaults(value) {
   if (value.roles !== void 0) {
     defaults.roles = parseRolesConfig(value.roles);
   }
+  if (value.provider_models !== void 0) {
+    defaults.provider_models = parseProviderModels(value.provider_models);
+  }
   return defaults;
+}
+function parseProviderModels(value) {
+  const label = "Consensus config provider_models";
+  if (!isRecord4(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  const models = {};
+  for (const [provider, model] of Object.entries(value)) {
+    if (!EXTENDED_PROVIDER_IDS.has(provider)) {
+      throw new Error(
+        `${label} accepts only registered extended providers (${[...EXTENDED_PROVIDER_IDS].join(", ")}), not: ${provider}`
+      );
+    }
+    if (typeof model !== "string" || model.trim() === "") {
+      throw new Error(`${label}.${provider} must be a non-empty string`);
+    }
+    models[provider] = model;
+  }
+  return models;
+}
+async function resolveProviderDefaultModel(input) {
+  for (const scope of ["project", "user"]) {
+    const config = await readConsensusConfig({
+      scope,
+      cwd: input.cwd,
+      env: input.env
+    });
+    const model = config?.defaults?.provider_models?.[input.provider];
+    if (model) return { model, source: scope };
+  }
+  return void 0;
 }
 async function readConsensusConfig(input) {
   const configPath = await consensusConfigPath(input);
   let contents;
   try {
-    contents = await readFile2(configPath, "utf8");
+    contents = await readFile(configPath, "utf8");
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") return null;
     throw error;
@@ -5918,7 +3961,7 @@ async function readConsensusConfig(input) {
 }
 async function consensusConfigPath(input) {
   if (input.scope === "user") {
-    return path12.join(userConfigDir(input.env), "consensus", "config.json");
+    return path6.join(userConfigDir(input.env), "consensus", "config.json");
   }
   return projectConsensusConfigPath(input.cwd);
 }
@@ -5928,7 +3971,7 @@ async function projectConsensusConfigPath(cwd) {
   return existing ?? fallback;
 }
 async function findNearestProjectConsensusConfig(cwd) {
-  let current = path12.resolve(cwd);
+  let current = path6.resolve(cwd);
   while (true) {
     const candidate = projectConsensusConfigPathAt(current);
     try {
@@ -5937,13 +3980,13 @@ async function findNearestProjectConsensusConfig(cwd) {
     } catch (error) {
       if (!isNodeError(error) || error.code !== "ENOENT") throw error;
     }
-    const parent = path12.dirname(current);
+    const parent = path6.dirname(current);
     if (parent === current) return null;
     current = parent;
   }
 }
 function projectConsensusConfigPathAt(cwd) {
-  return path12.join(path12.resolve(cwd), ".consensus", "config.json");
+  return path6.join(path6.resolve(cwd), ".consensus", "config.json");
 }
 async function resolveConsensusComposition(input) {
   const candidates = await loadCandidates(input);
@@ -6214,19 +4257,19 @@ function assertKnownKeys(record, knownKeys, label) {
   }
 }
 function hasConsensusDefaults(value) {
-  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.reviewers !== void 0 || value.roles !== void 0;
+  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.reviewers !== void 0 || value.roles !== void 0 || value.provider_models !== void 0;
 }
 function isProviderId(value) {
   return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
 }
 function userConfigDir(env = {}) {
   const xdg = env.XDG_CONFIG_HOME ?? process.env.XDG_CONFIG_HOME;
-  if (xdg && xdg.length > 0) return path12.resolve(xdg);
+  if (xdg && xdg.length > 0) return path6.resolve(xdg);
   const home = env.HOME ?? process.env.HOME;
   if (!home) {
     throw new Error("HOME is required to resolve user consensus config");
   }
-  return path12.join(path12.resolve(home), ".config");
+  return path6.join(path6.resolve(home), ".config");
 }
 function isRecord4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -6238,7 +4281,2022 @@ function formatCount(count) {
   return count === 2 ? "two" : String(count);
 }
 
+// src/plugins/consensus/provider-cli/continuation.ts
+import { randomUUID as randomUUID3 } from "node:crypto";
+import path7 from "node:path";
+var UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+var NOT_STARTED_FAILURE_CODES = [
+  "PROVIDER_MISSING",
+  "PROVIDER_ARGV_TOO_LARGE",
+  "PROVIDER_AUTH_REQUIRED",
+  "PROVIDER_UNSUPPORTED_OPTION",
+  "PROVIDER_SESSION_NOT_FOUND"
+];
+function isProviderSessionId(value) {
+  return UUID_PATTERN.test(value);
+}
+function continuationMode(request) {
+  return request.continuation?.mode ?? "new";
+}
+function continuationUsageError(request, isSessionId) {
+  const continuation = request.continuation;
+  if (!continuation) return void 0;
+  const { mode } = continuation;
+  if (continuation.round !== void 0) {
+    if (!Number.isInteger(continuation.round) || continuation.round < 1) {
+      return "Continuation round must be a positive integer.";
+    }
+    if (mode === "new" && continuation.round !== 1) {
+      return "A new consultation starts at round 1; use --resume or --continuation reconstructed for later rounds.";
+    }
+    if (mode !== "new" && continuation.round < 2) {
+      return "A continuation round must be 2 or greater.";
+    }
+  }
+  if (continuation.consultation_id !== void 0 && continuation.consultation_id.trim() === "") {
+    return "Continuation consultation_id must be a non-empty string.";
+  }
+  if (mode !== "native-resume") {
+    if (continuation.session_id !== void 0) {
+      return `A ${mode} run cannot target an existing session; use --resume for native resume.`;
+    }
+    if (continuation.fallback !== void 0 || continuation.fallback_prompt !== void 0) {
+      return "Resume fallback options apply only to native resume (--resume).";
+    }
+  }
+  if (mode === "new" && continuation.previous_session_id !== void 0) {
+    return "A predecessor session implies a continuation; use --continuation reconstructed.";
+  }
+  if (mode === "reconstructed" && continuation.previous_session_id !== void 0 && continuation.previous_session_id.trim() === "") {
+    return "Previous session id must be a non-empty string.";
+  }
+  if (mode !== "native-resume") return void 0;
+  if (!continuation.session_id) {
+    return "Native resume requires an explicit provider session id.";
+  }
+  if (!isSessionId && !isProviderSessionId(continuation.session_id)) {
+    return 'Native resume requires a lowercase provider session UUID, as reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
+  }
+  if (isSessionId && !isSessionId(continuation.session_id)) {
+    return 'Native resume requires the provider session id reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
+  }
+  if (continuation.previous_session_id !== void 0) {
+    return "Native resume continues the --resume session itself; --previous-session applies only to reconstructed continuation.";
+  }
+  if ((request.max_attempts ?? 1) > 1) {
+    return "Native resume is single-attempt: a failed or malformed turn may already be recorded in the session, so the wrapper never resubmits it.";
+  }
+  const fallback = continuation.fallback ?? "error";
+  const fallbackPrompt = continuation.fallback_prompt;
+  if (fallback === "error" && fallbackPrompt !== void 0) {
+    return "A fallback prompt requires --resume-fallback reconstructed.";
+  }
+  if (fallback === "reconstructed") {
+    if (!fallbackPrompt || fallbackPrompt.trim() === "") {
+      return "Reconstructed fallback requires a continuation packet (--fallback-prompt-file).";
+    }
+    if (fallbackPrompt.trim() === request.prompt.trim()) {
+      return "The fallback continuation packet must carry reconstructed context, not repeat the native follow-up prompt.";
+    }
+  }
+  return void 0;
+}
+function reconstructedContinuationPrompt(packet, fallbackReason) {
+  return [
+    "Continuation notice (added by the consensus wrapper):",
+    "- This is a NEW provider session. You have no memory of earlier rounds, and no earlier transcript is available to you.",
+    "- The host reconstructed the context below from earlier rounds. It is a summary, may be incomplete, and is not the original transcript.",
+    ...fallbackReason ? [
+      `- A native resume of the earlier session was requested but unavailable (${fallbackReason}).`
+    ] : [],
+    "- Judge the current candidate on its merits. Name material blockers, explain any disagreement, and state whether the exact candidate is acceptable. You are not obligated to agree.",
+    "",
+    packet
+  ].join("\n");
+}
+function turnStateFor(trace) {
+  if (!trace.process) return "not_started";
+  if (trace.turn) return trace.turn;
+  if (trace.process.ok) return "completed";
+  if (trace.process.stdout.trim() === "" && trace.failure_code && NOT_STARTED_FAILURE_CODES.includes(trace.failure_code)) {
+    return "not_started";
+  }
+  return "unknown";
+}
+function continuationReceipt(input) {
+  const { request, adapter, mode, trace } = input;
+  const observation = adapter && trace.process ? adapter.extractSession(trace.process.stdout) : {};
+  const continuation = request.continuation;
+  const round = continuation?.round ?? (mode === "new" && !input.fallbackReason ? 1 : void 0);
+  return {
+    mode,
+    provider: request.provider,
+    ...observation.session_id ? { session_id: observation.session_id } : {},
+    ...continuation?.mode === "native-resume" && continuation.session_id ? { requested_session_id: continuation.session_id } : {},
+    ...mode === "reconstructed" && previousSessionId(request) ? { previous_session_id: previousSessionId(request) } : {},
+    consultation_id: input.consultationId,
+    ...round !== void 0 ? { round } : {},
+    cwd: path7.resolve(request.cwd ?? process.cwd()),
+    ...request.model ? { requested_model: request.model } : {},
+    ...input.defaultModel ? { default_model: input.defaultModel } : {},
+    ...request.effort ? { requested_effort: request.effort } : {},
+    ...observation.observed_models ? { observed_models: observation.observed_models } : {},
+    runtime_policy: redactedRuntimePolicyDiagnostics(request.runtime_policy),
+    turn: turnStateFor(trace),
+    ...input.fallbackReason ? { fallback_reason: input.fallbackReason } : {},
+    ...adapter?.capabilities.continuation ? { capability: adapter.capabilities.continuation } : {}
+  };
+}
+function consultationIdFor(request) {
+  return request.continuation?.consultation_id ?? randomUUID3();
+}
+function previousSessionId(request) {
+  const continuation = request.continuation;
+  if (!continuation) return void 0;
+  return continuation.mode === "native-resume" ? continuation.session_id : continuation.previous_session_id;
+}
+
+// src/plugins/consensus/provider-cli/envelope.ts
+function successEnvelope(input) {
+  const envelope = {
+    schema_version: "v1",
+    ok: true,
+    provider: input.provider,
+    args: input.args,
+    stdout: input.stdout,
+    output_kind: "json",
+    json: input.json,
+    attempts: buildAttemptSummary(input.attempts, false)
+  };
+  if (input.stderr !== void 0) envelope.stderr = input.stderr;
+  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
+  return envelope;
+}
+function textSuccessEnvelope(input) {
+  const envelope = {
+    schema_version: "v1",
+    ok: true,
+    provider: input.provider,
+    args: input.args,
+    stdout: input.stdout,
+    output_kind: "text",
+    text: input.text,
+    json: null,
+    attempts: buildAttemptSummary(input.attempts, false)
+  };
+  if (input.stderr !== void 0) envelope.stderr = input.stderr;
+  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
+  return envelope;
+}
+function failureEnvelope(input) {
+  const envelope = {
+    schema_version: "v1",
+    ok: false,
+    code: input.code,
+    message: input.message,
+    retryable: input.retryable,
+    attempts: buildAttemptSummary(
+      {
+        ...input.attempts,
+        terminal_reason: input.terminal_reason ?? input.attempts?.terminal_reason
+      },
+      input.retryable
+    )
+  };
+  if (input.provider) envelope.provider = input.provider;
+  if (input.stdout !== void 0) envelope.stdout = input.stdout;
+  if (input.stderr !== void 0) envelope.stderr = input.stderr;
+  if (input.diagnostics) envelope.diagnostics = input.diagnostics;
+  return envelope;
+}
+function buildAttemptSummary(attempts, retryable) {
+  return {
+    cli_attempts: attempts?.cli_attempts ?? 1,
+    ...attempts?.provider_internal_attempts === void 0 ? {} : { provider_internal_attempts: attempts.provider_internal_attempts },
+    ...attempts?.terminal_reason === void 0 ? {} : { terminal_reason: attempts.terminal_reason },
+    retryable
+  };
+}
+
+// src/plugins/consensus/provider-cli/submit-capture.ts
+import { randomUUID as randomUUID4 } from "node:crypto";
+import path8 from "node:path";
+var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
+var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
+var CONSENSUS_SUBMIT_CAPTURE_DIR = ".consensus/submit";
+var SubmitCaptureLimitError = class extends Error {
+  bytes;
+  maxBytes;
+  constructor(bytes, maxBytes) {
+    super(submitCaptureLimitMessage(bytes, maxBytes));
+    this.bytes = bytes;
+    this.maxBytes = maxBytes;
+  }
+};
+function submitCaptureMaxBytes(maxOutputBytes) {
+  return maxOutputBytes ?? DEFAULT_SUBMIT_CAPTURE_MAX_BYTES;
+}
+function byteLength(value) {
+  return Buffer.byteLength(value, "utf8");
+}
+function assertWithinSubmitCaptureLimit(value, maxBytes) {
+  const bytes = byteLength(value);
+  if (bytes > maxBytes) {
+    throw new SubmitCaptureLimitError(bytes, maxBytes);
+  }
+}
+function submitCaptureLimitMessage(bytes, maxBytes) {
+  return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
+}
+function submitCaptureDirectory(cwd) {
+  return path8.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
+}
+function submitCaptureFilePath(cwd, id = randomUUID4()) {
+  return path8.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
+}
+
+// src/plugins/consensus/provider-cli/working-tree.ts
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { lstat, readlink } from "node:fs/promises";
+import path9 from "node:path";
+var GIT_TIMEOUT_MS = 3e4;
+var GIT_MAX_BUFFER = 64 * 1024 * 1024;
+var MAX_LISTED_PATHS = 20;
+async function snapshotWorkingTree(cwd, options = {}) {
+  const git = gitRunner(cwd, options);
+  try {
+    const env = await git.cleanEnv();
+    const inside2 = await git.run(env, ["rev-parse", "--is-inside-work-tree"]);
+    if (inside2.trim() !== "true") {
+      return { ok: false, message: `${cwd} is not inside a git work tree` };
+    }
+    const root = (await git.run(env, ["rev-parse", "--show-toplevel"])).trim();
+    const head = (await git.run(env, ["rev-parse", "--verify", "--quiet", "HEAD"], {
+      allowExit: [1]
+    })).trim();
+    const raw = await git.run(env, [
+      "--no-optional-locks",
+      "status",
+      "--porcelain=v1",
+      "-z",
+      "--untracked-files=all",
+      "--ignored=no"
+    ]);
+    const status = parsePorcelainZ(raw);
+    const content = /* @__PURE__ */ new Map();
+    for (const file of status.keys()) {
+      content.set(file, await fingerprint(path9.join(root, file)));
+    }
+    return { ok: true, snapshot: { root, head, status, content } };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+function compareWorkingTrees(before, after) {
+  const paths = /* @__PURE__ */ new Set();
+  for (const file of /* @__PURE__ */ new Set([
+    ...before.status.keys(),
+    ...after.status.keys()
+  ])) {
+    if (before.status.get(file) !== after.status.get(file) || before.content.get(file) !== after.content.get(file)) {
+      paths.add(file);
+    }
+  }
+  return {
+    head_changed: before.head !== after.head,
+    paths: [...paths].toSorted()
+  };
+}
+function hasWorkingTreeChanges(changes) {
+  return changes.head_changed || changes.paths.length > 0;
+}
+function workingTreeChangeList(changes) {
+  return [...changes.head_changed ? ["HEAD"] : [], ...changes.paths];
+}
+function describeWorkingTreeChanges(changes) {
+  const list = workingTreeChangeList(changes);
+  const shown = list.slice(0, MAX_LISTED_PATHS).join(", ");
+  const more = list.length > MAX_LISTED_PATHS ? ` and ${list.length - MAX_LISTED_PATHS} more` : "";
+  return `${shown}${more}`;
+}
+function parsePorcelainZ(raw) {
+  const status = /* @__PURE__ */ new Map();
+  const tokens = raw.split("\0");
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token.length < 4) continue;
+    const code = token.slice(0, 2);
+    status.set(token.slice(3), code);
+    if (code.includes("R") || code.includes("C")) {
+      const source = tokens[index + 1];
+      if (source) status.set(source, `${code}<`);
+      index += 1;
+    }
+  }
+  return status;
+}
+async function fingerprint(file) {
+  let stats;
+  try {
+    stats = await lstat(file);
+  } catch (error) {
+    if (isMissing(error)) return "deleted";
+    throw error;
+  }
+  if (stats.isSymbolicLink()) {
+    return `link:${sha256(await readlink(file))}`;
+  }
+  if (stats.isDirectory()) return "dir";
+  return hashFile(file);
+}
+function hashFile(file) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("sha256");
+    createReadStream(file).on("data", (chunk) => hash.update(chunk)).on("error", (error) => {
+      if (isMissing(error)) resolve("deleted");
+      else reject(error);
+    }).on("end", () => resolve(hash.digest("hex")));
+  });
+}
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+function isMissing(error) {
+  const code = error?.code;
+  return code === "ENOENT" || code === "ENOTDIR";
+}
+function gitRunner(cwd, options) {
+  const command = options.git ?? "git";
+  const base = options.env ?? process.env;
+  const run = (env, args, runOptions = {}) => new Promise((resolve, reject) => {
+    execFile(
+      command,
+      args,
+      {
+        cwd,
+        env,
+        encoding: "utf8",
+        maxBuffer: GIT_MAX_BUFFER,
+        timeout: GIT_TIMEOUT_MS,
+        shell: false,
+        windowsHide: true
+      },
+      (error, stdout, stderr) => {
+        const exitCode = error && typeof error.code === "number" ? error.code : void 0;
+        if (!error || runOptions.allowExit?.includes(exitCode ?? -1)) {
+          resolve(error ? "" : stdout);
+          return;
+        }
+        const detail = String(stderr).trim().split(/\r?\n/)[0] || error.message;
+        reject(
+          new Error(
+            `git ${args.filter((arg) => !arg.startsWith("--no-optional")).join(" ")} failed${detail ? `: ${detail}` : ""}`
+          )
+        );
+      }
+    );
+  });
+  return {
+    run,
+    // Drops the variables git itself names as repository-local.
+    async cleanEnv() {
+      const names = await run(base, ["rev-parse", "--local-env-vars"]);
+      const env = { ...base, GIT_OPTIONAL_LOCKS: "0" };
+      for (const name of names.split(/\r?\n/)) {
+        if (name) delete env[name];
+      }
+      return env;
+    }
+  };
+}
+
+// src/plugins/consensus/provider-cli/structured-output.ts
+function selectStructuredOutputStrategy(adapter, options = {}) {
+  if (options.output === "text") return "text";
+  if (options.strategy) return options.strategy;
+  if (options.submitCaptureEnabled && adapter.capabilities.schema_strategies.includes("constrained_native") && adapter.capabilities.schema_strategies.includes("prompt_only")) {
+    return "prompt_only";
+  }
+  if (adapter.capabilities.schema_strategies.includes("constrained_native")) {
+    return "constrained_native";
+  }
+  if (adapter.capabilities.schema_strategies.includes("provider_validated")) {
+    return "provider_validated";
+  }
+  return "prompt_only";
+}
+async function runProviderTurn(request, dependencies = {}) {
+  const registry = dependencies.registry ?? providerRegistry();
+  const adapter = registry.get(request.provider);
+  const consultationId = consultationIdFor(request);
+  const mode = continuationMode(request);
+  let defaultModel;
+  const withReceipt = (envelope2, receiptMode, trace2, fallbackReason) => ({
+    ...envelope2,
+    continuation: continuationReceipt({
+      request,
+      adapter,
+      mode: receiptMode,
+      consultationId,
+      trace: trace2,
+      fallbackReason,
+      defaultModel
+    })
+  });
+  if (adapter?.not_admitted_reason) {
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: "PROVIDER_UNSUPPORTED",
+        message: `Provider ${request.provider} is registered but not admitted: ${adapter.not_admitted_reason}`,
+        terminalReason: "provider_not_admitted"
+      }),
+      mode,
+      {}
+    );
+  }
+  const usageError = continuationUsageError(request, adapter?.isSessionId);
+  if (usageError) {
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: usageError,
+        terminalReason: "continuation_usage"
+      }),
+      mode,
+      {}
+    );
+  }
+  let turnRequest = request;
+  if (adapter?.tier === "extended") {
+    const model = await extendedProviderModel(request, dependencies);
+    if (!model.ok) {
+      return withReceipt(
+        preInvocationFailure({
+          provider: request.provider,
+          code: model.code,
+          message: model.message,
+          terminalReason: model.terminalReason
+        }),
+        mode,
+        {}
+      );
+    }
+    defaultModel = model.defaultModel;
+    turnRequest = { ...request, model: model.model };
+  }
+  const runTurn = adapter?.tier === "extended" ? runCheckedExtendedTurn : runStructuredTurn;
+  const continuation = request.continuation;
+  const runReconstructed = async (packet, fallbackReason, rejected) => {
+    const trace2 = {};
+    const envelope2 = await runTurn(
+      {
+        ...turnRequest,
+        prompt: reconstructedContinuationPrompt(packet, fallbackReason)
+      },
+      dependencies,
+      trace2
+    );
+    return withReceipt(
+      rejected ? withRejectedResume(envelope2, rejected) : envelope2,
+      "reconstructed",
+      trace2,
+      fallbackReason
+    );
+  };
+  if (mode === "reconstructed") {
+    return runReconstructed(request.prompt);
+  }
+  if (mode !== "native-resume" || !continuation?.session_id) {
+    const trace2 = {};
+    const envelope2 = await runTurn(turnRequest, dependencies, trace2);
+    return withReceipt(envelope2, "new", trace2);
+  }
+  const requestedSessionId = continuation.session_id;
+  const fallbackPacket = continuation.fallback === "reconstructed" ? continuation.fallback_prompt : void 0;
+  const resumeStatus = adapter?.capabilities.continuation?.native_resume;
+  if (adapter && resumeStatus !== "verified") {
+    const reason = `native_resume_${resumeStatus ?? "unsupported"}`;
+    if (fallbackPacket) return runReconstructed(fallbackPacket, reason);
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: "PROVIDER_UNSUPPORTED_OPTION",
+        message: `Native resume is ${resumeStatus ?? "unsupported"} for provider ${request.provider}; use --resume-fallback reconstructed with a continuation packet, or --continuation reconstructed.`,
+        terminalReason: reason
+      }),
+      "native-resume",
+      {}
+    );
+  }
+  const trace = {};
+  const envelope = await runTurn(turnRequest, dependencies, trace, {
+    resumeSessionId: requestedSessionId
+  });
+  const receipt = continuationReceipt({
+    request,
+    adapter,
+    mode: "native-resume",
+    consultationId,
+    trace,
+    defaultModel
+  });
+  if (!envelope.ok && envelope.code === "PROVIDER_SESSION_NOT_FOUND" && receipt.turn === "not_started" && fallbackPacket) {
+    return runReconstructed(fallbackPacket, "session_not_found", envelope);
+  }
+  if (receipt.turn === "completed" && receipt.session_id !== requestedSessionId) {
+    return {
+      ...failureEnvelope({
+        provider: request.provider,
+        code: "PROVIDER_SESSION_MISMATCH",
+        message: receipt.session_id ? `Provider reported session ${receipt.session_id} instead of the requested ${requestedSessionId}; the turn was not a native resume.` : `Provider output did not confirm the requested session ${requestedSessionId}.`,
+        retryable: false,
+        stdout: envelope.stdout,
+        stderr: envelope.stderr,
+        attempts: {
+          cli_attempts: envelope.attempts.cli_attempts,
+          terminal_reason: "provider_session_mismatch"
+        },
+        diagnostics: envelope.diagnostics
+      }),
+      continuation: receipt
+    };
+  }
+  return { ...envelope, continuation: receipt };
+}
+function withRejectedResume(envelope, rejected) {
+  const note = `Native resume was rejected (${rejected.ok ? "ok" : rejected.code}) before a turn started; a reconstructed session answered instead.`;
+  return {
+    ...envelope,
+    attempts: {
+      ...envelope.attempts,
+      cli_attempts: envelope.attempts.cli_attempts + rejected.attempts.cli_attempts
+    },
+    diagnostics: {
+      ...envelope.diagnostics,
+      warnings: [...envelope.diagnostics?.warnings ?? [], note]
+    }
+  };
+}
+async function extendedProviderModel(request, dependencies) {
+  if (request.model) return { ok: true, model: request.model };
+  let configured;
+  try {
+    configured = await resolveProviderDefaultModel({
+      provider: request.provider,
+      cwd: request.cwd ?? process.cwd(),
+      env: dependencies.parentEnv ?? process.env
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      code: "CONSENSUS_CLI_USAGE",
+      message: `Could not read the consensus config for the ${request.provider} default model: ${error instanceof Error ? error.message : String(error)}`,
+      terminalReason: "consensus_config_invalid"
+    };
+  }
+  if (configured) {
+    return {
+      ok: true,
+      model: configured.model,
+      defaultModel: configured.model
+    };
+  }
+  return {
+    ok: false,
+    code: "PROVIDER_UNSUPPORTED_OPTION",
+    message: `${request.provider} needs a model: pass --model or set defaults.provider_models.${request.provider}.`,
+    terminalReason: "model_required"
+  };
+}
+async function runCheckedExtendedTurn(request, dependencies, trace, turnOptions = {}) {
+  if (defaultRuntimePolicy(request.runtime_policy).permission_mode !== "read-only") {
+    return runStructuredTurn(request, dependencies, trace, turnOptions);
+  }
+  const cwd = path10.resolve(request.cwd ?? process.cwd());
+  const env = dependencies.parentEnv ?? process.env;
+  const before = await snapshotWorkingTree(cwd, { env });
+  if (!before.ok) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_UNSUPPORTED_OPTION",
+      message: `Extended read-only runs need a git checkout so the working tree can be checked before and after the turn: ${before.message}`,
+      terminalReason: "working_tree_unavailable"
+    });
+  }
+  const envelope = await runStructuredTurn(
+    request,
+    dependencies,
+    trace,
+    turnOptions
+  );
+  if (!trace.process) return envelope;
+  const after = await snapshotWorkingTree(cwd, { env });
+  const changes = after.ok ? compareWorkingTrees(before.snapshot, after.snapshot) : void 0;
+  if (changes && !hasWorkingTreeChanges(changes)) return envelope;
+  const outcome = envelope.ok ? "succeeded" : `failed with ${envelope.code}`;
+  const message = after.ok ? `The working tree changed during a read-only ${request.provider} run: ${describeWorkingTreeChanges(changes)}. Review and revert these changes; the turn ${outcome}.` : `The working tree could not be re-checked after a read-only ${request.provider} run (${after.message}); treat it as changed and review it. The turn ${outcome}.`;
+  return failureEnvelope({
+    provider: request.provider,
+    code: "PROVIDER_WORKTREE_CHANGED",
+    message,
+    retryable: false,
+    stdout: envelope.stdout,
+    stderr: envelope.stderr,
+    attempts: {
+      cli_attempts: envelope.attempts.cli_attempts,
+      terminal_reason: "working_tree_changed"
+    },
+    diagnostics: {
+      ...envelope.diagnostics,
+      ...changes ? { working_tree_changes: workingTreeChangeList(changes) } : {}
+    }
+  });
+}
+async function runStructuredTurn(request, dependencies, trace, turnOptions = {}) {
+  const registry = dependencies.registry ?? providerRegistry();
+  const adapter = registry.get(request.provider);
+  if (!adapter) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_UNSUPPORTED",
+      message: `Provider is not supported: ${request.provider}`,
+      terminalReason: "unsupported_provider"
+    });
+  }
+  const optionValidation = validateProviderOptions(request, adapter);
+  if (!optionValidation.ok) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: optionValidation.code,
+      message: optionValidation.message,
+      terminalReason: optionValidation.option
+    });
+  }
+  const hostGuard = evaluateHostGuard({
+    host: request.host,
+    provider: request.provider
+  });
+  if (!hostGuard.allowed) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: hostGuard.code,
+      message: hostGuard.message,
+      terminalReason: "host_recursion_blocked",
+      diagnostics: hostGuard.diagnostics
+    });
+  }
+  const textMode = request.output === "text";
+  const schemaPath = request.schema_path;
+  if (textMode && schemaPath !== void 0) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "CONSENSUS_CLI_USAGE",
+      message: "Text output does not accept a schema path.",
+      terminalReason: "schema_with_text_output"
+    });
+  }
+  let schema;
+  let inlineJsonSchema;
+  if (!textMode) {
+    if (!schemaPath) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: "JSON output requires a schema path.",
+        terminalReason: "schema_missing"
+      });
+    }
+    const readSchema = dependencies.readSchema ?? readJsonSchema;
+    try {
+      schema = await readSchema(schemaPath);
+    } catch (error) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: `Could not read schema: ${error instanceof Error ? error.message : String(error)}`,
+        terminalReason: "schema_read_failed"
+      });
+    }
+    inlineJsonSchema = JSON.stringify(schema);
+    if (inlineJsonSchema === void 0) {
+      return preInvocationFailure({
+        provider: request.provider,
+        code: "CONSENSUS_CLI_USAGE",
+        message: "Schema must be JSON-serializable.",
+        terminalReason: "schema_read_failed"
+      });
+    }
+  }
+  const effectiveRequest = {
+    ...request,
+    runtime_policy: defaultRuntimePolicy(request.runtime_policy)
+  };
+  const maxAttempts = effectiveRequest.max_attempts ?? 1;
+  const submitCaptureEnabled = !textMode && (dependencies.transport?.submitCaptureEnabled ?? true) && (adapter.submitCaptureEligible?.(request) ?? true);
+  const strategy = selectStructuredOutputStrategy(adapter, {
+    output: request.output,
+    submitCaptureEnabled,
+    strategy: dependencies.transport?.strategy
+  });
+  if (!adapter.capabilities.schema_strategies.includes(strategy) || !textMode && strategy === "text") {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_UNSUPPORTED_OPTION",
+      message: `Provider does not support structured-output strategy: ${strategy}.`,
+      terminalReason: "structured_output_strategy"
+    });
+  }
+  const runSubprocess = adapter.run ?? dependencies.runSubprocess ?? runProviderSubprocess;
+  const parentEnv = dependencies.parentEnv ?? process.env;
+  const resolvedExecutable = resolveProviderExecutable(adapter, parentEnv);
+  if (!resolvedExecutable.ok) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_MISSING",
+      message: resolvedExecutable.message,
+      terminalReason: "provider_executable_invalid"
+    });
+  }
+  const finder = dependencies.probeRunner ?? nodeProbeCommandRunner(parentEnv);
+  let prerequisiteExecutables;
+  if (adapter.probe.prerequisites?.length) {
+    const prerequisites = await checkProviderPrerequisites(adapter, finder);
+    if (!prerequisites.ok) {
+      const prerequisite = prerequisites.failure;
+      return preInvocationFailure({
+        provider: request.provider,
+        code: PREREQUISITE_FAILURE_CODES[prerequisite.status],
+        message: withInstallHint(
+          prerequisite.message,
+          prerequisite.install_hint
+        ),
+        terminalReason: `provider_prerequisite_${prerequisite.status}`,
+        diagnostics: { warnings: [prerequisite.warning] }
+      });
+    }
+    prerequisiteExecutables = prerequisites.executables;
+  }
+  const executable = await finder.findExecutable(resolvedExecutable.executable);
+  if (!executable || !path10.isAbsolute(executable)) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_MISSING",
+      message: withInstallHint(
+        `Provider executable not found: ${resolvedExecutable.executable}`,
+        adapter.install_hint
+      ),
+      terminalReason: "provider_missing",
+      diagnostics: hostGuard.diagnostics
+    });
+  }
+  const submitCapturePath = submitCaptureEnabled ? submitCaptureFilePath(effectiveRequest.cwd ?? process.cwd()) : void 0;
+  const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
+  const submitCommand = submitCaptureEnabled ? dependencies.submitCommand ?? buildConsensusSubmitCommand() : void 0;
+  const childEnv = buildChildEnvironment({
+    parentEnv,
+    request: effectiveRequest,
+    credentialEnv: adapter.credential_env,
+    executableOverrideEnv: providerExecutableEnvNames(registry),
+    hostEnv: {
+      ...hostGuard.child_env,
+      ...submitCaptureEnabled && submitCommand && submitCapturePath && schemaPath ? {
+        CONSENSUS_SUBMIT_COMMAND: submitCommand,
+        CONSENSUS_SUBMIT_FILE: submitCapturePath,
+        [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
+        CONSENSUS_SUBMIT_SCHEMA: path10.resolve(schemaPath)
+      } : {}
+    }
+  });
+  let validationFeedback;
+  let lastInvocation;
+  let exitClassification;
+  try {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (submitCapturePath) {
+        await cleanupSubmitCaptureFile(submitCapturePath);
+      }
+      const invocationRequest = {
+        ...effectiveRequest,
+        prompt: textMode || inlineJsonSchema === void 0 ? request.prompt : promptForStrategy({
+          prompt: request.prompt,
+          strategy,
+          inlineJsonSchema,
+          submitCaptureEnabled,
+          submitCommand,
+          validationFeedback
+        })
+      };
+      const invocation2 = buildProviderInvocation(adapter, invocationRequest, {
+        strategy,
+        inlineJsonSchema,
+        lastMessageFile: dependencies.transport?.lastMessageFile,
+        preserveLastMessageFile: dependencies.transport?.preserveLastMessageFile,
+        resumeSessionId: turnOptions.resumeSessionId,
+        executable,
+        ...prerequisiteExecutables ? { prerequisiteExecutables } : {}
+      });
+      lastInvocation = invocation2;
+      const processResult = await runSubprocess(invocation2, {
+        env: childEnv,
+        maxOutputBytes: request.max_output_bytes,
+        timeoutSec: request.max_runtime_sec
+      });
+      trace.process = processResult;
+      trace.failure_code = void 0;
+      trace.turn = void 0;
+      const diagnostics = mergeDiagnostics(
+        {
+          strategy_used: strategy,
+          output_mode: invocation2.output_mode,
+          redacted_command: invocation2.redacted_command,
+          ...invocation2.permission_profile ? { permission_profile: invocation2.permission_profile } : {}
+        },
+        hostGuard.diagnostics,
+        processResult.diagnostics,
+        permissionDenialDiagnostics(adapter, processResult.stdout),
+        exitClassificationDiagnostics(exitClassification)
+      );
+      const reportedFailure = processResult.ok || processResult.code === "PROVIDER_EXIT" && !processResult.signal && !processResult.diagnostics?.termination ? adapter.classifyReportedFailure?.(processResult.stdout) : void 0;
+      if (!processResult.ok || reportedFailure) {
+        const classification = processResult.ok ? reportedFailure : reportedFailure ?? adapter.classifyRunFailure(processResult);
+        trace.turn = classification.turn ? attempt === 1 ? classification.turn : "unknown" : void 0;
+        trace.failure_code = classification.code;
+        exitClassification = classification.exit_classification;
+        const failureDiagnostics = mergeDiagnostics(
+          diagnostics,
+          exitClassificationDiagnostics(exitClassification)
+        );
+        if (classification.retryable && attempt < maxAttempts) {
+          continue;
+        }
+        return failureEnvelope({
+          provider: request.provider,
+          code: classification.code,
+          // The binary was found but could not be started (removed or
+          // replaced after lookup): keep the install hint here too.
+          message: classification.code === "PROVIDER_MISSING" ? withInstallHint(classification.message, adapter.install_hint) : classification.message,
+          retryable: false,
+          stdout: processResult.stdout,
+          stderr: processResult.stderr,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: classification.terminal_reason
+          },
+          diagnostics: failureDiagnostics
+        });
+      }
+      if (textMode) {
+        const extracted = (adapter.extractText ?? extractProviderResultText)(
+          invocation2,
+          processResult
+        );
+        if (!extracted.ok) {
+          return failureEnvelope({
+            provider: request.provider,
+            code: extracted.code,
+            message: extracted.message,
+            retryable: false,
+            stdout: processResult.stdout,
+            stderr: processResult.stderr,
+            attempts: {
+              cli_attempts: attempt,
+              terminal_reason: extracted.terminal_reason
+            },
+            diagnostics
+          });
+        }
+        return textSuccessEnvelope({
+          provider: request.provider,
+          args: invocation2.redacted_command,
+          stdout: extracted.raw,
+          stderr: processResult.stderr,
+          text: extracted.text,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "success"
+          },
+          diagnostics
+        });
+      }
+      const submittedVerdict = submitCapturePath ? await readSubmittedVerdict(submitCapturePath, schema, maxSubmitBytes) : { ok: false };
+      if (submittedVerdict.ok) {
+        return successEnvelope({
+          provider: request.provider,
+          args: invocation2.redacted_command,
+          stdout: submittedVerdict.raw,
+          stderr: processResult.stderr,
+          json: submittedVerdict.value,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "success"
+          },
+          diagnostics: mergeDiagnostics(diagnostics, {
+            verdict_source: "submit"
+          })
+        });
+      }
+      const providerOutput = extractProviderOutput(invocation2, processResult);
+      const finalMessageDiagnostics = mergeDiagnostics(diagnostics, {
+        verdict_source: "final_message"
+      });
+      if (!providerOutput.ok) {
+        if (attempt < maxAttempts) {
+          validationFeedback = providerOutput.message;
+          continue;
+        }
+        return failureEnvelope({
+          provider: request.provider,
+          code: "PROVIDER_INVALID_JSON",
+          message: providerOutput.message,
+          retryable: false,
+          stdout: processResult.stdout,
+          stderr: processResult.stderr,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "missing_provider_output"
+          },
+          diagnostics: finalMessageDiagnostics
+        });
+      }
+      const parsed = parseProviderJson(providerOutput.value);
+      if (!parsed.ok) {
+        if (attempt < maxAttempts) {
+          validationFeedback = parsed.message;
+          continue;
+        }
+        return failureEnvelope({
+          provider: request.provider,
+          code: "PROVIDER_INVALID_JSON",
+          message: parsed.message,
+          retryable: false,
+          stdout: providerOutput.value,
+          stderr: processResult.stderr,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "invalid_json"
+          },
+          diagnostics: finalMessageDiagnostics
+        });
+      }
+      const verdictJson = (adapter.extractStructuredValue ?? extractStructuredJsonValue)(parsed.value);
+      const validation = validateSchemaSubset(verdictJson, schema);
+      if (!validation.ok) {
+        if (attempt < maxAttempts) {
+          validationFeedback = validation.message;
+          continue;
+        }
+        return failureEnvelope({
+          provider: request.provider,
+          code: "PROVIDER_SCHEMA_VALIDATION",
+          message: validation.message,
+          retryable: false,
+          stdout: providerOutput.value,
+          stderr: processResult.stderr,
+          attempts: {
+            cli_attempts: attempt,
+            terminal_reason: "schema_validation"
+          },
+          diagnostics: finalMessageDiagnostics
+        });
+      }
+      return successEnvelope({
+        provider: request.provider,
+        args: invocation2.redacted_command,
+        stdout: providerOutput.value,
+        stderr: processResult.stderr,
+        json: verdictJson,
+        attempts: {
+          cli_attempts: attempt,
+          terminal_reason: "success"
+        },
+        diagnostics: finalMessageDiagnostics
+      });
+    }
+    return failureEnvelope({
+      provider: request.provider,
+      code: "PROVIDER_EXIT",
+      message: "Provider run ended without a terminal result.",
+      retryable: false,
+      attempts: {
+        cli_attempts: maxAttempts,
+        terminal_reason: "attempt_budget_exhausted"
+      },
+      diagnostics: lastInvocation ? {
+        strategy_used: strategy,
+        output_mode: lastInvocation.output_mode,
+        redacted_command: lastInvocation.redacted_command
+      } : void 0
+    });
+  } finally {
+    if (submitCapturePath) {
+      await cleanupSubmitCaptureFile(submitCapturePath);
+    }
+  }
+}
+function permissionDenialDiagnostics(adapter, stdout) {
+  const denials = adapter.extractPermissionDenials?.(stdout);
+  if (!denials) return void 0;
+  return {
+    permission_denials: denials,
+    warnings: [
+      `${adapter.display_name} reported ${denials.count} denied tool call(s); verify task completeness independently of schema and transport success.`
+    ]
+  };
+}
+async function readJsonSchema(schemaPath) {
+  return JSON.parse(await readFile2(schemaPath, "utf8"));
+}
+function withInstallHint(message, installHint) {
+  if (!installHint) return message;
+  return `${message.endsWith(".") ? message : `${message}.`} Install hint: ${installHint}`;
+}
+var PREREQUISITE_FAILURE_CODES = {
+  missing: "PROVIDER_MISSING",
+  unsupported: "PROVIDER_UNSUPPORTED",
+  unavailable: "PROVIDER_UNAVAILABLE"
+};
+function preInvocationFailure(input) {
+  return failureEnvelope({
+    provider: input.provider,
+    code: input.code,
+    message: input.message,
+    retryable: false,
+    attempts: {
+      cli_attempts: 0,
+      terminal_reason: input.terminalReason
+    },
+    diagnostics: input.diagnostics
+  });
+}
+function extractProviderOutput(invocation2, result) {
+  if (invocation2.output_mode !== "last_message_file") {
+    return { ok: true, value: result.stdout };
+  }
+  if (result.ok && result.last_message?.trim()) {
+    return { ok: true, value: result.last_message };
+  }
+  return {
+    ok: false,
+    message: "Provider did not write a last-message file response."
+  };
+}
+function parseProviderJson(stdout) {
+  try {
+    return { ok: true, value: JSON.parse(stdout.trim()) };
+  } catch (error) {
+    return {
+      ok: false,
+      message: `Provider returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
+async function readSubmittedVerdict(filePath, schema, maxBytes) {
+  const capture = await readBoundedRegularFile(filePath, maxBytes);
+  if (!capture.ok) return { ok: false };
+  const raw = capture.contents;
+  try {
+    assertWithinSubmitCaptureLimit(raw, maxBytes);
+  } catch {
+    return { ok: false };
+  }
+  if (!raw.trim()) return { ok: false };
+  const parsed = parseProviderJson(raw);
+  if (!parsed.ok) return { ok: false };
+  const validation = validateSchemaSubset(parsed.value, schema);
+  if (!validation.ok) return { ok: false };
+  return { ok: true, raw, value: parsed.value };
+}
+async function cleanupSubmitCaptureFile(filePath) {
+  try {
+    await rm4(filePath, { force: true });
+  } catch {
+  }
+}
+function promptForStrategy(input) {
+  const parts = [input.prompt];
+  if (input.submitCaptureEnabled) {
+    const submitCommand = input.submitCommand ?? buildConsensusSubmitCommand();
+    parts.push(
+      "Verdict submission:",
+      "Before ending the turn, submit the final verdict by running this exact command and passing the JSON verdict on stdin:",
+      `\`${submitCommand}\``,
+      "The same command is injected as CONSENSUS_SUBMIT_COMMAND; do not substitute a bare `consensus` executable.",
+      "The command validates against the active schema from CONSENSUS_SUBMIT_SCHEMA and captures to CONSENSUS_SUBMIT_FILE.",
+      "If submission fails, fix the reported schema error and run the command again.",
+      "Also keep the final-message JSON fallback: end with only the same JSON object matching the schema."
+    );
+  }
+  if (input.validationFeedback) {
+    parts.push(
+      `Schema validation failed: ${input.validationFeedback}`,
+      "Return only JSON matching the schema."
+    );
+  }
+  if (input.strategy === "prompt_only") {
+    parts.push(
+      "Structured output requirements:",
+      "Return only one JSON object matching this JSON Schema.",
+      "Do not wrap the JSON in Markdown.",
+      "Do not include prose before or after the JSON object.",
+      "<JSON_SCHEMA>",
+      input.inlineJsonSchema,
+      "</JSON_SCHEMA>"
+    );
+  }
+  return parts.join("\n\n");
+}
+function mergeDiagnostics(...diagnostics) {
+  const merged = {};
+  const warnings = [];
+  for (const item of diagnostics) {
+    if (!item) continue;
+    Object.assign(merged, item);
+    if (item.warnings) warnings.push(...item.warnings);
+  }
+  if (warnings.length > 0) merged.warnings = warnings;
+  return merged;
+}
+function exitClassificationDiagnostics(exitClassification) {
+  return exitClassification ? { exit_classification: exitClassification } : void 0;
+}
+function buildConsensusSubmitCommand(input = {}) {
+  const nodePath = input.nodePath ?? process.execPath;
+  const cliPath = input.cliPath ?? currentConsensusCliPath();
+  return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
+}
+function currentConsensusCliPath() {
+  if (process.argv[1]) return path10.resolve(process.argv[1]);
+  return fileURLToPath(import.meta.url);
+}
+function shellQuote(value) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+// src/plugins/consensus/shared/cli-helpers-core.ts
+import { lstat as lstat2 } from "node:fs/promises";
+import path11 from "node:path";
+function inside(root, target) {
+  const relative = path11.relative(root, target);
+  return relative === "" || !relative.startsWith("..") && !path11.isAbsolute(relative);
+}
+function pathExists(targetPath) {
+  return lstat2(targetPath).then(() => true).catch((error) => {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  });
+}
+async function nearestExistingPath(targetPath) {
+  if (await pathExists(targetPath)) return targetPath;
+  const parent = path11.dirname(targetPath);
+  if (parent === targetPath) return targetPath;
+  return await nearestExistingPath(parent);
+}
+function encodePromptBlockData(text) {
+  return String(text ?? "").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+// src/skills/consensus-review/src/scope.ts
+import { execFile as execFile2, spawn as spawn3 } from "node:child_process";
+import { createHash as createHash2, randomUUID as randomUUID5 } from "node:crypto";
+import {
+  chmod,
+  lstat as lstat3,
+  mkdir as mkdir3,
+  open as open2,
+  readlink as readlink2,
+  realpath
+} from "node:fs/promises";
+import os2 from "node:os";
+import path12 from "node:path";
+import { promisify } from "node:util";
+var execFileAsync = promisify(execFile2);
+var REVIEW_SCOPE_LIMITS = {
+  // A rename or copy counts once.
+  maxSelectedFiles: 100,
+  // Charged per path as max(target, base) textual bytes, so evidence.json can
+  // retain up to twice this when both versions of every path are large.
+  maxEvidenceBytes: 8 * 1024 * 1024,
+  // One git call returns at most one blob, so it shares the evidence bound
+  // plus room for metadata output such as an index listing.
+  maxGitOutputBytes: 8 * 1024 * 1024 + 1024 * 1024
+};
+var REVIEW_SCOPE_WORKAROUND = "Narrow the scope with --files <paths...>, use a closer base_branch=<ref>, or use range=<base>..<head> for committed-only evidence. After merging upstream, choose its intended current tip as the range base; an older base includes intervening upstream changes.";
+async function captureReviewScope(input) {
+  const canonicalWorktree = await canonicalGitWorktree(input.cwd);
+  const head = await gitOptionalHead(canonicalWorktree);
+  let resolvedBaseRef;
+  let resolvedHeadRef;
+  let mergeBase;
+  let selectedPaths = [];
+  let externalDocuments = [];
+  const versions = [];
+  let rangeCaptureState;
+  if (input.request.kind === "range") {
+    resolvedBaseRef = await resolveCommitRef(
+      canonicalWorktree,
+      input.request.baseRef,
+      "base"
+    );
+    resolvedHeadRef = await resolveCommitRef(
+      canonicalWorktree,
+      input.request.headRef,
+      "head"
+    );
+    const changed = await changedTrackedPaths(
+      canonicalWorktree,
+      resolvedBaseRef,
+      resolvedHeadRef
+    );
+    selectedPaths = changed.paths;
+    enforceFileCount(selectedPaths, changed.countedFiles);
+    rangeCaptureState = await captureScopeState({
+      canonicalWorktree,
+      selectedPaths,
+      externalDocuments
+    });
+    for (const relativePath of selectedPaths) {
+      versions.push(
+        await captureGitVersion(
+          canonicalWorktree,
+          resolvedHeadRef,
+          relativePath,
+          "head"
+        )
+      );
+      versions.push(
+        await captureGitVersion(
+          canonicalWorktree,
+          resolvedBaseRef,
+          relativePath
+        )
+      );
+      enforceEvidenceBudget(versions, "partial");
+    }
+  } else if (input.request.kind === "base_branch") {
+    if (head === null) {
+      throw new Error("base_scope_requires_head");
+    }
+    const ref = input.request.ref;
+    assertRef(ref);
+    await rejectUnresolvedMerges(canonicalWorktree);
+    resolvedBaseRef = await gitText(canonicalWorktree, [
+      "rev-parse",
+      "--verify",
+      `${ref}^{commit}`
+    ]).catch(() => {
+      throw new Error(`base_ref_invalid: could not resolve ${ref}`);
+    });
+    mergeBase = await gitText(canonicalWorktree, [
+      "merge-base",
+      resolvedBaseRef,
+      head
+    ]).catch(() => {
+      throw new Error(
+        `base_ref_invalid: could not resolve a merge base for ${ref}`
+      );
+    });
+    const changed = await changedTrackedPaths(canonicalWorktree, mergeBase);
+    selectedPaths = changed.paths;
+    enforceFileCount(selectedPaths, changed.countedFiles);
+    for (const relativePath of selectedPaths) {
+      versions.push(
+        await captureWorktreeVersion(canonicalWorktree, relativePath)
+      );
+      versions.push(
+        await captureGitVersion(canonicalWorktree, mergeBase, relativePath)
+      );
+      enforceEvidenceBudget(versions, "partial");
+    }
+  } else if (input.request.kind === "files") {
+    if (input.request.paths.length === 0) {
+      throw new Error("scope_required: --files requires at least one path");
+    }
+    selectedPaths = unique(input.request.paths).map(
+      (candidate) => normalizeRepositoryPath(candidate)
+    );
+    enforceFileCount(selectedPaths, selectedPaths.length);
+    for (const relativePath of selectedPaths) {
+      versions.push(
+        await captureWorktreeVersion(canonicalWorktree, relativePath, true)
+      );
+      enforceEvidenceBudget(versions, "partial");
+    }
+  } else {
+    if (!input.request.path.trim()) {
+      throw new Error("scope_required: --document requires a path");
+    }
+    const document = await resolveDocument(
+      canonicalWorktree,
+      input.request.path
+    );
+    if (document.location === "worktree") selectedPaths = [document.path];
+    else externalDocuments = [document.path];
+    versions.push(document.version);
+  }
+  rejectBinaryOnlyScope(versions);
+  const evidenceBytes = versions.reduce(
+    (total, version) => total + textualBytes(version),
+    0
+  );
+  const chargedBytes = enforceEvidenceBudget(versions, "complete");
+  const scopeWithoutState = {
+    request: input.request,
+    canonicalWorktree,
+    head,
+    ...resolvedBaseRef ? { resolvedBaseRef } : {},
+    ...resolvedHeadRef ? { resolvedHeadRef } : {},
+    ...mergeBase ? { mergeBase } : {},
+    selectedPaths,
+    externalDocuments,
+    versions,
+    evidenceBytes,
+    chargedBytes
+  };
+  const captureState = await captureScopeState(scopeWithoutState);
+  const captureComparison = compareCapturedScopeToState(
+    {
+      ...scopeWithoutState,
+      ...rangeCaptureState ? { captureState: rangeCaptureState } : {}
+    },
+    captureState
+  );
+  if (!captureComparison.stable) {
+    throw new Error(
+      `scope_changed_during_capture: ${captureComparison.differences.join("; ")}`
+    );
+  }
+  const token = sha2562(
+    JSON.stringify({
+      ...scopeWithoutState,
+      captureState,
+      versions: versions.map(({ text: _text, ...version }) => version)
+    })
+  );
+  return {
+    token,
+    ...scopeWithoutState,
+    captureState
+  };
+}
+async function captureScopeState(scope) {
+  const [head, index, status] = await Promise.all([
+    gitOptionalHead(scope.canonicalWorktree),
+    gitBytes(scope.canonicalWorktree, ["ls-files", "-s", "-z"]).then(sha2562),
+    gitBytes(scope.canonicalWorktree, [
+      "status",
+      "--porcelain=v1",
+      "-z",
+      "--untracked-files=all"
+    ]).then(sha2562)
+  ]);
+  const selected = [];
+  for (const relativePath of scope.selectedPaths) {
+    selected.push(
+      stateFromVersion(
+        await captureWorktreeVersion(
+          scope.canonicalWorktree,
+          relativePath,
+          false,
+          false
+        ),
+        "worktree"
+      )
+    );
+  }
+  for (const documentPath of scope.externalDocuments) {
+    selected.push(
+      stateFromVersion(
+        await captureAbsoluteFile(documentPath, "live"),
+        "external"
+      )
+    );
+  }
+  return { head, index, status, selected };
+}
+function compareScopeState(before, after) {
+  const limitation = "Content changes outside the selected set may go undetected when Git status is unchanged; ignored, unselected, external, and transient write-then-revert activity are not fully monitored.";
+  if (after instanceof Error) {
+    return {
+      checked: false,
+      stable: false,
+      differences: [`after_scan_failed: ${after.message}`],
+      limitation,
+      before,
+      after: null
+    };
+  }
+  const differences = [];
+  if (before.head !== after.head) differences.push("HEAD changed");
+  if (before.index !== after.index) differences.push("index changed");
+  if (before.status !== after.status) differences.push("Git status changed");
+  const prior = new Map(
+    before.selected.map((entry) => [stateKey(entry), JSON.stringify(entry)])
+  );
+  const next = new Map(
+    after.selected.map((entry) => [stateKey(entry), JSON.stringify(entry)])
+  );
+  for (const key of /* @__PURE__ */ new Set([...prior.keys(), ...next.keys()])) {
+    if (prior.get(key) !== next.get(key)) {
+      differences.push(`selected path changed: ${key}`);
+    }
+  }
+  return {
+    checked: true,
+    stable: differences.length === 0,
+    differences,
+    limitation,
+    before,
+    after
+  };
+}
+function compareCapturedScopeToState(scope, state) {
+  if (scope.request.kind === "range") {
+    return compareScopeState(
+      { ...scope.captureState ?? state, head: scope.head },
+      state
+    );
+  }
+  const expected = {
+    head: scope.head,
+    index: state.index,
+    status: state.status,
+    selected: scope.versions.filter((version) => version.source === "live").map(
+      (version) => stateFromVersion(
+        version,
+        scope.externalDocuments.includes(version.path) ? "external" : "worktree"
+      )
+    )
+  };
+  return compareScopeState(expected, state);
+}
+async function createReviewRunState(input) {
+  const canonicalWorktree = await canonicalGitWorktree(input.cwd);
+  const env = input.env ?? process.env;
+  const configuredRoot = env.XDG_STATE_HOME;
+  if (configuredRoot && !path12.isAbsolute(configuredRoot)) {
+    throw new Error("XDG_STATE_HOME must be absolute");
+  }
+  const home = env.HOME || os2.homedir();
+  if (!configuredRoot && !path12.isAbsolute(home)) {
+    throw new Error("HOME must resolve to an absolute path");
+  }
+  const stateRoot = path12.resolve(
+    configuredRoot ?? path12.join(home, ".local", "state"),
+    "consensus"
+  );
+  await mkdir3(stateRoot, { recursive: true, mode: 448 });
+  const canonicalStateRoot = await realpath(stateRoot);
+  if (inside(canonicalWorktree, canonicalStateRoot)) {
+    throw new Error("review_state_inside_worktree");
+  }
+  const worktreeKey = sha2562(canonicalWorktree);
+  const reviews = path12.join(canonicalStateRoot, worktreeKey, "reviews");
+  await mkdir3(reviews, { recursive: true, mode: 448 });
+  await chmod(path12.join(canonicalStateRoot, worktreeKey), 448);
+  await chmod(reviews, 448);
+  const runId = input.runId ?? randomUUID5();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(runId)) {
+    throw new Error("run_id_invalid");
+  }
+  const runDirectory = path12.join(reviews, runId);
+  await mkdir3(runDirectory, { mode: 448 });
+  const canonicalRunDirectory = await realpath(runDirectory);
+  if (canonicalRunDirectory !== runDirectory || !inside(canonicalStateRoot, canonicalRunDirectory) || inside(canonicalWorktree, canonicalRunDirectory)) {
+    throw new Error("review_state_boundary_invalid");
+  }
+  const info = await lstat3(canonicalRunDirectory);
+  const uid = process.getuid?.();
+  if (!info.isDirectory() || (info.mode & 63) !== 0 || uid !== void 0 && info.uid !== uid) {
+    throw new Error("review_state_not_private");
+  }
+  return {
+    stateRoot: canonicalStateRoot,
+    worktreeKey,
+    runId,
+    runDirectory: canonicalRunDirectory
+  };
+}
+async function canonicalGitWorktree(cwd) {
+  const worktree = await gitText(path12.resolve(cwd), [
+    "rev-parse",
+    "--show-toplevel"
+  ]).catch(() => {
+    throw new Error("review_scope_requires_git_worktree");
+  });
+  return await realpath(worktree);
+}
+async function changedTrackedPaths(cwd, baseRevision, headRevision) {
+  const output = await gitBytes(cwd, [
+    "diff",
+    "--name-status",
+    "-z",
+    "--find-renames",
+    "--no-ext-diff",
+    baseRevision,
+    ...headRevision ? [headRevision] : [],
+    "--"
+  ]);
+  const fields = splitNul(output);
+  const paths = [];
+  let countedFiles = 0;
+  for (let index = 0; index < fields.length; ) {
+    const status = fields[index++];
+    if (!status) break;
+    const first = fields[index++];
+    if (first === void 0) throw new Error("git_diff_malformed");
+    paths.push(normalizeRepositoryPath(first));
+    countedFiles += 1;
+    if (status.startsWith("R") || status.startsWith("C")) {
+      const second = fields[index++];
+      if (second === void 0) throw new Error("git_diff_malformed");
+      paths.push(normalizeRepositoryPath(second));
+    }
+  }
+  return { paths: unique(paths).toSorted(), countedFiles };
+}
+async function rejectUnresolvedMerges(cwd) {
+  const unresolved = await gitBytes(cwd, [
+    "diff",
+    "--name-only",
+    "--diff-filter=U",
+    "-z",
+    "--"
+  ]);
+  if (unresolved.length > 0) throw new Error("unresolved_merge_not_supported");
+}
+async function captureWorktreeVersion(root, relativePath, requirePresent = false, includeText = true) {
+  const normalized = normalizeRepositoryPath(relativePath);
+  const requested = path12.resolve(root, normalized);
+  if (!inside(root, requested)) throw new Error(`path_escape: ${relativePath}`);
+  let info;
+  try {
+    info = await lstat3(requested);
+  } catch (error) {
+    if (isMissing2(error) && !requirePresent) {
+      return deletedVersion(normalized, "live");
+    }
+    throw new Error(
+      `scope_path_unreadable: ${normalized}: ${fsMessage(error)}`,
+      { cause: error }
+    );
+  }
+  if (info.isSymbolicLink()) {
+    const canonicalParent = await realpath(path12.dirname(requested));
+    if (!inside(root, canonicalParent)) {
+      throw new Error(`path_escape: ${normalized}`);
+    }
+    const canonicalLink = path12.join(canonicalParent, path12.basename(requested));
+    const target = await readlink2(canonicalLink, {
+      encoding: "buffer"
+    }).catch((error) => {
+      throw new Error(
+        `scope_path_unreadable: ${normalized}: ${fsMessage(error)}`,
+        { cause: error }
+      );
+    });
+    return versionFromBytes(
+      normalized,
+      "live",
+      40960,
+      target,
+      includeText,
+      null,
+      "symlink"
+    );
+  }
+  if (!info.isFile()) {
+    throw new Error(`scope_path_not_regular: ${normalized}`);
+  }
+  const canonical = await realpath(requested);
+  if (!inside(root, canonical)) throw new Error(`path_escape: ${normalized}`);
+  const bytes = await boundedRead(canonical);
+  return versionFromBytes(
+    normalized,
+    "live",
+    info.mode & 511,
+    bytes,
+    includeText
+  );
+}
+async function captureGitVersion(root, revision, relativePath, source = "base") {
+  const normalized = normalizeRepositoryPath(relativePath);
+  const tree = await gitBytes(root, [
+    "ls-tree",
+    "-z",
+    revision,
+    "--",
+    normalized
+  ]);
+  if (tree.length === 0) return deletedVersion(normalized, source);
+  const header = tree.toString("utf8").split("	", 1)[0];
+  const [mode, kind, blobId] = header.split(" ");
+  if (kind !== "blob" || !/^[0-7]{6}$/u.test(mode) || !/^[a-f0-9]{40,64}$/u.test(blobId)) {
+    throw new Error(`unsupported_git_entry: ${normalized}`);
+  }
+  const size = Number(
+    await gitText(root, ["cat-file", "-s", blobId]).catch((error) => {
+      throw new Error(
+        `scope_${source}_unreadable: ${normalized}: ${fsMessage(error)}`,
+        { cause: error }
+      );
+    })
+  );
+  if (!Number.isSafeInteger(size) || size < 0) {
+    throw new Error(
+      `scope_${source}_unreadable: ${normalized}: invalid blob size`
+    );
+  }
+  let bytes;
+  if (size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
+    bytes = await hashLargeGitBlob(root, blobId, normalized, size, source);
+  } else {
+    try {
+      bytes = await gitBytes(root, ["cat-file", "blob", blobId]);
+    } catch (error) {
+      throw new Error(
+        `scope_${source}_unreadable: ${normalized}: ${fsMessage(error)}`,
+        { cause: error }
+      );
+    }
+    if (bytes.length !== size) {
+      throw new Error(
+        `scope_${source}_unreadable: ${normalized}: short blob read`
+      );
+    }
+  }
+  const symlink = mode === "120000";
+  return versionFromBytes(
+    normalized,
+    source,
+    symlink ? 40960 : Number.parseInt(mode, 8) & 511,
+    bytes,
+    true,
+    blobId,
+    symlink ? "symlink" : "file"
+  );
+}
+async function resolveDocument(root, candidate) {
+  const requested = path12.isAbsolute(candidate) ? path12.resolve(candidate) : path12.resolve(root, candidate);
+  const canonical = await realpath(requested).catch((error) => {
+    throw new Error(`document_unreadable: ${fsMessage(error)}`);
+  });
+  const location = inside(root, canonical) ? "worktree" : "external";
+  if (location === "worktree") {
+    const relativePath = normalizeRepositoryPath(
+      path12.relative(root, canonical)
+    );
+    return {
+      location,
+      path: relativePath,
+      version: await captureWorktreeVersion(root, relativePath, true)
+    };
+  }
+  return {
+    location,
+    path: canonical,
+    version: await captureAbsoluteFile(canonical, "live")
+  };
+}
+async function captureAbsoluteFile(canonicalPath, source) {
+  const info = await lstat3(canonicalPath).catch((error) => {
+    if (isMissing2(error)) return null;
+    throw error;
+  });
+  if (!info) return deletedVersion(canonicalPath, source);
+  if (info.isSymbolicLink() || !info.isFile()) {
+    throw new Error(`scope_path_not_regular: ${canonicalPath}`);
+  }
+  const bytes = await boundedRead(canonicalPath);
+  return versionFromBytes(
+    canonicalPath,
+    source,
+    info.mode & 511,
+    bytes,
+    true
+  );
+}
+var BINARY_SNIFF_BYTES = 8e3;
+var HASH_CHUNK_BYTES = 1024 * 1024;
+async function boundedRead(filePath) {
+  const handle = await open2(filePath, "r");
+  try {
+    const current = await handle.stat();
+    if (current.size > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
+      return await hashLargeBinary(handle, filePath, current.size);
+    }
+    const buffer = Buffer.alloc(current.size);
+    let offset = 0;
+    while (offset < buffer.length) {
+      const read = await handle.read(
+        buffer,
+        offset,
+        buffer.length - offset,
+        offset
+      );
+      if (read.bytesRead === 0) break;
+      offset += read.bytesRead;
+    }
+    const final = await handle.stat();
+    if (final.size !== current.size || offset !== current.size) {
+      throw new Error(`scope_changed_during_read: ${filePath}`);
+    }
+    return buffer;
+  } finally {
+    await handle.close();
+  }
+}
+async function hashLargeBinary(handle, filePath, size) {
+  const hash = createHash2("sha256");
+  const chunk = Buffer.alloc(HASH_CHUNK_BYTES);
+  let offset = 0;
+  while (offset < size) {
+    const { bytesRead } = await handle.read(chunk, 0, chunk.length, offset);
+    if (bytesRead === 0) break;
+    if (offset === 0 && !chunk.subarray(0, Math.min(bytesRead, BINARY_SNIFF_BYTES)).includes(0)) {
+      throw oversizedFile(filePath, size);
+    }
+    hash.update(chunk.subarray(0, bytesRead));
+    offset += bytesRead;
+  }
+  const final = await handle.stat();
+  if (final.size !== size || offset !== size) {
+    throw new Error(`scope_changed_during_read: ${filePath}`);
+  }
+  return { size, sha256: hash.digest("hex") };
+}
+function hashLargeGitBlob(root, blobId, filePath, size, source) {
+  return new Promise((resolve, reject) => {
+    const child = spawn3("git", ["cat-file", "blob", blobId], {
+      cwd: root,
+      env: gitEnv(),
+      stdio: ["ignore", "pipe", "ignore"]
+    });
+    const hash = createHash2("sha256");
+    let prefix = Buffer.alloc(0);
+    let sniffed = false;
+    let received = 0;
+    let failure3;
+    child.stdout.on("data", (data) => {
+      if (failure3) return;
+      received += data.length;
+      hash.update(data);
+      if (!sniffed) {
+        prefix = Buffer.concat([prefix, data]).subarray(0, BINARY_SNIFF_BYTES);
+        if (prefix.includes(0)) sniffed = true;
+        else if (prefix.length >= BINARY_SNIFF_BYTES) {
+          failure3 = oversizedFile(filePath, size);
+          child.kill();
+        }
+      }
+    });
+    child.on("error", (error) => {
+      failure3 ??= new Error(
+        `scope_${source}_unreadable: ${filePath}: ${fsMessage(error)}`,
+        { cause: error }
+      );
+    });
+    child.on("close", (code) => {
+      if (!failure3 && (code !== 0 || received !== size)) {
+        failure3 = new Error(
+          `scope_${source}_unreadable: ${filePath}: short blob read`
+        );
+      }
+      if (!failure3 && !sniffed) failure3 = oversizedFile(filePath, size);
+      if (failure3) reject(failure3);
+      else resolve({ size, sha256: hash.digest("hex") });
+    });
+  });
+}
+function versionFromBytes(filePath, source, mode, bytes, includeText, blobId = null, kind = "file") {
+  if (!Buffer.isBuffer(bytes)) {
+    return {
+      source,
+      path: filePath,
+      kind: "binary_skipped",
+      mode,
+      bytes: bytes.size,
+      sha256: bytes.sha256,
+      blobId,
+      text: null
+    };
+  }
+  if (bytes.includes(0)) {
+    return {
+      source,
+      path: filePath,
+      kind: "binary_skipped",
+      mode,
+      bytes: bytes.length,
+      sha256: sha2562(bytes),
+      blobId,
+      text: null
+    };
+  }
+  return {
+    source,
+    path: filePath,
+    kind,
+    mode,
+    bytes: bytes.length,
+    sha256: sha2562(bytes),
+    blobId,
+    text: includeText ? bytes.toString("utf8") : null
+  };
+}
+function deletedVersion(filePath, source) {
+  return {
+    source,
+    path: filePath,
+    kind: "deleted",
+    mode: null,
+    bytes: 0,
+    sha256: null,
+    blobId: null,
+    text: null
+  };
+}
+function stateFromVersion(version, location) {
+  return {
+    path: version.path,
+    location,
+    kind: version.kind,
+    mode: version.mode,
+    bytes: version.bytes,
+    sha256: version.sha256
+  };
+}
+async function gitText(cwd, args) {
+  return (await gitBytes(cwd, args)).toString("utf8").trim();
+}
+async function gitOptionalHead(cwd) {
+  try {
+    return await gitText(cwd, ["rev-parse", "--verify", "HEAD"]);
+  } catch (error) {
+    try {
+      await gitText(cwd, ["symbolic-ref", "-q", "HEAD"]);
+      return null;
+    } catch {
+      throw error;
+    }
+  }
+}
+function gitEnv() {
+  return {
+    ...process.env,
+    GIT_CONFIG_COUNT: "2",
+    GIT_CONFIG_KEY_0: "diff.external",
+    GIT_CONFIG_VALUE_0: "",
+    GIT_CONFIG_KEY_1: "core.attributesFile",
+    GIT_CONFIG_VALUE_1: "/dev/null"
+  };
+}
+async function gitBytes(cwd, args) {
+  const result = await execFileAsync("git", args, {
+    cwd,
+    encoding: "buffer",
+    maxBuffer: REVIEW_SCOPE_LIMITS.maxGitOutputBytes,
+    env: gitEnv()
+  });
+  return result.stdout;
+}
+async function resolveCommitRef(root, ref, source) {
+  assertRef(ref, source);
+  return await gitText(root, [
+    "rev-parse",
+    "--verify",
+    `${ref}^{commit}`
+  ]).catch(() => {
+    throw new Error(`${source}_ref_invalid: could not resolve ${ref}`);
+  });
+}
+function assertRef(ref, source = "base") {
+  if (!ref.trim() || ref.startsWith("-") || ref.includes("\0")) {
+    throw new Error(`${source}_ref_invalid: ${ref}`);
+  }
+}
+function normalizeRepositoryPath(candidate) {
+  if (!candidate || candidate.includes("\0") || path12.isAbsolute(candidate)) {
+    throw new Error(`scope_path_invalid: ${candidate}`);
+  }
+  const normalized = path12.normalize(candidate);
+  if (normalized === "." || normalized === ".." || normalized.startsWith(`..${path12.sep}`)) {
+    throw new Error(`path_escape: ${candidate}`);
+  }
+  return normalized.split(path12.sep).join("/");
+}
+function enforceFileCount(paths, countedFiles) {
+  if (countedFiles <= REVIEW_SCOPE_LIMITS.maxSelectedFiles) return;
+  const directories = /* @__PURE__ */ new Map();
+  for (const candidate of paths) {
+    const directory = path12.posix.dirname(candidate);
+    const key = directory === "." ? "./" : `${directory}/`;
+    directories.set(key, (directories.get(key) ?? 0) + 1);
+  }
+  throw new Error(
+    `scope_too_large: ${countedFiles} changed files selected, over the ${REVIEW_SCOPE_LIMITS.maxSelectedFiles}-file limit (a rename counts once). Largest directories: ${largestOffenders(
+      [...directories.entries()].map(([name, size]) => ({
+        name,
+        size,
+        unit: "files"
+      }))
+    )}. ${REVIEW_SCOPE_WORKAROUND}`
+  );
+}
+function oversizedFile(filePath, size) {
+  return new Error(
+    `scope_too_large: ${filePath} is ${size} bytes, over the ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes}-byte per-file limit. ${REVIEW_SCOPE_WORKAROUND}`
+  );
+}
+function largestOffenders(entries) {
+  return entries.toSorted(
+    (left, right) => right.size - left.size || left.name.localeCompare(right.name)
+  ).slice(0, 5).map((entry) => `${entry.name} (${entry.size} ${entry.unit})`).join(", ");
+}
+function enforceEvidenceBudget(versions, extent) {
+  const charges = chargedBytesByPath(versions);
+  const chargedBytes = [...charges.values()].reduce(
+    (total, bytes) => total + bytes,
+    0
+  );
+  if (chargedBytes > REVIEW_SCOPE_LIMITS.maxEvidenceBytes) {
+    throw new Error(
+      `scope_too_large: selected textual evidence is ${extent === "partial" ? "at least " : ""}${chargedBytes} bytes, over the ${REVIEW_SCOPE_LIMITS.maxEvidenceBytes}-byte limit (each path is charged the larger of its target and base versions). Largest${extent === "partial" ? " read so far" : ""}: ${largestOffenders(
+        [...charges.entries()].map(([name, bytes]) => ({
+          name,
+          size: bytes,
+          unit: "bytes"
+        }))
+      )}. ${REVIEW_SCOPE_WORKAROUND}`
+    );
+  }
+  return chargedBytes;
+}
+function textualBytes(version) {
+  return version.kind === "file" || version.kind === "symlink" ? version.bytes : 0;
+}
+function chargedBytesByPath(versions) {
+  const charges = /* @__PURE__ */ new Map();
+  for (const version of versions) {
+    charges.set(
+      version.path,
+      Math.max(charges.get(version.path) ?? 0, textualBytes(version))
+    );
+  }
+  return charges;
+}
+function rejectBinaryOnlyScope(versions) {
+  const binaries = versions.filter(
+    (version) => version.kind === "binary_skipped"
+  );
+  if (binaries.length === 0) return;
+  const textual = (version) => version.kind === "file" || version.kind === "symlink";
+  const deletedTarget = new Set(
+    versions.filter(
+      (version) => version.source !== "base" && version.kind === "deleted"
+    ).map((version) => version.path)
+  );
+  if (versions.some(
+    (version) => textual(version) && (version.source !== "base" || deletedTarget.has(version.path))
+  )) {
+    return;
+  }
+  throw new Error(
+    `binary_scope_not_supported: every changed version is binary (${unique(
+      binaries.map((version) => version.path)
+    ).join(", ")})`
+  );
+}
+function unique(values) {
+  return [...new Set(values)];
+}
+function splitNul(value) {
+  const parts = value.toString("utf8").split("\0");
+  if (parts.at(-1) === "") parts.pop();
+  return parts;
+}
+function sha2562(value) {
+  return createHash2("sha256").update(value).digest("hex");
+}
+function stateKey(value) {
+  return `${value.location}:${value.path}`;
+}
+function isMissing2(error) {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+function fsMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 // src/skills/consensus-review/src/selection.ts
+import { createHash as createHash3 } from "node:crypto";
+import path13 from "node:path";
 var REVIEW_REQUEST_MAX_BYTES = 256 * 1024;
 var REVIEW_PROMPT_MAX_BYTES = 64 * 1024;
 var REVIEW_PROMPT_LISTED_PATHS = 20;
