@@ -699,7 +699,17 @@ applies these on every launch:
 4. **Credential env allowlist** (point 3). The child gets the parent env
    scrubbed to the descriptor's fixed credential names. Diagnostics and
    fixtures are redacted, and `--env-allow` is rejected.
-5. **Honest turn classification** (correctness, and point 2 for quota):
+5. **Working-tree check, failing loudly** (point 1; coordinator, update #15
+   follow-up). The CLI snapshots the checkout at cwd before launch and after
+   teardown, on every extended read-only turn, so direct `consensus run`
+   calls are covered too. Any difference makes the turn `ok: false` with a
+   new non-retryable failure code and the changed paths listed in the
+   envelope; it is never just a warning. The snapshot reuses the logic of
+   the `delegate_snapshot` helpers
+   (`consensus-delegate/references/accounting.md:24-129`). It does not see
+   ignored files or writes outside the checkout; mode confirmation and
+   deny-all are what prevent those.
+6. **Honest turn classification** (correctness, and point 2 for quota):
    - Success requires a `session/prompt` response whose id and session
      match, `stopReason: end_turn`, and **nonblank answer text after
      provider-specific startup output is discarded** (Pi's banner must not
@@ -784,10 +794,10 @@ These are the operator's to make. Recommendations are marked.
   prerequisite (DR-023's "install drift" rationale) plus the risk 7
   mitigations. **[hinges: Q2, Q7]**
 - **D2: cwd for extended read-only delegate runs.** **Recommended (update
-  #15): the repo root, like core read-only peers, with the existing
-  host-checkout snapshot before and after** (`delegate_snapshot`,
-  `consensus-delegate/references/accounting.md:24-129`). Any change is
-  reported, which checks point 1 directly. No disposable worktree.
+  #15, confirmed by the coordinator): the repo root, like core read-only
+  peers, with the before/after host-checkout snapshot** (read-only model
+  item 5). Any change fails the run with `ok: false` and lists the changed
+  paths. No disposable worktree.
 - **D3: selection policy.** **Recommended:**
   - Extended providers are never auto-selected: not by delegate fallback, panel
     auto-fill or deliberation defaults.
@@ -936,7 +946,7 @@ tests use fixture registries.
   It is generic over frame syntax. A synthetic fixture harness can be written
   now.
 - 2.2 **[hinges: Q4, and Q7 if acpx; real frames]** Map `AcpTurnResult` to
-  envelopes using the turn classification in item 5 of the read-only model:
+  envelopes using the turn classification in item 6 of the read-only model:
   - empty or banner-only turn → `PROVIDER_EMPTY_OUTPUT`;
   - non-`end_turn` stopReason (`refusal`, `max_tokens`, `max_turn_requests`,
     `cancelled`) → failure via `classifyReportedFailure`;
@@ -953,6 +963,11 @@ tests use fixture registries.
   pure functions: option selection, the `cancelled` fallback, cancelling
   pending requests on cancel or timeout, and a capability object that never
   includes write or terminal.
+- 2.3a **[independent]** The working-tree check (read-only model item 5):
+  snapshot before launch and after teardown around every extended read-only
+  turn, and an `ok: false` envelope with a non-retryable code and the changed
+  paths. Tests: an unchanged tree passes; a changed, added or deleted file
+  fails with that path listed.
 - 2.4 **[after D1]** Transport backend, one only for the first admission:
   - **In-house:** a stdio NDJSON JSON-RPC client. Requests:
     `initialize` → (optional `authenticate`, never automatic) → `session/new`
@@ -1032,8 +1047,9 @@ including the direct `run --request-json` entry, so no live calls happen in CI.
   - Add an "Extended (ACP)" row to the flag table (`SKILL.md:112-116`):
     read-only only, the model from the consensus-config default (or
     `--model`), no effort, no continuation.
-  - Extended read-only runs take the D2 host-checkout snapshot before and
-    after. Generalize the Claude-only host snapshot to "any peer without an
+  - Extended read-only runs rely on the CLI's working-tree check (D2); the
+    skill reports its `ok: false` failure and changed paths verbatim.
+    Generalize the Claude-only host snapshot prose to "any peer without an
     OS sandbox" (`accounting.md:95-98,120-125`).
   - Report `Permission denials` from ACP outcomes.
   - Reword `SKILL.md:3,33-34,50-52,104,110,177-181`, keeping the description
