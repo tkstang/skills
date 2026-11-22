@@ -234,7 +234,6 @@ function isMissing(error: unknown) {
 }
 
 function gitRunner(cwd: string, options: WorkingTreeOptions) {
-  const command = 'git';
   const base = options.env ?? process.env;
   const run = (
     env: NodeJS.ProcessEnv,
@@ -243,7 +242,7 @@ function gitRunner(cwd: string, options: WorkingTreeOptions) {
   ) =>
     new Promise<string>((resolve, reject) => {
       execFile(
-        command,
+        'git',
         args,
         {
           cwd,

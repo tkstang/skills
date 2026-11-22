@@ -4894,11 +4894,10 @@ function isMissing(error) {
   return code === "ENOENT" || code === "ENOTDIR";
 }
 function gitRunner(cwd, options) {
-  const command = "git";
   const base = options.env ?? process.env;
   const run = (env, args, runOptions = {}) => new Promise((resolve, reject) => {
     execFile(
-      command,
+      "git",
       args,
       {
         cwd,
