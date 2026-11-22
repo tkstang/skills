@@ -18,7 +18,7 @@ created: '2026-11-20T22:30:00Z'
 > [!NOTE]
 > This is an external implementation plan, not a canonical OAT project `plan.md`.
 > Execute it directly, or import it with `oat-project-import-plan <this-file>`.
-> Status: **reviewed (Codex, 2026-11-20); Phase 1 committed locally (`971439b5..f2ce5d22`, review findings fixed, re-check pending); live ACP test ongoing (Antigravity complete)**. Steps tagged
+> Status: **reviewed (Codex, 2026-11-20); Phase 1 committed locally (`971439b5..f2ce5d22`, review findings fixed, re-check pending); live ACP test ongoing (Antigravity complete); safety posture lightened (Stoa `ee3117f3`, 2026-11-21) and the plan trimmed to match; implementation waits for a go**. Steps tagged
 > **[independent]** can start now. Steps tagged **[hinges: Qn]** wait on the live
 > test question with that number (see "Live-test questions").
 
@@ -33,9 +33,10 @@ keep their native CLI adapters unchanged. An extended provider:
   fallback, panel auto-fill or deliberation defaults;
 - is blocked at preflight with install instructions when its prerequisites are
   missing (the ACP transport, if external, and the provider CLI);
-- starts **read-only**, admitted one provider at a time after a live admission
-  test. Write mode follows later, one provider at a time, after live worktree
-  confinement evidence and a cross-model review;
+- starts **read-only**, admitted one provider at a time after one live smoke
+  test (it answers, and a read-only run leaves files untouched). Write mode
+  follows later, one provider at a time, after a write smoke test in the
+  delegate worktree and a cross-model review;
 - lands in `delegate` first. `phone-a-friend`, panel, the deliberation skills and
   `review` follow.
 
@@ -54,7 +55,7 @@ brief:
   raise the value of Gemini and Antigravity (operator, 2026-11-20).
 - Default route is acpx, pinned. An in-house ACP client is acceptable if it is
   straightforward. The adapter must allow either without caller changes.
-- Read-only first. Writes come per provider after live confinement evidence.
+- Read-only first. Writes come per provider after a write smoke test.
 - `delegate` first.
 
 Thomas's decisions (coordinator update #13, 2026-11-20):
@@ -67,14 +68,34 @@ Thomas's decisions (coordinator update #13, 2026-11-20):
   `search_web` egress, the write to the real
   `~/.gemini/antigravity-cli/conversation_summaries.db`, and the brief clause
   banning `invoke_subagent`, `swarm`, `run_workflow` and `schedule`.
-- **Droid:** nothing may run in the Factory cloud. Do not test
-  Create/Run/EditAutomation, `loop_*`, ConnectApp or `computer_*` live. Before
-  admission, show **without a live call** that they are unreachable or
-  provably permission-gated in `normal`. If that can't be shown, Droid stays
-  unadmitted unless Thomas later accepts a disclosed limit. The brief clause
-  banning them stays regardless.
+- **Droid:** nothing may run in the Factory cloud, and its cloud tools are
+  never tested live. The admission terms are in update #15 below.
 - **DeepSeek:** test only through its own harness (`dsh`), never through
   Droid's proxy model. Deferred, so it stays registered, not admitted.
+
+Thomas's safety posture (coordinator update #15, Stoa decision `ee3117f3`,
+2026-11-21). It replaces the stricter posture in the earlier updates:
+
+- **Guard only three things:** a read-only run does not change the working
+  tree; nothing causes unexpected cost or leaves cloud or recurring jobs
+  running; credentials stay out of logs and chat.
+- **Not gated:** repo hooks and MCP servers, Claude's auto-mode classifier,
+  web search, sub-agents and folder trust. They are his own config.
+- **Admission is one smoke test per provider:** it answers, and a read-only
+  run leaves files untouched. No layered battery, launch gates or
+  process-tree MCP checks, unless one is the only way to make a run
+  read-only (as Gemini's in-session `set_mode plan` is). The light checks
+  that stay: deny-all, mode confirmation and group kill.
+- **Droid is admitted over ACP:** `normal` mode, the deny-all-by-kind
+  responder, the model set through config, and one brief line telling it
+  not to use its `loop_*`, ConnectApp or cloud/`computer_*` tools. No
+  stream-jsonrpc adapter, no airgap env, no launch gate.
+- **Gemini CLI:** keep `set_mode plan`; no untrusted-folder requirement.
+- **Antigravity:** the accepted limits above stay as they are.
+- **Read-only Claude:** unchanged. It keeps shell; no `--tools` restriction
+  and no `useAutoModeDuringPlan` override.
+- **Deliberation skills:** no read-only follow-up PR for the core loop paths.
+- **PR #170** is unchanged and waits for Thomas's merge.
 
 ## What recon changed
 
@@ -101,9 +122,8 @@ by hand. Corrections to the earlier recon:
    whatever permissions its process is given" and that permission requests are
    advisory (spec `security.mdx:10-12,74`). acpx says `--no-fs` / `--no-terminal`
    are "not an OS sandbox" (`permissions.md:199-216`). pi-acp runs every read,
-   write and exec locally and never asks. Read-only must therefore rest on
-   **provider-native controls plus host-side detection**, not on permission
-   refusal.
+   write and exec locally and never asks. Read-only therefore rests on the
+   **provider-native mode** first, with deny-all as the second control.
 2. **Delegate read-only runs have no detection today.** They run at the repo
    root with no snapshots (`consensus-delegate/SKILL.md:107`; user doc
    `delegate.md:75-79`).
@@ -147,7 +167,9 @@ by hand. Corrections to the earlier recon:
    a banner and no model call, on a 401 token.
 9. **User MCP servers.** Devin loads the user's own MCP servers (for example
    `~/.config/devin/mcp_config.json`) even when the client sends
-   `mcpServers: []`. Read-only must cover MCP tools that can write.
+   `mcpServers: []`. Under the update #15 posture these are the operator's
+   config and are not isolated; only their leftover processes matter (group
+   kill).
 10. **Version fan-out.** When a change **regenerates the plugin-shared bundle**
     `plugins/consensus/scripts/consensus.mjs`, all 11 consensus member skills
     must bump (`validate-skill-versions.ts:217-231`). `session-fork-to-destination`
@@ -161,6 +183,11 @@ by hand. Corrections to the earlier recon:
     "custom ACP provider" in the docs site.
 
 ## Live evidence so far
+
+Evidence is kept as recorded. Where an update below concludes that a gate,
+isolation step or launch allowlist is required, that conclusion is
+superseded by the update #15 posture (see "Decisions in force"); the
+observations still stand.
 
 From the coordinator, Vault thread "Consensus New Providers", 2026-11-20. Raw
 frames are logged on tstang-dev at `~/acp-spike/logs/` and on mini at
@@ -285,8 +312,9 @@ Dev logs: `~/acp-spike/logs/agy-gui*.jsonl`, `agy-iso-*.jsonl` and their
     survivors, and mode `ask` still echoed.
   - Credentials stay in `XDG_DATA_HOME` (`~/.local/share/devin/credentials.toml`).
   - `agents_standard` stays false until its scope is known.
-  - **General rule:** list what each agent imports from other tools' config,
-    and give it an isolation lever or keep it unadmitted.
+  - ~~**General rule:** list what each agent imports from other tools' config,
+    and give it an isolation lever or keep it unadmitted.~~ Superseded by
+    update #15: imports are the operator's config.
 - **Antigravity (`agy acp` 1.5.13) is the first authenticated provider, fully
   tested from a desktop session.**
   - **Auth:** the token is in the macOS login keychain. From SSH,
@@ -321,13 +349,15 @@ Dev logs: `~/acp-spike/logs/agy-gui*.jsonl`, `agy-iso-*.jsonl` and their
   - **Isolation lever (verified):** `agy acp --gemini-dir=<private abs tmp>
     --app-data-dir=<relative name>`. An absolute app-data-dir fails with
     `-32603`. Auth survives (keychain), there is no global MCP, skills or
-    rules, and the temp dir is deleted after the run. Continuation must keep
-    the same gemini-dir for the delegate session's lifetime.
+    rules, and the temp dir is deleted after the run. (Update #15 drops this
+    as an isolation step; a gemini-dir is still used for API-key mode, see
+    Phase 3.1.)
   - **Exposed tools** (self-reported): read_file, write_file, edit_file,
     run_command, search_web, schedule, send_message, manage_task,
     invoke_subagent, define_subagent, manage_subagents, run_workflow, swarm,
     ask_question.
-  - **Open before admission:**
+  - ~~**Open before admission:**~~ Answered in updates #7-#9; no longer
+    admission gates under update #15:
     - project `.agents/hooks.json`: does it run under isolation, and without a
       permission request?
     - deny checks for `schedule`, `invoke_subagent`/`swarm`, `send_message` and
@@ -461,23 +491,26 @@ Every run used `normal` (echoed), deny-all, and the model pinned to
 - **Task workers:** a write is rejected internally and immediately. No request
   reaches the client, and nothing is written (a silent denial, as with agy).
 
-**Droid descriptor:**
+**Droid descriptor** (as trimmed by update #15):
 
-- launch `droid exec --output-format acp --settings <private tmp hooksDisabled>`;
+- launch `droid exec --output-format acp`;
 - `set_mode normal` (echo required);
 - `set_config_option model=<configured default>` (confirmed);
 - deny-all by `kind`;
-- launch gate fails closed on `.factory/mcp.json`, or on
-  `.factory/settings*.json` with `mcpServers`, between cwd and the git root;
+- brief line: do not use the `loop_*`, ConnectApp or cloud/`computer_*`
+  tools;
 - auth: desktop session or `FACTORY_API_KEY`.
+
+The `--settings hooksDisabled` file and the `.factory/mcp.json` launch gate
+are dropped.
 
 **Update #12, Droid testing complete:**
 
 - **SIGKILL mid-turn:** the dummy MCP servers had `ppid` = droid but their
   own pgid (setsid). A group kill cannot reach them; a ppid walk finds them.
   After `kill -9` of droid, both were gone within 5 s, with no orphans
-  (mechanism unknown). **Descendant-tree teardown stays required.** Observed
-  reaping is not relied on, because Devin left survivors.
+  (mechanism unknown). Update #15 keeps the group kill only; Droid's own
+  reaping is what cleared these servers in testing.
 - **Find the agent by its spawned pid, never by command-line match:** a
   `pgrep` on argv matched the probe instead.
 - **User-level `~/.factory/mcp.json` servers are spawned in every run.** They
@@ -511,10 +544,10 @@ The workflow used `droid --help`, `exec --help` and binary strings of droid
   - **`computer_*` is not gated.** It is two read-only cloud list calls.
   - **The built-in default autonomy is `auto-medium`.** Automation writes are
     gated only if `normal` is set and echoed.
-- **Verdict:** neither "unreachable" nor "permission-gated" holds for
-  `loop_*`, ConnectApp or `computer_*`. **Droid stays unadmitted.**
-- **Possible routes, each needing Thomas's approval and a live spike that
-  never calls the cloud tools** (verify by tool listing only):
+- **Verdict at the time:** neither "unreachable" nor "permission-gated" holds
+  for `loop_*`, ConnectApp or `computer_*`. Update #15 admits Droid anyway,
+  with a brief line banning those tools; Thomas judged the instruction enough.
+- **Routes considered and not taken** (update #15):
   - (a) `FACTORY_AIRGAP_ENABLED=1`, which blocks Factory egress and
     `backendOnly` tools, plus `FACTORY_MACHINE_TYPE=ephemeral`, which makes
     loop create throw. Both are undocumented for the public build, which the
@@ -526,8 +559,7 @@ The workflow used `droid --help`, `exec --help` and binary strings of droid
 
 ### Coordinator update #14: Gemini CLI over ACP, agy in API-key mode
 
-Recorded for reference; Thomas has decided nothing new, so no work starts
-from it. Dev logs on tstang-dev: `~/acp-spike/logs/gemini-key-report.txt`,
+Recorded as evidence; update #15 later settled the Gemini read-only route. Dev logs on tstang-dev: `~/acp-spike/logs/gemini-key-report.txt`,
 `gemini-plan-report.txt`, `gem-*` and `agy-key2-*.jsonl`.
 
 **Gemini CLI 0.70.0** (`gemini --acp`, API key, `gemini-3.5-flash-lite`,
@@ -605,127 +637,97 @@ Both backends produce the same `AcpTurnResult`. acpx's `--format json` already
 emits raw ACP frames, so the frame parser is shared. Only the session driver
 differs: either acpx drives the session, or our client does. **The first
 admission uses one backend only.** A second backend is added later, after a
-parity comparison: mode setup, error correlation, lifecycle and cleanup, config
-isolation, and diagnostic redaction.
+parity comparison: mode setup, error correlation, lifecycle and cleanup, and
+diagnostic redaction.
 
 ## Read-only enforcement model
 
-**Prevention lives in the owned CLI, not in skill prose.** Direct
-`consensus run` calls bypass the delegate workflow entirely: `commands.ts:404`
-normalizes the request and calls `runProviderTurn`. So every prevention layer
-is applied by the ACP adapter before and during **every** agent launch,
-including any active preflight probe. Host-side snapshots are **accounting**,
-not enforcement. They miss ignored files, reverted writes, writes outside the
-repo, and remote MCP side effects (`accounting.md:70`). A provider whose writes
-cannot be *prevented* stays unadmitted, whatever the snapshots would show.
+Calibrated to Thomas's safety posture (Stoa decision `ee3117f3`,
+2026-11-21). Delegated peers are his own agents on his own machines in his
+own repos, so only three things are guarded:
 
-An extended provider is **read-only-admitted** only when prevention layers 1-4
-all hold in a live admission test, together with the positive control in
-layer 6:
+1. **A read-only run does not change the working tree.**
+2. **Nothing causes unexpected cost or leaves cloud or recurring jobs
+   running.**
+3. **Credentials stay out of logs and chat.**
 
-1. **Provider-native read-only.** Each provider's own setting, baked into its
-   pinned launch or session setup and **confirmed before the first prompt**.
-   Mode evidence is `update` or `initial-state`. A mode *change* (Devin `ask`)
-   must be echoed by `current_mode_update` or `config_option_update`. An
-   unchanged mode is confirmed by the `session/new` `modes.currentModeId` (or
-   configOption `mode`) plus an ok `set_mode` with no contrary update (agy
-   `default`). Otherwise the run aborts as `not_started`.
-   - Antigravity: mode `default` plus deny-all. **Evidence complete except the
-     items listed open in update #6.**
-   - Devin: `session/set_mode ask`, or `plan`. Candidate launch levers are
-     `--agent-type codemap` and `DEVIN_PERMISSION_MODE`. **[hinges: Q1, Q11]**
-   - Gemini: `session/set_mode plan`, confirmed by the `[MODE_UPDATE] plan`
-     marker chunk, which the adapter strips; `--approval-mode plan` is ignored
-     over ACP. Run in an untrusted folder so project hooks, agents and MCP
-     stay off (update #14).
+Repo hooks, MCP servers (project or user), web search, sub-agents, folder
+trust and Claude's auto-mode classifier are his own configuration. The
+adapter does not gate on them, isolate them, or test for them. A check
+belongs in this plan only when it serves one of the three points, or is the
+only way to make a run read-only at all.
+
+**The controls live in the owned CLI, not in skill prose.** Direct
+`consensus run` calls bypass the delegate workflow (`commands.ts:404`
+normalizes the request and calls `runProviderTurn`), so the ACP adapter
+applies these on every launch:
+
+1. **Provider-native read-only mode, confirmed before the first prompt**
+   (point 1). Mode evidence is `update` or `initial-state`. A mode *change*
+   must be echoed (`current_mode_update`, `config_option_update`, or a
+   provider-specific marker). An unchanged mode is confirmed by the
+   `session/new` `modes.currentModeId` (or configOption `mode`) plus an ok
+   `set_mode` with no contrary update. Otherwise the run aborts as
+   `not_started`.
+   - Antigravity: mode `default` plus deny-all; never `accept-edits` or
+     `auto`.
+   - Devin: `session/set_mode ask` (the default `accept-edits` auto-approves
+     edits). **[hinges: Q1]**
+   - Gemini CLI: `session/set_mode plan`. Its only echo is an
+     `agent_message_chunk` reading `[MODE_UPDATE] plan`, which the adapter
+     takes as mode evidence and strips from the reply. `--approval-mode plan`
+     is ignored over ACP (update #14).
    - Droid: mode `normal`, confirmed by update echo. The ACP default
-     `auto-medium` auto-approves writes (update #10). Launch with
-     `--settings <tmp>` and `hooksDisabled`; `--only-tools` is ignored in ACP
-     mode (update #11).
-   - Pi: a wrapper script set as `PI_ACP_PI_COMMAND` that runs
+     `auto-medium` auto-approves writes (update #10).
+   - Pi: pi-acp never asks permission, so the only read-only lever is a
+     wrapper script set as `PI_ACP_PI_COMMAND` that runs
      `exec pi --tools read,grep,find,ls "$@"`. **[hinges: Q13 live check]**
-   - DeepSeek: no flags; check session modes and config once a key exists.
-     Antigravity: only `--sandbox` (terminal); check session modes after login.
-     **[hinges: Q12, Q15]**
-2. **Capability withholding.** Never advertise `fs.writeTextFile` or
-   `terminal`. `fs.readTextFile` may be advertised (in-house only, confined to
-   cwd). **[hinges: Q2]** Does the agent fall back to native tools?
-3. **Permission responder: deny all.** The tool `kind` an agent reports is
-   untrusted metadata, so the responder grants nothing. It picks the option
-   by its `kind` (`reject_once`), never by option id, because ids differ by
-   provider. Read-only agents read
-   through their own tools or the client read callback. It picks `reject_once`
-   when offered, otherwise answers `cancelled`, and answers any pending request
+   - DeepSeek: check session modes and config once a key exists.
+     **[hinges: Q12]**
+2. **Deny-all permission responder** (point 1). The tool `kind` an agent
+   reports is untrusted, so the responder grants nothing. It picks the
+   `reject_once` option by its `kind`, never by option id (ids differ by
+   provider), otherwise answers `cancelled`, and answers any pending request
    with `cancelled` on cancel or timeout (spec `prompt-turn.mdx:610-652`).
-4. **No extra tools.** Send `mcpServers: []`, and neutralize user-configured
-   MCP servers or extensions:
-   - Droid: `--remove-tools MCP:<server>` / `--only-tools`.
-   - Gemini: `--allowed-mcp-server-names` with no names, and `-e none`; an
-     untrusted folder already skips project MCP (update #14).
-   - Devin: a private `XDG_CONFIG_HOME` with `devin/config.json`
-     `read_config_from` all false (verified, update #4).
-   - Antigravity: `--gemini-dir=<private tmp> --app-data-dir=<relative>`
-     (verified, update #6).
-
-   Each descriptor declares a **per-run isolation step**: create a private
-   temp dir, write the provider's config, and set the env or flags. The dir is
-   removed after the run, or after the delegate session when continuation is
-   in use. Credentials must still resolve, which `XDG_DATA_HOME`/`HOME` and
-   the keychain do. Admission asserts **no MCP or other child processes in the
-   agent's process group** from a process-tree snapshot, not only "no MCP tools
-   used". The model's self-report is not evidence. Project-level imports that
-   are repo content (AGENTS.md, GEMINI.md, project skills) are recorded per
-   provider. Project-level **hooks** that can run commands must be shown not
-   to fire, or the provider stays unadmitted.
-
-   An empty acpx `--mcp-config` replaces only acpx's own list. The provider's
-   own config still needs its lever.
-5. **Accounting (detection, not prevention).** Delegate runs extended
-   read-only peers in a disposable detached worktree and snapshots it and the
-   host checkout before and after. It uses the existing `delegate_snapshot`
-   helpers (`consensus-delegate/references/accounting.md:24-129`). Any diff is
-   reported as a confinement violation, and the provider is pulled from
-   admission until it is re-tested.
-6. **Honest turn classification and a positive control:**
-   - Success requires all of these: a `session/prompt` response whose id
-     matches the request and whose session matches; `stopReason: end_turn`;
-     and **nonblank final answer text after provider-specific startup output is
-     discarded** (Pi's banner must not count).
-   - Missing, truncated or ambiguous responses are failures. A blank answer
-     with tool calls is also a failure: delegate needs an answer.
-   - A non-`end_turn` stop reason is a failure.
-   - **`permission_denied`** is a distinct outcome: at least one permission
-     request was denied and the turn ended, whether the stopReason is
-     `end_turn` (agy, empty text) or `cancelled` (Droid). It is reported as a failure with `diagnostics.permission_denials`
-     filled ("the peer tried to act outside read-only"). **`empty_turn`** means
-     a silent provider failure (Pi on a 401).
-   - After `session/load`, chunks arriving before our `session/prompt` is sent
-     are replays and are discarded. Prefer `session/resume` where advertised.
+   The client advertises no `fs.writeTextFile` or `terminal` capability and
+   sends `mcpServers: []`; it adds nothing of its own.
+3. **Group kill on every exit path** (point 2). The current runner never
+   signals the process group on a normal exit (`subprocess.ts:185-192`), and
+   Devin and agy left MCP children alive after a clean exit. The transport
+   runs `session/close` where advertised, closes stdin, waits a bounded time,
+   then kills the agent's process group.
+4. **Credential env allowlist** (point 3). The child gets the parent env
+   scrubbed to the descriptor's fixed credential names. Diagnostics and
+   fixtures are redacted, and `--env-allow` is rejected.
+5. **Honest turn classification** (correctness, and point 2 for quota):
+   - Success requires a `session/prompt` response whose id and session
+     match, `stopReason: end_turn`, and **nonblank answer text after
+     provider-specific startup output is discarded** (Pi's banner must not
+     count).
+   - Missing, truncated or ambiguous responses, a blank answer, and any
+     non-`end_turn` stop reason are failures.
+   - **`permission_denied`**: at least one permission request was denied and
+     the turn ended, whether the stopReason is `end_turn` (agy, empty text)
+     or `cancelled` (Droid). Reported as a failure with
+     `diagnostics.permission_denials` filled. **`empty_turn`** is a silent
+     provider failure (Pi on a 401).
+   - **Quota and API errors that arrive as agent text** with `end_turn`
+     (agy, update #14) are matched per descriptor and reported as failures.
+   - After `session/load`, chunks before our `session/prompt` is sent are
+     replays and are discarded. Prefer `session/resume` where advertised.
    - A JSON-RPC error before `session/prompt` is sent is `turn: not_started`.
-   - Agent stats (Devin `agent_stopped.stats.filesChanged/commandsRun`) are
-     recorded as a cross-check.
-   - `max_attempts` stays 1 even for admitted read-only profiles.
-   - The admission test also includes a **positive control**: the same provider
-     authenticates, reads a known marker file, and returns the marker.
-     Otherwise a provider that did nothing passes every negative test.
-7. **Process cleanup on every exit (mandatory).** The current runner never
-   signals the process group on a normal exit (`subprocess.ts:185-192`). Devin
-   left 4 MCP children alive after `session/close` ok and exit 0, and agy left
-   a planted MCP server. The ACP transport therefore runs these steps on every
-   exit path: `session/close` where advertised, close stdin, wait a bounded
-   time for exit, record survivors as diagnostics, then kill. **Kill the
-   agent's whole descendant tree,** found by walking ppid from a snapshot taken
-   before the kill, **not only its process group.** Droid's MCP servers run in
-   another pgid, and any child can `setsid`.
-8. **Admission tests one action per prompt.** agy asks permission only for
-   the first of a batch of tool calls, then fails the rest.
+   - `max_attempts` stays 1, so a failed turn is never re-run for cost.
 
-A provider that fails any layer stays registered but **not admitted**. It
-appears in named preflight as `unsupported` with a distinct "registered, not
-admitted: <reason>" diagnostic; today's message for every `unsupported` entry
-is "not registered" (`commands.ts:223-228`). `run` refuses it before launch.
-Pi is not admissible until layer 1 is proven, because layers 2-3 do not apply
-to it.
+**Admission is one smoke test per provider**, run live by the operator or
+coordinator with authorization, not in CI: the provider answers a trivial
+prompt, and a read-only run that asks it to edit a file leaves the working
+tree untouched. The dated result is recorded in
+`.oat/repo/reference/evidence/` and as the descriptor's `evidence` string.
+
+A provider that is registered but not yet smoke-tested appears in named
+preflight as `unsupported` with a distinct "registered, not admitted:
+<reason>" diagnostic (today every `unsupported` entry reads "not registered",
+`commands.ts:223-228`), and `run` refuses it before launch.
 
 **First extended adapter capabilities** (enforced in the CLI):
 
@@ -733,8 +735,7 @@ to it.
 - `permission_modes: ['read-only']` only, so an omitted policy, which resolves
   to `non-interactive` (`runtime-policy.ts:48-52,84-92`), is rejected;
 - no `sandboxes`;
-- no `env_allowlist`, so `--env-allow` is rejected (credentials come from the
-  descriptor's fixed list);
+- no `env_allowlist` (credentials come from the descriptor's fixed list);
 - no scoped tool grants;
 - `model`: a **consensus-config default model per extended provider**
   (Thomas prefers cheap proxy models), applied through
@@ -782,13 +783,11 @@ These are the operator's to make. Recommendations are marked.
   If chosen, it needs an explicit decision reintroducing an orchestration
   prerequisite (DR-023's "install drift" rationale) plus the risk 7
   mitigations. **[hinges: Q2, Q7]**
-- **D2: accounting cwd for extended read-only delegate runs.**
-  **Recommended: a disposable detached worktree at the host's HEAD, plus
-  host-checkout snapshots, with no repo-root opt-out for extended peers.**
-  This is defence in depth on top of CLI-level prevention. Caveats:
-  - Uncommitted host changes are not visible in the worktree; the host commits
-    WIP first or briefs the change.
-  - A detached worktree still shares the `.git` metadata.
+- **D2: cwd for extended read-only delegate runs.** **Recommended (update
+  #15): the repo root, like core read-only peers, with the existing
+  host-checkout snapshot before and after** (`delegate_snapshot`,
+  `consensus-delegate/references/accounting.md:24-129`). Any change is
+  reported, which checks point 1 directly. No disposable worktree.
 - **D3: selection policy.** **Recommended:**
   - Extended providers are never auto-selected: not by delegate fallback, panel
     auto-fill or deliberation defaults.
@@ -923,7 +922,7 @@ tests use fixture registries.
   adapter-level `run(invocation, options) → ProviderProcessResult` used ahead of
   `runProviderSubprocess`. It reuses the detached process group, timeout,
   interrupt forwarding and output cap (`subprocess.ts:53-60,112-121,215-259`),
-  and **also tears the group down after a normal exit**. If D1 is acpx, skip
+  and **also kills the group after a normal exit**. If D1 is acpx, skip
   it.
 - 2.1 **[independent]** `AcpTranscript` parser to the normalized
   `AcpTurnResult`:
@@ -937,7 +936,7 @@ tests use fixture registries.
   It is generic over frame syntax. A synthetic fixture harness can be written
   now.
 - 2.2 **[hinges: Q4, and Q7 if acpx; real frames]** Map `AcpTurnResult` to
-  envelopes using the success predicate in read-only layer 6:
+  envelopes using the turn classification in item 5 of the read-only model:
   - empty or banner-only turn → `PROVIDER_EMPTY_OUTPUT`;
   - non-`end_turn` stopReason (`refusal`, `max_tokens`, `max_turn_requests`,
     `cancelled`) → failure via `classifyReportedFailure`;
@@ -969,7 +968,7 @@ tests use fixture registries.
     argv, never built-in names, and scrub the env before spawning. Check
     `acpx --version` against the pin. Mode setup before the prompt is an open
     gap.
-- 2.5 **[hinges: Q1, Q2, Q4, Q9, Q10, Q11-Q13; Q15 for Antigravity]**
+- 2.5 **[hinges: Q1, Q4, Q9, Q12, Q13]**
   Per-provider descriptors:
   - launch argv;
   - version probe: the first line of `--version` per Q8, and
@@ -979,8 +978,9 @@ tests use fixture registries.
     from inventory. It is **disabled for Droid**, where `session/new` mints a
     device-pairing code, and for any provider where the probe has side
     effects; those classify auth at run time instead;
-  - credential env names, session-id rule, model reader, read-only and MCP
-    setup steps, and known stop or error mapping.
+  - credential env names, session-id rule, model reader, read-only mode
+    setup, brief lines (Antigravity, Droid), and known stop or error mapping,
+    including quota and API errors that arrive as agent text.
 
 **Verify.** Unit tests on parser, responder and classifier fixtures. A fake ACP
 agent fixture (a stdlib script) drives the transport end to end in tests,
@@ -990,51 +990,39 @@ including the direct `run --request-json` entry, so no live calls happen in CI.
 
 ### Phase 3: first provider, read-only, in delegate
 
-- 3.1 Pick the first provider by evidence. **Proposed: Antigravity.**
-  Priority is now flexible, and it is the only provider with complete live
-  evidence (updates #5-#6). Before admission it still needs:
-  - project `hooks.json`;
-  - deny checks for `schedule`, `subagent`/`swarm`, `send_message` and
-    `run_workflow`;
-  - whether `search_web` asks permission.
-
-  Its descriptor:
-  - launch `agy acp --gemini-dir=<tmp> --app-data-dir=<rel>`;
-  - mode `default` with `initial-state` evidence;
+- 3.1 Pick the first provider by evidence. **Proposed: Antigravity**, the
+  provider with the most live evidence (updates #5-#9, #14). Its descriptor:
+  - launch `agy acp`. API-key mode adds `--gemini-dir=<private abs tmp>
+    --app-data-dir=<relative name>`, with `{"modelProvider":"gemini"}` in the
+    dir's settings (update #14 wrote both `antigravity-cli/settings.json` and
+    `config/settings.json`; which one counts is unconfirmed) and
+    `GEMINI_API_KEY` in the credential env. Continuation keeps the same dir
+    for the delegate session's lifetime;
+  - mode `default` with `initial-state` evidence, never `accept-edits` or
+    `auto`;
   - deny-all responder;
   - auth map: `-32000`/`-32603 No browser` → "sign in from a desktop
-    terminal";
+    terminal"; API-key mode needs an explicit `authenticate gemini-api-key`;
+  - an explicit model (the API-key default is `gemini-3.1-pro`);
+  - quota and API errors in the answer text classified as failures;
   - session id UUID;
-  - model from `models.currentModelId`.
+  - model from `models.currentModelId`;
+  - brief clause banning `invoke_subagent`, `swarm`, `run_workflow` and
+    `schedule`.
 
-  - **Launch gate (allowlist, fail-closed).** Refuse to launch, listing the
-    offending paths, if any customization root (`.agents/`, `.agent/`,
-    `_agents/`, `_agent/`) between cwd and the repo root contains anything
-    other than `rules/`, `rules.json` and `skills/`. One exception:
-    `plugins/` may hold `marketplace.json` alone, with no subdirs, no
-    `plugin.json`/`hooks.json`, and no `plugins.json` in the root. The gate
-    runs in the CLI before every launch. It is a **version-pinned assumption**,
-    re-verified on each agy upgrade. `workflows/` and `agents/` stay excluded
-    unless Thomas accepts them.
-  - Mode is never `accept-edits` or `auto`. The brief forbids
-    `invoke_subagent`, `swarm`, `run_workflow` and `schedule`.
-  - Disclosed limits, accepted by Thomas (update #13): `search_web`
-    egress, the summaries-db write, and the brief clause banning
-    `invoke_subagent`, `swarm`, `run_workflow` and `schedule` (workers
-    otherwise fail closed after a silent 60 s denial).
+  Disclosed limits, accepted by Thomas (update #13): `search_web` egress, the
+  write to the real `conversation_summaries.db`, and that brief clause
+  (workers otherwise fail closed after a silent 60 s denial).
 
-  Devin follows; its isolation is now solved. Then Gemini and Droid as their
-  sign-ins land. Droid and agy are desktop-session only (keychain auth).
-- 3.2 Admission harness. It can be **authored [independent]**, but **runs and
-  verdicts [hinges: final launch, config and cleanup policy; Q1-Q4, Q10]**.
-  - It is an opt-in live test gated by its own env var, next to
+  Devin, Gemini CLI (already run on an API key, update #14) and Droid
+  follow. Droid and agy are desktop-session only (keychain auth) unless an
+  API key is configured.
+- 3.2 Smoke test. It can be **authored [independent]**; runs **[hinges: the
+  final descriptor]**.
+  - An opt-in live test gated by its own env var, next to
     `provider-cli/e2e/`, run in a scratch repo.
-  - Positive control: the provider authenticates, reads a marker file and
-    returns the marker.
-  - Negative tests: ask the agent to (a) edit, (b) `touch` via shell,
-    (c) write outside cwd, (d) use an MCP tool. Then check disk, the process
-    tree after both normal exit and kill, and the classification of an empty or
-    failed turn.
+  - Two prompts: a trivial question that must be answered, and a read-only
+    run asked to edit a file, after which `git status` must be clean.
   - The dated result is recorded in `.oat/repo/reference/evidence/` and as a
     descriptor `evidence` string, the same pattern as `adapters.ts:196-209` and
     `263-278`.
@@ -1044,9 +1032,9 @@ including the direct `run --request-json` entry, so no live calls happen in CI.
   - Add an "Extended (ACP)" row to the flag table (`SKILL.md:112-116`):
     read-only only, the model from the consensus-config default (or
     `--model`), no effort, no continuation.
-  - Extended read-only runs use the D2 worktree plus snapshots, with no
-    repo-root opt-out. Generalize the Claude-only host snapshot to "any peer
-    without an OS sandbox" (`accounting.md:95-98,120-125`).
+  - Extended read-only runs take the D2 host-checkout snapshot before and
+    after. Generalize the Claude-only host snapshot to "any peer without an
+    OS sandbox" (`accounting.md:95-98,120-125`).
   - Report `Permission denials` from ACP outcomes.
   - Reword `SKILL.md:3,33-34,50-52,104,110,177-181`, keeping the description
     within budget.
@@ -1063,30 +1051,32 @@ including the direct `run --request-json` entry, so no live calls happen in CI.
     guard deliberately in the same PR.
 
 **Verify.**
-- The admission harness passes for the chosen provider. It is run by the
-  operator or coordinator with live-execution authorization, not CI.
+- The smoke test passes for the chosen provider. It is run by the operator
+  or coordinator with live-execution authorization, not CI.
 - Full suite, `build:check`, `validate` and smoke pass.
 - **Cross-model review** before landing, since the change touches permissions
   and the sandbox posture.
 
-**Sizing:** ~2-3 days after evidence.
+**Sizing:** ~1.5-2 days after evidence.
 
 ### Phase 4: remaining providers, read-only
 
 **[hinges: per-provider Q answers].**
 
-Each provider gets a descriptor, an admission run and a docs row; ~0.5-1 day
-each. Per-provider gates:
+Each provider gets a descriptor, a smoke test and a docs row; ~0.5 day
+each. Per-provider notes:
 
-- **Pi:** needs a proven tool allowlist (Q13).
-- **Antigravity:** launched with `agy acp` (not acpx's `.par` argv).
-  Unattended sign-in is a risk (Q15).
+- **Devin:** `set_mode ask`, echo required.
+- **Gemini CLI:** `set_mode plan`, confirmed by the stripped
+  `[MODE_UPDATE] plan` marker; no folder-trust requirement.
+- **Droid:** `normal`, deny-all by kind, model through config, and the brief
+  line banning `loop_*`, ConnectApp and cloud/`computer_*` tools. Its cloud
+  tools are never called live.
+- **Pi:** needs the `PI_ACP_PI_COMMAND` tool-allowlist wrapper proven live
+  (Q13), since it is Pi's only read-only lever.
 - **DeepSeek:** needs `DEEPSEEK_API_KEY` in its credential env, and the
-  install hint must name Node >= 24.9. Admission evidence must come from `dsh`
-  itself, not Droid's DeepSeek proxy model. Deferred (update #13).
-- **Droid:** no live calls to cloud tools (automations, `loop_*`, ConnectApp,
-  `computer_*`). Admission needs static evidence that they are unreachable or
-  permission-gated in `normal`; otherwise Droid stays unadmitted (update #13).
+  install hint must name Node >= 24.9. Evidence must come from `dsh` itself,
+  not Droid's DeepSeek proxy model. Deferred (update #13).
 
 ### Phase 5: continuation per provider
 
@@ -1100,15 +1090,12 @@ each. Per-provider gates:
 
 ### Phase 6: write mode per provider
 
-**[hinges: live confinement evidence].**
+**[hinges: a write smoke test per provider].**
 
 - Add `workspace-write` to one adapter's `permission_modes` with a dated
-  evidence comment. Evidence must show an in-worktree edit works and
-  outside-worktree and `$HOME` writes are denied, using native tools as well as
-  client fs.
-- If a provider's native tools can escape, writes need an OS sandbox
-  (`sandbox-exec` / `bwrap`). That expansion needs separate operator buy-in.
-- Cross-model review is mandatory.
+  evidence comment from a smoke test: an in-worktree edit works in the
+  delegate's dedicated worktree, and the host checkout is unchanged.
+- Cross-model review is mandatory (permissions change).
 
 ### Phase 7: other skills
 
@@ -1134,9 +1121,9 @@ each. Per-provider gates:
 | ------------------------------------------- | ------------------ | --------- |
 | Phase 1 groundwork                          | 2-3 d              | 2-3 d     |
 | Phase 2 ACP core                            | 3-4 d              | 2-3 d     |
-| Phase 3 first provider in delegate          | 2-3 d              | 2-3 d     |
+| Phase 3 first provider in delegate          | 1.5-2 d            | 1.5-2 d   |
 | **First provider read-only in delegate**    | **~1.5-2 wk**      | **~1.5 wk** |
-| Each further provider (read-only)           | 0.5-1 d            | 0.5-1 d   |
+| Each further provider (read-only)           | 0.5 d              | 0.5 d     |
 | phone-a-friend / panel+loop / review        | 1 d / 1-2 d / 3-4 d | same     |
 
 These are estimates, not measured. Live admission runs and operator sign-ins
@@ -1145,7 +1132,8 @@ are extra wall-clock time.
 ## Live-test questions
 
 Q1-Q7 were sent to the coordinator 2026-11-20. Q8-Q15 came from recon. Status
-is as of coordinator update #6.
+is as of coordinator update #14. Q11 and Q16 fed checks that update #15
+dropped, as did the descendant-tree part of Q10; they are kept as evidence.
 
 1. **Answered for agy; others need sign-in.** Edit, shell and outside-cwd writes
    arrive as `session/request_permission`, and denial leaves the disk unchanged.
@@ -1167,9 +1155,9 @@ is as of coordinator update #6.
 9. **Open.** Is a model-free `session/new` auth probe side-effect-free?
    Devin's `persistOnCreate` suggests it persists a record.
 10. **Answered.** Devin and agy both leave MCP children after a clean exit, so
-    a group kill on every exit is mandatory.
-11. **Answered.** Devin uses a private `XDG_CONFIG_HOME` with
-    `read_config_from` all false.
+    a group kill on every exit stays (update #15).
+11. **Answered.** Devin can be isolated with a private `XDG_CONFIG_HOME` and
+    `read_config_from` all false. Not used under update #15.
 12. **Partly answered.** agy has no read-only mode (`default` plus deny-all).
     Gemini `plan` holds over ACP via `set_mode` only (update #14). dsh is
     open.
@@ -1178,10 +1166,11 @@ is as of coordinator update #6.
 14. **Answered.** See the env table above.
 15. **Answered.** `agy acp` runs unattended once the keychain is readable
     (desktop session only).
-16. **Answered (updates #7-#9).** Project hooks fire unasked, so a launch
-    allowlist is needed. `schedule`, `send_message` and `search_web` run
-    unasked. Sub-agent writes fail closed silently. Reads outside the
-    workspace ask. Nothing persisted after teardown except the summaries db.
+16. **Answered (updates #7-#9).** Project hooks fire unasked; update #15
+    leaves them to the operator, so no launch allowlist. `schedule`,
+    `send_message` and `search_web` run unasked. Sub-agent writes fail
+    closed silently. Reads outside the workspace ask. Nothing persisted
+    after teardown except the summaries db.
 
 ## Review disposition
 
@@ -1196,11 +1185,13 @@ source:
 
 Changes made:
 
-- Prevention moved into the owned CLI; snapshots became accounting.
+- Prevention moved into the owned CLI; snapshots became accounting. (Update
+  #15 later trimmed the layered model to the three guarded points.)
 - The responder became deny-all.
 - Mode setup is confirmed before the prompt.
 - A strict success predicate, cleanup on normal exit and a positive control
-  were added.
+  were added. (Under update #15 the smoke test's trivial question serves as
+  the positive control.)
 - First-adapter capabilities are now text plus explicit read-only only, with
   no env or tool grants and no submit capture.
 - Readiness now binds the resolved executable and full-version pins, with a
