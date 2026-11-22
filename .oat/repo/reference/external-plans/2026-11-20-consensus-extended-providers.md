@@ -18,7 +18,7 @@ created: '2026-11-20T22:30:00Z'
 > [!NOTE]
 > This is an external implementation plan, not a canonical OAT project `plan.md`.
 > Execute it directly, or import it with `oat-project-import-plan <this-file>`.
-> Status: **Phases 1-3 implemented on `feat/consensus-extended-providers` (rebased onto PR #170): in-house ACP client; antigravity, gemini and droid admitted read-only after live smoke tests on 2026-11-21 (`.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md`); cross-model (Codex) review and two re-checks; Devin, Pi and DeepSeek not started**.. Steps tagged
+> Status: **Phases 1-3 implemented on `feat/consensus-extended-providers` (rebased onto PR #170): in-house ACP client; antigravity, gemini and droid admitted read-only after live smoke tests on 2026-11-21 (`.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md`); cross-model (Codex) review and three re-checks (the Antigravity private-home read allowance was removed after re-check 2, so every permission request is denied); Devin, Pi and DeepSeek not started**.. Steps tagged
 > **[independent]** can start now. Steps tagged **[hinges: Qn]** wait on the live
 > test question with that number (see "Live-test questions").
 
