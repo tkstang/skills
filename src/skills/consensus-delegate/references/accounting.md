@@ -139,11 +139,17 @@ the final report:
 - `final_text`: the envelope's `text`, or "none" on a failure.
 - The session id (`continuation.session_id`) and the turn state
   (`continuation.turn`).
-- Requested and observed model and effort: requested is what you passed, or
+- Requested and observed model and effort: requested is what you passed, the
+  configured model in `continuation.default_model` for an extended peer, or
   "provider default"; observed comes from `continuation.observed_models`, and
   is "unobserved" when absent. No provider reports effort, so observed effort is
   "unobserved".
 - Permission denials (`diagnostics.permission_denials`), or "none".
+- For an extended read-only run: the CLI's working-tree check, either
+  "unchanged" or the `PROVIDER_WORKTREE_CHANGED` message and
+  `diagnostics.working_tree_changes`, verbatim. The check covers tracked and
+  non-ignored untracked files in the checkout at `--cwd`, not ignored files or
+  paths outside it.
 - For a write run: the worktree path and branch, the baseline and closing IDs,
   new commits, staged, unstaged, and untracked changes, the changes this turn
   made, any changes your verification made, and, for Claude, any change to your

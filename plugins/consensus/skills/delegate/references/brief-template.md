@@ -49,5 +49,11 @@ pass.
   `--allow-bash`, so grant the verification command. A Codex run may have no
   network, depending on the user's Codex sandbox configuration, so install
   dependencies before the run rather than asking the peer to.
+- Consensus tells an extended peer (Antigravity, Gemini CLI, Droid) not to run
+  commands and denies its permission requests, so its verification loop asks
+  for file:line evidence, not a command. Consensus puts its own read-only lines
+  before the brief: for Antigravity also a ban on `invoke_subagent`, `swarm`,
+  `run_workflow` and `schedule`, and for Droid a ban on its loop, ConnectApp,
+  automation, and cloud or computer tools. Do not contradict them.
 - For a continued turn, write a short follow-up that names what to change, and
   repeat the verification loop. The resumed session keeps the earlier context.
