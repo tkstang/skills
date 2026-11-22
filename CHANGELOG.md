@@ -6,8 +6,9 @@
 
 - `consensus` 0.2.14 registers three experimental extended providers,
   Antigravity (`antigravity`), Gemini CLI (`gemini`) and Factory Droid
-  (`droid`), each experimental until its live smoke test passes. They run only
-  when named, read-only and text-only, with one attempt, no effort, no
+  (`droid`). Each passed a live smoke test on 2026-11-21 (agy 1.5.13 on its
+  desktop login and `GEMINI_API_KEY`, Gemini CLI 0.70.0 on `GEMINI_API_KEY`,
+  Droid 1.16.0 on its desktop login). They run only when named, read-only and text-only, with one attempt, no effort, no
   `--env-allow` and no native resume. The provider CLI drives each agent's ACP
   command through its own stdio JSON-RPC client (no new dependency): it
   confirms the provider's read-only mode and the model before the prompt and

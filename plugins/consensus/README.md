@@ -84,7 +84,7 @@ If `skills` is already configured as a marketplace from another local checkout, 
 
 - Node.js 22 or newer.
 - The generated consensus CLI from this plugin, used for provider inventory, preflight, peer invocation, and peer verdict submission.
-- Local provider CLIs for the requested peers. The supported provider floor is `claude`, `codex`, and `cursor`. The extended providers `antigravity`, `gemini`, and `droid` are experimental until their live smoke tests pass, run read-only only, and are used only when named.
+- Local provider CLIs for the requested peers. The supported provider floor is `claude`, `codex`, and `cursor`. The extended providers `antigravity`, `gemini`, and `droid` are experimental (smoke-tested live on 2026-11-21 on their documented sign-in routes), run read-only only, and are used only when named.
 
 The wrappers always invoke peers through the generated provider CLI. There is no alternate backend selector in v0.1.
 
@@ -362,7 +362,7 @@ consensus provider ls --json
 consensus preflight --json --provider claude --capability run
 ```
 
-The supported provider floor is `claude`, `codex`, and `cursor`. `provider ls` lists these core providers only; a provider outside the core tier is used only when named with `preflight --provider` or `run --provider`. The extended tier registers `antigravity`, `gemini`, and `droid`, driven through the CLI's own ACP client; each is experimental until its live smoke test passes. See [Extended providers](https://tkstang.github.io/skills/user-guide/consensus/provider-setup/#extended-providers). Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_VERSION_UNPARSEABLE`, `PROVIDER_VERSION_UNSUPPORTED`, `PROVIDER_CAPABILITY_MISSING`, and `PROVIDER_UNSUPPORTED_OPTION`, and keep any inventory or preflight `install_hint` in their unavailable errors. See [Prerequisites, version pins, and admission](https://github.com/tkstang/skills/blob/main/documentation/docs/user-guide/consensus/provider-setup.md#prerequisites-version-pins-and-admission).
+The supported provider floor is `claude`, `codex`, and `cursor`. `provider ls` lists these core providers only; a provider outside the core tier is used only when named with `preflight --provider` or `run --provider`. The extended tier registers `antigravity`, `gemini`, and `droid`, driven through the CLI's own ACP client; each is experimental, and was smoke-tested live on 2026-11-21 on its documented sign-in route. See [Extended providers](https://tkstang.github.io/skills/user-guide/consensus/provider-setup/#extended-providers). Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_VERSION_UNPARSEABLE`, `PROVIDER_VERSION_UNSUPPORTED`, `PROVIDER_CAPABILITY_MISSING`, and `PROVIDER_UNSUPPORTED_OPTION`, and keep any inventory or preflight `install_hint` in their unavailable errors. See [Prerequisites, version pins, and admission](https://github.com/tkstang/skills/blob/main/documentation/docs/user-guide/consensus/provider-setup.md#prerequisites-version-pins-and-admission).
 
 Cursor accepts `--model <id>` in both default and read-only profiles, for example
 `--model composer-2.5`; list IDs with `cursor-agent --list-models`. Effort remains

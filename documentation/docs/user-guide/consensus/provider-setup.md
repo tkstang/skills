@@ -155,10 +155,11 @@ it as `unsupported` with `PROVIDER_NOT_ADMITTED: registered, not admitted:
 ## Extended providers
 
 Three extended providers are registered: Antigravity (`antigravity`), Gemini
-CLI (`gemini`), and Factory Droid (`droid`). Each one is **experimental until
-its live smoke test passes**. The adapters are built from recorded sessions and
-tested against fixtures; treat a run as unverified until that provider's smoke
-test is recorded.
+CLI (`gemini`), and Factory Droid (`droid`). They are **experimental**. Each
+passed a live smoke test on 2026-11-21 (an answer, a read, and a refused edit,
+with a clean working tree and no leftover processes) at the minimum version
+below, on the sign-in route its section names as tested. Other routes and
+later versions are untested.
 
 Consensus drives each one through its Agent Client Protocol (ACP) command over
 the agent's stdin and stdout, with its own client: nothing else is installed or
@@ -224,7 +225,8 @@ listed credential variable is forwarded; `--env-allow` is refused.
 ### Antigravity
 
 - Install Google Antigravity and its `agy` command, then sign in with
-  `agy acp --login` from a desktop terminal, or set `GEMINI_API_KEY`.
+  `agy acp --login` from a desktop terminal, or set `GEMINI_API_KEY`. Both
+  routes are smoke-tested.
 - With `GEMINI_API_KEY` set, consensus starts `agy` against a private
   temporary settings directory (mode 0700) that selects the Gemini API, and
   removes it after the run.
@@ -247,8 +249,9 @@ current quota`) fails with `PROVIDER_LIMIT_REACHED`; `agent executor error`
 
 ### Gemini CLI
 
-- Install with `npm install -g @google/gemini-cli`, then sign in by running
-  `gemini` once in a terminal, or set `GEMINI_API_KEY`.
+- Install with `npm install -g @google/gemini-cli` and set `GEMINI_API_KEY`,
+  the smoke-tested route. A saved sign-in from running `gemini` once in a
+  terminal may also work, but is untested.
 - The model is passed at launch with `-m`, and the session must report it.
 - Read-only mode is `plan`, set inside the session. Gemini confirms it with a
   `[MODE_UPDATE] plan` message, which consensus removes from the reply.
@@ -257,8 +260,8 @@ current quota`) fails with `PROVIDER_LIMIT_REACHED`; `agent executor error`
 ### Droid
 
 - Install Factory Droid (see the [Factory docs](https://docs.factory.ai)),
-  then sign in by running `droid` in a desktop terminal, or set
-  `FACTORY_API_KEY`.
+  then sign in by running `droid` in a desktop terminal; that keychain sign-in
+  is the smoke-tested route. `FACTORY_API_KEY` is accepted but untested.
 - Read-only mode is `normal`; Droid's ACP default, `auto-medium`, approves
   writes on its own. The model is set through the agent's `model` option and
   must be one it offers.

@@ -96,10 +96,10 @@ no provider branches.
   `session/new` sends `mcpServers: []`. The read-only mode and the model are
   set and confirmed before `session/prompt`, or the run stops as
   `not_started`. The mode stays watched: a reported change before the prompt
-  stops the run, and one during the turn cancels it (`acp_mode_changed`). Permission requests get a `reject_once` (else
-  `reject_always`) option chosen by its kind, or `cancelled`; every other
-  agent request gets `-32601`. Denials keep the tool name, kind, and call id,
-  never tool input.
+  stops the run, and one during the turn cancels it (`acp_mode_changed`).
+  Permission requests get a `reject_once` (else `reject_always`) option
+  chosen by its kind, or `cancelled`; every other agent request gets
+  `-32601`. Denials keep only identifying fields, never tool input.
 - **Process group.** The spawn primitive in
   [`acp/process.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/acp/process.ts)
   signals the agent's group on every exit path, a normal exit included:
