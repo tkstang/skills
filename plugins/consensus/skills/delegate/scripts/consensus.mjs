@@ -5346,6 +5346,7 @@ function releaseLabel(output, redact) {
   const parsed = parseVersion(output);
   if (!parsed || parsed.release.length !== 3) return void 0;
   const release = parsed.release.join(".");
+  if (redact(release) !== release) return void 0;
   const prerelease = parsed.prerelease.join(".");
   const label = `${release}-${prerelease}`;
   return prerelease && /^[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*$/.test(prerelease) && redact(label) === label ? label : release;

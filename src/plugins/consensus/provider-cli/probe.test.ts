@@ -833,28 +833,38 @@ describe('node probe command runner', () => {
     }
   });
 
-  it('drops an extended prerelease that carries a credential value', async () => {
-    const secret = 'zqliteralcredential4711';
-    const entry = await probeProviderReadiness(
-      providerRegistry().get('droid')!,
-      {
-        runner: fakeRunner({
-          env: { FACTORY_API_KEY: secret },
-          executables: { droid: '/opt/bin/droid' },
-          results: {
-            '/opt/bin/droid --version': {
-              code: 0,
-              stdout: `droid 1.17.0-${secret}+meta\n`,
-              stderr: '',
+  it.each([
+    [
+      'zqliteralcredential4711',
+      'droid 1.17.0-zqliteralcredential4711+meta',
+      '1.17.0',
+    ],
+    ['123456', 'droid 1.17.123456-rc.2', undefined],
+  ])(
+    'drops a credential value %j from the extended version label',
+    async (secret, line, version) => {
+      const entry = await probeProviderReadiness(
+        providerRegistry().get('droid')!,
+        {
+          runner: fakeRunner({
+            env: { FACTORY_API_KEY: secret },
+            executables: { droid: '/opt/bin/droid' },
+            results: {
+              '/opt/bin/droid --version': {
+                code: 0,
+                stdout: `${line}\n`,
+                stderr: '',
+              },
             },
-          },
-        }),
-      },
-    );
+          }),
+        },
+      );
 
-    expect(entry).toMatchObject({ status: 'ready', version: '1.17.0' });
-    expect(JSON.stringify(entry)).not.toContain(secret);
-  });
+      expect(entry.status).toBe('ready');
+      expect(entry.version).toBe(version);
+      expect(JSON.stringify(entry)).not.toContain(secret);
+    },
+  );
 
   it.each([
     ['droid 1.16.0+sha.zq-literal-4711 (build abc)', '1.16.0'],

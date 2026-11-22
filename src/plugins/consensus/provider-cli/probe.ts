@@ -168,7 +168,8 @@ export async function probeProviderReadiness(
     : adapter;
   const redact = probeOutputRedactor(adapter, options.runner.env ?? {});
   // A prerelease that redaction would alter may carry a credential, so an
-  // extended label falls back to the bare release.
+  // extended label falls back to the bare release, and is omitted when the
+  // release itself would be altered.
   const versionLabel = (output: string): { version?: string } => {
     const version = extended
       ? releaseLabel(output, redact)
@@ -505,6 +506,7 @@ function releaseLabel(
   const parsed = parseVersion(output);
   if (!parsed || parsed.release.length !== 3) return undefined;
   const release = parsed.release.join('.');
+  if (redact(release) !== release) return undefined;
   const prerelease = parsed.prerelease.join('.');
   const label = `${release}-${prerelease}`;
   return prerelease &&
