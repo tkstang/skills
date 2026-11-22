@@ -55,7 +55,7 @@
     - [Delegate](docs/user-guide/consensus/delegate.md) — Use delegate to hand one task to another provider: code changes run in a dedicated git worktree, and the host verifies the diff before you decide.
     - [Configuration](docs/user-guide/consensus/configuration.md) — Consensus configuration examples, field types, model and effort support, precedence, and workflow defaults.
     - [Provider setup](docs/user-guide/consensus/provider-setup.md) — Consensus provider inventory, readiness, diagnostics, executable overrides, and Cursor authentication.
-    - [Provider run controls](docs/user-guide/consensus/provider-run-controls.md) — Consensus run output modes, retries, timeouts, process cleanup, and Claude and Codex write policies.
+    - [Provider run controls](docs/user-guide/consensus/provider-run-controls.md) — Consensus run output modes, retries, timeouts, process cleanup, Claude and Codex write policies, and read-only isolation.
 - Engineering
   - [Engineering](docs/engineering/index.md) — How this repo works, how its generated runtime is built, its layout, and how to contribute.
   - Contributing
