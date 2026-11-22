@@ -53,9 +53,9 @@
     - [Phone-a-friend](docs/user-guide/consensus/phone-a-friend.md) — Use phone-a-friend for advisory peer consultation with a structured take and explicit host disposition, one-shot by default with optional follow-up rounds.
     - [Panel](docs/user-guide/consensus/panel.md) — Run consensus-panel to ask multiple provider-backed panelists the same question while the host stays a neutral moderator.
     - [Delegate](docs/user-guide/consensus/delegate.md) — Use delegate to hand one task to another provider: code changes run in a dedicated git worktree, and the host verifies the diff before you decide.
-    - [Configuration](docs/user-guide/consensus/configuration.md) — Consensus configuration examples, field types, model and effort support, precedence, and workflow defaults.
-    - [Provider setup](docs/user-guide/consensus/provider-setup.md) — Consensus provider inventory, readiness, diagnostics, executable overrides, and Cursor authentication.
-    - [Provider run controls](docs/user-guide/consensus/provider-run-controls.md) — Consensus run output modes, retries, timeouts, process cleanup, and Claude and Codex write policies.
+    - [Configuration](docs/user-guide/consensus/configuration.md) — Consensus configuration examples, field types, model and effort support, extended-provider models, precedence, and workflow defaults.
+    - [Provider setup](docs/user-guide/consensus/provider-setup.md) — Consensus provider inventory, readiness, diagnostics, executable overrides, Cursor authentication, and the experimental extended providers.
+    - [Provider run controls](docs/user-guide/consensus/provider-run-controls.md) — Consensus run output modes, retries, timeouts, process cleanup, Claude and Codex write policies, and extended-provider runs.
 - Engineering
   - [Engineering](docs/engineering/index.md) — How this repo works, how its generated runtime is built, its layout, and how to contribute.
   - Contributing

@@ -1,6 +1,6 @@
 ---
 title: 'Provider run controls'
-description: 'Consensus run output modes, retries, timeouts, process cleanup, and Claude and Codex write policies.'
+description: 'Consensus run output modes, retries, timeouts, process cleanup, Claude and Codex write policies, and extended-provider runs.'
 ---
 
 # Provider run controls
@@ -43,6 +43,8 @@ raw-text success:
   missing `subtype` too) fails with `PROVIDER_MALFORMED_RESULT`, unless it is a
   recognized provider limit error as described below.
 - Codex: the `--output-last-message` file must exist and hold non-blank text.
+- Extended providers: the ACP session must end its turn (`end_turn`) with
+  non-blank answer text; see [Extended provider runs](#extended-provider-runs).
 - Empty output or whitespace-only text fails with `PROVIDER_EMPTY_OUTPUT`.
 
 Neither failure is retried: the provider finished its turn, so only a
@@ -106,6 +108,13 @@ listener in the same process owns it; `diagnostics.termination.reason` is
 that moves itself to another process group or session escapes this cleanup.
 On Windows only the provider process is signalled, as before.
 
+Extended providers differ in one way: their process group is signalled on
+every exit path, a normal exit included. Consensus closes the ACP session
+where the agent supports that, closes its stdin, waits about two seconds, then
+sends SIGTERM and SIGKILL to the group, so helpers such as MCP servers do not
+outlive the run. On a timeout it first cancels the prompt and waits briefly.
+`diagnostics.acp.teardown` records what was sent.
+
 ## Claude permission profiles
 
 Each accepted pairing of `--permission-mode` and Claude grants maps to one set
@@ -162,6 +171,66 @@ lives under the main checkout's `.git/worktrees/`, outside the writable root,
 so `git add` and `git commit` fail with `Operation not permitted`. consensus
 never widens the sandbox for this. The peer leaves its changes unstaged, and
 the host stages and commits them.
+
+## Extended provider runs
+
+The extended providers (`antigravity`, `gemini`, `droid`) are experimental;
+setup, sign-in, and per-provider limits are in
+[Extended providers](provider-setup.md#extended-providers). Every run is
+read-only, text-only, and single-attempt, and needs a model. Consensus confirms
+the provider's read-only mode and the model before it sends the prompt, and
+answers every permission request with a denial.
+
+### Working-tree check
+
+Consensus checks the git checkout at the working directory around every
+extended read-only turn, so direct `consensus run` calls are covered as well
+as delegate:
+
+- Before launch it records `HEAD`, the entries of
+  `git status --porcelain=v1 -z --untracked-files=all`, and a SHA-256 of the
+  current content of every path that status lists and of every index entry
+  marked assume-unchanged or skip-worktree, which status never reports. It
+  writes nothing: no `git add`, no index refresh. git runs with fsmonitor and
+  the untracked cache turned off, so a repository setting cannot hide a
+  change, and with its repository-local environment variables cleared.
+- If the working directory is not inside a git work tree, or the snapshot
+  fails, the run is refused before launch with `PROVIDER_UNSUPPORTED_OPTION`
+  and `attempts.terminal_reason: "working_tree_unavailable"`.
+- After the agent's process group is gone it takes the same snapshot again.
+  Any change to `HEAD`, the status entries, or a listed file's content fails
+  the run with `PROVIDER_WORKTREE_CHANGED` (`retryable: false`,
+  `attempts.terminal_reason: "working_tree_changed"`), even when the turn
+  succeeded. The message names up to 20 changed paths, `HEAD` first when it
+  moved, and says how the turn itself ended; `diagnostics.working_tree_changes`
+  lists them all. A checkout that cannot be read afterwards is reported as
+  changed. The receipt's `turn` keeps the turn's own state.
+
+The check cannot tell the agent's changes from your own edits made during the
+run, and it does not cover ignored files or paths outside the checkout. Read-only
+mode and the denials are what keep the agent from writing there.
+
+### Failure codes
+
+- `PROVIDER_PERMISSION_DENIED`: the agent asked for a tool outside read-only,
+  was denied, and ended the turn without an answer (an empty reply, or a
+  cancelled turn, as Droid does). The message names the denied tools;
+  `turn` is `completed`. A turn that was denied a tool but still answered
+  succeeds, with `diagnostics.permission_denials` filled.
+- `PROVIDER_WORKTREE_CHANGED`: see above.
+- `PROVIDER_AUTH_REQUIRED`: the agent is not signed in; the message adds the
+  provider's sign-in hint.
+- `PROVIDER_UNSUPPORTED_OPTION` before launch: an unsupported option, no
+  model (`model_required`), no git checkout, or a read-only mode or model the
+  agent did not confirm (`acp_setup_unconfirmed`).
+- `PROVIDER_LIMIT_REACHED`: a `max_tokens` or `max_turn_requests` stop, or a
+  quota error the provider returned as answer text.
+- `PROVIDER_EMPTY_OUTPUT`: the turn ended with no answer text and no denial.
+
+`diagnostics.acp` records the agent's name and version, whether the run used
+an API key or the saved sign-in, each setup step and what confirmed it, the
+stop reason, and the teardown. It never holds answer text, raw ACP messages,
+tool input, or credentials.
 
 For provider readiness and authentication, see [Provider setup](provider-setup.md).
 Saved workflow defaults live in [Configuration](configuration.md).

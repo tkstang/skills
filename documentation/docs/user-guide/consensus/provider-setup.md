@@ -1,6 +1,6 @@
 ---
 title: 'Provider setup'
-description: 'Consensus provider inventory, readiness, diagnostics, executable overrides, and Cursor authentication.'
+description: 'Consensus provider inventory, readiness, diagnostics, executable overrides, Cursor authentication, and the experimental extended providers.'
 ---
 
 # Provider setup
@@ -11,10 +11,10 @@ in [Provider run controls](provider-run-controls.md).
 
 ## Provider floor, inventory, and preflight
 
-Peer IDs come from provider inventory. The first supported provider floor is
-`claude`, `codex`, and `cursor`; future providers are extension points, not v0.1
-support claims. Requested peers must be present and usable in provider inventory
-and preflight before live use:
+Peer IDs come from provider inventory. The supported provider floor is
+`claude`, `codex`, and `cursor`. The [extended providers](#extended-providers)
+are experimental and are not part of that floor. Requested peers must be
+present and usable in provider inventory and preflight before live use:
 
 ```bash
 consensus provider ls --json
@@ -25,7 +25,8 @@ consensus preflight --json --provider claude --capability run
 provider CLI also has an extended tier for providers that are used only when
 named: `preflight --provider <id>` and `run --provider <id>` resolve any
 registered provider, but delegate fallback and panel auto-fill select core
-providers only. No extended provider is registered yet.
+providers only. The extended tier has three providers: `antigravity`, `gemini`,
+and `droid`.
 
 Claude Code must be at least 2.1.259. Restricted permission profiles use
 `--permission-prompts none`, which the [Claude CLI reference](https://code.claude.com/docs/en/cli-reference#cli-flags)
@@ -151,6 +152,121 @@ it as `unsupported` with `PROVIDER_NOT_ADMITTED: registered, not admitted:
 `PROVIDER_UNSUPPORTED` before any process starts. Preflight reports
 `Requested provider is not registered` only for an ID with no adapter.
 
+## Extended providers
+
+Three extended providers are registered: Antigravity (`antigravity`), Gemini
+CLI (`gemini`), and Factory Droid (`droid`). Each one is **experimental until
+its live smoke test passes**. The adapters are built from recorded sessions and
+tested against fixtures; treat a run as unverified until that provider's smoke
+test is recorded.
+
+Consensus drives each one through its Agent Client Protocol (ACP) command over
+the agent's stdin and stdout, with its own client: nothing else is installed or
+fetched. They run only when named with `--provider <id>`; `provider ls`,
+delegate fallback, and panel auto-fill never pick them.
+
+| Provider    | ID            | Command started                  | Minimum version | Credential variable |
+| ----------- | ------------- | -------------------------------- | --------------- | ------------------- |
+| Antigravity | `antigravity` | `agy acp`                        | 1.5.13          | `GEMINI_API_KEY`    |
+| Gemini CLI  | `gemini`      | `gemini --acp -m <model>`        | 0.70.0          | `GEMINI_API_KEY`    |
+| Droid       | `droid`       | `droid exec --output-format acp` | 1.16.0          | `FACTORY_API_KEY`   |
+
+### What every extended run gets
+
+- **Read-only only.** A run needs `--permission-mode read-only` and
+  `--output text`. Any other mode, an omitted mode, JSON output, effort,
+  `--env-allow`, scoped grants, and native resume are refused before launch
+  with `PROVIDER_UNSUPPORTED_OPTION`. `--max-attempts` above 1 is a usage
+  error (`CONSENSUS_CLI_USAGE`), so a turn is never repeated.
+- **A model you choose.** Pass `--model`, or set
+  [`defaults.provider_models`](configuration.md#extended-provider-models).
+  With neither, `consensus run` refuses the run before launch with
+  `PROVIDER_UNSUPPORTED_OPTION` (`attempts.terminal_reason: "model_required"`).
+  Consensus never falls back to the provider's own default model.
+- **Read-only setup before the prompt.** Consensus sets the provider's
+  read-only mode and the model, and sends the prompt only once the agent has
+  confirmed both. An unconfirmed mode or model, or a model the agent does not
+  offer, fails with `PROVIDER_UNSUPPORTED_OPTION` and `turn: "not_started"`.
+  For Antigravity and Droid the message lists some of the models on offer.
+- **Deny-all.** Every permission request the agent sends is rejected, and the
+  client offers the agent no file system or terminal and no MCP servers of its
+  own. A turn that is denied a tool and still answers succeeds, with
+  `diagnostics.permission_denials` filled; one that ends without an answer
+  fails with `PROVIDER_PERMISSION_DENIED`.
+- **Brief lines.** Before your prompt, consensus adds: "This is a read-only
+  run. Use only read and search tools. Do not edit files or run shell
+  commands; such requests are denied and end the turn." Some providers get one
+  more line, listed below.
+- **A working-tree check.** The working directory must be a git checkout.
+  Consensus compares it before and after the turn and fails a run that changed
+  it with `PROVIDER_WORKTREE_CHANGED`; see
+  [Provider run controls](provider-run-controls.md#extended-provider-runs).
+- **Cleanup.** When the turn ends, consensus closes the session where the agent
+  supports that, then stops the agent's whole process group, even after a normal exit, so helpers the agent
+  started do not outlive the run.
+
+### Sign-in
+
+Preflight runs only `<command> --version` and checks the minimum version. It
+never opens an ACP session, so `ready` does not prove the agent is signed in.
+
+When the provider's credential variable is set in the environment that starts
+consensus, the run authenticates with it, even if you are also signed in;
+`diagnostics.acp.auth` is `api_key`. Otherwise the agent uses its own saved
+sign-in (`existing_login`). Saved sign-ins usually live in the OS keychain, so
+they often fail over a plain SSH session. A run that is not signed in fails
+with `PROVIDER_AUTH_REQUIRED` and a hint naming the sign-in command. Only the
+listed credential variable is forwarded; `--env-allow` is refused.
+
+### Antigravity
+
+- Install Google Antigravity and its `agy` command, then sign in with
+  `agy acp --login` from a desktop terminal, or set `GEMINI_API_KEY`.
+- With `GEMINI_API_KEY` set, consensus starts `agy` against a private
+  temporary settings directory (mode 0700) that selects the Gemini API, and
+  removes it after the run.
+- Read-only mode is `default`. The model is set through the agent's `model`
+  option and must be one it offers.
+- Extra brief line: "Do not use invoke_subagent, swarm, run_workflow or
+  schedule."
+- A quota error that arrives as answer text (`Error 429`, `exceeded your
+current quota`) fails with `PROVIDER_LIMIT_REACHED`; `agent executor error`
+  fails with `PROVIDER_EXIT`.
+- Accepted limits:
+  - `search_web` sends queries over the network without a permission
+    request, so deny-all cannot stop it.
+  - `agy` writes your real
+    `~/.gemini/antigravity-cli/conversation_summaries.db` during a run. It is
+    outside the checkout, so the working-tree check does not see it.
+  - Sub-agent write requests go to an approval screen that ACP never shows.
+    They fail closed after about 60 seconds without telling the client, which
+    is why the brief line bans sub-agents and workflows.
+
+### Gemini CLI
+
+- Install with `npm install -g @google/gemini-cli`, then sign in by running
+  `gemini` once in a terminal, or set `GEMINI_API_KEY`.
+- The model is passed at launch with `-m`, and the session must report it.
+- Read-only mode is `plan`, set inside the session. Gemini confirms it with a
+  `[MODE_UPDATE] plan` message, which consensus removes from the reply.
+- No extra brief line.
+
+### Droid
+
+- Install Factory Droid (see the [Factory docs](https://docs.factory.ai)),
+  then sign in by running `droid` in a desktop terminal, or set
+  `FACTORY_API_KEY`.
+- Read-only mode is `normal`; Droid's ACP default, `auto-medium`, approves
+  writes on its own. The model is set through the agent's `model` option and
+  must be one it offers.
+- Extra brief line: "Do not use loop, ConnectApp, automation, or cloud/computer
+  tools."
+- Droid ends the whole turn when a tool is denied, so a denied run fails with
+  `PROVIDER_PERMISSION_DENIED`.
+- Signed out, Droid answers with a device-pairing code, and starts a new code
+  for every session. Consensus removes the code from error messages and
+  stderr.
+
 ## Diagnostics
 
 The wrappers surface provider-neutral diagnostics when a requested peer cannot be
@@ -175,7 +291,8 @@ When a wrapper reports a peer as unavailable, its error keeps each provider's
 Completed provider `run` results are machine-readable envelopes. Provider
 failures such as `ok: false`, `PROVIDER_EXIT`, `PROVIDER_ARGV_TOO_LARGE`,
 `PROVIDER_INVALID_JSON`, `PROVIDER_SCHEMA_VALIDATION`, `PROVIDER_EMPTY_OUTPUT`,
-or `PROVIDER_MALFORMED_RESULT` still exit process `0`; shell callers must parse
+`PROVIDER_MALFORMED_RESULT`, and the extended-provider codes
+`PROVIDER_PERMISSION_DENIED` and `PROVIDER_WORKTREE_CHANGED` still exit process `0`; shell callers must parse
 the JSON envelope instead of checking `$?`. CLI usage failures
 (`CONSENSUS_CLI_USAGE`) exit `2`. Interrupts re-raise the signal and exit by it;
 they are not covered by the completed-envelope exit-0 guarantee. The peer-facing `consensus submit` subcommand
@@ -185,7 +302,8 @@ can correct the verdict in-turn.
 ## Provider programs
 
 Consensus runs each provider's CLI by name, found on `PATH`: `claude`, `codex`
-and `cursor-agent`. Only absolute `PATH` entries are searched; relative and
+and `cursor-agent`, and for the extended providers `agy`, `gemini` and
+`droid`. Only absolute `PATH` entries are searched; relative and
 empty entries are skipped, so a probe and a run started from different
 directories find the same binary. A directory named like the program is
 skipped too, and on Windows a bare name also matches `<name>.exe` or
@@ -196,11 +314,14 @@ a `preflight` and a later `run` is the one that runs. To run a different program
 provider's variable to the program's absolute path in the environment that
 starts consensus:
 
-| Provider | Variable                      | Default command |
-| -------- | ----------------------------- | --------------- |
-| `claude` | `CONSENSUS_CLAUDE_EXECUTABLE` | `claude`        |
-| `codex`  | `CONSENSUS_CODEX_EXECUTABLE`  | `codex`         |
-| `cursor` | `CONSENSUS_CURSOR_EXECUTABLE` | `cursor-agent`  |
+| Provider      | Variable                           | Default command |
+| ------------- | ---------------------------------- | --------------- |
+| `claude`      | `CONSENSUS_CLAUDE_EXECUTABLE`      | `claude`        |
+| `codex`       | `CONSENSUS_CODEX_EXECUTABLE`       | `codex`         |
+| `cursor`      | `CONSENSUS_CURSOR_EXECUTABLE`      | `cursor-agent`  |
+| `antigravity` | `CONSENSUS_ANTIGRAVITY_EXECUTABLE` | `agy`           |
+| `gemini`      | `CONSENSUS_GEMINI_EXECUTABLE`      | `gemini`        |
+| `droid`       | `CONSENSUS_DROID_EXECUTABLE`       | `droid`         |
 
 Unset or empty keeps the default command. Most setups never need these.
 
@@ -274,7 +395,7 @@ If the CLI already works from your agent shells, leave the variable unset.
 - **Readiness probes and runs use its resolved path.** `provider ls` and
   `preflight` run the program they found, by its absolute path, with
   `--version`, and `consensus run` starts that same path. `preflight --capability run` also runs it with `--help`
-  (`exec --help` for Codex). Both apply the same version and capability checks
+  (`exec --help` for Codex; `--version` again for an extended provider). Both apply the same version and capability checks
   as for the default CLI, so a wrapper must pass these arguments through to the
   real CLI unchanged. A wrapper that skips its credential for probes, as above,
   can report `ready` while a run still fails, for example when the keychain is
