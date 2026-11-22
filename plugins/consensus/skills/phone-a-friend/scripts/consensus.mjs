@@ -5706,7 +5706,9 @@ var TRUTHFUL_STATUS_CONFIG = [
   "-c",
   "core.fsmonitor=false",
   "-c",
-  "core.untrackedCache=false"
+  "core.untrackedCache=false",
+  "-c",
+  "core.filemode=true"
 ];
 async function snapshotWorkingTree(cwd, options = {}) {
   const git = gitRunner(cwd, options);
@@ -5736,6 +5738,12 @@ async function snapshotWorkingTree(cwd, options = {}) {
     for (const file of /* @__PURE__ */ new Set([...status.keys(), ...hidden])) {
       content.set(file, await fingerprint(path10.join(root, file)));
     }
+    const exclude = path10.resolve(
+      cwd,
+      (await git.run(env, ["rev-parse", "--git-path", "info/exclude"])).trim()
+    );
+    const excludeKey = path10.relative(root, exclude).startsWith("..") ? exclude : path10.relative(root, exclude);
+    content.set(excludeKey, await fingerprint(exclude));
     return { ok: true, snapshot: { root, head, status, content } };
   } catch (error) {
     return {

@@ -1,5 +1,12 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, realpath, rm, unlink, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdtemp,
+  realpath,
+  rm,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -114,6 +121,24 @@ describe('working-tree snapshot', () => {
       expect(await changesAfter(dir, before)).toEqual(['clean.txt']);
     },
   );
+
+  it('lists a mode change even when the repository ignores file modes', async () => {
+    const dir = await repo();
+    git(dir, 'config', 'core.fileMode', 'false');
+    const before = await snapshot(dir);
+    await chmod(path.join(dir, 'clean.txt'), 0o755);
+
+    expect(await changesAfter(dir, before)).toEqual(['clean.txt']);
+  });
+
+  it('lists an exclude rule added to hide a new file', async () => {
+    const dir = await repo();
+    const before = await snapshot(dir);
+    await writeFile(path.join(dir, '.git', 'info', 'exclude'), 'hidden.txt\n');
+    await writeFile(path.join(dir, 'hidden.txt'), 'peer output\n');
+
+    expect(await changesAfter(dir, before)).toEqual(['.git/info/exclude']);
+  });
 
   it('reports a new commit as a HEAD change', async () => {
     const dir = await repo();

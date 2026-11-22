@@ -5,8 +5,21 @@
 // --untracked-files=all` (ignored files are not covered) plus a sha256 of the
 // current content of every path status lists and of every index entry
 // marked assume-unchanged or skip-worktree, which status never reports.
-// fsmonitor and the untracked cache are disabled for these commands, so a
-// repository setting cannot make status skip a change. Nothing writes objects or the
+// fsmonitor and the untracked cache are disabled and file modes are always
+// compared for these commands, so a repository setting cannot make status
+// skip a change. The repository's info/exclude file is hashed too, so a rule
+// added to hide a new file is itself a change.
+//
+// Known limits, accepted because the check is the loud backstop and deny-all
+// plus the confirmed read-only mode are the prevention (each would need a raw
+// hash of every tracked file or a directory walk on every run):
+// - a clean filter that normalizes the changed bytes back to the indexed
+//   content;
+// - a case-only rename on a case-insensitive filesystem;
+// - files changed inside an untracked nested git repository (status lists
+//   only the directory).
+//
+// Nothing writes objects or the
 // index: no `git add`, and status runs with --no-optional-locks so it never
 // takes index.lock or refreshes the index. git runs with shell:false and
 // with git's repository-local environment variables cleared, so an inherited
@@ -28,6 +41,8 @@ const TRUTHFUL_STATUS_CONFIG = [
   'core.fsmonitor=false',
   '-c',
   'core.untrackedCache=false',
+  '-c',
+  'core.filemode=true',
 ] as const;
 
 export interface WorkingTreeSnapshot {
@@ -83,6 +98,14 @@ export async function snapshotWorkingTree(
     for (const file of new Set([...status.keys(), ...hidden])) {
       content.set(file, await fingerprint(path.join(root, file)));
     }
+    const exclude = path.resolve(
+      cwd,
+      (await git.run(env, ['rev-parse', '--git-path', 'info/exclude'])).trim(),
+    );
+    const excludeKey = path.relative(root, exclude).startsWith('..')
+      ? exclude
+      : path.relative(root, exclude);
+    content.set(excludeKey, await fingerprint(exclude));
     return { ok: true, snapshot: { root, head, status, content } };
   } catch (error) {
     return {
