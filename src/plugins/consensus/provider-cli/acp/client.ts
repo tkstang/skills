@@ -7,6 +7,9 @@
 //
 // Per-agent differences are plain data in AcpSessionPlan; this module has
 // no provider branches.
+import { realpathSync } from 'node:fs';
+import path from 'node:path';
+
 import type { JsonRpcOutcome } from './jsonrpc.js';
 import { isRecord, JsonRpcConnection } from './jsonrpc.js';
 import type {
@@ -481,6 +484,11 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
 
   function finalize(): AcpRunOutcome {
     if (abortReason) result.abort = abortReason;
+    result.denials = result.denials.map((denial) =>
+      denial.path
+        ? { ...denial, path: displayPath(denial.path, input.cwd) }
+        : denial,
+    );
     const ignored = connection.stats().ignored_lines;
     if (ignored > 0) result.ignored_lines = ignored;
     const outcome: AcpRunOutcome = {
@@ -730,6 +738,50 @@ class SessionState {
     const marker = watch?.step.confirm.marker;
     if (watch && marker !== undefined && content.text === marker) {
       watch.echoed ??= 'marker';
+    }
+  }
+}
+
+const MAX_DISPLAY_PATH_CHARS = 240;
+
+// A denied request's path, relative to the run's cwd when it is inside it.
+// Both sides are compared as real paths (agy reports /private/tmp for a cwd
+// of /tmp); a path outside the cwd stays as the agent reported it.
+function displayPath(reported: string, cwd: string): string {
+  let shown = reported;
+  if (path.isAbsolute(reported)) {
+    const realCwd = realpathOrSelf(path.resolve(cwd));
+    const relative = path.relative(realCwd, realExistingPrefix(reported));
+    if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
+      shown = relative === '' ? '.' : relative;
+    }
+  }
+  return shown.length > MAX_DISPLAY_PATH_CHARS
+    ? `${shown.slice(0, MAX_DISPLAY_PATH_CHARS)}…`
+    : shown;
+}
+
+function realpathOrSelf(file: string) {
+  try {
+    return realpathSync(file);
+  } catch {
+    return file;
+  }
+}
+
+// The real path of the deepest existing ancestor, plus the rest: the file a
+// denied write names usually does not exist.
+function realExistingPrefix(file: string) {
+  const rest: string[] = [];
+  let current = path.resolve(file);
+  for (;;) {
+    try {
+      return path.join(realpathSync(current), ...rest.toReversed());
+    } catch {
+      const parent = path.dirname(current);
+      if (parent === current) return file;
+      rest.push(path.basename(current));
+      current = parent;
     }
   }
 }

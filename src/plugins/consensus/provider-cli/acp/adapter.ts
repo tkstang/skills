@@ -438,5 +438,10 @@ function extractAcpPermissionDenials(
         result.denials.map((denial) => denial.tool ?? denial.kind ?? 'tool'),
       ),
     ],
+    requests: result.denials.map((denial) => ({
+      ...(denial.tool !== undefined ? { tool: denial.tool } : {}),
+      ...(denial.kind !== undefined ? { kind: denial.kind } : {}),
+      ...(denial.path !== undefined ? { path: denial.path } : {}),
+    })),
   };
 }

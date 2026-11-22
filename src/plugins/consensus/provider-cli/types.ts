@@ -252,6 +252,10 @@ export interface ProviderAcpDiagnostics {
 export interface ProviderPermissionDenials {
   count: number;
   tools: string[];
+  // Extended (ACP) runs: each denied request's tool, its ACP tool kind, and
+  // the first path it named (relative to cwd when inside it). Never tool
+  // input or content.
+  requests?: Array<{ tool?: string; kind?: string; path?: string }>;
 }
 
 // How a timed-out, capped, or interrupted provider run was stopped. `reason`

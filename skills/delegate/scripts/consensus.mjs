@@ -1,7 +1,7 @@
 // GENERATED skill payload for consensus-delegate.
 
 // src/plugins/consensus/provider-cli/cli.ts
-import { realpathSync as realpathSync2 } from "node:fs";
+import { realpathSync as realpathSync3 } from "node:fs";
 import { readFile as readFile3, stat as stat2 } from "node:fs/promises";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
@@ -617,7 +617,7 @@ function assertNever(value) {
 // src/plugins/consensus/provider-cli/acp/adapter.ts
 import { mkdir as mkdir2, mkdtemp, rm as rm3, writeFile as writeFile2 } from "node:fs/promises";
 import os from "node:os";
-import path2 from "node:path";
+import path3 from "node:path";
 
 // src/plugins/consensus/provider-cli/subprocess.ts
 import { spawn } from "node:child_process";
@@ -1125,6 +1125,10 @@ function failure(input) {
   };
 }
 
+// src/plugins/consensus/provider-cli/acp/client.ts
+import { realpathSync } from "node:fs";
+import path2 from "node:path";
+
 // src/plugins/consensus/provider-cli/acp/jsonrpc.ts
 var JsonRpcConnection = class {
   constructor(options) {
@@ -1516,6 +1520,7 @@ var CANCELLED_PERMISSION_OUTCOME = {
 };
 var REJECT_KINDS = ["reject_once", "reject_always"];
 var MAX_FIELD_CHARS = 120;
+var MAX_PATH_CHARS = 4096;
 function denyPermissionRequest(params, options = {}) {
   const request = isRecord2(params) ? params : {};
   const denialBase = describeToolCall(request.toolCall);
@@ -1551,15 +1556,18 @@ function describeToolCall(toolCall) {
   const tool = shortString(toolCall.name) ?? shortString(toolCall.title);
   const toolCallId = shortString(toolCall.toolCallId);
   const kind = shortString(toolCall.kind);
+  const location = Array.isArray(toolCall.locations) && isRecord2(toolCall.locations[0]) ? toolCall.locations[0].path : void 0;
+  const firstPath = typeof location === "string" && location !== "" ? shortString(location, MAX_PATH_CHARS) : void 0;
   return {
     ...toolCallId !== void 0 ? { tool_call_id: toolCallId } : {},
     ...tool !== void 0 ? { tool } : {},
-    ...kind !== void 0 ? { kind } : {}
+    ...kind !== void 0 ? { kind } : {},
+    ...firstPath !== void 0 ? { path: firstPath } : {}
   };
 }
-function shortString(value) {
+function shortString(value, max = MAX_FIELD_CHARS) {
   if (typeof value !== "string" || value === "") return void 0;
-  return value.length > MAX_FIELD_CHARS ? `${value.slice(0, MAX_FIELD_CHARS)}\u2026` : value;
+  return value.length > max ? `${value.slice(0, max)}\u2026` : value;
 }
 
 // src/plugins/consensus/provider-cli/acp/transcript.ts
@@ -2139,6 +2147,9 @@ async function runAcpTurn(input) {
   }
   function finalize() {
     if (abortReason) result.abort = abortReason;
+    result.denials = result.denials.map(
+      (denial) => denial.path ? { ...denial, path: displayPath(denial.path, input.cwd) } : denial
+    );
     const ignored = connection.stats().ignored_lines;
     if (ignored > 0) result.ignored_lines = ignored;
     const outcome = {
@@ -2337,6 +2348,39 @@ var SessionState = class {
     }
   }
 };
+var MAX_DISPLAY_PATH_CHARS = 240;
+function displayPath(reported, cwd) {
+  let shown = reported;
+  if (path2.isAbsolute(reported)) {
+    const realCwd = realpathOrSelf(path2.resolve(cwd));
+    const relative = path2.relative(realCwd, realExistingPrefix(reported));
+    if (!relative.startsWith("..") && !path2.isAbsolute(relative)) {
+      shown = relative === "" ? "." : relative;
+    }
+  }
+  return shown.length > MAX_DISPLAY_PATH_CHARS ? `${shown.slice(0, MAX_DISPLAY_PATH_CHARS)}\u2026` : shown;
+}
+function realpathOrSelf(file) {
+  try {
+    return realpathSync(file);
+  } catch {
+    return file;
+  }
+}
+function realExistingPrefix(file) {
+  const rest = [];
+  let current = path2.resolve(file);
+  for (; ; ) {
+    try {
+      return path2.join(realpathSync(current), ...rest.toReversed());
+    } catch {
+      const parent = path2.dirname(current);
+      if (parent === current) return file;
+      rest.push(path2.basename(current));
+      current = parent;
+    }
+  }
+}
 function killGroupNow(pid) {
   if (pid === void 0) return;
   try {
@@ -2499,13 +2543,13 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
     const home = useApiKey ? apiKey.private_home : void 0;
     if (home) {
       privateHome = await mkdtemp(
-        path2.join(context.tmpDir ?? os.tmpdir(), `consensus-${descriptor.id}-`)
+        path3.join(context.tmpDir ?? os.tmpdir(), `consensus-${descriptor.id}-`)
       );
       const settings = `${JSON.stringify(home.settings)}
 `;
       for (const file of home.settings_files) {
-        const target = path2.join(privateHome, file);
-        await mkdir2(path2.dirname(target), { recursive: true, mode: 448 });
+        const target = path3.join(privateHome, file);
+        await mkdir2(path3.dirname(target), { recursive: true, mode: 448 });
         await writeFile2(target, settings, { mode: 384 });
       }
       argv.push(
@@ -2656,18 +2700,23 @@ function extractAcpPermissionDenials(stdout) {
       ...new Set(
         result.denials.map((denial) => denial.tool ?? denial.kind ?? "tool")
       )
-    ]
+    ],
+    requests: result.denials.map((denial) => ({
+      ...denial.tool !== void 0 ? { tool: denial.tool } : {},
+      ...denial.kind !== void 0 ? { kind: denial.kind } : {},
+      ...denial.path !== void 0 ? { path: denial.path } : {}
+    }))
   };
 }
 
 // src/plugins/consensus/provider-cli/invocation.ts
 import { randomUUID as randomUUID2 } from "node:crypto";
 import { tmpdir } from "node:os";
-import path4 from "node:path";
+import path5 from "node:path";
 
 // src/plugins/consensus/provider-cli/runtime-policy.ts
-import { realpathSync, statSync } from "node:fs";
-import path3 from "node:path";
+import { realpathSync as realpathSync2, statSync } from "node:fs";
+import path4 from "node:path";
 var DEFAULT_RUNTIME_POLICY = {
   permission_mode: "non-interactive"
 };
@@ -2756,7 +2805,7 @@ function validateProviderOptions(request, adapter) {
     ["edit_paths", policy.edit_paths]
   ]) {
     for (const filePath of paths ?? []) {
-      if (!path3.isAbsolute(filePath) || path3.normalize(filePath) !== filePath || filePath.split(path3.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
+      if (!path4.isAbsolute(filePath) || path4.normalize(filePath) !== filePath || filePath.split(path4.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
         return unsupported(
           `runtime_policy.${field}`,
           `${field} requires exact absolute paths without parent traversal or glob characters.`
@@ -2765,13 +2814,13 @@ function validateProviderOptions(request, adapter) {
       try {
         const target = statSync(filePath, { throwIfNoEntry: false });
         if (target) {
-          if (!target.isFile() || realpathSync(filePath) !== filePath) {
+          if (!target.isFile() || realpathSync2(filePath) !== filePath) {
             return unsupported(
               `runtime_policy.${field}`,
               `${field} requires canonical regular-file targets, not directories or symlinks.`
             );
           }
-        } else if (field === "read_paths" || realpathSync(path3.dirname(filePath)) !== path3.dirname(filePath)) {
+        } else if (field === "read_paths" || realpathSync2(path4.dirname(filePath)) !== path4.dirname(filePath)) {
           return unsupported(
             `runtime_policy.${field}`,
             `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
@@ -3155,7 +3204,7 @@ function codexConfigOverride(key, value) {
   return `${key}=${JSON.stringify(value)}`;
 }
 function codexLastMessageFile() {
-  return path4.join(
+  return path5.join(
     tmpdir(),
     `consensus-codex-last-message-${randomUUID2()}.txt`
   );
@@ -4955,17 +5004,17 @@ function buildAttemptSummary(attempts, retryable) {
 // src/plugins/consensus/provider-cli/probe.ts
 import { constants } from "node:fs";
 import { access as access2, stat } from "node:fs/promises";
-import path6 from "node:path";
+import path7 from "node:path";
 
 // src/plugins/consensus/provider-cli/executable.ts
-import path5 from "node:path";
+import path6 from "node:path";
 function resolveProviderExecutable(adapter, env) {
   const variable = adapter.executable_env;
   const value = env[variable];
   if (value === void 0 || value === "") {
     return { ok: true, executable: adapter.executable };
   }
-  if (!path5.isAbsolute(value)) {
+  if (!path6.isAbsolute(value)) {
     return {
       ok: false,
       message: `${variable} must be an absolute path to an executable, not ${JSON.stringify(value)}.`
@@ -5015,7 +5064,7 @@ async function probeProviderReadiness(adapter, options) {
   }
   const command = resolved.executable;
   const executable = await options.runner.findExecutable(command);
-  if (!executable || !path6.isAbsolute(executable)) {
+  if (!executable || !path7.isAbsolute(executable)) {
     return providerEntry(adapter, "missing", {
       ...adapter.install_hint ? { install_hint: adapter.install_hint } : {},
       warnings: [
@@ -5130,7 +5179,7 @@ async function checkProviderPrerequisites(adapter, runner) {
       );
     }
     const executable = await runner.findExecutable(resolved.executable);
-    if (!executable || !path6.isAbsolute(executable)) {
+    if (!executable || !path7.isAbsolute(executable)) {
       return failed(
         missing(`${prerequisite.name} was not found (${resolved.executable})`)
       );
@@ -5210,20 +5259,20 @@ function nodeProbeCommandRunner(env = process.env, options = {}) {
   };
 }
 async function findExecutable(command, env) {
-  if (command.includes(path6.sep)) {
+  if (command.includes(path7.sep)) {
     return firstExecutable(command);
   }
   const pathValue = env.PATH ?? "";
-  for (const searchPath of pathValue.split(path6.delimiter)) {
-    if (!path6.isAbsolute(searchPath)) continue;
-    const found = await firstExecutable(path6.join(searchPath, command));
+  for (const searchPath of pathValue.split(path7.delimiter)) {
+    if (!path7.isAbsolute(searchPath)) continue;
+    const found = await firstExecutable(path7.join(searchPath, command));
     if (found) return found;
   }
   return void 0;
 }
 var WINDOWS_EXECUTABLE_EXTENSIONS = [".exe", ".com"];
 async function firstExecutable(filePath) {
-  const candidates = process.platform === "win32" && !path6.extname(filePath) ? [
+  const candidates = process.platform === "win32" && !path7.extname(filePath) ? [
     filePath,
     ...WINDOWS_EXECUTABLE_EXTENSIONS.map((ext) => filePath + ext)
   ] : [filePath];
@@ -5436,12 +5485,12 @@ function describeVersionPin(pin) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 import { readFile as readFile2, rm as rm4 } from "node:fs/promises";
-import path10 from "node:path";
+import path11 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/plugins/consensus/provider-cli/continuation.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
-import path7 from "node:path";
+import path8 from "node:path";
 var UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 var NOT_STARTED_FAILURE_CODES = [
   "PROVIDER_MISSING",
@@ -5554,7 +5603,7 @@ function continuationReceipt(input) {
     ...mode === "reconstructed" && previousSessionId(request) ? { previous_session_id: previousSessionId(request) } : {},
     consultation_id: input.consultationId,
     ...round !== void 0 ? { round } : {},
-    cwd: path7.resolve(request.cwd ?? process.cwd()),
+    cwd: path8.resolve(request.cwd ?? process.cwd()),
     ...request.model ? { requested_model: request.model } : {},
     ...input.defaultModel ? { default_model: input.defaultModel } : {},
     ...request.effort ? { requested_effort: request.effort } : {},
@@ -5576,7 +5625,7 @@ function previousSessionId(request) {
 
 // src/plugins/consensus/provider-cli/submit-capture.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
-import path8 from "node:path";
+import path9 from "node:path";
 var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
 var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
 var CONSENSUS_SUBMIT_CAPTURE_DIR = ".consensus/submit";
@@ -5615,10 +5664,10 @@ function submitCaptureLimitMessage(bytes, maxBytes) {
   return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
 }
 function submitCaptureDirectory(cwd) {
-  return path8.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
+  return path9.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
 }
 function submitCaptureFilePath(cwd, id = randomUUID4()) {
-  return path8.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
+  return path9.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
 }
 
 // src/plugins/consensus/provider-cli/working-tree.ts
@@ -5626,7 +5675,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { lstat, readlink } from "node:fs/promises";
-import path9 from "node:path";
+import path10 from "node:path";
 var GIT_TIMEOUT_MS = 3e4;
 var GIT_MAX_BUFFER = 64 * 1024 * 1024;
 var MAX_LISTED_PATHS = 20;
@@ -5663,7 +5712,7 @@ async function snapshotWorkingTree(cwd, options = {}) {
     );
     const content = /* @__PURE__ */ new Map();
     for (const file of /* @__PURE__ */ new Set([...status.keys(), ...hidden])) {
-      content.set(file, await fingerprint(path9.join(root, file)));
+      content.set(file, await fingerprint(path10.join(root, file)));
     }
     return { ok: true, snapshot: { root, head, status, content } };
   } catch (error) {
@@ -6006,7 +6055,7 @@ async function runCheckedExtendedTurn(request, dependencies, trace, turnOptions 
   if (defaultRuntimePolicy(request.runtime_policy).permission_mode !== "read-only") {
     return runStructuredTurn(request, dependencies, trace, turnOptions);
   }
-  const cwd = path10.resolve(request.cwd ?? process.cwd());
+  const cwd = path11.resolve(request.cwd ?? process.cwd());
   const env = dependencies.parentEnv ?? process.env;
   const before = await snapshotWorkingTree(cwd, { env });
   if (!before.ok) {
@@ -6171,7 +6220,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     prerequisiteExecutables = prerequisites.executables;
   }
   const executable = await finder.findExecutable(resolvedExecutable.executable);
-  if (!executable || !path10.isAbsolute(executable)) {
+  if (!executable || !path11.isAbsolute(executable)) {
     return preInvocationFailure({
       provider: request.provider,
       code: "PROVIDER_MISSING",
@@ -6197,7 +6246,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         CONSENSUS_SUBMIT_COMMAND: submitCommand,
         CONSENSUS_SUBMIT_FILE: submitCapturePath,
         [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path10.resolve(schemaPath)
+        CONSENSUS_SUBMIT_SCHEMA: path11.resolve(schemaPath)
       } : {}
     }
   });
@@ -6562,7 +6611,7 @@ function buildConsensusSubmitCommand(input = {}) {
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
 }
 function currentConsensusCliPath() {
-  if (process.argv[1]) return path10.resolve(process.argv[1]);
+  if (process.argv[1]) return path11.resolve(process.argv[1]);
   return fileURLToPath(import.meta.url);
 }
 function shellQuote(value) {
@@ -7182,7 +7231,7 @@ function readAllStdin(stdin, maxBytes) {
 }
 function isEntrypointPath(argvPath) {
   try {
-    return realpathSync2(argvPath) === realpathSync2(fileURLToPath2(import.meta.url));
+    return realpathSync3(argvPath) === realpathSync3(fileURLToPath2(import.meta.url));
   } catch (error) {
     const code = error.code;
     if (code === "ENOENT" || code === "ENOTDIR") return false;

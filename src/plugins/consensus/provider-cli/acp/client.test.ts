@@ -280,6 +280,8 @@ describe('ACP session driver', () => {
         tool_call_id: 'call_1824620788134260230',
         tool: 'write_file',
         kind: 'edit',
+        // Outside the run's cwd, so kept as reported.
+        path: '/home/user/acp-spike/fixture/probe-write.txt',
         outcome: 'rejected',
       },
     ]);

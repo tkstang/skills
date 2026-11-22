@@ -29,11 +29,15 @@ export interface AcpPermissionDenial {
   // The tool's name, else its title.
   tool?: string;
   kind?: string;
+  // The first location the request names, as the agent reported it; the
+  // client shortens it relative to the run's cwd.
+  path?: string;
   outcome: 'rejected' | 'cancelled';
 }
 
 const REJECT_KINDS = ['reject_once', 'reject_always'] as const;
 const MAX_FIELD_CHARS = 120;
+const MAX_PATH_CHARS = 4096;
 
 export function denyPermissionRequest(
   params: unknown,
@@ -81,16 +85,23 @@ function describeToolCall(
   const tool = shortString(toolCall.name) ?? shortString(toolCall.title);
   const toolCallId = shortString(toolCall.toolCallId);
   const kind = shortString(toolCall.kind);
+  const location =
+    Array.isArray(toolCall.locations) && isRecord(toolCall.locations[0])
+      ? toolCall.locations[0].path
+      : undefined;
+  const firstPath =
+    typeof location === 'string' && location !== ''
+      ? shortString(location, MAX_PATH_CHARS)
+      : undefined;
   return {
     ...(toolCallId !== undefined ? { tool_call_id: toolCallId } : {}),
     ...(tool !== undefined ? { tool } : {}),
     ...(kind !== undefined ? { kind } : {}),
+    ...(firstPath !== undefined ? { path: firstPath } : {}),
   };
 }
 
-function shortString(value: unknown) {
+function shortString(value: unknown, max = MAX_FIELD_CHARS) {
   if (typeof value !== 'string' || value === '') return undefined;
-  return value.length > MAX_FIELD_CHARS
-    ? `${value.slice(0, MAX_FIELD_CHARS)}…`
-    : value;
+  return value.length > max ? `${value.slice(0, max)}…` : value;
 }

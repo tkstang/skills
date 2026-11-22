@@ -203,11 +203,24 @@ describe('extended runs through runProviderTurn', () => {
     });
   });
 
-  it('fails as permission denied when a denial leaves no answer (agy)', async () => {
+  it('fails as permission denied when a denial leaves no answer (agy), naming its kind and path', async () => {
+    const realCwd = await checkout();
+    // The run is given the cwd through the tmpdir symlink (macOS /var ->
+    // /private/var); agy reports the real path.
+    const cwd = path.join(os.tmpdir(), path.basename(realCwd));
+    const scenario = await withAgySetup('agy-gui-write-nocaps');
+    const request = scenario.steps.find(
+      (step) => (step.send as any)?.method === 'session/request_permission',
+    ) as { send: { params: { toolCall: Record<string, unknown> } } };
+    request.send.params.toolCall.locations = [
+      { path: path.join(realCwd, 'notes', 'probe-write.txt') },
+      { path: '/elsewhere/second.txt' },
+    ];
     const { envelope } = await runTurn(
       ANTIGRAVITY_DESCRIPTOR,
-      await withAgySetup('agy-gui-write-nocaps'),
+      scenario,
       { model: 'gemini-3.8-flash' },
+      { cwd },
     );
 
     expect(envelope).toMatchObject({
@@ -215,7 +228,19 @@ describe('extended runs through runProviderTurn', () => {
       code: 'PROVIDER_PERMISSION_DENIED',
       retryable: false,
       attempts: { cli_attempts: 1, terminal_reason: 'acp_permission_denied' },
-      diagnostics: { permission_denials: { count: 1 } },
+      diagnostics: {
+        permission_denials: {
+          count: 1,
+          tools: ['write_file'],
+          requests: [
+            {
+              tool: 'write_file',
+              kind: 'edit',
+              path: path.join('notes', 'probe-write.txt'),
+            },
+          ],
+        },
+      },
       continuation: { turn: 'completed' },
     });
     expect(envelope.ok === false && envelope.message).toMatch(

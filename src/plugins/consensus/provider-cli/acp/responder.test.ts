@@ -50,7 +50,7 @@ describe('denyPermissionRequest', () => {
     expect(response).toEqual({ outcome: { outcome: 'cancelled' } });
   });
 
-  it('records only identifying fields, never input, content or paths', () => {
+  it('records identifying fields and the first location, never input or content', () => {
     const { denial } = denyPermissionRequest({
       toolCall,
       options: [{ optionId: 'no', kind: 'reject_once' }],
@@ -60,6 +60,7 @@ describe('denyPermissionRequest', () => {
       tool_call_id: 'call-7',
       tool: 'write_file',
       kind: 'edit',
+      path: '/repo/notes.txt',
       outcome: 'rejected',
     });
   });
