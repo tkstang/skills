@@ -16,7 +16,11 @@ import {
   isCodexReadOnlyPolicy,
 } from './runtime-policy.js';
 import { isReliableExternalInterrupt } from './subprocess.js';
-import type { ProviderProcessSuccess } from './subprocess.js';
+import type {
+  ProviderProcessResult,
+  ProviderProcessSuccess,
+  RunProviderSubprocessOptions,
+} from './subprocess.js';
 import type {
   ConsensusCliRunRequest,
   ProviderExitClassification,
@@ -76,6 +80,12 @@ export interface ProviderAdapter {
   // A profile that cannot repeat side effects, so its turn may be retried.
   // Default: not proven, so the turn runs once.
   isProvenReadOnly?: (policy: ProviderRuntimePolicy) => boolean;
+  // Runs the invocation in place of the subprocess runner, for providers
+  // the adapter drives itself (ACP sessions). Default: runProviderSubprocess.
+  run?: (
+    invocation: ProviderInvocation,
+    options: RunProviderSubprocessOptions,
+  ) => Promise<ProviderProcessResult>;
 }
 
 export interface ProviderSessionObservation {
@@ -118,7 +128,9 @@ export interface ProviderRunFailureClassification {
   retryable: boolean;
   terminal_reason: string;
   exit_classification: ProviderExitClassification;
-  turn?: 'not_started' | 'unknown';
+  // `completed`: the provider finished the turn but its answer is unusable
+  // (an ACP peer that was denied a tool and ended without an answer).
+  turn?: 'not_started' | 'unknown' | 'completed';
 }
 
 export type ProviderRunFailureClassifier = (

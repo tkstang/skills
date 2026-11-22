@@ -48,6 +48,9 @@ export const OUTPUT_MODES = [
   'json_envelope',
   'last_message_file',
   'sidecar_file',
+  // An ACP session the adapter drives itself; stdout carries the normalized
+  // turn result, never raw frames.
+  'acp_session',
 ] as const;
 
 export type OutputMode = (typeof OUTPUT_MODES)[number];
@@ -209,6 +212,40 @@ export interface ProviderDiagnostics {
   permission_denials?: ProviderPermissionDenials;
   permission_profile?: ProviderPermissionProfile;
   termination?: ProviderTermination;
+  // Extended (ACP) runs only.
+  acp?: ProviderAcpDiagnostics;
+  // Paths (and `HEAD`) that changed during an extended read-only turn.
+  working_tree_changes?: string[];
+}
+
+// What an ACP session reported, for diagnosis. Never answer text, raw
+// frames, tool input or credentials.
+export interface ProviderAcpDiagnostics {
+  agent?: { name?: string; title?: string; version?: string };
+  // `api_key`: the descriptor's key variable was set and the adapter
+  // authenticated with it; `existing_login`: the agent's own saved login.
+  auth: 'api_key' | 'existing_login';
+  phase: string;
+  stop_reason?: string;
+  // Each read-only setup step and what confirmed it.
+  setup: Array<{
+    step: string;
+    id: string;
+    value: string;
+    confirmed: boolean;
+    evidence?: string;
+  }>;
+  // Agent->client methods refused with -32601.
+  refused_methods?: string[];
+  cancel_sent?: boolean;
+  session_closed?: boolean;
+  // How the agent's process group was stopped after the session.
+  teardown?: {
+    scope: 'process_group' | 'process';
+    exited_before_signal: boolean;
+    signals: string[];
+    settled_by: string;
+  };
 }
 
 // Tool calls the provider reports it denied during the turn.
@@ -299,6 +336,9 @@ export interface ContinuationReceipt {
   round?: number;
   cwd: string;
   requested_model?: string;
+  // The consensus-config default an extended provider ran with when the
+  // caller named no model (defaults.provider_models).
+  default_model?: string;
   requested_effort?: string;
   observed_models?: string[];
   runtime_policy?: ProviderRuntimePolicy;

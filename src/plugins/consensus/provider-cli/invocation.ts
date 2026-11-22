@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import type { AcpSessionPlan } from './acp/client.js';
 import type { ProviderAdapter } from './adapters.js';
 import { composeClaudePermissionProfile } from './runtime-policy.js';
 import type {
@@ -23,6 +24,8 @@ export interface ProviderInvocation {
   cleanup_last_message_file?: boolean;
   // Claude only: the permission controls this invocation applies.
   permission_profile?: ProviderPermissionProfile;
+  // ACP adapters only: the session plan their run hook drives.
+  acp_plan?: AcpSessionPlan;
   shell: false;
 }
 

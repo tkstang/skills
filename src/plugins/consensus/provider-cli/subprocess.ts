@@ -51,7 +51,7 @@ export interface ProviderProcessFailure {
 }
 
 const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 10;
-const DEFAULT_TIMEOUT_SEC = 300;
+export const DEFAULT_TIMEOUT_SEC = 300;
 const DEFAULT_TERMINATION_GRACE_MS = 250;
 const DEFAULT_FINAL_RESOLUTION_MS = 1000;
 const USE_PROCESS_GROUP = process.platform !== 'win32';
