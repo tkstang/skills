@@ -47,7 +47,9 @@ var ANTIGRAVITY_DESCRIPTOR = {
       app_data_flag: "--app-data-dir",
       app_data_name: "consensus-agy",
       settings_files: ["antigravity-cli/settings.json", "config/settings.json"],
-      settings: { modelProvider: "gemini" }
+      settings: { modelProvider: "gemini" },
+      // agy reads its own transcript under <home>/consensus-agy/brain/.
+      allow_reads: true
     }
   },
   auth_hint: "Sign in with `agy acp --login` from a desktop terminal, or set GEMINI_API_KEY.",
@@ -60,7 +62,10 @@ var ANTIGRAVITY_DESCRIPTOR = {
     },
     { pattern: /agent executor error/i, code: "PROVIDER_EXIT" }
   ],
-  brief_lines: ["Do not use invoke_subagent, swarm, run_workflow or schedule."]
+  brief_lines: [
+    "Do not use invoke_subagent, swarm, run_workflow or schedule.",
+    "Only read files inside the working directory; do not read parent directories."
+  ]
 };
 var GEMINI_DESCRIPTOR = {
   id: "gemini",

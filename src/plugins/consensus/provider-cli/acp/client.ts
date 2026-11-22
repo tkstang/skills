@@ -21,8 +21,10 @@ import type {
 import { spawnProcessGroup, withTimeout } from './process.js';
 import {
   ACP_CLIENT_CAPABILITIES,
+  allowReadRequest,
   denyPermissionRequest,
   methodNotFound,
+  realExistingPath,
 } from './responder.js';
 import type {
   AcpAbortReason,
@@ -81,6 +83,9 @@ export interface AcpSessionPlan {
   redactions?: readonly RegExp[];
   // Env names whose values are redacted from error text and stderr.
   credentialEnv?: readonly string[];
+  // Directories a `read` permission request may be allowed inside (see
+  // allowReadRequest). Empty or absent: every request is denied.
+  allowedReadRoots?: readonly string[];
 }
 
 export interface AcpTiming {
@@ -195,6 +200,20 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
     },
     onRequest: (request) => {
       if (request.method === 'session/request_permission') {
+        const read =
+          result.cancel_sent === true
+            ? undefined
+            : allowReadRequest(
+                request.params,
+                input.plan.allowedReadRoots ?? [],
+                {
+                  redact,
+                },
+              );
+        if (read) {
+          (result.allowed_reads ??= []).push(read.allowed);
+          return { result: read.response };
+        }
         const { response, denial } = denyPermissionRequest(request.params, {
           cancelled: result.cancel_sent === true,
           redact,
@@ -753,7 +772,7 @@ function displayPath(
   let shown = reported;
   if (path.isAbsolute(reported)) {
     const realCwd = realpathOrSelf(path.resolve(cwd));
-    const relative = path.relative(realCwd, realExistingPrefix(reported));
+    const relative = path.relative(realCwd, realExistingPath(reported));
     if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
       shown = relative === '' ? '.' : relative;
     }
@@ -766,23 +785,6 @@ function realpathOrSelf(file: string) {
     return realpathSync(file);
   } catch {
     return file;
-  }
-}
-
-// The real path of the deepest existing ancestor, plus the rest: the file a
-// denied write names usually does not exist.
-function realExistingPrefix(file: string) {
-  const rest: string[] = [];
-  let current = path.resolve(file);
-  for (;;) {
-    try {
-      return path.join(realpathSync(current), ...rest.toReversed());
-    } catch {
-      const parent = path.dirname(current);
-      if (parent === current) return file;
-      rest.push(path.basename(current));
-      current = parent;
-    }
   }
 }
 

@@ -50,6 +50,13 @@ export interface AcpProviderDescriptor {
       app_data_name: string;
       settings_files: readonly string[];
       settings: Record<string, unknown>;
+      // Allow `read` requests inside this directory. It is a temp dir the
+      // adapter creates for the run and deletes after it, holding no repo
+      // or user data; the agent reads its own session files there. The
+      // reported kind is untrusted, so whatever is allowed can only touch
+      // that temp dir, which the working-tree check neither covers nor
+      // needs to.
+      allow_reads?: boolean;
     };
   };
   auth_hint: string;
@@ -94,6 +101,8 @@ export const ANTIGRAVITY_DESCRIPTOR: AcpProviderDescriptor = {
       app_data_name: 'consensus-agy',
       settings_files: ['antigravity-cli/settings.json', 'config/settings.json'],
       settings: { modelProvider: 'gemini' },
+      // agy reads its own transcript under <home>/consensus-agy/brain/.
+      allow_reads: true,
     },
   },
   auth_hint:
@@ -107,7 +116,10 @@ export const ANTIGRAVITY_DESCRIPTOR: AcpProviderDescriptor = {
     },
     { pattern: /agent executor error/i, code: 'PROVIDER_EXIT' },
   ],
-  brief_lines: ['Do not use invoke_subagent, swarm, run_workflow or schedule.'],
+  brief_lines: [
+    'Do not use invoke_subagent, swarm, run_workflow or schedule.',
+    'Only read files inside the working directory; do not read parent directories.',
+  ],
 };
 
 export const GEMINI_DESCRIPTOR: AcpProviderDescriptor = {

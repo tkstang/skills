@@ -219,7 +219,7 @@ async function runAcpInvocation(
   const env = options.env ?? {};
   const apiKey = descriptor.api_key;
   const useApiKey = apiKey !== undefined && (env[apiKey.env] ?? '') !== '';
-  const plan: AcpSessionPlan = useApiKey
+  let plan: AcpSessionPlan = useApiKey
     ? { ...basePlan, authenticate: { methodId: apiKey.method_id } }
     : basePlan;
   const argv = [...invocation.argv];
@@ -244,6 +244,9 @@ async function runAcpInvocation(
         `${home.dir_flag}=${privateHome}`,
         `${home.app_data_flag}=${home.app_data_name}`,
       );
+      if (home.allow_reads) {
+        plan = { ...plan, allowedReadRoots: [privateHome] };
+      }
     }
     outcome = await context.transport.run({
       executable: invocation.executable,
@@ -316,6 +319,9 @@ function processDiagnostics(
     setup: result.setup.map((step) => ({ ...step })),
     ...(result.refused_methods.length > 0
       ? { refused_methods: [...result.refused_methods] }
+      : {}),
+    ...(result.allowed_reads?.length
+      ? { allowed_reads: result.allowed_reads.map((read) => ({ ...read })) }
       : {}),
     ...(result.cancel_sent ? { cancel_sent: true } : {}),
     ...(result.session_closed !== undefined

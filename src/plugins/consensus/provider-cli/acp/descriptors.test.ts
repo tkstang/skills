@@ -1,9 +1,18 @@
 // Each descriptor's session plan against the sanitized spike frames it was
 // written from, driven through the adapter's own run hook and read back
 // through its hooks. Envelope mapping is covered in run-path.test.ts.
-import { existsSync, readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
 
 import type { ProviderAdapter } from '../adapters.js';
 import type { ProviderProcessResult } from '../subprocess.js';
@@ -42,7 +51,7 @@ async function runDescriptor(
   request: Partial<ConsensusCliRunRequest>,
   options: {
     env?: NodeJS.ProcessEnv;
-    onLaunch?: (launch: FakeAgentLaunch) => void;
+    onLaunch?: (launch: FakeAgentLaunch) => Scenario | void;
   } = {},
 ) {
   const harness = await fakeAgentHarness(scenario, {
@@ -131,6 +140,7 @@ describe('Antigravity descriptor', () => {
       [
         ACP_READ_ONLY_BRIEF_LINE,
         'Do not use invoke_subagent, swarm, run_workflow or schedule.',
+        'Only read files inside the working directory; do not read parent directories.',
         'Reply with the marker.',
       ].join('\n\n'),
     );
@@ -229,6 +239,182 @@ describe('Antigravity descriptor', () => {
       code: 'PROVIDER_LIMIT_REACHED',
       turn: 'completed',
     });
+  });
+});
+
+describe('Antigravity read allowance', () => {
+  const AGY_KEY_SESSION = '6e89d7b8-52b2-437f-aef7-c936d8475ffc';
+  const AGY_DESKTOP_SESSION = 'd1dc1bef-c052-4b55-a232-505704b45765';
+  const TRANSCRIPT =
+    'consensus-agy/brain/0f8e/.system_generated/logs/transcript.jsonl';
+  const outside = mkdtempSync(path.join(os.tmpdir(), 'consensus-outside-'));
+  afterAll(() => rmSync(outside, { recursive: true, force: true }));
+
+  // The recorded session up to the prompt, then one permission request.
+  function withReadRequest(
+    scenario: Scenario,
+    sessionId: string,
+    toolCall: Record<string, unknown>,
+  ): Scenario {
+    return cutAfter(scenario, expects('session/prompt'), [
+      {
+        send: {
+          id: '7',
+          method: 'session/request_permission',
+          params: {
+            sessionId,
+            options: [
+              { optionId: 'allow', name: 'Allow', kind: 'allow_once' },
+              { optionId: 'always', name: 'Always', kind: 'allow_always' },
+              { optionId: 'deny', name: 'Deny', kind: 'reject_once' },
+            ],
+            toolCall: { toolCallId: 'call_7', title: 'Read', ...toolCall },
+          },
+        },
+      },
+      { awaitResponse: '7' },
+      {
+        send: {
+          method: 'session/update',
+          params: {
+            sessionId,
+            update: {
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text: 'Done.' },
+            },
+          },
+        },
+      },
+      { respond: { result: { stopReason: 'end_turn' } } },
+      { expect: 'session/close' },
+      { respond: { result: {} } },
+    ]);
+  }
+
+  async function apiKeyRun(
+    toolCall: (home: string) => Record<string, unknown>,
+  ) {
+    const recorded = dropSteps(
+      await acpFixture('agy-key2-default'),
+      expects('session/set_config_option'),
+      3,
+      1,
+    );
+    const run = await runDescriptor(
+      ANTIGRAVITY_DESCRIPTOR,
+      recorded,
+      { model: 'gemini-3.1-pro' },
+      {
+        env: { GEMINI_API_KEY: FAKE_GEMINI_KEY },
+        onLaunch: (launch) => {
+          const home = launch.argv
+            .find((arg) => arg.startsWith('--gemini-dir='))!
+            .slice('--gemini-dir='.length);
+          return withReadRequest(recorded, AGY_KEY_SESSION, toolCall(home));
+        },
+      },
+    );
+    return { ...run, answer: optionChosen(run.received) };
+  }
+
+  function optionChosen(received: Record<string, any>[]) {
+    return received.find((frame) => frame.id === '7' && !frame.method)?.result
+      .outcome.optionId;
+  }
+
+  it('allows a read of the agent transcript inside the private home, once', async () => {
+    const { adapter, result, answer } = await apiKeyRun((home) => ({
+      name: 'read_file',
+      kind: 'read',
+      locations: [{ path: path.join(home, TRANSCRIPT) }],
+    }));
+
+    expect(answer).toBe('allow');
+    expect(result.ok).toBe(true);
+    expect(result.diagnostics.acp?.allowed_reads).toEqual([
+      { tool: 'read_file', kind: 'read', path: TRANSCRIPT },
+    ]);
+    expect(adapter.extractPermissionDenials?.(result.stdout)).toBeUndefined();
+  });
+
+  it.each<[string, (home: string) => Record<string, unknown>]>([
+    [
+      'a read outside the private home',
+      () => ({
+        name: 'read_file',
+        kind: 'read',
+        locations: [{ path: path.join(outside, 'package.json') }],
+      }),
+    ],
+    [
+      'an edit inside the private home',
+      (home) => ({
+        name: 'write_file',
+        kind: 'edit',
+        locations: [{ path: path.join(home, TRANSCRIPT) }],
+      }),
+    ],
+    [
+      'a read naming one location inside and one outside',
+      (home) => ({
+        name: 'read_file',
+        kind: 'read',
+        locations: [
+          { path: path.join(home, TRANSCRIPT) },
+          { path: path.join(outside, 'package.json') },
+        ],
+      }),
+    ],
+    [
+      'a read through a symlink in the private home that points outside',
+      (home) => {
+        mkdirSync(path.join(home, 'consensus-agy'), { recursive: true });
+        symlinkSync(outside, path.join(home, 'consensus-agy', 'escape'));
+        return {
+          name: 'read_file',
+          kind: 'read',
+          locations: [{ path: path.join(home, 'consensus-agy/escape/x.txt') }],
+        };
+      },
+    ],
+    [
+      'a read with no location',
+      () => ({ name: 'read_file', kind: 'read', locations: [] }),
+    ],
+  ])('denies %s', async (_label, toolCall) => {
+    const { adapter, result, answer } = await apiKeyRun(toolCall);
+
+    expect(answer).toBe('deny');
+    expect(result.diagnostics.acp?.allowed_reads).toBeUndefined();
+    expect(adapter.extractPermissionDenials?.(result.stdout)?.count).toBe(1);
+  });
+
+  it('allows nothing in desktop mode', async () => {
+    let cwd = '';
+    const recorded = dropSteps(
+      await acpFixture('agy-key-default'),
+      expects('session/set_config_option'),
+      3,
+      1,
+    );
+    const { received } = await runDescriptor(
+      ANTIGRAVITY_DESCRIPTOR,
+      recorded,
+      { model: 'gemini-3.8-flash' },
+      {
+        onLaunch: (launch) => {
+          cwd = launch.cwd;
+          return withReadRequest(recorded, AGY_DESKTOP_SESSION, {
+            name: 'read_file',
+            kind: 'read',
+            locations: [{ path: path.join(launch.cwd, 'README.md') }],
+          });
+        },
+      },
+    );
+
+    expect(cwd).not.toBe('');
+    expect(optionChosen(received)).toBe('deny');
   });
 });
 

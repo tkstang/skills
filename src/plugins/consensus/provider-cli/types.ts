@@ -237,6 +237,9 @@ export interface ProviderAcpDiagnostics {
   }>;
   // Agent->client methods refused with -32601.
   refused_methods?: string[];
+  // Read requests allowed inside the run's private home (path relative to
+  // it); never counted as denials.
+  allowed_reads?: Array<{ tool?: string; kind: string; path?: string }>;
   cancel_sent?: boolean;
   session_closed?: boolean;
   // How the agent's process group was stopped after the session.

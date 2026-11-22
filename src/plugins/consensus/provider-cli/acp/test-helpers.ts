@@ -1,6 +1,7 @@
 // Test support for the ACP adapter suites: sanitized spike fixtures, small
 // scenario edits, and a spawn primitive that launches the fake ACP agent in
 // place of the real provider command while recording what was launched.
+import { writeFileSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -115,10 +116,13 @@ export interface FakeAgentHarness {
 
 // A spawn primitive that runs the fake agent on `scenario`, whatever command
 // the adapter asked for. The requested executable, argv and env are kept in
-// `launches`; `onLaunch` runs before the agent starts.
+// `launches`; `onLaunch` runs before the agent starts and may return a
+// replacement scenario built from what was launched.
 export async function fakeAgentHarness(
   scenario: Scenario,
-  options: { onLaunch?: (launch: FakeAgentLaunch) => void } = {},
+  options: {
+    onLaunch?: (launch: FakeAgentLaunch) => Scenario | void;
+  } = {},
 ): Promise<FakeAgentHarness> {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'consensus-acp-harness-'));
   const scenarioPath = path.join(dir, 'scenario.json');
@@ -134,7 +138,8 @@ export async function fakeAgentHarness(
       cwd: requested.cwd,
     };
     launches.push(launch);
-    options.onLaunch?.(launch);
+    const replacement = options.onLaunch?.(launch);
+    if (replacement) writeFileSync(scenarioPath, JSON.stringify(replacement));
     return spawnProcessGroup({
       ...requested,
       executable: process.execPath,
