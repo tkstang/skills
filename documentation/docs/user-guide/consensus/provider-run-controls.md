@@ -197,7 +197,7 @@ covered as well as delegate:
 
 - Before launch it records `HEAD`, the entries of
   `git status --porcelain=v1 -z --untracked-files=all`, and a SHA-256 of the
-  current content of every path that status lists and of every index entry
+  current content, with the permission bits, of every path that status lists and of every index entry
   marked assume-unchanged or skip-worktree, which status never reports, plus
   `.git/info/exclude`. It writes nothing: no `git add`, no index refresh. git
   runs with fsmonitor and the untracked cache turned off and `core.filemode`
@@ -207,7 +207,8 @@ covered as well as delegate:
   fails, the run is refused before launch with `PROVIDER_UNSUPPORTED_OPTION`
   and `attempts.terminal_reason: "working_tree_unavailable"`.
 - After the agent's process group is gone it takes the same snapshot again.
-  Any change to `HEAD`, the status entries, or a listed file's content fails
+  Any change to `HEAD`, the status entries, or a listed file's content or
+  permission bits fails
   the run with `PROVIDER_WORKTREE_CHANGED` (`retryable: false`,
   `attempts.terminal_reason: "working_tree_changed"`), even when the turn
   succeeded. The message names up to 20 changed paths, `HEAD` first when it

@@ -78,6 +78,10 @@ stateDiagram-v2
   ready --> [*]
 ```
 
+For an extended provider, `ready` means only that its CLI is installed at the
+minimum version: preflight runs `--version` alone, and an extended provider
+cannot be a panelist or synthesizer, because those workflows are JSON-mode.
+
 `consensus run` is a separate command and never probes readiness:
 
 ```mermaid
@@ -220,7 +224,9 @@ delegate fallback, and panel auto-fill never pick them.
 ### Sign-in
 
 Preflight runs only `<command> --version`, without the provider's credential
-variables, checks the minimum version, and reports only the numeric version.
+variables, checks the minimum version, and reports only the parsed version (the release,
+plus a plain prerelease tag), left out when it cannot be parsed or would need
+redaction.
 It never opens an ACP session, so `ready` proves neither the sign-in nor the
 model; both are first checked by a run.
 

@@ -34,14 +34,11 @@
   credential variables and provider patterns such as Droid's pairing code are
   redacted from answer text, metadata, denial details, change paths and
   stderr. Preflight probes extended providers with `--version` only, without
-  their credentials, and reports only the numeric version.
+  their credentials, and reports only the parsed version, left out when it
+  would need redaction.
   `consensus-delegate` 0.2.2 (standalone `delegate`, `consensus:delegate`)
   accepts the extended providers as read-only peers and reports both codes.
-  The same release carries `consensus-create` 0.1.26, `consensus-decide`
-  0.1.26, `consensus-plan` 0.1.26, `consensus-refine` 0.1.29,
-  `consensus-evaluate` 0.1.30, `consensus-review` 0.3.1, `consensus-panel`
-  0.1.23, `phone-a-friend` 0.3.5, `session-observer` 1.1.7,
-  `session-observer-collab` 1.0.85, and `session-fork-to-destination` 0.3.12.
+  The other skill versions in this release are listed under Changed.
 
 ### Changed
 
