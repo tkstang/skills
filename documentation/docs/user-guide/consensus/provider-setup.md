@@ -226,8 +226,9 @@ delegate fallback, and panel auto-fill never pick them.
 Preflight runs only `<command> --version`, without the provider's credential
 variables, checks the minimum version, and reports the version as
 MAJOR.MINOR.PATCH plus a plain prerelease tag. The tag is dropped when
-redaction would alter it, and the version is left out when the release cannot
-be shown unredacted or does not have three components.
+redaction would alter it. No version is reported when the version output holds
+anything redaction would alter (an unsupported-version warning then names no
+version), or when the release does not have three components.
 It never opens an ACP session, so `ready` proves neither the sign-in nor the
 model; both are first checked by a run.
 
@@ -258,9 +259,10 @@ listed credential variable is forwarded; `--env-allow` is refused.
   fails with `PROVIDER_EXIT`.
 - With `GEMINI_API_KEY`, agy retries a Gemini API `503` (model under high
   demand) on its own, without telling the client, so a turn can run to the
-  deadline and fail with `PROVIDER_TIMEOUT`; the message says so. A free-tier
-  key allows about 20 requests a day per model, and those retries may count
-  against it. On 2026-11-22, a run with `gemini-3.7-flash` selected was
+  deadline and fail with `PROVIDER_TIMEOUT`; the message says so. In the
+  2026-11-22 diagnostic, the free-tier key's quota for `gemini-3.8-flash`
+  was 20 requests a day, and those retries may count against such a quota.
+  In the same diagnostic, a run with `gemini-3.7-flash` selected was
   refused for a `gemini-3.8-flash` quota, so agy may also spend
   `gemini-3.8-flash` quota on an auxiliary call whatever model is selected
   (observed once, not confirmed). A key with billing enabled has no free-tier

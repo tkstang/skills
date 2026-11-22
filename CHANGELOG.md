@@ -35,7 +35,8 @@
   redacted from answer text, metadata, denial details, change paths and
   stderr. Preflight probes extended providers with `--version` only, without
   their credentials, and reports only MAJOR.MINOR.PATCH plus a plain
-  prerelease tag, dropping whatever redaction would alter.
+  prerelease tag, or no version when the version output holds anything
+  redaction would alter.
   `phone-a-friend` 0.3.5 tells the host that the extended providers are
   text-only and offers a core peer instead.
   `consensus-delegate` 0.2.2 (standalone `delegate`, `consensus:delegate`)
