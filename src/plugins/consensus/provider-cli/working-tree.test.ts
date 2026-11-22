@@ -131,6 +131,14 @@ describe('working-tree snapshot', () => {
     expect(await changesAfter(dir, before)).toEqual(['clean.txt']);
   });
 
+  it('lists a mode change to a file that was already modified', async () => {
+    const dir = await repo();
+    const before = await snapshot(dir);
+    await chmod(path.join(dir, 'dirty.txt'), 0o755);
+
+    expect(await changesAfter(dir, before)).toEqual(['dirty.txt']);
+  });
+
   it('lists an exclude rule added to hide a new file', async () => {
     const dir = await repo();
     const before = await snapshot(dir);

@@ -4864,7 +4864,7 @@ async function fingerprint(file) {
     return `link:${sha256(await readlink(file))}`;
   }
   if (stats.isDirectory()) return "dir";
-  return hashFile(file);
+  return `${(stats.mode & 4095).toString(8)}:${await hashFile(file)}`;
 }
 function hashFile(file) {
   return new Promise((resolve, reject) => {

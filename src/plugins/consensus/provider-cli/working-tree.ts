@@ -207,7 +207,9 @@ async function fingerprint(file: string): Promise<string> {
     return `link:${sha256(await readlink(file))}`;
   }
   if (stats.isDirectory()) return 'dir';
-  return hashFile(file);
+  // Permission bits too: git status cannot show a mode change on a path
+  // that is already modified.
+  return `${(stats.mode & 0o7777).toString(8)}:${await hashFile(file)}`;
 }
 
 function hashFile(file: string): Promise<string> {
