@@ -1,4 +1,11 @@
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -796,6 +803,64 @@ describe('extended provider registration', () => {
 });
 
 describe('node probe command runner', () => {
+  it('probes an extended provider without its credentials and publishes only the version token', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-probe-env-'));
+    try {
+      const secret = 'zq-literal-credential-4711';
+      const stub = await writeExecutableFixture(
+        root,
+        'gemini',
+        `#!/bin/sh\necho "\${GEMINI_API_KEY:-none}" > '${root}/seen-key'\necho "gemini-cli 0.70.0 (build abc)"\n`,
+      );
+      const entry = await probeProviderReadiness(
+        providerRegistry().get('gemini')!,
+        {
+          runner: nodeProbeCommandRunner({
+            PATH: process.env.PATH,
+            GEMINI_API_KEY: secret,
+            CONSENSUS_GEMINI_EXECUTABLE: stub,
+          }),
+          requiredCapabilities: ['run'],
+        },
+      );
+
+      expect(entry).toMatchObject({ status: 'ready', version: '0.70.0' });
+      expect(await readFile(path.join(root, 'seen-key'), 'utf8')).toBe(
+        'none\n',
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('redacts credential values from core probe output kept in warnings', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-probe-env-'));
+    try {
+      const secret = 'zq-literal-credential-4711';
+      const stub = await writeExecutableFixture(
+        root,
+        'codex',
+        '#!/bin/sh\necho "rejected key $OPENAI_API_KEY" >&2\nexit 1\n',
+      );
+      const entry = await probeProviderReadiness(adapter('codex'), {
+        runner: nodeProbeCommandRunner({
+          PATH: process.env.PATH,
+          OPENAI_API_KEY: secret,
+          CONSENSUS_CODEX_EXECUTABLE: stub,
+        }),
+      });
+
+      expect(entry).toMatchObject({
+        status: 'unavailable',
+        diagnostics: {
+          warnings: ['PROVIDER_UNAVAILABLE: rejected key <redacted>'],
+        },
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it('skips relative PATH entries so probes and runs find the same absolute binary', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-finder-'));
     try {

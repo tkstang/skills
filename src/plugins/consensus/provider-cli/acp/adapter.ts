@@ -108,6 +108,9 @@ export function acpAdapter(
       capabilities: {
         run: { args: ['--version'], required_output_patterns: [] },
       },
+      ...(descriptor.redactions
+        ? { output_redactions: descriptor.redactions }
+        : {}),
     },
     buildInvocation: (request, invocationOptions) =>
       buildAcpInvocation(descriptor, request, invocationOptions),

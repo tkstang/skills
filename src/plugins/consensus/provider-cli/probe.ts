@@ -2,6 +2,7 @@ import { constants } from 'node:fs';
 import { access, stat } from 'node:fs/promises';
 import path from 'node:path';
 
+import { redactText } from './acp/transcript.js';
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
 import { resolveProviderExecutable } from './executable.js';
 import { buildProviderProbeEnvironment } from './runtime-policy.js';
@@ -49,6 +50,9 @@ export interface ProviderProbeDefinition {
   >;
   auth_required_patterns?: readonly RegExp[];
   unavailable_patterns?: readonly RegExp[];
+  // Redacted from probe output kept in warnings, beyond the default
+  // credential shapes and the credential values.
+  output_redactions?: readonly RegExp[];
 }
 
 export interface ProbeCommandResult {
@@ -158,12 +162,27 @@ export async function probeProviderReadiness(
     });
   }
 
+  // Extended providers are probed without their credentials and publish
+  // only the parsed version token; any output kept in a warning is redacted
+  // for every provider.
+  const extended = adapter.tier === 'extended';
+  const probed: ProbedAdapter = extended
+    ? { id: adapter.id, credential_env: [] }
+    : adapter;
+  const redact = probeOutputRedactor(adapter, options.runner.env ?? {});
+  const versionLabel = (output: string): { version?: string } => {
+    const version = extended
+      ? parseVersion(output)?.text
+      : redact(firstNonEmptyLine(output) ?? '') || undefined;
+    return version ? { version } : {};
+  };
+
   // Run the program that was found, not the bare command: PATH lookup at
   // spawn time could pick a different binary than the one checked.
   const result = await options.runner.run(
     executable,
     adapter.probe.version_args,
-    adapter,
+    probed,
   );
   const probeFailure = probeFailureEntry(adapter, executable, result);
   if (probeFailure) return probeFailure;
@@ -173,7 +192,9 @@ export async function probeProviderReadiness(
   if (matchesAny(output, adapter.probe.auth_required_patterns)) {
     return providerEntry(adapter, 'auth_required', {
       executable,
-      warnings: [`PROVIDER_AUTH_REQUIRED: ${firstNonEmptyLine(output)}`],
+      warnings: [
+        `PROVIDER_AUTH_REQUIRED: ${redact(`${firstNonEmptyLine(output)}`)}`,
+      ],
     });
   }
 
@@ -183,7 +204,9 @@ export async function probeProviderReadiness(
   ) {
     return providerEntry(adapter, 'unavailable', {
       executable,
-      warnings: [`PROVIDER_UNAVAILABLE: ${firstNonEmptyLine(output)}`],
+      warnings: [
+        `PROVIDER_UNAVAILABLE: ${redact(`${firstNonEmptyLine(output)}`)}`,
+      ],
     });
   }
 
@@ -192,7 +215,7 @@ export async function probeProviderReadiness(
   if (!detectedVersion || !minimumVersion) {
     return providerEntry(adapter, 'unavailable', {
       executable,
-      version: firstNonEmptyLine(output),
+      ...versionLabel(output),
       warnings: [
         `PROVIDER_VERSION_UNPARSEABLE: could not establish ${adapter.id} compatibility from version output`,
       ],
@@ -201,7 +224,7 @@ export async function probeProviderReadiness(
   if (compareNumericVersions(detectedVersion, minimumVersion) < 0) {
     return providerEntry(adapter, 'unavailable', {
       executable,
-      version: firstNonEmptyLine(output),
+      ...versionLabel(output),
       warnings: [
         `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${formatNumericVersion(detectedVersion)} is below required ${adapter.probe.minimum_version}`,
       ],
@@ -213,7 +236,7 @@ export async function probeProviderReadiness(
     const capabilityResult = await options.runner.run(
       executable,
       definition.args,
-      adapter,
+      probed,
     );
     const capabilityFailure = probeFailureEntry(
       adapter,
@@ -230,7 +253,7 @@ export async function probeProviderReadiness(
     ) {
       return providerEntry(adapter, 'unavailable', {
         executable,
-        version: firstNonEmptyLine(output),
+        ...versionLabel(output),
         warnings: [
           `PROVIDER_CAPABILITY_MISSING: ${adapter.id} does not expose required local capability ${capability}`,
         ],
@@ -240,7 +263,7 @@ export async function probeProviderReadiness(
 
   return providerEntry(adapter, 'ready', {
     executable,
-    version: firstNonEmptyLine(output),
+    ...versionLabel(output),
   });
 }
 
@@ -472,6 +495,20 @@ function runProbeCommand(
     ...(result.ok ? {} : { failure_code: result.code }),
     diagnostics: result.diagnostics,
   }));
+}
+
+function probeOutputRedactor(
+  adapter: ProviderAdapter,
+  env: Record<string, string | undefined>,
+) {
+  const secretValues = adapter.credential_env
+    .map((name) => env[name])
+    .filter((value): value is string => typeof value === 'string');
+  return (text: string) =>
+    redactText(text, {
+      patterns: adapter.probe.output_redactions,
+      secretValues,
+    });
 }
 
 function probeFailureEntry(

@@ -1805,7 +1805,8 @@ function acpAdapter(descriptor, options = {}) {
       // session/new), so the version output stands in for it.
       capabilities: {
         run: { args: ["--version"], required_output_patterns: [] }
-      }
+      },
+      ...descriptor.redactions ? { output_redactions: descriptor.redactions } : {}
     },
     buildInvocation: (request, invocationOptions) => buildAcpInvocation(descriptor, request, invocationOptions),
     run: (invocation2, runOptions) => runAcpInvocation(descriptor, invocation2, runOptions, {
@@ -3552,10 +3553,17 @@ async function probeProviderReadiness(adapter, options) {
       ]
     });
   }
+  const extended = adapter.tier === "extended";
+  const probed = extended ? { id: adapter.id, credential_env: [] } : adapter;
+  const redact = probeOutputRedactor(adapter, options.runner.env ?? {});
+  const versionLabel = (output2) => {
+    const version = extended ? parseVersion(output2)?.text : redact(firstNonEmptyLine2(output2) ?? "") || void 0;
+    return version ? { version } : {};
+  };
   const result = await options.runner.run(
     executable,
     adapter.probe.version_args,
-    adapter
+    probed
   );
   const probeFailure = probeFailureEntry(adapter, executable, result);
   if (probeFailure) return probeFailure;
@@ -3564,13 +3572,17 @@ ${result.stderr}`;
   if (matchesAny2(output, adapter.probe.auth_required_patterns)) {
     return providerEntry(adapter, "auth_required", {
       executable,
-      warnings: [`PROVIDER_AUTH_REQUIRED: ${firstNonEmptyLine2(output)}`]
+      warnings: [
+        `PROVIDER_AUTH_REQUIRED: ${redact(`${firstNonEmptyLine2(output)}`)}`
+      ]
     });
   }
   if (result.code !== 0 || matchesAny2(output, adapter.probe.unavailable_patterns)) {
     return providerEntry(adapter, "unavailable", {
       executable,
-      warnings: [`PROVIDER_UNAVAILABLE: ${firstNonEmptyLine2(output)}`]
+      warnings: [
+        `PROVIDER_UNAVAILABLE: ${redact(`${firstNonEmptyLine2(output)}`)}`
+      ]
     });
   }
   const detectedVersion = parseNumericVersion(output);
@@ -3578,7 +3590,7 @@ ${result.stderr}`;
   if (!detectedVersion || !minimumVersion) {
     return providerEntry(adapter, "unavailable", {
       executable,
-      version: firstNonEmptyLine2(output),
+      ...versionLabel(output),
       warnings: [
         `PROVIDER_VERSION_UNPARSEABLE: could not establish ${adapter.id} compatibility from version output`
       ]
@@ -3587,7 +3599,7 @@ ${result.stderr}`;
   if (compareNumericVersions(detectedVersion, minimumVersion) < 0) {
     return providerEntry(adapter, "unavailable", {
       executable,
-      version: firstNonEmptyLine2(output),
+      ...versionLabel(output),
       warnings: [
         `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${formatNumericVersion(detectedVersion)} is below required ${adapter.probe.minimum_version}`
       ]
@@ -3598,7 +3610,7 @@ ${result.stderr}`;
     const capabilityResult = await options.runner.run(
       executable,
       definition.args,
-      adapter
+      probed
     );
     const capabilityFailure = probeFailureEntry(
       adapter,
@@ -3613,7 +3625,7 @@ ${capabilityResult.stderr}`;
     )) {
       return providerEntry(adapter, "unavailable", {
         executable,
-        version: firstNonEmptyLine2(output),
+        ...versionLabel(output),
         warnings: [
           `PROVIDER_CAPABILITY_MISSING: ${adapter.id} does not expose required local capability ${capability}`
         ]
@@ -3622,7 +3634,7 @@ ${capabilityResult.stderr}`;
   }
   return providerEntry(adapter, "ready", {
     executable,
-    version: firstNonEmptyLine2(output)
+    ...versionLabel(output)
   });
 }
 async function checkProviderPrerequisites(adapter, runner) {
@@ -3786,6 +3798,13 @@ function runProbeCommand(command, args, env, options) {
     ...result.ok ? {} : { failure_code: result.code },
     diagnostics: result.diagnostics
   }));
+}
+function probeOutputRedactor(adapter, env) {
+  const secretValues = adapter.credential_env.map((name) => env[name]).filter((value) => typeof value === "string");
+  return (text) => redactText(text, {
+    patterns: adapter.probe.output_redactions,
+    secretValues
+  });
 }
 function probeFailureEntry(adapter, executable, result) {
   if (!result.failure_code) return void 0;
