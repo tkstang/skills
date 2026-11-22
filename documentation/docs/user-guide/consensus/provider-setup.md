@@ -53,7 +53,7 @@ could reach (no registered provider has either today).
 ```mermaid
 stateDiagram-v2
   accTitle: Provider readiness states
-  accDescr: A provider ls or preflight probe ends in one of four states. Missing means the CLI is not on PATH, auth required needs an operator fix, unavailable covers exit, version and capability failures, and ready means the provider can be selected.
+  accDescr: A provider ls or preflight probe ends in one of four states. Missing means the CLI is not on PATH, auth required needs an operator fix, unavailable covers exit, version and capability failures, and ready means the provider can be selected: a core provider as peer, panelist or synthesizer, an extended provider only when named for a text run.
   direction TB
   [*] --> probing: provider ls / preflight
   probing --> missing: not on PATH
@@ -70,8 +70,8 @@ stateDiagram-v2
   unavailable: PROVIDER_VERSION_UNSUPPORTED
   unavailable: PROVIDER_CAPABILITY_MISSING
   probing --> ready: version and capabilities pass
-  ready: selectable as peer,
-  ready: panelist, or synthesizer
+  ready: core — peer, panelist, synthesizer
+  ready: extended — named text runs only
   missing --> [*]
   auth_required --> [*]
   unavailable --> [*]
@@ -224,9 +224,10 @@ delegate fallback, and panel auto-fill never pick them.
 ### Sign-in
 
 Preflight runs only `<command> --version`, without the provider's credential
-variables, checks the minimum version, and reports only the parsed version (the release,
-plus a plain prerelease tag), left out when it cannot be parsed or would need
-redaction.
+variables, checks the minimum version, and reports the version as
+MAJOR.MINOR.PATCH plus a plain prerelease tag. The tag is dropped when
+redaction would alter it, and the version is left out when the release cannot
+be shown unredacted or does not have three components.
 It never opens an ACP session, so `ready` proves neither the sign-in nor the
 model; both are first checked by a run.
 

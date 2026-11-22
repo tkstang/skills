@@ -197,8 +197,9 @@ covered as well as delegate:
 
 - Before launch it records `HEAD`, the entries of
   `git status --porcelain=v1 -z --untracked-files=all`, and a SHA-256 of the
-  current content, with the permission bits, of every path that status lists and of every index entry
-  marked assume-unchanged or skip-worktree, which status never reports, plus
+  current content, with the permission bits, of every path that status lists
+  and of every index entry marked assume-unchanged or skip-worktree, which
+  status never reports, plus
   `.git/info/exclude`. It writes nothing: no `git add`, no index refresh. git
   runs with fsmonitor and the untracked cache turned off and `core.filemode`
   on, so a repository setting cannot hide a content or file-mode change, and
@@ -255,7 +256,8 @@ agent's changes from your own edits made during the run, and it does not see:
   `unknown`.
 
 A failure envelope's `stdout` holds only the answer text gathered before the
-failure, with credential values redacted, never the internal turn record.
+failure, with credential values redacted, never the internal turn record. It
+is empty after `acp_mode_changed`.
 
 `diagnostics.acp` records the agent's name and version, whether the run used
 an API key or the saved sign-in, each setup step and what confirmed it, the

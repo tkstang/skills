@@ -34,8 +34,10 @@
   credential variables and provider patterns such as Droid's pairing code are
   redacted from answer text, metadata, denial details, change paths and
   stderr. Preflight probes extended providers with `--version` only, without
-  their credentials, and reports only the parsed version, left out when it
-  would need redaction.
+  their credentials, and reports only MAJOR.MINOR.PATCH plus a plain
+  prerelease tag, dropping whatever redaction would alter.
+  `phone-a-friend` 0.3.5 tells the host that the extended providers are
+  text-only and offers a core peer instead.
   `consensus-delegate` 0.2.2 (standalone `delegate`, `consensus:delegate`)
   accepts the extended providers as read-only peers and reports both codes.
   The other skill versions in this release are listed under Changed.
