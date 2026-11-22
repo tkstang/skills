@@ -27,7 +27,11 @@ import type {
   AcpTurnError,
   AcpTurnResult,
 } from './transcript.js';
-import { emptyTurnResult, redactText } from './transcript.js';
+import {
+  emptyTurnResult,
+  redactText,
+  sanitizeTurnResult,
+} from './transcript.js';
 
 export const ACP_PROTOCOL_VERSION = 1;
 
@@ -143,8 +147,8 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
   const secretValues = (input.plan.credentialEnv ?? [])
     .map((name) => input.env?.[name])
     .filter((value): value is string => typeof value === 'string');
-  const redact = (text: string) =>
-    redactText(text, { patterns: input.plan.redactions, secretValues });
+  const redaction = { patterns: input.plan.redactions, secretValues };
+  const redact = (text: string) => redactText(text, redaction);
   const result = emptyTurnResult();
 
   let abortReason: AcpAbortReason | undefined;
@@ -441,7 +445,7 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
     const ignored = connection.stats().ignored_lines;
     if (ignored > 0) result.ignored_lines = ignored;
     const outcome: AcpRunOutcome = {
-      result,
+      result: sanitizeTurnResult(result, redaction),
       stderr: redact(group.stderr()),
       exit_code: exit?.code ?? null,
       signal: exit?.signal ?? null,

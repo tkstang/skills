@@ -81,6 +81,7 @@ interface Run {
 
 interface SetupOptions {
   cwd?: string;
+  parentEnv?: Record<string, string>;
   // Written as the user consensus config.
   userConfig?: unknown;
 }
@@ -106,6 +107,7 @@ async function setup(
     HOME: home,
     XDG_CONFIG_HOME: path.join(home, '.config'),
     [descriptor.executable_env]: process.execPath,
+    ...options.parentEnv,
   };
   const registry = providerRegistry([
     acpAdapter(descriptor, { spawn: harness.spawn, timing: FAST_ACP_TIMING }),
@@ -333,6 +335,51 @@ describe('extended runs through runProviderTurn', () => {
       continuation: { turn: 'not_started' },
     });
     expect(JSON.stringify(envelope)).not.toContain('QZXW-7342');
+    // The failure carries the (empty) answer, not the internal turn record.
+    expect(envelope.stdout ?? '').toBe('');
+  });
+
+  it('redacts a credential the agent echoes in its answer, title and stderr', async () => {
+    // A literal value no built-in credential pattern matches.
+    const secret = 'zq-literal-credential-4711';
+    const scenario = await agySession();
+    const initialize = scenario.steps[1] as { respond: { result: any } };
+    initialize.respond.result.agentInfo.title = `Signed in with ${secret}`;
+    const echoing = insertAfter(scenario, expects('session/prompt'), [
+      { stderr: `debug: key=${secret}\n` },
+      {
+        send: {
+          method: 'session/update',
+          params: {
+            sessionId: 'd1dc1bef-c052-4b55-a232-505704b45765',
+            update: {
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text: `Your key is ${secret}. ` },
+            },
+          },
+        },
+      },
+      { writeFile: { path: 'leak.txt', content: 'x\n' } },
+    ]);
+    // The key is passed to the agent but selects no API-key login here.
+    const descriptor = { ...ANTIGRAVITY_DESCRIPTOR, api_key: undefined };
+    const { envelope } = await runTurn(
+      descriptor,
+      echoing,
+      { model: 'gemini-3.8-flash' },
+      { parentEnv: { GEMINI_API_KEY: secret } },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_WORKTREE_CHANGED',
+      stdout: 'Your key is <redacted>. marker-85b2d6a11e65\nGemini 3.8 Flash',
+      diagnostics: {
+        acp: { agent: { title: 'Signed in with <redacted>' } },
+      },
+    });
+    expect(envelope.stderr).toContain('key=<redacted>');
+    expect(JSON.stringify(envelope)).not.toContain(secret);
   });
 
   it('stops before the prompt, as not started, when the read-only mode is not confirmed', async () => {

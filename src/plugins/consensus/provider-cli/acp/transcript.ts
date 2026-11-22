@@ -155,15 +155,51 @@ export function redactText(
     secretValues?: readonly string[];
   } = {},
 ): string {
-  let redacted = text;
-  for (const value of options.secretValues ?? []) {
-    if (value.length < MIN_SECRET_VALUE_CHARS) continue;
-    redacted = redacted.split(value).join(REDACTED);
-  }
+  let redacted = redactSecretValues(text, options.secretValues);
   for (const pattern of [...DEFAULT_REDACTIONS, ...(options.patterns ?? [])]) {
     redacted = redacted.replace(globalPattern(pattern), REDACTED);
   }
   return redacted;
+}
+
+// Only the literal secret values: for answer text, which pattern redaction
+// would mangle.
+export function redactSecretValues(
+  text: string,
+  secretValues: readonly string[] = [],
+): string {
+  let redacted = text;
+  for (const value of secretValues) {
+    if (value.length < MIN_SECRET_VALUE_CHARS) continue;
+    redacted = redacted.split(value).join(REDACTED);
+  }
+  return redacted;
+}
+
+// The result as it may leave the client: every agent-controlled string
+// (metadata, ids, model names, denial fields, even object keys) gets full
+// redaction, and the answer text gets the literal secret values removed.
+export function sanitizeTurnResult(
+  result: AcpTurnResult,
+  options: { patterns?: readonly RegExp[]; secretValues?: readonly string[] },
+): AcpTurnResult {
+  const redact = (text: string) => redactText(text, options);
+  const walk = (value: unknown): unknown => {
+    if (typeof value === 'string') return redact(value);
+    if (Array.isArray(value)) return value.map(walk);
+    if (isRecord(value)) {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, entry]) => [redact(key), walk(entry)]),
+      );
+    }
+    return value;
+  };
+  const { schema, text, ...rest } = result;
+  return {
+    ...(walk(rest) as Omit<AcpTurnResult, 'schema' | 'text'>),
+    schema,
+    text: redactSecretValues(text, options.secretValues),
+  };
 }
 
 function globalPattern(pattern: RegExp) {

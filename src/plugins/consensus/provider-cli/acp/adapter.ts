@@ -128,6 +128,8 @@ export function acpAdapter(
     classifyReportedFailure: (stdout) =>
       failureClassification(classify(stdout)),
     extractText: (_invocation, result) => extractAcpText(result.stdout),
+    // Never the serialized turn result: only its (redacted) answer text.
+    envelopeStdout: (stdout) => parseAcpTurnResult(stdout)?.text ?? '',
     extractSession: (stdout) => extractAcpSession(stdout, descriptor),
     extractPermissionDenials: extractAcpPermissionDenials,
     submitCaptureEligible: () => false,

@@ -999,15 +999,38 @@ var DEFAULT_REDACTIONS = [
 var MIN_SECRET_VALUE_CHARS = 6;
 var REDACTED = "<redacted>";
 function redactText(text, options = {}) {
-  let redacted = text;
-  for (const value of options.secretValues ?? []) {
-    if (value.length < MIN_SECRET_VALUE_CHARS) continue;
-    redacted = redacted.split(value).join(REDACTED);
-  }
+  let redacted = redactSecretValues(text, options.secretValues);
   for (const pattern of [...DEFAULT_REDACTIONS, ...options.patterns ?? []]) {
     redacted = redacted.replace(globalPattern(pattern), REDACTED);
   }
   return redacted;
+}
+function redactSecretValues(text, secretValues = []) {
+  let redacted = text;
+  for (const value of secretValues) {
+    if (value.length < MIN_SECRET_VALUE_CHARS) continue;
+    redacted = redacted.split(value).join(REDACTED);
+  }
+  return redacted;
+}
+function sanitizeTurnResult(result, options) {
+  const redact = (text2) => redactText(text2, options);
+  const walk = (value) => {
+    if (typeof value === "string") return redact(value);
+    if (Array.isArray(value)) return value.map(walk);
+    if (isRecord(value)) {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, entry]) => [redact(key), walk(entry)])
+      );
+    }
+    return value;
+  };
+  const { schema, text, ...rest } = result;
+  return {
+    ...walk(rest),
+    schema,
+    text: redactSecretValues(text, options.secretValues)
+  };
 }
 function globalPattern(pattern) {
   return pattern.global ? pattern : new RegExp(pattern.source, `${pattern.flags}g`);
@@ -1218,7 +1241,8 @@ async function runAcpTurn(input) {
   const timing = { ...DEFAULT_ACP_TIMING, ...input.timing };
   const maxOutputBytes = input.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES2;
   const secretValues = (input.plan.credentialEnv ?? []).map((name) => input.env?.[name]).filter((value) => typeof value === "string");
-  const redact = (text) => redactText(text, { patterns: input.plan.redactions, secretValues });
+  const redaction = { patterns: input.plan.redactions, secretValues };
+  const redact = (text) => redactText(text, redaction);
   const result = emptyTurnResult();
   let abortReason;
   let interruptSignal;
@@ -1475,7 +1499,7 @@ async function runAcpTurn(input) {
     const ignored = connection.stats().ignored_lines;
     if (ignored > 0) result.ignored_lines = ignored;
     const outcome = {
-      result,
+      result: sanitizeTurnResult(result, redaction),
       stderr: redact(group.stderr()),
       exit_code: exit?.code ?? null,
       signal: exit?.signal ?? null,
@@ -1749,6 +1773,8 @@ function acpAdapter(descriptor, options = {}) {
     },
     classifyReportedFailure: (stdout) => failureClassification(classify(stdout)),
     extractText: (_invocation, result) => extractAcpText(result.stdout),
+    // Never the serialized turn result: only its (redacted) answer text.
+    envelopeStdout: (stdout) => parseAcpTurnResult(stdout)?.text ?? "",
     extractSession: (stdout) => extractAcpSession(stdout, descriptor),
     extractPermissionDenials: extractAcpPermissionDenials,
     submitCaptureEligible: () => false,
@@ -5212,7 +5238,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
           // replaced after lookup): keep the install hint here too.
           message: classification.code === "PROVIDER_MISSING" ? withInstallHint(classification.message, adapter.install_hint) : classification.message,
           retryable: false,
-          stdout: processResult.stdout,
+          stdout: envelopeStdout(adapter, processResult.stdout),
           stderr: processResult.stderr,
           attempts: {
             cli_attempts: attempt,
@@ -5232,7 +5258,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
             code: extracted.code,
             message: extracted.message,
             retryable: false,
-            stdout: processResult.stdout,
+            stdout: envelopeStdout(adapter, processResult.stdout),
             stderr: processResult.stderr,
             attempts: {
               cli_attempts: attempt,
@@ -5368,6 +5394,9 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       await cleanupSubmitCaptureFile(submitCapturePath);
     }
   }
+}
+function envelopeStdout(adapter, stdout) {
+  return adapter.envelopeStdout ? adapter.envelopeStdout(stdout) : stdout;
 }
 function permissionDenialDiagnostics(adapter, stdout) {
   const denials = adapter.extractPermissionDenials?.(stdout);

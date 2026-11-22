@@ -718,7 +718,7 @@ async function runStructuredTurn(
               ? withInstallHint(classification.message, adapter.install_hint)
               : classification.message,
           retryable: false,
-          stdout: processResult.stdout,
+          stdout: envelopeStdout(adapter, processResult.stdout),
           stderr: processResult.stderr,
           attempts: {
             cli_attempts: attempt,
@@ -741,7 +741,7 @@ async function runStructuredTurn(
             code: extracted.code,
             message: extracted.message,
             retryable: false,
-            stdout: processResult.stdout,
+            stdout: envelopeStdout(adapter, processResult.stdout),
             stderr: processResult.stderr,
             attempts: {
               cli_attempts: attempt,
@@ -892,6 +892,12 @@ async function runStructuredTurn(
       await cleanupSubmitCaptureFile(submitCapturePath);
     }
   }
+}
+
+// What a failure envelope shows of the provider's stdout. An adapter whose
+// stdout is an internal record (ACP) returns only the answer text.
+function envelopeStdout(adapter: ProviderAdapter, stdout: string) {
+  return adapter.envelopeStdout ? adapter.envelopeStdout(stdout) : stdout;
 }
 
 function permissionDenialDiagnostics(

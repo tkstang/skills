@@ -82,6 +82,9 @@ export interface ProviderAdapter {
   // A profile that cannot repeat side effects, so its turn may be retried.
   // Default: not proven, so the turn runs once.
   isProvenReadOnly?: (policy: ProviderRuntimePolicy) => boolean;
+  // The part of the run's stdout a failure envelope may carry. Default: all
+  // of it.
+  envelopeStdout?: (stdout: string) => string;
   // Runs the invocation in place of the subprocess runner, for providers
   // the adapter drives itself (ACP sessions). Default: runProviderSubprocess.
   run?: (

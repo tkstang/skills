@@ -6,6 +6,7 @@ import {
   emptyTurnResult,
   parseAcpTurnResult,
   redactText,
+  sanitizeTurnResult,
   serializeAcpTurnResult,
 } from './transcript.js';
 
@@ -159,5 +160,23 @@ describe('redactText', () => {
         patterns: [/[A-Z0-9]{4}-[A-Z0-9]{4}/],
       }),
     ).toBe('key <redacted> value <redacted> code <redacted> and <redacted>');
+  });
+
+  it('removes only literal secrets from the answer, and fully redacts agent metadata', () => {
+    const sample = 'Bearer abcdefghijklmnopqrstuv';
+    const sanitized = sanitizeTurnResult(
+      turn({
+        text: `Example header: ${sample}; key s3cret-value`,
+        agent: { title: `${sample} s3cret-value` },
+        denials: [{ tool: 'Write', kind: 'edit', outcome: 'rejected' }],
+      }),
+      { secretValues: ['s3cret-value'] },
+    );
+
+    expect(sanitized.text).toBe(`Example header: ${sample}; key <redacted>`);
+    expect(sanitized.agent).toEqual({ title: '<redacted> <redacted>' });
+    expect(sanitized.denials).toEqual([
+      { tool: 'Write', kind: 'edit', outcome: 'rejected' },
+    ]);
   });
 });
