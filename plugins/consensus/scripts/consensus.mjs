@@ -5101,9 +5101,15 @@ async function probeProviderReadiness(adapter, options) {
   const extended = adapter.tier === "extended";
   const probed = extended ? { id: adapter.id, credential_env: [] } : adapter;
   const redact = probeOutputRedactor(adapter, options.runner.env ?? {});
+  const outputRedacts = (output2) => redact(output2) !== output2;
   const versionLabel = (output2) => {
-    const version = extended ? releaseLabel(output2, redact) : redact(firstNonEmptyLine2(output2) ?? "") || void 0;
+    const version = extended ? outputRedacts(output2) ? void 0 : releaseLabel(output2, redact) : redact(firstNonEmptyLine2(output2) ?? "") || void 0;
     return version ? { version } : {};
+  };
+  const detectedLabel = (output2, detected) => {
+    if (!extended) return formatNumericVersion(detected);
+    if (outputRedacts(output2)) return "version";
+    return printedNumericVersion(output2) ?? formatNumericVersion(detected);
   };
   const result = await options.runner.run(
     executable,
@@ -5146,7 +5152,7 @@ ${result.stderr}`;
       executable,
       ...versionLabel(output),
       warnings: [
-        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${redact(printedNumericVersion(output) ?? formatNumericVersion(detectedVersion))} is below required ${adapter.probe.minimum_version}`
+        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${redact(detectedLabel(output, detectedVersion))} is below required ${adapter.probe.minimum_version}`
       ]
     });
   }

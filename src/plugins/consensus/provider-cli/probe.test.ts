@@ -856,18 +856,43 @@ describe('node probe command runner', () => {
       status: 'unavailable',
       diagnostics: {
         warnings: [
-          'PROVIDER_VERSION_UNSUPPORTED: droid 1.15.<redacted> is below required 1.16.0',
+          'PROVIDER_VERSION_UNSUPPORTED: droid version is below required 1.16.0',
         ],
       },
     });
     expect(JSON.stringify(entry)).not.toContain(secret);
+    expect(JSON.stringify(entry)).not.toContain('123456');
   });
+
+  it.each([
+    ['ready', 'Your code: AB12-0034.5.6\n'],
+    ['unavailable', 'Your code: AB12-0001.1.1\n'],
+  ])(
+    'publishes no part of a Droid pairing code in a %s probe entry',
+    async (status, stdout) => {
+      const entry = await probeProviderReadiness(
+        providerRegistry().get('droid')!,
+        {
+          runner: fakeRunner({
+            executables: { droid: '/opt/bin/droid' },
+            results: {
+              '/opt/bin/droid --version': { code: 0, stdout, stderr: '' },
+            },
+          }),
+        },
+      );
+
+      expect(entry.status).toBe(status);
+      expect(entry.version).toBeUndefined();
+      expect(JSON.stringify(entry)).not.toMatch(/AB12|0034|0001/);
+    },
+  );
 
   it.each([
     [
       'zqliteralcredential4711',
       'droid 1.17.0-zqliteralcredential4711+meta',
-      '1.17.0',
+      undefined,
       'ready',
     ],
     ['123456', 'droid 1.17.123456-rc.2', undefined, 'ready'],
@@ -880,7 +905,7 @@ describe('node probe command runner', () => {
       'unavailable',
     ],
   ])(
-    'drops a credential value %j from the extended version label',
+    'publishes no extended version when its output holds credential %j',
     async (secret, line, version, status) => {
       const entry = await probeProviderReadiness(
         providerRegistry().get('droid')!,

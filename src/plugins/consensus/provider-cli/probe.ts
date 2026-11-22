@@ -167,14 +167,24 @@ export async function probeProviderReadiness(
     ? { id: adapter.id, credential_env: [] }
     : adapter;
   const redact = probeOutputRedactor(adapter, options.runner.env ?? {});
-  // A prerelease that redaction would alter may carry a credential, so an
-  // extended label falls back to the bare release, and is omitted when the
-  // release itself would be altered.
+  // An extended provider publishes no version at all when its version
+  // output holds anything redaction would alter: a token extracted from
+  // that output can keep a credential fragment that no longer matches once
+  // its context is gone. Otherwise a prerelease that redaction would alter
+  // falls back to the bare release.
+  const outputRedacts = (output: string) => redact(output) !== output;
   const versionLabel = (output: string): { version?: string } => {
     const version = extended
-      ? releaseLabel(output, redact)
+      ? outputRedacts(output)
+        ? undefined
+        : releaseLabel(output, redact)
       : redact(firstNonEmptyLine(output) ?? '') || undefined;
     return version ? { version } : {};
+  };
+  const detectedLabel = (output: string, detected: number[]) => {
+    if (!extended) return formatNumericVersion(detected);
+    if (outputRedacts(output)) return 'version';
+    return printedNumericVersion(output) ?? formatNumericVersion(detected);
   };
 
   // Run the program that was found, not the bare command: PATH lookup at
@@ -226,7 +236,7 @@ export async function probeProviderReadiness(
       executable,
       ...versionLabel(output),
       warnings: [
-        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${redact(printedNumericVersion(output) ?? formatNumericVersion(detectedVersion))} is below required ${adapter.probe.minimum_version}`,
+        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${redact(detectedLabel(output, detectedVersion))} is below required ${adapter.probe.minimum_version}`,
       ],
     });
   }
