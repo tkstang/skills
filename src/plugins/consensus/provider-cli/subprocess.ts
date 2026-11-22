@@ -618,7 +618,7 @@ export async function readBoundedRegularFile(
   }
 }
 
-function takeUtf8Prefix(
+export function takeUtf8Prefix(
   input: string,
   maxBytes: number,
 ): { text: string; bytes: number } {
