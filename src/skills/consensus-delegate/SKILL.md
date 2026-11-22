@@ -128,8 +128,9 @@ With neither, the CLI refuses the run before launch. Never pick a model on
 your own; ask the user. It takes no effort, no `--env-allow`, and no
 continuation. Consensus confirms the provider's read-only mode before the
 prompt and watches it during the turn, puts its own read-only lines before the
-brief, and denies every permission request the peer makes. The CLI also checks the working tree
-itself: it snapshots the git checkout at `--cwd` before the turn and compares
+brief, and denies every permission request the peer makes, apart from
+Antigravity reads inside its own private per-run home in API-key mode. The CLI
+also checks the working tree itself: it snapshots the git checkout at `--cwd` before the turn and compares
 it after, so `--cwd` must be a git checkout.
 
 For a Claude write run, grant the brief's verification command, such as

@@ -53,7 +53,8 @@ pass.
   commands and denies its permission requests, so its verification loop asks
   for file:line evidence, not a command. Consensus puts its own read-only lines
   before the brief: for Antigravity also a ban on `invoke_subagent`, `swarm`,
-  `run_workflow` and `schedule`, and for Droid a ban on its loop, ConnectApp,
+  `run_workflow` and `schedule` and a line to read only inside the working
+  directory, and for Droid a ban on its loop, ConnectApp,
   automation, and cloud or computer tools. Do not contradict them.
 - For a continued turn, write a short follow-up that names what to change, and
   repeat the verification loop. The resumed session keeps the earlier context.
