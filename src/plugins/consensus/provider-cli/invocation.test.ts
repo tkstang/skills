@@ -531,7 +531,7 @@ describe('provider invocation builders', () => {
       providerRegistry()
         .list()
         .map((adapter) => adapter.capabilities.supports_host_native_dispatch),
-    ).toEqual([false, false, false]);
+    ).not.toContain(true);
   });
 });
 

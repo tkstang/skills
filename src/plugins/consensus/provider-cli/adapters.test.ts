@@ -11,10 +11,15 @@ describe('provider adapter registry', () => {
   it('registers the first-scope provider adapters by user-facing ID', () => {
     const registry = providerRegistry();
 
-    expect(registry.list().map((adapter) => adapter.id)).toEqual([
-      'claude',
-      'codex',
-      'cursor',
+    expect(
+      registry.list().map((adapter) => [adapter.id, adapter.tier]),
+    ).toEqual([
+      ['claude', 'core'],
+      ['codex', 'core'],
+      ['cursor', 'core'],
+      ['antigravity', 'extended'],
+      ['gemini', 'extended'],
+      ['droid', 'extended'],
     ]);
     expect(registry.get('claude')?.display_name).toBe('Claude');
     expect(registry.get('codex')?.display_name).toBe('Codex');

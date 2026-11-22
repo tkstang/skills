@@ -94,10 +94,10 @@ describe('consensus config schema and resolver', () => {
     expect(() =>
       parseConsensusDefaultsConfig({
         schema_version: 'v1',
-        defaults: { reviewers: [{ provider: 'gemini' }] },
+        defaults: { reviewers: [{ provider: 'devin' }] },
       }),
     ).toThrow(
-      'Consensus config reviewers contains unsupported provider: gemini',
+      'Consensus config reviewers contains unsupported provider: devin',
     );
     expect(() =>
       parseConsensusDefaultsConfig({

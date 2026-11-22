@@ -700,6 +700,57 @@ describe('extended provider registration', () => {
     });
   });
 
+  it.each([
+    ['antigravity', 'agy', '1.5.13'],
+    ['gemini', 'gemini', '0.70.0'],
+    ['droid', 'droid', '1.16.0'],
+  ])(
+    'registers %s as an admitted extended provider probed by --version only, with a numeric floor',
+    async (id, command, floor) => {
+      const probe = async (version: string) => {
+        const calls: string[] = [];
+        const envelope = await runPreflight({
+          provider: id,
+          capabilities: ['run'],
+          probeRunner: fakeRunner({
+            calls,
+            executables: { [command]: `/opt/bin/${command}` },
+            results: {
+              [`/opt/bin/${command} --version`]: {
+                code: 0,
+                stdout: `${version}\n`,
+                stderr: '',
+              },
+            },
+          }),
+        });
+        return { envelope, calls };
+      };
+
+      const atFloor = await probe(floor);
+      const below = await probe('0.0.1');
+      const listed = await runProviderList({
+        probeRunner: fakeRunner({ executables: {} }),
+      });
+
+      expect(atFloor.envelope.providers).toMatchObject([
+        { id, status: 'ready', version: floor },
+      ]);
+      // No ACP handshake: Droid mints a pairing code on session/new.
+      expect(new Set(atFloor.calls)).toEqual(
+        new Set([`/opt/bin/${command} --version`]),
+      );
+      expect(below.envelope.providers).toMatchObject([
+        { id, status: 'unavailable' },
+      ]);
+      expect(listed.providers.map((entry) => entry.id)).toEqual([
+        'claude',
+        'codex',
+        'cursor',
+      ]);
+    },
+  );
+
   it.each(['a probe runner', 'no probe runner'])(
     'reports a registered but not admitted provider without launching it, with %s',
     async (runnerCase) => {

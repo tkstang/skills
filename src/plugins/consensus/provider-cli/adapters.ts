@@ -1,3 +1,5 @@
+import { acpAdapter } from './acp/adapter.js';
+import { ACP_PROVIDER_DESCRIPTORS } from './acp/descriptors.js';
 import {
   buildClaudeInvocation,
   buildCodexInvocation,
@@ -423,6 +425,8 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       },
     },
   },
+  // Extended providers, used only when named: one ACP adapter each.
+  ...ACP_PROVIDER_DESCRIPTORS.map((descriptor) => acpAdapter(descriptor)),
 ];
 
 export function providerRegistry(

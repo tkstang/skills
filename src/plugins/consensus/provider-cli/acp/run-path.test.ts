@@ -350,6 +350,62 @@ describe('extended runs through runProviderTurn', () => {
     });
   });
 
+  it.each<[string, Partial<ConsensusCliRunRequest>, string]>([
+    [
+      'an omitted policy (non-interactive)',
+      { runtime_policy: undefined },
+      'runtime_policy.permission_mode',
+    ],
+    [
+      'workspace-write',
+      { runtime_policy: { permission_mode: 'workspace-write' } },
+      'runtime_policy.permission_mode',
+    ],
+    [
+      'a sandbox',
+      {
+        runtime_policy: { permission_mode: 'read-only', sandbox: 'read-only' },
+      },
+      'runtime_policy.sandbox',
+    ],
+    [
+      'an env allowlist',
+      {
+        runtime_policy: {
+          permission_mode: 'read-only',
+          env_allowlist: ['GITHUB_TOKEN'],
+        },
+      },
+      'runtime_policy.env_allowlist',
+    ],
+    ['an effort', { effort: 'high' }, 'effort'],
+    [
+      'JSON output',
+      { output: 'json', schema_path: 'SCHEMA' },
+      'structured_output_strategy',
+    ],
+  ])('refuses %s before launch', async (_label, overrides, terminalReason) => {
+    const schemaDir = await tempDir('consensus-acp-schema-');
+    const schemaPath = path.join(schemaDir, 'schema.json');
+    await writeFile(schemaPath, '{"type":"object"}');
+    const { envelope, harness } = await runTurn(
+      ANTIGRAVITY_DESCRIPTOR,
+      await agySession(),
+      {
+        model: 'gemini-3.8-flash',
+        ...overrides,
+        ...(overrides.schema_path ? { schema_path: schemaPath } : {}),
+      },
+    );
+
+    expect(harness.launches).toEqual([]);
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_UNSUPPORTED_OPTION',
+      attempts: { cli_attempts: 0, terminal_reason: terminalReason },
+    });
+  });
+
   it('refuses to launch without a model', async () => {
     const { envelope, harness } = await runTurn(
       ANTIGRAVITY_DESCRIPTOR,
