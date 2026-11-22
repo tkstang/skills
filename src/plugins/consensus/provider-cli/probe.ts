@@ -169,7 +169,7 @@ export async function probeProviderReadiness(
   const redact = probeOutputRedactor(adapter, options.runner.env ?? {});
   const versionLabel = (output: string): { version?: string } => {
     const version = extended
-      ? parseVersion(output)?.text
+      ? releaseLabel(output)
       : redact(firstNonEmptyLine(output) ?? '') || undefined;
     return version ? { version } : {};
   };
@@ -492,6 +492,18 @@ function runProbeCommand(
     ...(result.ok ? {} : { failure_code: result.code }),
     diagnostics: result.diagnostics,
   }));
+}
+
+// MAJOR.MINOR.PATCH, plus a prerelease of plain alphanumerics and dots:
+// never build metadata or the rest of the line.
+function releaseLabel(output: string): string | undefined {
+  const parsed = parseVersion(output);
+  if (!parsed || parsed.release.length !== 3) return undefined;
+  const release = parsed.release.join('.');
+  const prerelease = parsed.prerelease.join('.');
+  return prerelease && /^[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*$/.test(prerelease)
+    ? `${release}-${prerelease}`
+    : release;
 }
 
 function probeOutputRedactor(

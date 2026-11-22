@@ -833,6 +833,33 @@ describe('node probe command runner', () => {
     }
   });
 
+  it.each([
+    ['droid 1.16.0+sha.zq-literal-4711 (build abc)', '1.16.0'],
+    ['droid 1.17.0-rc.2 linux', '1.17.0-rc.2'],
+    ['droid 1.18.0-beta-x.1+meta', '1.18.0'],
+  ])(
+    'publishes only the release of extended version output %j',
+    async (line, version) => {
+      const entry = await probeProviderReadiness(
+        providerRegistry().get('droid')!,
+        {
+          runner: fakeRunner({
+            executables: { droid: '/opt/bin/droid' },
+            results: {
+              '/opt/bin/droid --version': {
+                code: 0,
+                stdout: `${line}\n`,
+                stderr: '',
+              },
+            },
+          }),
+        },
+      );
+
+      expect(entry).toMatchObject({ status: 'ready', version });
+    },
+  );
+
   it('redacts credential values from core probe output kept in warnings', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'consensus-probe-env-'));
     try {
