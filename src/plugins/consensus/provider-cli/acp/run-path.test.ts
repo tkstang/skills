@@ -541,6 +541,30 @@ describe('extended runs through runProviderTurn', () => {
     );
   });
 
+  it('redacts a credential in the changed paths it reports', async () => {
+    const secret = 'zq-literal-credential-4711';
+    const scenario = insertAfter(
+      await agySession(),
+      expects('session/prompt'),
+      [{ writeFile: { path: `${secret}.txt`, content: 'x\n' } }],
+    );
+    const { envelope } = await runTurn(
+      { ...ANTIGRAVITY_DESCRIPTOR, api_key: undefined },
+      scenario,
+      { model: 'gemini-3.8-flash' },
+      { parentEnv: { GEMINI_API_KEY: secret } },
+    );
+
+    expect(envelope).toMatchObject({
+      code: 'PROVIDER_WORKTREE_CHANGED',
+      diagnostics: { working_tree_changes: ['<redacted>.txt'] },
+    });
+    expect(envelope.ok === false && envelope.message).toContain(
+      'run: <redacted>.txt.',
+    );
+    expect(JSON.stringify(envelope)).not.toContain(secret);
+  });
+
   it('refuses to launch outside a git checkout', async () => {
     const cwd = await tempDir('consensus-acp-plain-');
     const { envelope, harness } = await runTurn(

@@ -96,6 +96,9 @@ export function acpAdapter(
     executable_env: descriptor.executable_env,
     credential_env: descriptor.credential_env,
     install_hint: descriptor.install_hint,
+    ...(descriptor.redactions
+      ? { redaction_patterns: descriptor.redactions }
+      : {}),
     ...(descriptor.not_admitted_reason
       ? { not_admitted_reason: descriptor.not_admitted_reason }
       : {}),
@@ -108,9 +111,6 @@ export function acpAdapter(
       capabilities: {
         run: { args: ['--version'], required_output_patterns: [] },
       },
-      ...(descriptor.redactions
-        ? { output_redactions: descriptor.redactions }
-        : {}),
     },
     buildInvocation: (request, invocationOptions) =>
       buildAcpInvocation(descriptor, request, invocationOptions),

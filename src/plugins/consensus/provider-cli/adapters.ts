@@ -48,6 +48,9 @@ export interface ProviderAdapter {
   credential_env: readonly string[];
   // How to install the provider CLI, reported when it is missing.
   install_hint?: string;
+  // Credential shapes this provider prints (Droid's pairing code), redacted
+  // with the credential values from probe output and run diagnostics.
+  redaction_patterns?: readonly RegExp[];
   // Set while the provider is registered but has not passed its live
   // admission test: preflight reports it `unsupported` and `run` refuses it
   // before launching anything.

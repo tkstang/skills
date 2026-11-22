@@ -50,9 +50,6 @@ export interface ProviderProbeDefinition {
   >;
   auth_required_patterns?: readonly RegExp[];
   unavailable_patterns?: readonly RegExp[];
-  // Redacted from probe output kept in warnings, beyond the default
-  // credential shapes and the credential values.
-  output_redactions?: readonly RegExp[];
 }
 
 export interface ProbeCommandResult {
@@ -506,7 +503,7 @@ function probeOutputRedactor(
     .filter((value): value is string => typeof value === 'string');
   return (text: string) =>
     redactText(text, {
-      patterns: adapter.probe.output_redactions,
+      patterns: adapter.redaction_patterns,
       secretValues,
     });
 }

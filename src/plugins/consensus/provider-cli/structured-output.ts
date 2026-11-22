@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { resolveProviderDefaultModel } from '../config/consensus-config.js';
+import { redactText } from './acp/transcript.js';
 import { providerExecutableEnvNames, providerRegistry } from './adapters.js';
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
 import {
@@ -381,12 +382,24 @@ async function runCheckedExtendedTurn(
   }
   const cwd = path.resolve(request.cwd ?? process.cwd());
   const env = dependencies.parentEnv ?? process.env;
+  // Paths and git messages can carry a credential (a file named after one),
+  // so they are redacted like other run diagnostics.
+  const adapter = (dependencies.registry ?? providerRegistry()).get(
+    request.provider,
+  );
+  const redact = (text: string) =>
+    redactText(text, {
+      patterns: adapter?.redaction_patterns,
+      secretValues: (adapter?.credential_env ?? [])
+        .map((name) => env[name])
+        .filter((value): value is string => typeof value === 'string'),
+    });
   const before = await snapshotWorkingTree(cwd, { env });
   if (!before.ok) {
     return preInvocationFailure({
       provider: request.provider,
       code: 'PROVIDER_UNSUPPORTED_OPTION',
-      message: `Extended read-only runs need a git checkout so the working tree can be checked before and after the turn: ${before.message}`,
+      message: `Extended read-only runs need a git checkout so the working tree can be checked before and after the turn: ${redact(before.message)}`,
       terminalReason: 'working_tree_unavailable',
     });
   }
@@ -399,16 +412,17 @@ async function runCheckedExtendedTurn(
   if (!trace.process) return envelope;
 
   const after = await snapshotWorkingTree(cwd, { env });
-  const changes = after.ok
+  const found = after.ok
     ? compareWorkingTrees(before.snapshot, after.snapshot)
     : undefined;
-  if (changes && !hasWorkingTreeChanges(changes)) return envelope;
+  if (found && !hasWorkingTreeChanges(found)) return envelope;
+  const changes = found && { ...found, paths: found.paths.map(redact) };
   const outcome = envelope.ok ? 'succeeded' : `failed with ${envelope.code}`;
   // A checkout that can no longer be read (its .git removed, say) is
   // reported as changed.
   const message = after.ok
     ? `The working tree changed during a read-only ${request.provider} run: ${describeWorkingTreeChanges(changes!)}. Review and revert these changes; the turn ${outcome}.`
-    : `The working tree could not be re-checked after a read-only ${request.provider} run (${after.message}); treat it as changed and review it. The turn ${outcome}.`;
+    : `The working tree could not be re-checked after a read-only ${request.provider} run (${redact(after.message)}); treat it as changed and review it. The turn ${outcome}.`;
   return failureEnvelope({
     provider: request.provider,
     code: 'PROVIDER_WORKTREE_CHANGED',
