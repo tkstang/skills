@@ -271,6 +271,11 @@ export const PROVIDER_ERROR_CODES = [
   'PROVIDER_ARGV_TOO_LARGE',
   'PROVIDER_SESSION_NOT_FOUND',
   'PROVIDER_SESSION_MISMATCH',
+  // An extended (ACP) peer asked for a tool outside read-only, was denied,
+  // and the turn ended without an answer.
+  'PROVIDER_PERMISSION_DENIED',
+  // The git working tree changed during an extended read-only turn.
+  'PROVIDER_WORKTREE_CHANGED',
   'HOST_RECURSION_BLOCKED',
   'CONSENSUS_CLI_USAGE',
 ] as const;

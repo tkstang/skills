@@ -164,23 +164,21 @@ function globalPattern(pattern: RegExp) {
     : new RegExp(pattern.source, `${pattern.flags}g`);
 }
 
-// Failure codes a turn can classify to. PROVIDER_PERMISSION_DENIED is new
-// with the ACP tier and joins PROVIDER_ERROR_CODES when the adapter lands.
-export type AcpFailureCode =
-  | Extract<
-      ProviderErrorCode,
-      | 'PROVIDER_MISSING'
-      | 'PROVIDER_AUTH_REQUIRED'
-      | 'PROVIDER_UNSUPPORTED_OPTION'
-      | 'PROVIDER_EXIT'
-      | 'PROVIDER_LIMIT_REACHED'
-      | 'PROVIDER_EMPTY_OUTPUT'
-      | 'PROVIDER_MALFORMED_RESULT'
-      | 'PROVIDER_TIMEOUT'
-      | 'PROVIDER_OUTPUT_CAP_EXCEEDED'
-      | 'PROVIDER_ARGV_TOO_LARGE'
-    >
-  | 'PROVIDER_PERMISSION_DENIED';
+// Failure codes a turn can classify to.
+export type AcpFailureCode = Extract<
+  ProviderErrorCode,
+  | 'PROVIDER_MISSING'
+  | 'PROVIDER_AUTH_REQUIRED'
+  | 'PROVIDER_UNSUPPORTED_OPTION'
+  | 'PROVIDER_EXIT'
+  | 'PROVIDER_LIMIT_REACHED'
+  | 'PROVIDER_EMPTY_OUTPUT'
+  | 'PROVIDER_MALFORMED_RESULT'
+  | 'PROVIDER_TIMEOUT'
+  | 'PROVIDER_OUTPUT_CAP_EXCEEDED'
+  | 'PROVIDER_ARGV_TOO_LARGE'
+  | 'PROVIDER_PERMISSION_DENIED'
+>;
 
 export type AcpTurnClassification =
   | { ok: true; text: string; warnings: string[] }
