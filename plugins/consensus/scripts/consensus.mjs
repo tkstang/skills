@@ -2176,6 +2176,7 @@ async function runAcpTurn(input) {
   }
   function finalize() {
     if (abortReason) result.abort = abortReason;
+    if (abortReason === "mode_changed") result.text = "";
     result.denials = result.denials.map(
       (denial) => denial.path ? { ...denial, path: displayPath(denial.path, input.cwd, redact) } : denial
     );

@@ -484,6 +484,8 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
 
   function finalize(): AcpRunOutcome {
     if (abortReason) result.abort = abortReason;
+    // Text written after the agent left read-only mode is not an answer.
+    if (abortReason === 'mode_changed') result.text = '';
     result.denials = result.denials.map((denial) =>
       denial.path
         ? { ...denial, path: displayPath(denial.path, input.cwd, redact) }

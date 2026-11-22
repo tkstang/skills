@@ -362,8 +362,20 @@ describe('extended runs through runProviderTurn', () => {
           },
         },
       },
+      {
+        send: {
+          method: 'session/update',
+          params: {
+            sessionId: 'd1dc1bef-c052-4b55-a232-505704b45765',
+            update: {
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text: 'ANSWER-AFTER-DRIFT' },
+            },
+          },
+        },
+      },
       { expect: 'session/cancel' },
-      { respond: { result: { stopReason: 'cancelled' } } },
+      { respond: { result: { stopReason: 'end_turn' } } },
       { expect: 'session/close' },
       { respond: { result: {} } },
     ]);
@@ -380,6 +392,7 @@ describe('extended runs through runProviderTurn', () => {
       attempts: { terminal_reason: 'acp_mode_changed' },
       continuation: { turn: 'unknown' },
     });
+    expect(JSON.stringify(envelope)).not.toContain('ANSWER-AFTER-DRIFT');
   });
 
   it('fails as permission denied when Droid cancels the turn after a denial', async () => {
