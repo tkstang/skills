@@ -18,7 +18,7 @@ created: '2026-11-20T22:30:00Z'
 > [!NOTE]
 > This is an external implementation plan, not a canonical OAT project `plan.md`.
 > Execute it directly, or import it with `oat-project-import-plan <this-file>`.
-> Status: **reviewed (Codex, 2026-11-20); Phase 1 committed locally (`971439b5..f2ce5d22`, review findings fixed, re-check pending); live ACP test ongoing (Antigravity complete); safety posture lightened (Stoa `ee3117f3`, 2026-11-21) and the plan trimmed to match; implementation waits for a go**. Steps tagged
+> Status: **Phases 1-3 implemented on `feat/consensus-extended-providers` (rebased onto PR #170): in-house ACP client; antigravity, gemini and droid admitted read-only after live smoke tests on 2026-11-21 (`.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md`); cross-model (Codex) review and two re-checks; Devin, Pi and DeepSeek not started**.. Steps tagged
 > **[independent]** can start now. Steps tagged **[hinges: Qn]** wait on the live
 > test question with that number (see "Live-test questions").
 
