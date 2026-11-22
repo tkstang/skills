@@ -1633,6 +1633,14 @@ function classifyAcpTurn(result, options = {}) {
       startedTurn
     );
   }
+  if (result.abort === "mode_changed") {
+    return failure2(
+      "PROVIDER_EXIT",
+      `${name} left read-only mode during the turn (now ${result.mode_drift ?? "unknown"}); the turn was cancelled and its answer discarded.`,
+      "acp_mode_changed",
+      "unknown"
+    );
+  }
   if (result.abort === "interrupt") {
     return failure2(
       "PROVIDER_EXIT",
@@ -1824,7 +1832,9 @@ async function runAcpTurn(input) {
     abortReason = reason;
     resolveAbort({ kind: "aborted" });
   };
-  const session = new SessionState(result);
+  const session = new SessionState(result, () => {
+    if (result.prompt_sent) abort("mode_changed");
+  });
   const io = {};
   const connection = new JsonRpcConnection({
     write: (line) => io.group?.write(line),
@@ -1924,6 +1934,14 @@ async function runAcpTurn(input) {
     session.created(newSession);
     result.phase = "setup";
     if (!await setup()) return;
+    const drift = session.modeDrift();
+    if (drift !== void 0) {
+      fail(
+        "unconfirmed_setup",
+        `the agent left mode ${input.plan.mode?.modeId} (now ${drift}) before the prompt`
+      );
+      return;
+    }
     result.phase = "prompt";
     const text = [...input.plan.briefLines ?? [], input.prompt].join("\n\n");
     result.prompt_sent = true;
@@ -1979,6 +1997,7 @@ async function runAcpTurn(input) {
         fail("unconfirmed_setup", `mode ${mode.modeId} was not confirmed`);
         return false;
       }
+      session.holdMode(mode);
     }
     for (const step of input.plan.configOptions ?? []) {
       const advertised = session.optionValues(step.configId);
@@ -2029,7 +2048,7 @@ async function runAcpTurn(input) {
     if (abortReason && promptInFlight && !connection.isClosed()) {
       result.cancel_sent = true;
       connection.notify("session/cancel", { sessionId: result.session_id });
-      if (abortReason === "timeout" && promptOutcome) {
+      if ((abortReason === "timeout" || abortReason === "mode_changed") && promptOutcome) {
         const late = await withTimeout(promptOutcome, timing.cancelGraceMs);
         if (late !== "timeout" && late.kind === "result") {
           session.promptAnswered(late.result);
@@ -2104,13 +2123,18 @@ async function runAcpTurn(input) {
   }
 }
 var SessionState = class {
-  constructor(result) {
+  constructor(result, onModeDrift = () => {
+  }) {
     this.result = result;
+    this.onModeDrift = onModeDrift;
   }
   result;
+  onModeDrift;
   closeCapability = false;
   configOptions;
   modeWatch;
+  // The confirmed read-only mode, watched until the session ends.
+  held;
   promptActive = false;
   initialMode;
   initialized(init) {
@@ -2148,6 +2172,27 @@ var SessionState = class {
       const value = currentValueOf(options, optionId);
       if (value === watch.step.modeId) watch.echoed ??= "config_option_update";
     }
+    const held = this.held;
+    if (held) {
+      for (const option of options) {
+        if (isRecord2(option) && (option.id === held.step.confirm.configOptionId || option.id === "mode" || option.category === "mode") && typeof option.currentValue === "string" && option.currentValue !== held.step.modeId) {
+          this.drifted(option.currentValue);
+        }
+      }
+    }
+  }
+  holdMode(step) {
+    this.held = { step };
+  }
+  modeDrift() {
+    return this.held?.drift;
+  }
+  drifted(mode) {
+    const held = this.held;
+    if (!held || held.drift !== void 0) return;
+    held.drift = clip(mode);
+    this.result.mode_drift = held.drift;
+    this.onModeDrift();
   }
   optionValues(configId) {
     if (!Array.isArray(this.configOptions)) return void 0;
@@ -2198,6 +2243,9 @@ var SessionState = class {
     const kind = update.sessionUpdate;
     const watch = this.modeWatch;
     if (kind === "current_mode_update") {
+      if (this.held && typeof update.currentModeId === "string" && update.currentModeId !== this.held.step.modeId) {
+        this.drifted(update.currentModeId);
+      }
       if (watch && typeof update.currentModeId === "string") {
         if (update.currentModeId !== watch.step.modeId) watch.contrary = true;
         else if (watch.step.confirm.currentModeUpdate) {
@@ -2456,7 +2504,7 @@ function processDiagnostics(outcome, input) {
       }
     } : {}
   };
-  const termination = result.abort && teardown ? terminationFor(result.abort, teardown) : void 0;
+  const termination = result.abort && result.abort !== "mode_changed" && teardown ? terminationFor(result.abort, teardown) : void 0;
   return {
     provider_exit_code: outcome.exit_code,
     provider_signal: outcome.signal,

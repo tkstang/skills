@@ -328,7 +328,7 @@ function processDiagnostics(
       : {}),
   };
   const termination =
-    result.abort && teardown
+    result.abort && result.abort !== 'mode_changed' && teardown
       ? terminationFor(result.abort, teardown)
       : undefined;
   return {

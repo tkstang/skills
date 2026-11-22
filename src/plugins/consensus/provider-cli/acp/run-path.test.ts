@@ -221,24 +221,90 @@ describe('extended runs through runProviderTurn', () => {
     );
   });
 
-  it('fails as permission denied when Droid cancels the turn after a denial', async () => {
+  // The recorded Droid session never set its model; this adds the
+  // set_config_option reply, reporting `autonomy` as its autonomy level.
+  async function droidWithModelSet(autonomy: string) {
     const scenario = await acpFixture('droid-gui-normal-write-nocaps');
-    const { envelope } = await runTurn(
+    const configOptions = sessionNewResult(scenario).configOptions.map(
+      (option: Record<string, unknown>) =>
+        option.id === 'autonomy_level'
+          ? { ...option, currentValue: autonomy }
+          : option,
+    );
+    return insertAfter(
+      scenario,
+      (step) => JSON.stringify(step) === '{"respond":{"result":{}}}',
+      [
+        { expect: 'session/set_config_option' },
+        { respond: { result: { configOptions } } },
+      ],
+    );
+  }
+
+  it('stops before the prompt when Droid leaves normal mode during model setup', async () => {
+    const { envelope, methods } = await runTurn(
       DROID_DESCRIPTOR,
-      insertAfter(
-        scenario,
-        (step) => JSON.stringify(step) === '{"respond":{"result":{}}}',
-        [
-          { expect: 'session/set_config_option' },
-          {
-            respond: {
-              result: {
-                configOptions: sessionNewResult(scenario).configOptions,
-              },
+      cutAfter(
+        await droidWithModelSet('auto-medium'),
+        (step) =>
+          JSON.stringify(step).includes('"configOptions"') &&
+          'respond' in step &&
+          !JSON.stringify(step).includes('"sessionId"'),
+        [{ expect: 'session/close' }, { respond: { result: {} } }],
+      ),
+      { model: 'custom:Claude-Opus-5.5-(Proxy)-0' },
+    );
+
+    expect(methods).not.toContain('session/prompt');
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_UNSUPPORTED_OPTION',
+      attempts: { terminal_reason: 'acp_setup_unconfirmed' },
+      continuation: { turn: 'not_started' },
+    });
+    expect(envelope.ok === false && envelope.message).toContain(
+      'left mode normal (now auto-medium) before the prompt',
+    );
+  });
+
+  it('cancels and fails a turn when the agent leaves read-only mode mid-turn', async () => {
+    const scenario = cutAfter(await agySession(), expects('session/prompt'), [
+      {
+        send: {
+          method: 'session/update',
+          params: {
+            sessionId: 'd1dc1bef-c052-4b55-a232-505704b45765',
+            update: {
+              sessionUpdate: 'current_mode_update',
+              currentModeId: 'accept-edits',
             },
           },
-        ],
-      ),
+        },
+      },
+      { expect: 'session/cancel' },
+      { respond: { result: { stopReason: 'cancelled' } } },
+      { expect: 'session/close' },
+      { respond: { result: {} } },
+    ]);
+    const { envelope, methods } = await runTurn(
+      ANTIGRAVITY_DESCRIPTOR,
+      scenario,
+      { model: 'gemini-3.8-flash' },
+    );
+
+    expect(methods).toContain('session/cancel');
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_EXIT',
+      attempts: { terminal_reason: 'acp_mode_changed' },
+      continuation: { turn: 'unknown' },
+    });
+  });
+
+  it('fails as permission denied when Droid cancels the turn after a denial', async () => {
+    const { envelope } = await runTurn(
+      DROID_DESCRIPTOR,
+      await droidWithModelSet('normal'),
       { model: 'custom:Claude-Opus-5.5-(Proxy)-0' },
     );
 

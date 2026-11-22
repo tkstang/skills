@@ -159,7 +159,11 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
     resolveAbort({ kind: 'aborted' });
   };
 
-  const session = new SessionState(result);
+  // A mode change after the read-only mode was confirmed: before the
+  // prompt it stops the run; during the turn it cancels the turn.
+  const session = new SessionState(result, () => {
+    if (result.prompt_sent) abort('mode_changed');
+  });
   // Set once spawned; nothing is written before that.
   const io: { group?: ProcessGroupHandle } = {};
   const connection = new JsonRpcConnection({
@@ -276,6 +280,15 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
     result.phase = 'setup';
     if (!(await setup())) return;
 
+    // The latest reported mode, checked right before the prompt goes out.
+    const drift = session.modeDrift();
+    if (drift !== undefined) {
+      fail(
+        'unconfirmed_setup',
+        `the agent left mode ${input.plan.mode?.modeId} (now ${drift}) before the prompt`,
+      );
+      return;
+    }
     result.phase = 'prompt';
     const text = [...(input.plan.briefLines ?? []), input.prompt].join('\n\n');
     result.prompt_sent = true;
@@ -333,6 +346,7 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
         fail('unconfirmed_setup', `mode ${mode.modeId} was not confirmed`);
         return false;
       }
+      session.holdMode(mode);
     }
 
     for (const step of input.plan.configOptions ?? []) {
@@ -389,7 +403,10 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
       result.cancel_sent = true;
       connection.notify('session/cancel', { sessionId: result.session_id });
       // Line delivery stops at the output cap, so no reply can be read.
-      if (abortReason === 'timeout' && promptOutcome) {
+      if (
+        (abortReason === 'timeout' || abortReason === 'mode_changed') &&
+        promptOutcome
+      ) {
         const late = await withTimeout(promptOutcome, timing.cancelGraceMs);
         if (late !== 'timeout' && late.kind === 'result') {
           session.promptAnswered(late.result);
@@ -489,10 +506,15 @@ class SessionState {
         contrary: boolean;
       }
     | undefined;
+  // The confirmed read-only mode, watched until the session ends.
+  private held: { step: AcpModeStep; drift?: string } | undefined;
   private promptActive = false;
   private initialMode: string | undefined;
 
-  constructor(private readonly result: AcpTurnResult) {}
+  constructor(
+    private readonly result: AcpTurnResult,
+    private readonly onModeDrift: () => void = () => {},
+  ) {}
 
   initialized(init: Record<string, unknown>) {
     const info = isRecord(init.agentInfo) ? init.agentInfo : {};
@@ -537,6 +559,39 @@ class SessionState {
       const value = currentValueOf(options, optionId);
       if (value === watch.step.modeId) watch.echoed ??= 'config_option_update';
     }
+    const held = this.held;
+    if (held) {
+      // The mode option (id `mode`, category `mode`, or the step's own
+      // option, such as Droid's autonomy_level) must keep the held mode.
+      for (const option of options) {
+        if (
+          isRecord(option) &&
+          (option.id === held.step.confirm.configOptionId ||
+            option.id === 'mode' ||
+            option.category === 'mode') &&
+          typeof option.currentValue === 'string' &&
+          option.currentValue !== held.step.modeId
+        ) {
+          this.drifted(option.currentValue);
+        }
+      }
+    }
+  }
+
+  holdMode(step: AcpModeStep) {
+    this.held = { step };
+  }
+
+  modeDrift(): string | undefined {
+    return this.held?.drift;
+  }
+
+  private drifted(mode: string) {
+    const held = this.held;
+    if (!held || held.drift !== undefined) return;
+    held.drift = clip(mode);
+    this.result.mode_drift = held.drift;
+    this.onModeDrift();
   }
 
   optionValues(configId: string): string[] | undefined {
@@ -603,6 +658,13 @@ class SessionState {
     const kind = update.sessionUpdate;
     const watch = this.modeWatch;
     if (kind === 'current_mode_update') {
+      if (
+        this.held &&
+        typeof update.currentModeId === 'string' &&
+        update.currentModeId !== this.held.step.modeId
+      ) {
+        this.drifted(update.currentModeId);
+      }
       if (watch && typeof update.currentModeId === 'string') {
         if (update.currentModeId !== watch.step.modeId) watch.contrary = true;
         else if (watch.step.confirm.currentModeUpdate) {

@@ -19,7 +19,13 @@ export type AcpPhase =
   | 'prompt'
   | 'complete';
 
-export type AcpAbortReason = 'timeout' | 'output_cap' | 'interrupt';
+// `mode_changed`: the agent reported leaving the confirmed read-only mode
+// while the prompt was in flight.
+export type AcpAbortReason =
+  | 'timeout'
+  | 'output_cap'
+  | 'interrupt'
+  | 'mode_changed';
 
 export interface AcpSetupEvidence {
   step: 'mode' | 'config_option' | 'model_state';
@@ -78,6 +84,8 @@ export interface AcpTurnResult {
   setup: AcpSetupEvidence[];
   error?: AcpTurnError;
   abort?: AcpAbortReason;
+  // The mode the agent reported after the read-only mode was confirmed.
+  mode_drift?: string;
   cancel_sent?: boolean;
   session_closed?: boolean;
   // stdout lines that were not JSON-RPC messages.
@@ -232,6 +240,14 @@ export function classifyAcpTurn(
       `${name} exceeded the output cap.`,
       'output_cap_exceeded',
       startedTurn,
+    );
+  }
+  if (result.abort === 'mode_changed') {
+    return failure(
+      'PROVIDER_EXIT',
+      `${name} left read-only mode during the turn (now ${result.mode_drift ?? 'unknown'}); the turn was cancelled and its answer discarded.`,
+      'acp_mode_changed',
+      'unknown',
     );
   }
   if (result.abort === 'interrupt') {
