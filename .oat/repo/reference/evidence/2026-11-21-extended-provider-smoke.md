@@ -121,5 +121,21 @@ prompts. Later commits change only failure paths this smoke does not reach
   response, auth `api_key`. The turn then produced no text and made no
   permission request for the full 240 s, and consensus cancelled it
   (`stop_reason` `cancelled`). The same key served Gemini CLI minutes later.
-  The cause is under investigation on the provider side; a quota or a
-  silent retry in agy is suspected.
+  A follow-up diagnostic the same day traced it to agy and the Gemini API:
+
+  - **Retry loop:** agy's own log showed four attempts failing with
+    `Error 503 … model is currently experiencing high demand`
+    (`UNAVAILABLE`), retried after 4 s, 7.1 s, 9.7 s and 24.4 s.
+  - **Quota:** a 429 `RESOURCE_EXHAUSTED` followed
+    (`generate_content_free_tier_requests`, limit 20 per day per project per
+    model, `gemini-3.8-flash`). It arrived as answer text inside an
+    `agent executor error` line with `end_turn`, about 100 s in.
+  - **Reading:** the 240 s timeouts were most likely the silent 503 backoff,
+    and the retries may have used up the daily quota.
+  - **Unverified:** with `gemini-3.7-flash` selected, a run failed in 4 s on
+    a 429 whose quota dimension named `gemini-3.8-flash`, so agy may spend
+    `gemini-3.8-flash` quota on an auxiliary call whatever model is selected.
+
+  Consensus now adds a key-mode hint to the Antigravity timeout message. A
+  test confirms that the 429 text, which also matches `agent executor error`,
+  classifies as `PROVIDER_LIMIT_REACHED`.

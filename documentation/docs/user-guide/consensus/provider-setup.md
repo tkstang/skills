@@ -252,8 +252,18 @@ listed credential variable is forwarded; `--env-allow` is refused.
   schedule." and "Only read files inside the working directory; do not read
   parent directories."
 - A quota error that arrives as answer text (`Error 429`,
-  `exceeded your current quota`) fails with `PROVIDER_LIMIT_REACHED`; `agent executor error`
+  `exceeded your current quota`) fails with `PROVIDER_LIMIT_REACHED`, even
+  inside an `agent executor error` line; any other `agent executor error`
   fails with `PROVIDER_EXIT`.
+- With `GEMINI_API_KEY`, agy retries a Gemini API `503` (model under high
+  demand) on its own, without telling the client, so a turn can run to the
+  deadline and fail with `PROVIDER_TIMEOUT`; the message says so. A free-tier
+  key allows about 20 requests a day per model, and those retries may count
+  against it. On 2026-11-22, a run with `gemini-3.7-flash` selected was
+  refused for a `gemini-3.8-flash` quota, so agy may also spend
+  `gemini-3.8-flash` quota on an auxiliary call whatever model is selected
+  (observed once, not confirmed). A key with billing enabled has no free-tier
+  cap.
 - Accepted limits:
   - `search_web` sends queries over the network without a permission
     request, so deny-all cannot stop it.
