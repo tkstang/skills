@@ -833,16 +833,52 @@ describe('node probe command runner', () => {
     }
   });
 
+  it('redacts a credential value from the unsupported-version warning', async () => {
+    const secret = '123456';
+    const entry = await probeProviderReadiness(
+      providerRegistry().get('droid')!,
+      {
+        runner: fakeRunner({
+          env: { FACTORY_API_KEY: secret },
+          executables: { droid: '/opt/bin/droid' },
+          results: {
+            '/opt/bin/droid --version': {
+              code: 0,
+              stdout: `droid 1.15.${secret}\n`,
+              stderr: '',
+            },
+          },
+        }),
+      },
+    );
+
+    expect(entry).toMatchObject({
+      status: 'unavailable',
+      diagnostics: {
+        warnings: [expect.stringContaining('PROVIDER_VERSION_UNSUPPORTED')],
+      },
+    });
+    expect(JSON.stringify(entry)).not.toContain(secret);
+  });
+
   it.each([
     [
       'zqliteralcredential4711',
       'droid 1.17.0-zqliteralcredential4711+meta',
       '1.17.0',
+      'ready',
     ],
-    ['123456', 'droid 1.17.123456-rc.2', undefined],
+    ['123456', 'droid 1.17.123456-rc.2', undefined, 'ready'],
+    // Too large to round-trip, so the version is unparseable.
+    [
+      '98765432109876543210',
+      'droid 1.17.98765432109876543210',
+      undefined,
+      'unavailable',
+    ],
   ])(
     'drops a credential value %j from the extended version label',
-    async (secret, line, version) => {
+    async (secret, line, version, status) => {
       const entry = await probeProviderReadiness(
         providerRegistry().get('droid')!,
         {
@@ -860,7 +896,7 @@ describe('node probe command runner', () => {
         },
       );
 
-      expect(entry.status).toBe('ready');
+      expect(entry.status).toBe(status);
       expect(entry.version).toBe(version);
       expect(JSON.stringify(entry)).not.toContain(secret);
     },

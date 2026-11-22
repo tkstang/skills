@@ -226,7 +226,7 @@ export async function probeProviderReadiness(
       executable,
       ...versionLabel(output),
       warnings: [
-        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${formatNumericVersion(detectedVersion)} is below required ${adapter.probe.minimum_version}`,
+        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${redact(formatNumericVersion(detectedVersion))} is below required ${adapter.probe.minimum_version}`,
       ],
     });
   }
@@ -627,7 +627,15 @@ function firstNonEmptyLine(value: string) {
 function parseNumericVersion(value: string): number[] | undefined {
   const match = value.match(/\b(\d+(?:\.\d+){2,})\b/);
   if (!match) return undefined;
-  return match[1].split('.').map(Number);
+  return safeComponents(match[1]);
+}
+
+// Version components as numbers, or undefined when one is too large to
+// round-trip: a rounded number would no longer match the digits printed,
+// which redaction compares against.
+function safeComponents(release: string): number[] | undefined {
+  const parts = release.split('.').map(Number);
+  return parts.every((part) => Number.isSafeInteger(part)) ? parts : undefined;
 }
 
 function compareNumericVersions(left: number[], right: number[]): number {
@@ -670,9 +678,11 @@ function parseVersion(
 ): ParsedVersion | undefined {
   const match = value.match(pattern);
   if (!match) return undefined;
+  const release = safeComponents(match[1]);
+  if (!release) return undefined;
   return {
     text: `${match[1]}${match[2] ? `-${match[2]}` : ''}${match[3] ? `+${match[3]}` : ''}`,
-    release: match[1].split('.').map(Number),
+    release,
     prerelease: match[2] ? match[2].split('.') : [],
     build: match[3] ? match[3].split('.') : [],
   };

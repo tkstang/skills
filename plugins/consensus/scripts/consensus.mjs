@@ -5146,7 +5146,7 @@ ${result.stderr}`;
       executable,
       ...versionLabel(output),
       warnings: [
-        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${formatNumericVersion(detectedVersion)} is below required ${adapter.probe.minimum_version}`
+        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${redact(formatNumericVersion(detectedVersion))} is below required ${adapter.probe.minimum_version}`
       ]
     });
   }
@@ -5427,7 +5427,11 @@ function firstNonEmptyLine2(value) {
 function parseNumericVersion(value) {
   const match = value.match(/\b(\d+(?:\.\d+){2,})\b/);
   if (!match) return void 0;
-  return match[1].split(".").map(Number);
+  return safeComponents(match[1]);
+}
+function safeComponents(release) {
+  const parts = release.split(".").map(Number);
+  return parts.every((part) => Number.isSafeInteger(part)) ? parts : void 0;
 }
 function compareNumericVersions(left, right) {
   const length = Math.max(left.length, right.length);
@@ -5449,9 +5453,11 @@ var PIN_VERSION = new RegExp(`^${VERSION_TOKEN}$`);
 function parseVersion(value, pattern = OUTPUT_VERSION) {
   const match = value.match(pattern);
   if (!match) return void 0;
+  const release = safeComponents(match[1]);
+  if (!release) return void 0;
   return {
     text: `${match[1]}${match[2] ? `-${match[2]}` : ""}${match[3] ? `+${match[3]}` : ""}`,
-    release: match[1].split(".").map(Number),
+    release,
     prerelease: match[2] ? match[2].split(".") : [],
     build: match[3] ? match[3].split(".") : []
   };
