@@ -1522,10 +1522,12 @@ var CANCELLED_PERMISSION_OUTCOME = {
 };
 var REJECT_KINDS = ["reject_once", "reject_always"];
 var MAX_FIELD_CHARS = 120;
-var MAX_PATH_CHARS = 4096;
 function denyPermissionRequest(params, options = {}) {
   const request = isRecord2(params) ? params : {};
-  const denialBase = describeToolCall(request.toolCall);
+  const denialBase = describeToolCall(
+    request.toolCall,
+    options.redact ?? ((text) => text)
+  );
   if (!options.cancelled) {
     const optionId = rejectOptionId(request.options);
     if (optionId !== void 0) {
@@ -1553,13 +1555,14 @@ function rejectOptionId(options) {
   }
   return void 0;
 }
-function describeToolCall(toolCall) {
+function describeToolCall(toolCall, redact) {
   if (!isRecord2(toolCall)) return {};
-  const tool = shortString(toolCall.name) ?? shortString(toolCall.title);
-  const toolCallId = shortString(toolCall.toolCallId);
-  const kind = shortString(toolCall.kind);
+  const short = (value) => typeof value === "string" && value !== "" ? shortString(redact(value)) : void 0;
+  const tool = short(toolCall.name) ?? short(toolCall.title);
+  const toolCallId = short(toolCall.toolCallId);
+  const kind = short(toolCall.kind);
   const location = Array.isArray(toolCall.locations) && isRecord2(toolCall.locations[0]) ? toolCall.locations[0].path : void 0;
-  const firstPath = typeof location === "string" && location !== "" ? shortString(location, MAX_PATH_CHARS) : void 0;
+  const firstPath = typeof location === "string" && location !== "" ? location : void 0;
   return {
     ...toolCallId !== void 0 ? { tool_call_id: toolCallId } : {},
     ...tool !== void 0 ? { tool } : {},
@@ -1567,9 +1570,8 @@ function describeToolCall(toolCall) {
     ...firstPath !== void 0 ? { path: firstPath } : {}
   };
 }
-function shortString(value, max = MAX_FIELD_CHARS) {
-  if (typeof value !== "string" || value === "") return void 0;
-  return value.length > max ? `${value.slice(0, max)}\u2026` : value;
+function shortString(value) {
+  return value.length > MAX_FIELD_CHARS ? `${value.slice(0, MAX_FIELD_CHARS)}\u2026` : value;
 }
 
 // src/plugins/consensus/provider-cli/acp/transcript.ts
@@ -1884,7 +1886,7 @@ async function runAcpTurn(input) {
     }
     resolveAbort({ kind: "aborted" });
   };
-  const session = new SessionState(result, () => {
+  const session = new SessionState(result, redact, () => {
     if (result.prompt_sent) abort("mode_changed");
   });
   const io = {};
@@ -1899,15 +1901,14 @@ async function runAcpTurn(input) {
     onRequest: (request) => {
       if (request.method === "session/request_permission") {
         const { response, denial } = denyPermissionRequest(request.params, {
-          cancelled: result.cancel_sent === true
+          cancelled: result.cancel_sent === true,
+          redact
         });
-        result.denials.push(
-          denial.tool ? { ...denial, tool: redact(denial.tool) } : denial
-        );
+        result.denials.push(denial);
         return { result: response };
       }
       if (!result.refused_methods.includes(request.method) && result.refused_methods.length < MAX_REFUSED_METHODS) {
-        result.refused_methods.push(clip(request.method));
+        result.refused_methods.push(clip(redact(request.method)));
       }
       return { error: methodNotFound(request.method) };
     },
@@ -2150,7 +2151,7 @@ async function runAcpTurn(input) {
   function finalize() {
     if (abortReason) result.abort = abortReason;
     result.denials = result.denials.map(
-      (denial) => denial.path ? { ...denial, path: displayPath(denial.path, input.cwd) } : denial
+      (denial) => denial.path ? { ...denial, path: displayPath(denial.path, input.cwd, redact) } : denial
     );
     const ignored = connection.stats().ignored_lines;
     if (ignored > 0) result.ignored_lines = ignored;
@@ -2202,12 +2203,14 @@ async function runAcpTurn(input) {
   }
 }
 var SessionState = class {
-  constructor(result, onModeDrift = () => {
+  constructor(result, redact, onModeDrift = () => {
   }) {
     this.result = result;
+    this.redact = redact;
     this.onModeDrift = onModeDrift;
   }
   result;
+  redact;
   onModeDrift;
   closeCapability = false;
   configOptions;
@@ -2216,11 +2219,16 @@ var SessionState = class {
   held;
   promptActive = false;
   initialMode;
+  // Agent-reported strings are redacted before they are shortened, so a
+  // clip never leaves part of a secret behind.
+  keep(value) {
+    return clip(this.redact(value));
+  }
   initialized(init) {
     const info = isRecord2(init.agentInfo) ? init.agentInfo : {};
     const agent = {};
     for (const key of ["name", "title", "version"]) {
-      if (typeof info[key] === "string") agent[key] = clip(info[key]);
+      if (typeof info[key] === "string") agent[key] = this.keep(info[key]);
     }
     if (Object.keys(agent).length > 0) this.result.agent = agent;
     const capabilities = isRecord2(init.agentCapabilities) ? init.agentCapabilities : {};
@@ -2231,10 +2239,10 @@ var SessionState = class {
     return this.closeCapability;
   }
   created(response) {
-    this.result.session_id = clip(response.sessionId);
+    this.result.session_id = this.keep(response.sessionId);
     const models = isRecord2(response.models) ? response.models : {};
     if (typeof models.currentModelId === "string") {
-      this.result.models.current_model_id = clip(models.currentModelId);
+      this.result.models.current_model_id = this.keep(models.currentModelId);
     }
     const modes = isRecord2(response.modes) ? response.modes : {};
     this.initialMode = typeof modes.currentModeId === "string" ? modes.currentModeId : void 0;
@@ -2244,7 +2252,7 @@ var SessionState = class {
     if (!Array.isArray(options)) return;
     this.configOptions = options;
     const model = currentValueOf(options, "model");
-    if (model !== void 0) this.result.models.config_model = clip(model);
+    if (model !== void 0) this.result.models.config_model = this.keep(model);
     const watch = this.modeWatch;
     const optionId = watch?.step.confirm.configOptionId;
     if (watch && optionId) {
@@ -2268,7 +2276,7 @@ var SessionState = class {
   drifted(mode) {
     const held = this.held;
     if (!held || held.drift !== void 0) return;
-    held.drift = clip(mode);
+    held.drift = this.keep(mode);
     this.result.mode_drift = held.drift;
     this.onModeDrift();
   }
@@ -2300,14 +2308,14 @@ var SessionState = class {
     this.promptActive = false;
     if (!isRecord2(response)) return;
     if (typeof response.stopReason === "string") {
-      this.result.stop_reason = clip(response.stopReason);
+      this.result.stop_reason = this.keep(response.stopReason);
     }
     const usage = numericFields(response.usage);
     if (usage) this.result.usage = usage;
     const meta = isRecord2(response._meta) ? response._meta : {};
     const quota = isRecord2(meta.quota) ? meta.quota : {};
     if (Array.isArray(quota.model_usage)) {
-      const models = quota.model_usage.map((entry) => isRecord2(entry) ? entry.model : void 0).filter((model) => typeof model === "string").map(clip);
+      const models = quota.model_usage.map((entry) => isRecord2(entry) ? entry.model : void 0).filter((model) => typeof model === "string").map((model) => this.keep(model));
       if (models.length > 0)
         this.result.models.usage_models = [...new Set(models)];
     }
@@ -2350,7 +2358,7 @@ var SessionState = class {
   }
 };
 var MAX_DISPLAY_PATH_CHARS = 240;
-function displayPath(reported, cwd) {
+function displayPath(reported, cwd, redact) {
   let shown = reported;
   if (path2.isAbsolute(reported)) {
     const realCwd = realpathOrSelf(path2.resolve(cwd));
@@ -2359,7 +2367,7 @@ function displayPath(reported, cwd) {
       shown = relative === "" ? "." : relative;
     }
   }
-  return shown.length > MAX_DISPLAY_PATH_CHARS ? `${shown.slice(0, MAX_DISPLAY_PATH_CHARS)}\u2026` : shown;
+  return clip(redact(shown), MAX_DISPLAY_PATH_CHARS);
 }
 function realpathOrSelf(file) {
   try {
@@ -2420,8 +2428,8 @@ function numericFields(value) {
   }
   return Object.keys(fields).length > 0 ? fields : void 0;
 }
-function clip(value) {
-  return value.length > MAX_META_CHARS ? `${value.slice(0, MAX_META_CHARS)}\u2026` : value;
+function clip(value, max = MAX_META_CHARS) {
+  return value.length > max ? `${value.slice(0, max)}\u2026` : value;
 }
 
 // src/plugins/consensus/provider-cli/acp/adapter.ts

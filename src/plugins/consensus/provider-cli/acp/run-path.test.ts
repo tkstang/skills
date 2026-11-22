@@ -248,6 +248,33 @@ describe('extended runs through runProviderTurn', () => {
     );
   });
 
+  it('redacts a credential in denial details before shortening them', async () => {
+    const secret = 'zq-literal-credential-4711';
+    const realCwd = await checkout();
+    const scenario = await withAgySetup('agy-gui-write-nocaps');
+    const request = scenario.steps.find(
+      (step) => (step.send as any)?.method === 'session/request_permission',
+    ) as { send: { params: { toolCall: Record<string, unknown> } } };
+    // Both values cross their display limit inside the credential.
+    request.send.params.toolCall.name = `${'t'.repeat(110)}${secret}`;
+    request.send.params.toolCall.locations = [
+      { path: path.join(realCwd, 'd'.repeat(230), `${secret}.txt`) },
+    ];
+    const { envelope } = await runTurn(
+      { ...ANTIGRAVITY_DESCRIPTOR, api_key: undefined },
+      scenario,
+      { model: 'gemini-3.8-flash' },
+      { cwd: realCwd, parentEnv: { GEMINI_API_KEY: secret } },
+    );
+
+    const denials = envelope.diagnostics?.permission_denials;
+    expect(denials?.requests?.[0]).toMatchObject({
+      tool: `${'t'.repeat(110)}<redacted>`,
+      path: `${'d'.repeat(230)}/<redacted…`,
+    });
+    expect(JSON.stringify(envelope)).not.toContain('zq-lit');
+  });
+
   // The recorded Droid session never set its model; this adds the
   // set_config_option reply, reporting `autonomy` as its autonomy level.
   async function droidWithModelSet(autonomy: string) {

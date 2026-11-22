@@ -29,22 +29,29 @@ export interface AcpPermissionDenial {
   // The tool's name, else its title.
   tool?: string;
   kind?: string;
-  // The first location the request names, as the agent reported it; the
-  // client shortens it relative to the run's cwd.
+  // The first location the request names, in full as the agent reported
+  // it; the client resolves it against the run's cwd, then redacts and
+  // shortens it.
   path?: string;
   outcome: 'rejected' | 'cancelled';
 }
 
 const REJECT_KINDS = ['reject_once', 'reject_always'] as const;
 const MAX_FIELD_CHARS = 120;
-const MAX_PATH_CHARS = 4096;
 
 export function denyPermissionRequest(
   params: unknown,
-  options: { cancelled?: boolean } = {},
+  options: {
+    cancelled?: boolean;
+    // Applied to each recorded field before it is shortened.
+    redact?: (text: string) => string;
+  } = {},
 ): { response: PermissionResponse; denial: AcpPermissionDenial } {
   const request = isRecord(params) ? params : {};
-  const denialBase = describeToolCall(request.toolCall);
+  const denialBase = describeToolCall(
+    request.toolCall,
+    options.redact ?? ((text) => text),
+  );
   if (!options.cancelled) {
     const optionId = rejectOptionId(request.options);
     if (optionId !== undefined) {
@@ -80,19 +87,23 @@ function rejectOptionId(options: unknown): string | undefined {
 
 function describeToolCall(
   toolCall: unknown,
+  redact: (text: string) => string,
 ): Omit<AcpPermissionDenial, 'outcome'> {
   if (!isRecord(toolCall)) return {};
-  const tool = shortString(toolCall.name) ?? shortString(toolCall.title);
-  const toolCallId = shortString(toolCall.toolCallId);
-  const kind = shortString(toolCall.kind);
+  const short = (value: unknown) =>
+    typeof value === 'string' && value !== ''
+      ? shortString(redact(value))
+      : undefined;
+  const tool = short(toolCall.name) ?? short(toolCall.title);
+  const toolCallId = short(toolCall.toolCallId);
+  const kind = short(toolCall.kind);
   const location =
     Array.isArray(toolCall.locations) && isRecord(toolCall.locations[0])
       ? toolCall.locations[0].path
       : undefined;
+  // Kept whole: the client resolves it before redacting and shortening.
   const firstPath =
-    typeof location === 'string' && location !== ''
-      ? shortString(location, MAX_PATH_CHARS)
-      : undefined;
+    typeof location === 'string' && location !== '' ? location : undefined;
   return {
     ...(toolCallId !== undefined ? { tool_call_id: toolCallId } : {}),
     ...(tool !== undefined ? { tool } : {}),
@@ -101,7 +112,8 @@ function describeToolCall(
   };
 }
 
-function shortString(value: unknown, max = MAX_FIELD_CHARS) {
-  if (typeof value !== 'string' || value === '') return undefined;
-  return value.length > max ? `${value.slice(0, max)}…` : value;
+function shortString(value: string) {
+  return value.length > MAX_FIELD_CHARS
+    ? `${value.slice(0, MAX_FIELD_CHARS)}…`
+    : value;
 }

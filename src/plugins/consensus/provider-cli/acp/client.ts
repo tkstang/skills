@@ -180,7 +180,7 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
 
   // A mode change after the read-only mode was confirmed: before the
   // prompt it stops the run; during the turn it cancels the turn.
-  const session = new SessionState(result, () => {
+  const session = new SessionState(result, redact, () => {
     if (result.prompt_sent) abort('mode_changed');
   });
   // Set once spawned; nothing is written before that.
@@ -197,17 +197,16 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
       if (request.method === 'session/request_permission') {
         const { response, denial } = denyPermissionRequest(request.params, {
           cancelled: result.cancel_sent === true,
+          redact,
         });
-        result.denials.push(
-          denial.tool ? { ...denial, tool: redact(denial.tool) } : denial,
-        );
+        result.denials.push(denial);
         return { result: response };
       }
       if (
         !result.refused_methods.includes(request.method) &&
         result.refused_methods.length < MAX_REFUSED_METHODS
       ) {
-        result.refused_methods.push(clip(request.method));
+        result.refused_methods.push(clip(redact(request.method)));
       }
       return { error: methodNotFound(request.method) };
     },
@@ -486,7 +485,7 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
     if (abortReason) result.abort = abortReason;
     result.denials = result.denials.map((denial) =>
       denial.path
-        ? { ...denial, path: displayPath(denial.path, input.cwd) }
+        ? { ...denial, path: displayPath(denial.path, input.cwd, redact) }
         : denial,
     );
     const ignored = connection.stats().ignored_lines;
@@ -564,14 +563,21 @@ class SessionState {
 
   constructor(
     private readonly result: AcpTurnResult,
+    private readonly redact: (text: string) => string,
     private readonly onModeDrift: () => void = () => {},
   ) {}
+
+  // Agent-reported strings are redacted before they are shortened, so a
+  // clip never leaves part of a secret behind.
+  private keep(value: string) {
+    return clip(this.redact(value));
+  }
 
   initialized(init: Record<string, unknown>) {
     const info = isRecord(init.agentInfo) ? init.agentInfo : {};
     const agent: NonNullable<AcpTurnResult['agent']> = {};
     for (const key of ['name', 'title', 'version'] as const) {
-      if (typeof info[key] === 'string') agent[key] = clip(info[key]);
+      if (typeof info[key] === 'string') agent[key] = this.keep(info[key]);
     }
     if (Object.keys(agent).length > 0) this.result.agent = agent;
     const capabilities = isRecord(init.agentCapabilities)
@@ -588,10 +594,10 @@ class SessionState {
   }
 
   created(response: Record<string, unknown>) {
-    this.result.session_id = clip(response.sessionId as string);
+    this.result.session_id = this.keep(response.sessionId as string);
     const models = isRecord(response.models) ? response.models : {};
     if (typeof models.currentModelId === 'string') {
-      this.result.models.current_model_id = clip(models.currentModelId);
+      this.result.models.current_model_id = this.keep(models.currentModelId);
     }
     const modes = isRecord(response.modes) ? response.modes : {};
     this.initialMode =
@@ -603,7 +609,7 @@ class SessionState {
     if (!Array.isArray(options)) return;
     this.configOptions = options;
     const model = currentValueOf(options, 'model');
-    if (model !== undefined) this.result.models.config_model = clip(model);
+    if (model !== undefined) this.result.models.config_model = this.keep(model);
     const watch = this.modeWatch;
     const optionId = watch?.step.confirm.configOptionId;
     if (watch && optionId) {
@@ -632,7 +638,7 @@ class SessionState {
   private drifted(mode: string) {
     const held = this.held;
     if (!held || held.drift !== undefined) return;
-    held.drift = clip(mode);
+    held.drift = this.keep(mode);
     this.result.mode_drift = held.drift;
     this.onModeDrift();
   }
@@ -672,7 +678,7 @@ class SessionState {
     this.promptActive = false;
     if (!isRecord(response)) return;
     if (typeof response.stopReason === 'string') {
-      this.result.stop_reason = clip(response.stopReason);
+      this.result.stop_reason = this.keep(response.stopReason);
     }
     const usage = numericFields(response.usage);
     if (usage) this.result.usage = usage;
@@ -682,7 +688,7 @@ class SessionState {
       const models = quota.model_usage
         .map((entry) => (isRecord(entry) ? entry.model : undefined))
         .filter((model): model is string => typeof model === 'string')
-        .map(clip);
+        .map((model) => this.keep(model));
       if (models.length > 0)
         this.result.models.usage_models = [...new Set(models)];
     }
@@ -739,7 +745,11 @@ const MAX_DISPLAY_PATH_CHARS = 240;
 // A denied request's path, relative to the run's cwd when it is inside it.
 // Both sides are compared as real paths (agy reports /private/tmp for a cwd
 // of /tmp); a path outside the cwd stays as the agent reported it.
-function displayPath(reported: string, cwd: string): string {
+function displayPath(
+  reported: string,
+  cwd: string,
+  redact: (text: string) => string,
+): string {
   let shown = reported;
   if (path.isAbsolute(reported)) {
     const realCwd = realpathOrSelf(path.resolve(cwd));
@@ -748,9 +758,7 @@ function displayPath(reported: string, cwd: string): string {
       shown = relative === '' ? '.' : relative;
     }
   }
-  return shown.length > MAX_DISPLAY_PATH_CHARS
-    ? `${shown.slice(0, MAX_DISPLAY_PATH_CHARS)}…`
-    : shown;
+  return clip(redact(shown), MAX_DISPLAY_PATH_CHARS);
 }
 
 function realpathOrSelf(file: string) {
@@ -835,8 +843,6 @@ function numericFields(value: unknown): Record<string, number> | undefined {
   return Object.keys(fields).length > 0 ? fields : undefined;
 }
 
-function clip(value: string) {
-  return value.length > MAX_META_CHARS
-    ? `${value.slice(0, MAX_META_CHARS)}…`
-    : value;
+function clip(value: string, max = MAX_META_CHARS) {
+  return value.length > max ? `${value.slice(0, max)}…` : value;
 }
