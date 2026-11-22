@@ -51,6 +51,13 @@ import type {
   RunOutputKind,
   StructuredOutputStrategy,
 } from './types.js';
+import {
+  compareWorkingTrees,
+  describeWorkingTreeChanges,
+  hasWorkingTreeChanges,
+  snapshotWorkingTree,
+  workingTreeChangeList,
+} from './working-tree.js';
 
 export interface RunProviderTurnDependencies {
   registry?: ProviderAdapterRegistry;
@@ -111,6 +118,7 @@ export async function runProviderTurn(
   const adapter = registry.get(request.provider);
   const consultationId = consultationIdFor(request);
   const mode = continuationMode(request);
+  let defaultModel: string | undefined;
   const withReceipt = (
     envelope: ConsensusCliRunEnvelope,
     receiptMode: ContinuationMode,
@@ -125,6 +133,7 @@ export async function runProviderTurn(
       consultationId,
       trace,
       fallbackReason,
+      defaultModel,
     }),
   });
 
@@ -155,6 +164,30 @@ export async function runProviderTurn(
     );
   }
 
+  // Extended providers always run a named model, so a turn never falls back
+  // to a provider default the caller did not choose.
+  let turnRequest = request;
+  if (adapter?.tier === 'extended') {
+    const model = await extendedProviderModel(request);
+    if (!model.ok) {
+      return withReceipt(
+        preInvocationFailure({
+          provider: request.provider,
+          code: model.code,
+          message: model.message,
+          terminalReason: model.terminalReason,
+        }),
+        mode,
+        {},
+      );
+    }
+    defaultModel = model.defaultModel;
+    turnRequest = { ...request, model: model.model };
+  }
+  // Every extended read-only turn is bracketed by a working-tree check.
+  const runTurn: typeof runStructuredTurn =
+    adapter?.tier === 'extended' ? runCheckedExtendedTurn : runStructuredTurn;
+
   const continuation = request.continuation;
   const runReconstructed = async (
     packet: string,
@@ -162,9 +195,9 @@ export async function runProviderTurn(
     rejected?: ConsensusCliRunEnvelope,
   ) => {
     const trace: ProviderTurnTrace = {};
-    const envelope = await runStructuredTurn(
+    const envelope = await runTurn(
       {
-        ...request,
+        ...turnRequest,
         prompt: reconstructedContinuationPrompt(packet, fallbackReason),
       },
       dependencies,
@@ -183,7 +216,7 @@ export async function runProviderTurn(
   }
   if (mode !== 'native-resume' || !continuation?.session_id) {
     const trace: ProviderTurnTrace = {};
-    const envelope = await runStructuredTurn(request, dependencies, trace);
+    const envelope = await runTurn(turnRequest, dependencies, trace);
     return withReceipt(envelope, 'new', trace);
   }
 
@@ -209,7 +242,7 @@ export async function runProviderTurn(
   }
 
   const trace: ProviderTurnTrace = {};
-  const envelope = await runStructuredTurn(request, dependencies, trace, {
+  const envelope = await runTurn(turnRequest, dependencies, trace, {
     resumeSessionId: requestedSessionId,
   });
   const receipt = continuationReceipt({
@@ -218,6 +251,7 @@ export async function runProviderTurn(
     mode: 'native-resume',
     consultationId,
     trace,
+    defaultModel,
   });
   // Only a definitive pre-turn rejection may fall back; anything that could
   // have reached the session is reported instead of resubmitted.
@@ -281,6 +315,94 @@ function withRejectedResume(
 
 interface StructuredTurnOptions {
   resumeSessionId?: string;
+}
+
+type ExtendedModelResult =
+  | { ok: true; model: string; defaultModel?: string }
+  | {
+      ok: false;
+      code: ProviderErrorCode;
+      message: string;
+      terminalReason: string;
+    };
+
+async function extendedProviderModel(
+  request: ConsensusCliRunRequest,
+): Promise<ExtendedModelResult> {
+  if (request.model) return { ok: true, model: request.model };
+  return {
+    ok: false,
+    code: 'PROVIDER_UNSUPPORTED_OPTION',
+    message: `${request.provider} needs a model: pass --model.`,
+    terminalReason: 'model_required',
+  };
+}
+
+// Snapshots the checkout before an extended read-only turn and compares it
+// after the provider's process group is gone. Any change fails the run with
+// PROVIDER_WORKTREE_CHANGED and the changed paths, whatever the turn
+// returned; the receipt keeps the turn's own state.
+async function runCheckedExtendedTurn(
+  request: ConsensusCliRunRequest,
+  dependencies: RunProviderTurnDependencies,
+  trace: ProviderTurnTrace,
+  turnOptions: StructuredTurnOptions = {},
+): Promise<ConsensusCliRunEnvelope> {
+  // Extended providers accept only read-only; anything else is refused by
+  // option validation before launch.
+  if (
+    defaultRuntimePolicy(request.runtime_policy).permission_mode !== 'read-only'
+  ) {
+    return runStructuredTurn(request, dependencies, trace, turnOptions);
+  }
+  const cwd = path.resolve(request.cwd ?? process.cwd());
+  const env = dependencies.parentEnv ?? process.env;
+  const before = await snapshotWorkingTree(cwd, { env });
+  if (!before.ok) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: 'PROVIDER_UNSUPPORTED_OPTION',
+      message: `Extended read-only runs need a git checkout so the working tree can be checked before and after the turn: ${before.message}`,
+      terminalReason: 'working_tree_unavailable',
+    });
+  }
+  const envelope = await runStructuredTurn(
+    request,
+    dependencies,
+    trace,
+    turnOptions,
+  );
+  if (!trace.process) return envelope;
+
+  const after = await snapshotWorkingTree(cwd, { env });
+  const changes = after.ok
+    ? compareWorkingTrees(before.snapshot, after.snapshot)
+    : undefined;
+  if (changes && !hasWorkingTreeChanges(changes)) return envelope;
+  const outcome = envelope.ok ? 'succeeded' : `failed with ${envelope.code}`;
+  // A checkout that can no longer be read (its .git removed, say) is
+  // reported as changed.
+  const message = after.ok
+    ? `The working tree changed during a read-only ${request.provider} run: ${describeWorkingTreeChanges(changes!)}. Review and revert these changes; the turn ${outcome}.`
+    : `The working tree could not be re-checked after a read-only ${request.provider} run (${after.message}); treat it as changed and review it. The turn ${outcome}.`;
+  return failureEnvelope({
+    provider: request.provider,
+    code: 'PROVIDER_WORKTREE_CHANGED',
+    message,
+    retryable: false,
+    stdout: envelope.stdout,
+    stderr: envelope.stderr,
+    attempts: {
+      cli_attempts: envelope.attempts.cli_attempts,
+      terminal_reason: 'working_tree_changed',
+    },
+    diagnostics: {
+      ...envelope.diagnostics,
+      ...(changes
+        ? { working_tree_changes: workingTreeChangeList(changes) }
+        : {}),
+    },
+  });
 }
 
 async function runStructuredTurn(
@@ -397,7 +519,10 @@ async function runStructuredTurn(
       terminalReason: 'structured_output_strategy',
     });
   }
-  const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
+  // An adapter that drives its provider itself (ACP) runs through its own
+  // hook; a test runner never replaces it.
+  const runSubprocess =
+    adapter.run ?? dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
   const resolvedExecutable = resolveProviderExecutable(adapter, parentEnv);
   if (!resolvedExecutable.ok) {

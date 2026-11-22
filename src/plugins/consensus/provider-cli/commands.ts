@@ -416,6 +416,7 @@ export async function runConsensusCli(
       readSchema: async (schemaPath) =>
         JSON.parse(await io.readFile(schemaPath)),
       parentEnv: io.env,
+      ...(options.adapters ? { registry: options.adapters } : {}),
     });
     writeJson(io, envelope);
     return processExitForEnvelope(envelope);

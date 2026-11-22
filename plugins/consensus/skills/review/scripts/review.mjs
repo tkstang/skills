@@ -4,14 +4,14 @@
 // src/skills/consensus-review/src/review.ts
 import { randomUUID as randomUUID7 } from "node:crypto";
 import { constants as constants2, realpathSync as realpathSync2 } from "node:fs";
-import { link as link2, lstat as lstat4, open as open4, realpath as realpath3, unlink as unlink2 } from "node:fs/promises";
-import path13 from "node:path";
+import { link as link2, lstat as lstat5, open as open4, realpath as realpath3, unlink as unlink2 } from "node:fs/promises";
+import path14 from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // src/skills/consensus-review/src/run.ts
-import { createHash as createHash3, randomUUID as randomUUID6 } from "node:crypto";
-import { link, lstat as lstat3, open as open3, realpath as realpath2, stat as stat2, unlink } from "node:fs/promises";
-import path12 from "node:path";
+import { createHash as createHash4, randomUUID as randomUUID6 } from "node:crypto";
+import { link, lstat as lstat4, open as open3, realpath as realpath2, stat as stat2, unlink } from "node:fs/promises";
+import path13 from "node:path";
 
 // src/plugins/consensus/provider-cli/invocation.ts
 import { randomUUID } from "node:crypto";
@@ -2310,7 +2310,7 @@ function describeVersionPin(pin) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 import { readFile, rm as rm2 } from "node:fs/promises";
-import path7 from "node:path";
+import path8 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/plugins/consensus/provider-cli/continuation.ts
@@ -2430,6 +2430,7 @@ function continuationReceipt(input) {
     ...round !== void 0 ? { round } : {},
     cwd: path5.resolve(request.cwd ?? process.cwd()),
     ...request.model ? { requested_model: request.model } : {},
+    ...input.defaultModel ? { default_model: input.defaultModel } : {},
     ...request.effort ? { requested_effort: request.effort } : {},
     ...observation.observed_models ? { observed_models: observation.observed_models } : {},
     runtime_policy: redactedRuntimePolicyDiagnostics(request.runtime_policy),
@@ -2546,6 +2547,166 @@ function submitCaptureFilePath(cwd, id = randomUUID3()) {
   return path6.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
 }
 
+// src/plugins/consensus/provider-cli/working-tree.ts
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { lstat, readlink } from "node:fs/promises";
+import path7 from "node:path";
+var GIT_TIMEOUT_MS = 3e4;
+var GIT_MAX_BUFFER = 64 * 1024 * 1024;
+var MAX_LISTED_PATHS = 20;
+async function snapshotWorkingTree(cwd, options = {}) {
+  const git = gitRunner(cwd, options);
+  try {
+    const env = await git.cleanEnv();
+    const inside2 = await git.run(env, ["rev-parse", "--is-inside-work-tree"]);
+    if (inside2.trim() !== "true") {
+      return { ok: false, message: `${cwd} is not inside a git work tree` };
+    }
+    const root = (await git.run(env, ["rev-parse", "--show-toplevel"])).trim();
+    const head = (await git.run(env, ["rev-parse", "--verify", "--quiet", "HEAD"], {
+      allowExit: [1]
+    })).trim();
+    const raw = await git.run(env, [
+      "--no-optional-locks",
+      "status",
+      "--porcelain=v1",
+      "-z",
+      "--untracked-files=all",
+      "--ignored=no"
+    ]);
+    const status = parsePorcelainZ(raw);
+    const content = /* @__PURE__ */ new Map();
+    for (const file of status.keys()) {
+      content.set(file, await fingerprint(path7.join(root, file)));
+    }
+    return { ok: true, snapshot: { root, head, status, content } };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+function compareWorkingTrees(before, after) {
+  const paths = /* @__PURE__ */ new Set();
+  for (const file of /* @__PURE__ */ new Set([
+    ...before.status.keys(),
+    ...after.status.keys()
+  ])) {
+    if (before.status.get(file) !== after.status.get(file) || before.content.get(file) !== after.content.get(file)) {
+      paths.add(file);
+    }
+  }
+  return {
+    head_changed: before.head !== after.head,
+    paths: [...paths].toSorted()
+  };
+}
+function hasWorkingTreeChanges(changes) {
+  return changes.head_changed || changes.paths.length > 0;
+}
+function workingTreeChangeList(changes) {
+  return [...changes.head_changed ? ["HEAD"] : [], ...changes.paths];
+}
+function describeWorkingTreeChanges(changes) {
+  const list = workingTreeChangeList(changes);
+  const shown = list.slice(0, MAX_LISTED_PATHS).join(", ");
+  const more = list.length > MAX_LISTED_PATHS ? ` and ${list.length - MAX_LISTED_PATHS} more` : "";
+  return `${shown}${more}`;
+}
+function parsePorcelainZ(raw) {
+  const status = /* @__PURE__ */ new Map();
+  const tokens = raw.split("\0");
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token.length < 4) continue;
+    const code = token.slice(0, 2);
+    status.set(token.slice(3), code);
+    if (code.includes("R") || code.includes("C")) {
+      const source = tokens[index + 1];
+      if (source) status.set(source, `${code}<`);
+      index += 1;
+    }
+  }
+  return status;
+}
+async function fingerprint(file) {
+  let stats;
+  try {
+    stats = await lstat(file);
+  } catch (error) {
+    if (isMissing(error)) return "deleted";
+    throw error;
+  }
+  if (stats.isSymbolicLink()) {
+    return `link:${sha256(await readlink(file))}`;
+  }
+  if (stats.isDirectory()) return "dir";
+  return hashFile(file);
+}
+function hashFile(file) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("sha256");
+    createReadStream(file).on("data", (chunk) => hash.update(chunk)).on("error", (error) => {
+      if (isMissing(error)) resolve("deleted");
+      else reject(error);
+    }).on("end", () => resolve(hash.digest("hex")));
+  });
+}
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+function isMissing(error) {
+  const code = error?.code;
+  return code === "ENOENT" || code === "ENOTDIR";
+}
+function gitRunner(cwd, options) {
+  const command = options.git ?? "git";
+  const base = options.env ?? process.env;
+  const run = (env, args, runOptions = {}) => new Promise((resolve, reject) => {
+    execFile(
+      command,
+      args,
+      {
+        cwd,
+        env,
+        encoding: "utf8",
+        maxBuffer: GIT_MAX_BUFFER,
+        timeout: GIT_TIMEOUT_MS,
+        shell: false,
+        windowsHide: true
+      },
+      (error, stdout, stderr) => {
+        const exitCode = error && typeof error.code === "number" ? error.code : void 0;
+        if (!error || runOptions.allowExit?.includes(exitCode ?? -1)) {
+          resolve(error ? "" : stdout);
+          return;
+        }
+        const detail = String(stderr).trim().split(/\r?\n/)[0] || error.message;
+        reject(
+          new Error(
+            `git ${args.filter((arg) => !arg.startsWith("--no-optional")).join(" ")} failed${detail ? `: ${detail}` : ""}`
+          )
+        );
+      }
+    );
+  });
+  return {
+    run,
+    // Drops the variables git itself names as repository-local.
+    async cleanEnv() {
+      const names = await run(base, ["rev-parse", "--local-env-vars"]);
+      const env = { ...base, GIT_OPTIONAL_LOCKS: "0" };
+      for (const name of names.split(/\r?\n/)) {
+        if (name) delete env[name];
+      }
+      return env;
+    }
+  };
+}
+
 // src/plugins/consensus/provider-cli/structured-output.ts
 function selectStructuredOutputStrategy(adapter, options = {}) {
   if (options.output === "text") return "text";
@@ -2566,6 +2727,7 @@ async function runProviderTurn(request, dependencies = {}) {
   const adapter = registry.get(request.provider);
   const consultationId = consultationIdFor(request);
   const mode = continuationMode(request);
+  let defaultModel;
   const withReceipt = (envelope2, receiptMode, trace2, fallbackReason) => ({
     ...envelope2,
     continuation: continuationReceipt({
@@ -2574,7 +2736,8 @@ async function runProviderTurn(request, dependencies = {}) {
       mode: receiptMode,
       consultationId,
       trace: trace2,
-      fallbackReason
+      fallbackReason,
+      defaultModel
     })
   });
   if (adapter?.not_admitted_reason) {
@@ -2602,12 +2765,31 @@ async function runProviderTurn(request, dependencies = {}) {
       {}
     );
   }
+  let turnRequest = request;
+  if (adapter?.tier === "extended") {
+    const model = await extendedProviderModel(request);
+    if (!model.ok) {
+      return withReceipt(
+        preInvocationFailure({
+          provider: request.provider,
+          code: model.code,
+          message: model.message,
+          terminalReason: model.terminalReason
+        }),
+        mode,
+        {}
+      );
+    }
+    defaultModel = model.defaultModel;
+    turnRequest = { ...request, model: model.model };
+  }
+  const runTurn = adapter?.tier === "extended" ? runCheckedExtendedTurn : runStructuredTurn;
   const continuation = request.continuation;
   const runReconstructed = async (packet, fallbackReason, rejected) => {
     const trace2 = {};
-    const envelope2 = await runStructuredTurn(
+    const envelope2 = await runTurn(
       {
-        ...request,
+        ...turnRequest,
         prompt: reconstructedContinuationPrompt(packet, fallbackReason)
       },
       dependencies,
@@ -2625,7 +2807,7 @@ async function runProviderTurn(request, dependencies = {}) {
   }
   if (mode !== "native-resume" || !continuation?.session_id) {
     const trace2 = {};
-    const envelope2 = await runStructuredTurn(request, dependencies, trace2);
+    const envelope2 = await runTurn(turnRequest, dependencies, trace2);
     return withReceipt(envelope2, "new", trace2);
   }
   const requestedSessionId = continuation.session_id;
@@ -2646,7 +2828,7 @@ async function runProviderTurn(request, dependencies = {}) {
     );
   }
   const trace = {};
-  const envelope = await runStructuredTurn(request, dependencies, trace, {
+  const envelope = await runTurn(turnRequest, dependencies, trace, {
     resumeSessionId: requestedSessionId
   });
   const receipt = continuationReceipt({
@@ -2654,7 +2836,8 @@ async function runProviderTurn(request, dependencies = {}) {
     adapter,
     mode: "native-resume",
     consultationId,
-    trace
+    trace,
+    defaultModel
   });
   if (!envelope.ok && envelope.code === "PROVIDER_SESSION_NOT_FOUND" && receipt.turn === "not_started" && fallbackPacket) {
     return runReconstructed(fallbackPacket, "session_not_found", envelope);
@@ -2692,6 +2875,59 @@ function withRejectedResume(envelope, rejected) {
       warnings: [...envelope.diagnostics?.warnings ?? [], note]
     }
   };
+}
+async function extendedProviderModel(request) {
+  if (request.model) return { ok: true, model: request.model };
+  return {
+    ok: false,
+    code: "PROVIDER_UNSUPPORTED_OPTION",
+    message: `${request.provider} needs a model: pass --model.`,
+    terminalReason: "model_required"
+  };
+}
+async function runCheckedExtendedTurn(request, dependencies, trace, turnOptions = {}) {
+  if (defaultRuntimePolicy(request.runtime_policy).permission_mode !== "read-only") {
+    return runStructuredTurn(request, dependencies, trace, turnOptions);
+  }
+  const cwd = path8.resolve(request.cwd ?? process.cwd());
+  const env = dependencies.parentEnv ?? process.env;
+  const before = await snapshotWorkingTree(cwd, { env });
+  if (!before.ok) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_UNSUPPORTED_OPTION",
+      message: `Extended read-only runs need a git checkout so the working tree can be checked before and after the turn: ${before.message}`,
+      terminalReason: "working_tree_unavailable"
+    });
+  }
+  const envelope = await runStructuredTurn(
+    request,
+    dependencies,
+    trace,
+    turnOptions
+  );
+  if (!trace.process) return envelope;
+  const after = await snapshotWorkingTree(cwd, { env });
+  const changes = after.ok ? compareWorkingTrees(before.snapshot, after.snapshot) : void 0;
+  if (changes && !hasWorkingTreeChanges(changes)) return envelope;
+  const outcome = envelope.ok ? "succeeded" : `failed with ${envelope.code}`;
+  const message = after.ok ? `The working tree changed during a read-only ${request.provider} run: ${describeWorkingTreeChanges(changes)}. Review and revert these changes; the turn ${outcome}.` : `The working tree could not be re-checked after a read-only ${request.provider} run (${after.message}); treat it as changed and review it. The turn ${outcome}.`;
+  return failureEnvelope({
+    provider: request.provider,
+    code: "PROVIDER_WORKTREE_CHANGED",
+    message,
+    retryable: false,
+    stdout: envelope.stdout,
+    stderr: envelope.stderr,
+    attempts: {
+      cli_attempts: envelope.attempts.cli_attempts,
+      terminal_reason: "working_tree_changed"
+    },
+    diagnostics: {
+      ...envelope.diagnostics,
+      ...changes ? { working_tree_changes: workingTreeChangeList(changes) } : {}
+    }
+  });
 }
 async function runStructuredTurn(request, dependencies, trace, turnOptions = {}) {
   const registry = dependencies.registry ?? providerRegistry();
@@ -2787,7 +3023,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       terminalReason: "structured_output_strategy"
     });
   }
-  const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
+  const runSubprocess = adapter.run ?? dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
   const resolvedExecutable = resolveProviderExecutable(adapter, parentEnv);
   if (!resolvedExecutable.ok) {
@@ -2818,7 +3054,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     prerequisiteExecutables = prerequisites.executables;
   }
   const executable = await finder.findExecutable(resolvedExecutable.executable);
-  if (!executable || !path7.isAbsolute(executable)) {
+  if (!executable || !path8.isAbsolute(executable)) {
     return preInvocationFailure({
       provider: request.provider,
       code: "PROVIDER_MISSING",
@@ -2844,7 +3080,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         CONSENSUS_SUBMIT_COMMAND: submitCommand,
         CONSENSUS_SUBMIT_FILE: submitCapturePath,
         [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path7.resolve(schemaPath)
+        CONSENSUS_SUBMIT_SCHEMA: path8.resolve(schemaPath)
       } : {}
     }
   });
@@ -3206,7 +3442,7 @@ function buildConsensusSubmitCommand(input = {}) {
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
 }
 function currentConsensusCliPath() {
-  if (process.argv[1]) return path7.resolve(process.argv[1]);
+  if (process.argv[1]) return path8.resolve(process.argv[1]);
   return fileURLToPath(import.meta.url);
 }
 function shellQuote(value) {
@@ -3214,21 +3450,21 @@ function shellQuote(value) {
 }
 
 // src/plugins/consensus/shared/cli-helpers-core.ts
-import { lstat } from "node:fs/promises";
-import path8 from "node:path";
+import { lstat as lstat2 } from "node:fs/promises";
+import path9 from "node:path";
 function inside(root, target) {
-  const relative = path8.relative(root, target);
-  return relative === "" || !relative.startsWith("..") && !path8.isAbsolute(relative);
+  const relative = path9.relative(root, target);
+  return relative === "" || !relative.startsWith("..") && !path9.isAbsolute(relative);
 }
 function pathExists(targetPath) {
-  return lstat(targetPath).then(() => true).catch((error) => {
+  return lstat2(targetPath).then(() => true).catch((error) => {
     if (error.code === "ENOENT") return false;
     throw error;
   });
 }
 async function nearestExistingPath(targetPath) {
   if (await pathExists(targetPath)) return targetPath;
-  const parent = path8.dirname(targetPath);
+  const parent = path9.dirname(targetPath);
   if (parent === targetPath) return targetPath;
   return await nearestExistingPath(parent);
 }
@@ -3237,20 +3473,20 @@ function encodePromptBlockData(text) {
 }
 
 // src/skills/consensus-review/src/scope.ts
-import { execFile, spawn as spawn2 } from "node:child_process";
-import { createHash, randomUUID as randomUUID4 } from "node:crypto";
+import { execFile as execFile2, spawn as spawn2 } from "node:child_process";
+import { createHash as createHash2, randomUUID as randomUUID4 } from "node:crypto";
 import {
   chmod,
-  lstat as lstat2,
+  lstat as lstat3,
   mkdir,
   open as open2,
-  readlink,
+  readlink as readlink2,
   realpath
 } from "node:fs/promises";
 import os from "node:os";
-import path9 from "node:path";
+import path10 from "node:path";
 import { promisify } from "node:util";
-var execFileAsync = promisify(execFile);
+var execFileAsync = promisify(execFile2);
 var REVIEW_SCOPE_LIMITS = {
   // A rename or copy counts once.
   maxSelectedFiles: 100,
@@ -3406,7 +3642,7 @@ async function captureReviewScope(input) {
       `scope_changed_during_capture: ${captureComparison.differences.join("; ")}`
     );
   }
-  const token = sha256(
+  const token = sha2562(
     JSON.stringify({
       ...scopeWithoutState,
       captureState,
@@ -3422,13 +3658,13 @@ async function captureReviewScope(input) {
 async function captureScopeState(scope) {
   const [head, index, status] = await Promise.all([
     gitOptionalHead(scope.canonicalWorktree),
-    gitBytes(scope.canonicalWorktree, ["ls-files", "-s", "-z"]).then(sha256),
+    gitBytes(scope.canonicalWorktree, ["ls-files", "-s", "-z"]).then(sha2562),
     gitBytes(scope.canonicalWorktree, [
       "status",
       "--porcelain=v1",
       "-z",
       "--untracked-files=all"
-    ]).then(sha256)
+    ]).then(sha2562)
   ]);
   const selected = [];
   for (const relativePath of scope.selectedPaths) {
@@ -3514,15 +3750,15 @@ async function createReviewRunState(input) {
   const canonicalWorktree = await canonicalGitWorktree(input.cwd);
   const env = input.env ?? process.env;
   const configuredRoot = env.XDG_STATE_HOME;
-  if (configuredRoot && !path9.isAbsolute(configuredRoot)) {
+  if (configuredRoot && !path10.isAbsolute(configuredRoot)) {
     throw new Error("XDG_STATE_HOME must be absolute");
   }
   const home = env.HOME || os.homedir();
-  if (!configuredRoot && !path9.isAbsolute(home)) {
+  if (!configuredRoot && !path10.isAbsolute(home)) {
     throw new Error("HOME must resolve to an absolute path");
   }
-  const stateRoot = path9.resolve(
-    configuredRoot ?? path9.join(home, ".local", "state"),
+  const stateRoot = path10.resolve(
+    configuredRoot ?? path10.join(home, ".local", "state"),
     "consensus"
   );
   await mkdir(stateRoot, { recursive: true, mode: 448 });
@@ -3530,22 +3766,22 @@ async function createReviewRunState(input) {
   if (inside(canonicalWorktree, canonicalStateRoot)) {
     throw new Error("review_state_inside_worktree");
   }
-  const worktreeKey = sha256(canonicalWorktree);
-  const reviews = path9.join(canonicalStateRoot, worktreeKey, "reviews");
+  const worktreeKey = sha2562(canonicalWorktree);
+  const reviews = path10.join(canonicalStateRoot, worktreeKey, "reviews");
   await mkdir(reviews, { recursive: true, mode: 448 });
-  await chmod(path9.join(canonicalStateRoot, worktreeKey), 448);
+  await chmod(path10.join(canonicalStateRoot, worktreeKey), 448);
   await chmod(reviews, 448);
   const runId = input.runId ?? randomUUID4();
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(runId)) {
     throw new Error("run_id_invalid");
   }
-  const runDirectory = path9.join(reviews, runId);
+  const runDirectory = path10.join(reviews, runId);
   await mkdir(runDirectory, { mode: 448 });
   const canonicalRunDirectory = await realpath(runDirectory);
   if (canonicalRunDirectory !== runDirectory || !inside(canonicalStateRoot, canonicalRunDirectory) || inside(canonicalWorktree, canonicalRunDirectory)) {
     throw new Error("review_state_boundary_invalid");
   }
-  const info = await lstat2(canonicalRunDirectory);
+  const info = await lstat3(canonicalRunDirectory);
   const uid = process.getuid?.();
   if (!info.isDirectory() || (info.mode & 63) !== 0 || uid !== void 0 && info.uid !== uid) {
     throw new Error("review_state_not_private");
@@ -3558,7 +3794,7 @@ async function createReviewRunState(input) {
   };
 }
 async function canonicalGitWorktree(cwd) {
-  const worktree = await gitText(path9.resolve(cwd), [
+  const worktree = await gitText(path10.resolve(cwd), [
     "rev-parse",
     "--show-toplevel"
   ]).catch(() => {
@@ -3607,13 +3843,13 @@ async function rejectUnresolvedMerges(cwd) {
 }
 async function captureWorktreeVersion(root, relativePath, requirePresent = false, includeText = true) {
   const normalized = normalizeRepositoryPath(relativePath);
-  const requested = path9.resolve(root, normalized);
+  const requested = path10.resolve(root, normalized);
   if (!inside(root, requested)) throw new Error(`path_escape: ${relativePath}`);
   let info;
   try {
-    info = await lstat2(requested);
+    info = await lstat3(requested);
   } catch (error) {
-    if (isMissing(error) && !requirePresent) {
+    if (isMissing2(error) && !requirePresent) {
       return deletedVersion(normalized, "live");
     }
     throw new Error(
@@ -3622,12 +3858,12 @@ async function captureWorktreeVersion(root, relativePath, requirePresent = false
     );
   }
   if (info.isSymbolicLink()) {
-    const canonicalParent = await realpath(path9.dirname(requested));
+    const canonicalParent = await realpath(path10.dirname(requested));
     if (!inside(root, canonicalParent)) {
       throw new Error(`path_escape: ${normalized}`);
     }
-    const canonicalLink = path9.join(canonicalParent, path9.basename(requested));
-    const target = await readlink(canonicalLink, {
+    const canonicalLink = path10.join(canonicalParent, path10.basename(requested));
+    const target = await readlink2(canonicalLink, {
       encoding: "buffer"
     }).catch((error) => {
       throw new Error(
@@ -3717,14 +3953,14 @@ async function captureGitVersion(root, revision, relativePath, source = "base") 
   );
 }
 async function resolveDocument(root, candidate) {
-  const requested = path9.isAbsolute(candidate) ? path9.resolve(candidate) : path9.resolve(root, candidate);
+  const requested = path10.isAbsolute(candidate) ? path10.resolve(candidate) : path10.resolve(root, candidate);
   const canonical = await realpath(requested).catch((error) => {
     throw new Error(`document_unreadable: ${fsMessage(error)}`);
   });
   const location = inside(root, canonical) ? "worktree" : "external";
   if (location === "worktree") {
     const relativePath = normalizeRepositoryPath(
-      path9.relative(root, canonical)
+      path10.relative(root, canonical)
     );
     return {
       location,
@@ -3739,8 +3975,8 @@ async function resolveDocument(root, candidate) {
   };
 }
 async function captureAbsoluteFile(canonicalPath, source) {
-  const info = await lstat2(canonicalPath).catch((error) => {
-    if (isMissing(error)) return null;
+  const info = await lstat3(canonicalPath).catch((error) => {
+    if (isMissing2(error)) return null;
     throw error;
   });
   if (!info) return deletedVersion(canonicalPath, source);
@@ -3787,7 +4023,7 @@ async function boundedRead(filePath) {
   }
 }
 async function hashLargeBinary(handle, filePath, size) {
-  const hash = createHash("sha256");
+  const hash = createHash2("sha256");
   const chunk = Buffer.alloc(HASH_CHUNK_BYTES);
   let offset = 0;
   while (offset < size) {
@@ -3812,7 +4048,7 @@ function hashLargeGitBlob(root, blobId, filePath, size, source) {
       env: gitEnv(),
       stdio: ["ignore", "pipe", "ignore"]
     });
-    const hash = createHash("sha256");
+    const hash = createHash2("sha256");
     let prefix = Buffer.alloc(0);
     let sniffed = false;
     let received = 0;
@@ -3868,7 +4104,7 @@ function versionFromBytes(filePath, source, mode, bytes, includeText, blobId = n
       kind: "binary_skipped",
       mode,
       bytes: bytes.length,
-      sha256: sha256(bytes),
+      sha256: sha2562(bytes),
       blobId,
       text: null
     };
@@ -3879,7 +4115,7 @@ function versionFromBytes(filePath, source, mode, bytes, includeText, blobId = n
     kind,
     mode,
     bytes: bytes.length,
-    sha256: sha256(bytes),
+    sha256: sha2562(bytes),
     blobId,
     text: includeText ? bytes.toString("utf8") : null
   };
@@ -3956,20 +4192,20 @@ function assertRef(ref, source = "base") {
   }
 }
 function normalizeRepositoryPath(candidate) {
-  if (!candidate || candidate.includes("\0") || path9.isAbsolute(candidate)) {
+  if (!candidate || candidate.includes("\0") || path10.isAbsolute(candidate)) {
     throw new Error(`scope_path_invalid: ${candidate}`);
   }
-  const normalized = path9.normalize(candidate);
-  if (normalized === "." || normalized === ".." || normalized.startsWith(`..${path9.sep}`)) {
+  const normalized = path10.normalize(candidate);
+  if (normalized === "." || normalized === ".." || normalized.startsWith(`..${path10.sep}`)) {
     throw new Error(`path_escape: ${candidate}`);
   }
-  return normalized.split(path9.sep).join("/");
+  return normalized.split(path10.sep).join("/");
 }
 function enforceFileCount(paths, countedFiles) {
   if (countedFiles <= REVIEW_SCOPE_LIMITS.maxSelectedFiles) return;
   const directories = /* @__PURE__ */ new Map();
   for (const candidate of paths) {
-    const directory = path9.posix.dirname(candidate);
+    const directory = path10.posix.dirname(candidate);
     const key = directory === "." ? "./" : `${directory}/`;
     directories.set(key, (directories.get(key) ?? 0) + 1);
   }
@@ -4055,13 +4291,13 @@ function splitNul(value) {
   if (parts.at(-1) === "") parts.pop();
   return parts;
 }
-function sha256(value) {
-  return createHash("sha256").update(value).digest("hex");
+function sha2562(value) {
+  return createHash2("sha256").update(value).digest("hex");
 }
 function stateKey(value) {
   return `${value.location}:${value.path}`;
 }
-function isMissing(error) {
+function isMissing2(error) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 function fsMessage(error) {
@@ -4069,8 +4305,8 @@ function fsMessage(error) {
 }
 
 // src/skills/consensus-review/src/selection.ts
-import { createHash as createHash2 } from "node:crypto";
-import path11 from "node:path";
+import { createHash as createHash3 } from "node:crypto";
+import path12 from "node:path";
 
 // src/plugins/consensus/config/consensus-config.ts
 import { randomUUID as randomUUID5 } from "node:crypto";
@@ -4082,7 +4318,7 @@ import {
   rm as rm3,
   writeFile
 } from "node:fs/promises";
-import path10 from "node:path";
+import path11 from "node:path";
 
 // src/plugins/consensus/provider-cli/types.ts
 var CORE_PROVIDER_IDS = ["claude", "codex", "cursor"];
@@ -4168,7 +4404,7 @@ async function readConsensusConfig(input) {
 }
 async function consensusConfigPath(input) {
   if (input.scope === "user") {
-    return path10.join(userConfigDir(input.env), "consensus", "config.json");
+    return path11.join(userConfigDir(input.env), "consensus", "config.json");
   }
   return projectConsensusConfigPath(input.cwd);
 }
@@ -4178,7 +4414,7 @@ async function projectConsensusConfigPath(cwd) {
   return existing ?? fallback;
 }
 async function findNearestProjectConsensusConfig(cwd) {
-  let current = path10.resolve(cwd);
+  let current = path11.resolve(cwd);
   while (true) {
     const candidate = projectConsensusConfigPathAt(current);
     try {
@@ -4187,13 +4423,13 @@ async function findNearestProjectConsensusConfig(cwd) {
     } catch (error) {
       if (!isNodeError(error) || error.code !== "ENOENT") throw error;
     }
-    const parent = path10.dirname(current);
+    const parent = path11.dirname(current);
     if (parent === current) return null;
     current = parent;
   }
 }
 function projectConsensusConfigPathAt(cwd) {
-  return path10.join(path10.resolve(cwd), ".consensus", "config.json");
+  return path11.join(path11.resolve(cwd), ".consensus", "config.json");
 }
 async function resolveConsensusComposition(input) {
   const candidates = await loadCandidates(input);
@@ -4471,12 +4707,12 @@ function isProviderId(value) {
 }
 function userConfigDir(env = {}) {
   const xdg = env.XDG_CONFIG_HOME ?? process.env.XDG_CONFIG_HOME;
-  if (xdg && xdg.length > 0) return path10.resolve(xdg);
+  if (xdg && xdg.length > 0) return path11.resolve(xdg);
   const home = env.HOME ?? process.env.HOME;
   if (!home) {
     throw new Error("HOME is required to resolve user consensus config");
   }
-  return path10.join(path10.resolve(home), ".config");
+  return path11.join(path11.resolve(home), ".config");
 }
 function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -4572,10 +4808,10 @@ function buildReviewPrompt(input) {
   if (requestBytes > REVIEW_REQUEST_MAX_BYTES) {
     throw new Error("review_request_too_large");
   }
-  if (!path11.isAbsolute(input.evidencePath)) {
+  if (!path12.isAbsolute(input.evidencePath)) {
     throw new Error("review_evidence_path_must_be_absolute");
   }
-  if (input.requestPath && !path11.isAbsolute(input.requestPath)) {
+  if (input.requestPath && !path12.isAbsolute(input.requestPath)) {
     throw new Error("review_request_path_must_be_absolute");
   }
   const scopePaths = [
@@ -4632,7 +4868,7 @@ function requestBlock(input) {
   if (!input.requestPath) throw new Error("review_request_file_required");
   return [
     `request_path=${encodePromptBlockData(input.requestPath)}`,
-    `request_sha256=${sha2562(input.request)}`,
+    `request_sha256=${sha2563(input.request)}`,
     `request_bytes=${Buffer.byteLength(input.request)}`
   ].join("\n");
 }
@@ -4679,8 +4915,8 @@ function defaultPreflight(env, registry = providerRegistry(), runner = nodeProbe
     return entry;
   };
 }
-function sha2562(value) {
-  return createHash2("sha256").update(value).digest("hex");
+function sha2563(value) {
+  return createHash3("sha256").update(value).digest("hex");
 }
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
@@ -4867,10 +5103,10 @@ async function executeBoundedReview(input, dependencies = {}) {
       fsMessage2(error)
     );
   }
-  const requestPath = path12.join(runState.runDirectory, "request.txt");
-  const evidencePath = path12.join(runState.runDirectory, "evidence.json");
-  const resultPath = path12.join(runState.runDirectory, "result.json");
-  const diagnosticPath = path12.join(runState.runDirectory, "diagnostic.json");
+  const requestPath = path13.join(runState.runDirectory, "request.txt");
+  const evidencePath = path13.join(runState.runDirectory, "evidence.json");
+  const resultPath = path13.join(runState.runDirectory, "result.json");
+  const diagnosticPath = path13.join(runState.runDirectory, "diagnostic.json");
   const persist = dependencies.persist ?? persistPrivateJson;
   try {
     await persist(requestPath, input.request);
@@ -4957,7 +5193,7 @@ async function executeBoundedReview(input, dependencies = {}) {
       persist
     });
   }
-  const codexCapturePath = selected.reviewer.provider === "codex" ? path12.join(runState.runDirectory, "last-message.json") : void 0;
+  const codexCapturePath = selected.reviewer.provider === "codex" ? path13.join(runState.runDirectory, "last-message.json") : void 0;
   const transport = dependencies.transport ?? runReview;
   const transportResult = await transport(
     {
@@ -4983,7 +5219,7 @@ async function executeBoundedReview(input, dependencies = {}) {
   );
   const dispatched = transportResult.status === "completed" || transportResult.status === "execution_failed";
   const evidence = dispatched ? await saveProviderEvidence({
-    path: path12.join(runState.runDirectory, "provider-evidence.json"),
+    path: path13.join(runState.runDirectory, "provider-evidence.json"),
     transportResult,
     codexCapturePath,
     persist
@@ -5055,7 +5291,7 @@ async function executeBoundedReview(input, dependencies = {}) {
     status: "complete",
     worktree_root: scope.canonicalWorktree,
     request: input.request,
-    request_sha256: sha2563(input.request),
+    request_sha256: sha2564(input.request),
     scope,
     reviewer: {
       selected: selected.reviewer,
@@ -5522,9 +5758,9 @@ function executeFailure(status, invocationCount, reason, message, details = {}) 
 async function persistPrivateJson(targetPath, value) {
   const contents = typeof value === "string" ? value : `${JSON.stringify(value, null, 2)}
 `;
-  const temporary = path12.join(
-    path12.dirname(targetPath),
-    `.${path12.basename(targetPath)}.${process.pid}.${randomUUID6()}.tmp`
+  const temporary = path13.join(
+    path13.dirname(targetPath),
+    `.${path13.basename(targetPath)}.${process.pid}.${randomUUID6()}.tmp`
   );
   let handle;
   try {
@@ -5614,7 +5850,7 @@ function validateLocation(value, scope, findingLabel, errors) {
     256,
     errors
   );
-  if (typeof value.path !== "string" || path12.isAbsolute(value.path) || value.path.split("/").includes("..") || !scope.selectedPaths.includes(value.path)) {
+  if (typeof value.path !== "string" || path13.isAbsolute(value.path) || value.path.split("/").includes("..") || !scope.selectedPaths.includes(value.path)) {
     errors.push(`${label}.path must be a complete selected repository path`);
   }
   if (!isPositiveInteger(value.start_line)) {
@@ -5787,8 +6023,8 @@ function isRecord4(value) {
 function isPositiveInteger(value) {
   return Number.isInteger(value) && Number(value) >= 1;
 }
-function sha2563(value) {
-  return createHash3("sha256").update(value).digest("hex");
+function sha2564(value) {
+  return createHash4("sha256").update(value).digest("hex");
 }
 function toError(error) {
   return error instanceof Error ? error : new Error(String(error));
@@ -5813,7 +6049,7 @@ async function reviewTransport(input) {
       }
     };
   }
-  if (!input.codexCapturePath || !path12.isAbsolute(input.codexCapturePath)) {
+  if (!input.codexCapturePath || !path13.isAbsolute(input.codexCapturePath)) {
     return {
       ok: false,
       reason: "capture_not_external",
@@ -5850,7 +6086,7 @@ async function claimReviewTransport(input, options) {
   }
   try {
     const [info, canonical] = await Promise.all([
-      lstat3(capture.path),
+      lstat4(capture.path),
       realpath2(capture.path)
     ]);
     if (info.isSymbolicLink() || !info.isFile() || canonical !== capture.path || (info.mode & 63) !== 0) {
@@ -5873,7 +6109,7 @@ async function claimReviewTransport(input, options) {
   };
 }
 async function validateCodexCapture(input) {
-  const capturePath = path12.resolve(input.codexCapturePath);
+  const capturePath = path13.resolve(input.codexCapturePath);
   let canonicalWorktree;
   try {
     canonicalWorktree = await realpath2(input.cwd);
@@ -5885,9 +6121,9 @@ async function validateCodexCapture(input) {
   }
   let targetInfo = null;
   try {
-    targetInfo = await lstat3(capturePath);
+    targetInfo = await lstat4(capturePath);
   } catch (error) {
-    if (!isMissing2(error)) {
+    if (!isMissing3(error)) {
       return captureFailure(
         "capture_destination_unsafe",
         `Codex review capture could not be inspected: ${fsMessage2(error)}.`
@@ -5921,7 +6157,7 @@ async function validateCodexCapture(input) {
       "Codex review capture must not already exist."
     );
   }
-  const parent = path12.dirname(capturePath);
+  const parent = path13.dirname(capturePath);
   let existing;
   let canonicalExisting;
   let existingInfo;
@@ -5929,7 +6165,7 @@ async function validateCodexCapture(input) {
     existing = await nearestExistingPath(parent);
     [canonicalExisting, existingInfo] = await Promise.all([
       realpath2(existing),
-      lstat3(existing)
+      lstat4(existing)
     ]);
   } catch (error) {
     return captureFailure(
@@ -5943,13 +6179,13 @@ async function validateCodexCapture(input) {
       "Codex review capture parent must be a directory."
     );
   }
-  const canonicalParent = path12.resolve(
+  const canonicalParent = path13.resolve(
     canonicalExisting,
-    path12.relative(existing, parent)
+    path13.relative(existing, parent)
   );
-  const canonicalCapture = path12.join(
+  const canonicalCapture = path13.join(
     canonicalParent,
-    path12.basename(capturePath)
+    path13.basename(capturePath)
   );
   if (inside(canonicalWorktree, canonicalCapture)) {
     return captureFailure(
@@ -5957,13 +6193,13 @@ async function validateCodexCapture(input) {
       "Codex review capture must remain outside the reviewed worktree."
     );
   }
-  if (path12.resolve(existing) !== canonicalExisting || path12.resolve(parent) !== canonicalParent) {
+  if (path13.resolve(existing) !== canonicalExisting || path13.resolve(parent) !== canonicalParent) {
     return captureFailure(
       "capture_destination_unsafe",
       "Codex review capture path must not contain symbolic-link aliases."
     );
   }
-  if (path12.resolve(existing) !== path12.resolve(parent)) {
+  if (path13.resolve(existing) !== path13.resolve(parent)) {
     return captureFailure(
       "capture_destination_unsafe",
       "Codex review capture requires an existing private run directory."
@@ -6003,11 +6239,11 @@ async function aliasesProtectedInput(capturePath, input) {
           return true;
         }
       } catch (error) {
-        if (!isMissing2(error)) throw error;
+        if (!isMissing3(error)) throw error;
       }
     }
   } catch (error) {
-    if (!isMissing2(error)) throw error;
+    if (!isMissing3(error)) throw error;
   }
   return false;
 }
@@ -6017,7 +6253,7 @@ async function canonicalProtectedPaths(input) {
     try {
       protectedPaths.push(await realpath2(protectedPath));
     } catch (error) {
-      if (!isMissing2(error)) throw error;
+      if (!isMissing3(error)) throw error;
     }
   }
   return protectedPaths;
@@ -6025,7 +6261,7 @@ async function canonicalProtectedPaths(input) {
 function captureFailure(reason, message) {
   return { ok: false, reason, message };
 }
-function isMissing2(error) {
+function isMissing3(error) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 function fsMessage2(error) {
@@ -6128,7 +6364,7 @@ async function runReviewCli(argv, dependencies = {}) {
       human: USAGE
     };
   }
-  const cwd = path13.resolve(dependencies.cwd ?? process.cwd());
+  const cwd = path14.resolve(dependencies.cwd ?? process.cwd());
   const fileSystem = resolveFileSystem(dependencies.fileSystem);
   let parsed;
   try {
@@ -6167,7 +6403,7 @@ async function runReviewCli(argv, dependencies = {}) {
       human: "Review completed as an empty-scope no-op. Provider invocations: 0."
     };
   }
-  const canonicalMarkdown = path13.join(
+  const canonicalMarkdown = path14.join(
     result.runState.runDirectory,
     "review.md"
   );
@@ -6509,7 +6745,7 @@ async function parseReviewArgs(argv, cwd, fileSystem) {
     );
   }
   if (requestFile) {
-    request = await readBoundedText(path13.resolve(cwd, requestFile), fileSystem);
+    request = await readBoundedText(path14.resolve(cwd, requestFile), fileSystem);
   }
   const scope = range ?? (baseRef ? { kind: "base_branch", ref: baseRef } : files ? { kind: "files", paths: files } : { kind: "document", path: document });
   return {
@@ -6625,8 +6861,8 @@ function diagnosticOutcome(result, json) {
     invocation_count: result.invocation_count,
     ...result.diagnosticPath || result.providerEvidencePath ? {
       artifacts: {
-        ...result.diagnosticPath ? { diagnostic: path13.resolve(result.diagnosticPath) } : {},
-        ...result.providerEvidencePath ? { provider_evidence: path13.resolve(result.providerEvidencePath) } : {}
+        ...result.diagnosticPath ? { diagnostic: path14.resolve(result.diagnosticPath) } : {},
+        ...result.providerEvidencePath ? { provider_evidence: path14.resolve(result.providerEvidencePath) } : {}
       }
     } : {}
   };
@@ -6637,22 +6873,22 @@ function diagnosticOutcome(result, json) {
     human: [
       `Review did not complete: ${result.status} (${result.reason}).`,
       result.message,
-      ...result.diagnosticPath ? [`Diagnostic artifact: ${path13.resolve(result.diagnosticPath)}`] : [],
-      ...result.providerEvidencePath ? [`Provider evidence: ${path13.resolve(result.providerEvidencePath)}`] : [],
+      ...result.diagnosticPath ? [`Diagnostic artifact: ${path14.resolve(result.diagnosticPath)}`] : [],
+      ...result.providerEvidencePath ? [`Provider evidence: ${path14.resolve(result.providerEvidencePath)}`] : [],
       `Provider invocations: ${result.invocation_count}.`
     ].join("\n")
   };
 }
 async function exportCompletedMarkdown(input, fileSystem) {
-  const requested = path13.resolve(input.cwd, input.requestedPath);
+  const requested = path14.resolve(input.cwd, input.requestedPath);
   try {
     await fileSystem.lstatPath(requested);
     throw new Error("output destination already exists");
   } catch (error) {
-    if (!isMissing3(error)) throw error;
+    if (!isMissing4(error)) throw error;
   }
-  const parent = await fileSystem.realpathPath(path13.dirname(requested));
-  const destination = path13.join(parent, path13.basename(requested));
+  const parent = await fileSystem.realpathPath(path14.dirname(requested));
+  const destination = path14.join(parent, path14.basename(requested));
   const protectedPaths = /* @__PURE__ */ new Set([
     input.canonicalMarkdown,
     input.aggregate.paths.request,
@@ -6660,7 +6896,7 @@ async function exportCompletedMarkdown(input, fileSystem) {
     input.aggregate.paths.result,
     ...input.aggregate.scope.externalDocuments,
     ...input.aggregate.scope.selectedPaths.map(
-      (candidate) => path13.join(input.aggregate.worktree_root, candidate)
+      (candidate) => path14.join(input.aggregate.worktree_root, candidate)
     )
   ]);
   if (protectedPaths.has(destination)) {
@@ -6670,9 +6906,9 @@ async function exportCompletedMarkdown(input, fileSystem) {
   return destination;
 }
 async function writeExclusive(targetPath, contents, mode, fileSystem) {
-  const temporaryPath = path13.join(
-    path13.dirname(targetPath),
-    `.${path13.basename(targetPath)}.${process.pid}.${randomUUID7()}.tmp`
+  const temporaryPath = path14.join(
+    path14.dirname(targetPath),
+    `.${path14.basename(targetPath)}.${process.pid}.${randomUUID7()}.tmp`
   );
   let handle = null;
   let failure2;
@@ -6696,12 +6932,12 @@ async function writeExclusive(targetPath, contents, mode, fileSystem) {
   try {
     await fileSystem.unlinkFile(temporaryPath);
   } catch (error) {
-    if (!isMissing3(error)) failure2 ??= error;
+    if (!isMissing4(error)) failure2 ??= error;
   }
   if (failure2) throw failure2;
 }
 async function localOutputFailure(result, reason, message, json, fileSystem, markdown) {
-  const diagnosticPath = path13.join(
+  const diagnosticPath = path14.join(
     result.runState.runDirectory,
     "cli-diagnostic.json"
   );
@@ -6762,7 +6998,7 @@ function resolveFileSystem(overrides) {
     openFile: overrides?.openFile ?? open4,
     linkFile: overrides?.linkFile ?? link2,
     unlinkFile: overrides?.unlinkFile ?? unlink2,
-    lstatPath: overrides?.lstatPath ?? lstat4,
+    lstatPath: overrides?.lstatPath ?? lstat5,
     realpathPath: overrides?.realpathPath ?? realpath3
   };
 }
@@ -6816,7 +7052,7 @@ function inlineCode(value) {
 function escapeMarkdown(value) {
   return value.replaceAll("\\", "\\\\").replace(/([`*_{}[\]()<>#+.!|-])/gu, "\\$1").replaceAll("\r", "").replaceAll("\n", "<br>");
 }
-function isMissing3(error) {
+function isMissing4(error) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 function errorMessage2(error) {

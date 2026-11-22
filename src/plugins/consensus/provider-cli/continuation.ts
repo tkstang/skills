@@ -173,6 +173,9 @@ export function continuationReceipt(input: {
   consultationId: string;
   trace: ProviderTurnTrace;
   fallbackReason?: string;
+  // The configured model an extended provider ran with because the caller
+  // named none; `requested_model` stays the caller's.
+  defaultModel?: string;
 }): ContinuationReceipt {
   const { request, adapter, mode, trace } = input;
   const observation: ProviderSessionObservation =
@@ -198,6 +201,7 @@ export function continuationReceipt(input: {
     ...(round !== undefined ? { round } : {}),
     cwd: path.resolve(request.cwd ?? process.cwd()),
     ...(request.model ? { requested_model: request.model } : {}),
+    ...(input.defaultModel ? { default_model: input.defaultModel } : {}),
     ...(request.effort ? { requested_effort: request.effort } : {}),
     ...(observation.observed_models
       ? { observed_models: observation.observed_models }

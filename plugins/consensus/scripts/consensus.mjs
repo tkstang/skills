@@ -3744,7 +3744,7 @@ function describeVersionPin(pin) {
 
 // src/plugins/consensus/provider-cli/structured-output.ts
 import { readFile as readFile2, rm as rm3 } from "node:fs/promises";
-import path8 from "node:path";
+import path9 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/plugins/consensus/provider-cli/continuation.ts
@@ -3864,6 +3864,7 @@ function continuationReceipt(input) {
     ...round !== void 0 ? { round } : {},
     cwd: path6.resolve(request.cwd ?? process.cwd()),
     ...request.model ? { requested_model: request.model } : {},
+    ...input.defaultModel ? { default_model: input.defaultModel } : {},
     ...request.effort ? { requested_effort: request.effort } : {},
     ...observation.observed_models ? { observed_models: observation.observed_models } : {},
     runtime_policy: redactedRuntimePolicyDiagnostics(request.runtime_policy),
@@ -3928,6 +3929,166 @@ function submitCaptureFilePath(cwd, id = randomUUID4()) {
   return path7.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
 }
 
+// src/plugins/consensus/provider-cli/working-tree.ts
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { lstat, readlink } from "node:fs/promises";
+import path8 from "node:path";
+var GIT_TIMEOUT_MS = 3e4;
+var GIT_MAX_BUFFER = 64 * 1024 * 1024;
+var MAX_LISTED_PATHS = 20;
+async function snapshotWorkingTree(cwd, options = {}) {
+  const git = gitRunner(cwd, options);
+  try {
+    const env = await git.cleanEnv();
+    const inside = await git.run(env, ["rev-parse", "--is-inside-work-tree"]);
+    if (inside.trim() !== "true") {
+      return { ok: false, message: `${cwd} is not inside a git work tree` };
+    }
+    const root = (await git.run(env, ["rev-parse", "--show-toplevel"])).trim();
+    const head = (await git.run(env, ["rev-parse", "--verify", "--quiet", "HEAD"], {
+      allowExit: [1]
+    })).trim();
+    const raw = await git.run(env, [
+      "--no-optional-locks",
+      "status",
+      "--porcelain=v1",
+      "-z",
+      "--untracked-files=all",
+      "--ignored=no"
+    ]);
+    const status = parsePorcelainZ(raw);
+    const content = /* @__PURE__ */ new Map();
+    for (const file of status.keys()) {
+      content.set(file, await fingerprint(path8.join(root, file)));
+    }
+    return { ok: true, snapshot: { root, head, status, content } };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+function compareWorkingTrees(before, after) {
+  const paths = /* @__PURE__ */ new Set();
+  for (const file of /* @__PURE__ */ new Set([
+    ...before.status.keys(),
+    ...after.status.keys()
+  ])) {
+    if (before.status.get(file) !== after.status.get(file) || before.content.get(file) !== after.content.get(file)) {
+      paths.add(file);
+    }
+  }
+  return {
+    head_changed: before.head !== after.head,
+    paths: [...paths].toSorted()
+  };
+}
+function hasWorkingTreeChanges(changes) {
+  return changes.head_changed || changes.paths.length > 0;
+}
+function workingTreeChangeList(changes) {
+  return [...changes.head_changed ? ["HEAD"] : [], ...changes.paths];
+}
+function describeWorkingTreeChanges(changes) {
+  const list = workingTreeChangeList(changes);
+  const shown = list.slice(0, MAX_LISTED_PATHS).join(", ");
+  const more = list.length > MAX_LISTED_PATHS ? ` and ${list.length - MAX_LISTED_PATHS} more` : "";
+  return `${shown}${more}`;
+}
+function parsePorcelainZ(raw) {
+  const status = /* @__PURE__ */ new Map();
+  const tokens = raw.split("\0");
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token.length < 4) continue;
+    const code = token.slice(0, 2);
+    status.set(token.slice(3), code);
+    if (code.includes("R") || code.includes("C")) {
+      const source = tokens[index + 1];
+      if (source) status.set(source, `${code}<`);
+      index += 1;
+    }
+  }
+  return status;
+}
+async function fingerprint(file) {
+  let stats;
+  try {
+    stats = await lstat(file);
+  } catch (error) {
+    if (isMissing(error)) return "deleted";
+    throw error;
+  }
+  if (stats.isSymbolicLink()) {
+    return `link:${sha256(await readlink(file))}`;
+  }
+  if (stats.isDirectory()) return "dir";
+  return hashFile(file);
+}
+function hashFile(file) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("sha256");
+    createReadStream(file).on("data", (chunk) => hash.update(chunk)).on("error", (error) => {
+      if (isMissing(error)) resolve("deleted");
+      else reject(error);
+    }).on("end", () => resolve(hash.digest("hex")));
+  });
+}
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+function isMissing(error) {
+  const code = error?.code;
+  return code === "ENOENT" || code === "ENOTDIR";
+}
+function gitRunner(cwd, options) {
+  const command = options.git ?? "git";
+  const base = options.env ?? process.env;
+  const run = (env, args, runOptions = {}) => new Promise((resolve, reject) => {
+    execFile(
+      command,
+      args,
+      {
+        cwd,
+        env,
+        encoding: "utf8",
+        maxBuffer: GIT_MAX_BUFFER,
+        timeout: GIT_TIMEOUT_MS,
+        shell: false,
+        windowsHide: true
+      },
+      (error, stdout, stderr) => {
+        const exitCode = error && typeof error.code === "number" ? error.code : void 0;
+        if (!error || runOptions.allowExit?.includes(exitCode ?? -1)) {
+          resolve(error ? "" : stdout);
+          return;
+        }
+        const detail = String(stderr).trim().split(/\r?\n/)[0] || error.message;
+        reject(
+          new Error(
+            `git ${args.filter((arg) => !arg.startsWith("--no-optional")).join(" ")} failed${detail ? `: ${detail}` : ""}`
+          )
+        );
+      }
+    );
+  });
+  return {
+    run,
+    // Drops the variables git itself names as repository-local.
+    async cleanEnv() {
+      const names = await run(base, ["rev-parse", "--local-env-vars"]);
+      const env = { ...base, GIT_OPTIONAL_LOCKS: "0" };
+      for (const name of names.split(/\r?\n/)) {
+        if (name) delete env[name];
+      }
+      return env;
+    }
+  };
+}
+
 // src/plugins/consensus/provider-cli/structured-output.ts
 function selectStructuredOutputStrategy(adapter, options = {}) {
   if (options.output === "text") return "text";
@@ -3948,6 +4109,7 @@ async function runProviderTurn(request, dependencies = {}) {
   const adapter = registry.get(request.provider);
   const consultationId = consultationIdFor(request);
   const mode = continuationMode(request);
+  let defaultModel;
   const withReceipt = (envelope2, receiptMode, trace2, fallbackReason) => ({
     ...envelope2,
     continuation: continuationReceipt({
@@ -3956,7 +4118,8 @@ async function runProviderTurn(request, dependencies = {}) {
       mode: receiptMode,
       consultationId,
       trace: trace2,
-      fallbackReason
+      fallbackReason,
+      defaultModel
     })
   });
   if (adapter?.not_admitted_reason) {
@@ -3984,12 +4147,31 @@ async function runProviderTurn(request, dependencies = {}) {
       {}
     );
   }
+  let turnRequest = request;
+  if (adapter?.tier === "extended") {
+    const model = await extendedProviderModel(request);
+    if (!model.ok) {
+      return withReceipt(
+        preInvocationFailure({
+          provider: request.provider,
+          code: model.code,
+          message: model.message,
+          terminalReason: model.terminalReason
+        }),
+        mode,
+        {}
+      );
+    }
+    defaultModel = model.defaultModel;
+    turnRequest = { ...request, model: model.model };
+  }
+  const runTurn = adapter?.tier === "extended" ? runCheckedExtendedTurn : runStructuredTurn;
   const continuation = request.continuation;
   const runReconstructed = async (packet, fallbackReason, rejected) => {
     const trace2 = {};
-    const envelope2 = await runStructuredTurn(
+    const envelope2 = await runTurn(
       {
-        ...request,
+        ...turnRequest,
         prompt: reconstructedContinuationPrompt(packet, fallbackReason)
       },
       dependencies,
@@ -4007,7 +4189,7 @@ async function runProviderTurn(request, dependencies = {}) {
   }
   if (mode !== "native-resume" || !continuation?.session_id) {
     const trace2 = {};
-    const envelope2 = await runStructuredTurn(request, dependencies, trace2);
+    const envelope2 = await runTurn(turnRequest, dependencies, trace2);
     return withReceipt(envelope2, "new", trace2);
   }
   const requestedSessionId = continuation.session_id;
@@ -4028,7 +4210,7 @@ async function runProviderTurn(request, dependencies = {}) {
     );
   }
   const trace = {};
-  const envelope = await runStructuredTurn(request, dependencies, trace, {
+  const envelope = await runTurn(turnRequest, dependencies, trace, {
     resumeSessionId: requestedSessionId
   });
   const receipt = continuationReceipt({
@@ -4036,7 +4218,8 @@ async function runProviderTurn(request, dependencies = {}) {
     adapter,
     mode: "native-resume",
     consultationId,
-    trace
+    trace,
+    defaultModel
   });
   if (!envelope.ok && envelope.code === "PROVIDER_SESSION_NOT_FOUND" && receipt.turn === "not_started" && fallbackPacket) {
     return runReconstructed(fallbackPacket, "session_not_found", envelope);
@@ -4074,6 +4257,59 @@ function withRejectedResume(envelope, rejected) {
       warnings: [...envelope.diagnostics?.warnings ?? [], note]
     }
   };
+}
+async function extendedProviderModel(request) {
+  if (request.model) return { ok: true, model: request.model };
+  return {
+    ok: false,
+    code: "PROVIDER_UNSUPPORTED_OPTION",
+    message: `${request.provider} needs a model: pass --model.`,
+    terminalReason: "model_required"
+  };
+}
+async function runCheckedExtendedTurn(request, dependencies, trace, turnOptions = {}) {
+  if (defaultRuntimePolicy(request.runtime_policy).permission_mode !== "read-only") {
+    return runStructuredTurn(request, dependencies, trace, turnOptions);
+  }
+  const cwd = path9.resolve(request.cwd ?? process.cwd());
+  const env = dependencies.parentEnv ?? process.env;
+  const before = await snapshotWorkingTree(cwd, { env });
+  if (!before.ok) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_UNSUPPORTED_OPTION",
+      message: `Extended read-only runs need a git checkout so the working tree can be checked before and after the turn: ${before.message}`,
+      terminalReason: "working_tree_unavailable"
+    });
+  }
+  const envelope = await runStructuredTurn(
+    request,
+    dependencies,
+    trace,
+    turnOptions
+  );
+  if (!trace.process) return envelope;
+  const after = await snapshotWorkingTree(cwd, { env });
+  const changes = after.ok ? compareWorkingTrees(before.snapshot, after.snapshot) : void 0;
+  if (changes && !hasWorkingTreeChanges(changes)) return envelope;
+  const outcome = envelope.ok ? "succeeded" : `failed with ${envelope.code}`;
+  const message = after.ok ? `The working tree changed during a read-only ${request.provider} run: ${describeWorkingTreeChanges(changes)}. Review and revert these changes; the turn ${outcome}.` : `The working tree could not be re-checked after a read-only ${request.provider} run (${after.message}); treat it as changed and review it. The turn ${outcome}.`;
+  return failureEnvelope({
+    provider: request.provider,
+    code: "PROVIDER_WORKTREE_CHANGED",
+    message,
+    retryable: false,
+    stdout: envelope.stdout,
+    stderr: envelope.stderr,
+    attempts: {
+      cli_attempts: envelope.attempts.cli_attempts,
+      terminal_reason: "working_tree_changed"
+    },
+    diagnostics: {
+      ...envelope.diagnostics,
+      ...changes ? { working_tree_changes: workingTreeChangeList(changes) } : {}
+    }
+  });
 }
 async function runStructuredTurn(request, dependencies, trace, turnOptions = {}) {
   const registry = dependencies.registry ?? providerRegistry();
@@ -4169,7 +4405,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       terminalReason: "structured_output_strategy"
     });
   }
-  const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
+  const runSubprocess = adapter.run ?? dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
   const resolvedExecutable = resolveProviderExecutable(adapter, parentEnv);
   if (!resolvedExecutable.ok) {
@@ -4200,7 +4436,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     prerequisiteExecutables = prerequisites.executables;
   }
   const executable = await finder.findExecutable(resolvedExecutable.executable);
-  if (!executable || !path8.isAbsolute(executable)) {
+  if (!executable || !path9.isAbsolute(executable)) {
     return preInvocationFailure({
       provider: request.provider,
       code: "PROVIDER_MISSING",
@@ -4226,7 +4462,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         CONSENSUS_SUBMIT_COMMAND: submitCommand,
         CONSENSUS_SUBMIT_FILE: submitCapturePath,
         [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path8.resolve(schemaPath)
+        CONSENSUS_SUBMIT_SCHEMA: path9.resolve(schemaPath)
       } : {}
     }
   });
@@ -4588,7 +4824,7 @@ function buildConsensusSubmitCommand(input = {}) {
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
 }
 function currentConsensusCliPath() {
-  if (process.argv[1]) return path8.resolve(process.argv[1]);
+  if (process.argv[1]) return path9.resolve(process.argv[1]);
   return fileURLToPath(import.meta.url);
 }
 function shellQuote(value) {
@@ -4800,7 +5036,8 @@ async function runConsensusCli(argv, io, options = {}) {
     const request = await normalizeRunRequest(command, io);
     const envelope = await runProviderTurn(request, {
       readSchema: async (schemaPath) => JSON.parse(await io.readFile(schemaPath)),
-      parentEnv: io.env
+      parentEnv: io.env,
+      ...options.adapters ? { registry: options.adapters } : {}
     });
     writeJson(io, envelope);
     return processExitForEnvelope(envelope);
