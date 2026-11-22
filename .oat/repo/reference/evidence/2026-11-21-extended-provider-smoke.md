@@ -99,3 +99,27 @@ private-home read allowance), same host and prompts.
   came up.
 - Gemini CLI and Droid were unchanged: all three prompts ok, and the edit was
   refused in text.
+
+## Re-smoke 3: 2026-11-22 (run `20261122-082533`)
+
+Bundle sha256 prefix `27e67ef80492`, built at feature commit `a0fefbd5`.
+It includes the restored deny-all, the probe-label redaction and the
+working-tree fingerprint that also compares permission bits. Same host and
+prompts. Later commits change only failure paths this smoke does not reach
+(the unsupported-version warning, mode drift) and remove unused members.
+
+- **Working-tree fingerprint:** no run reported `working_tree_changes` or
+  `PROVIDER_WORKTREE_CHANGED`.
+- **Clean runs:** no run recorded a permission denial. Every teardown found
+  the process group already gone, the scratch tree ended clean, and no agent
+  process was left.
+- **Antigravity desktop login, Gemini CLI and Droid:** 9 of 9 ok, with the
+  same answers as re-smoke 2. Each refused the edit in its answer text.
+- **Antigravity `GEMINI_API_KEY` on `gemini-3.8-flash`:** 3 of 3
+  `PROVIDER_TIMEOUT` (answer, read and edit). Setup was confirmed: mode
+  `default` from the initial state, the model from the `set_config_option`
+  response, auth `api_key`. The turn then produced no text and made no
+  permission request for the full 240 s, and consensus cancelled it
+  (`stop_reason` `cancelled`). The same key served Gemini CLI minutes later.
+  The cause is under investigation on the provider side; a quota or a
+  silent retry in agy is suspected.
