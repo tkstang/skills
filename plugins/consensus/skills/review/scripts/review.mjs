@@ -941,38 +941,6 @@ function denyPermissionRequest(params, options = {}) {
     denial: { ...denialBase, outcome: "cancelled" }
   };
 }
-function allowReadRequest(params, roots, options = {}) {
-  if (roots.length === 0) return void 0;
-  const request = isRecord(params) ? params : {};
-  const toolCall = isRecord(request.toolCall) ? request.toolCall : void 0;
-  if (!toolCall || toolCall.kind !== "read") return void 0;
-  const locations = Array.isArray(toolCall.locations) ? toolCall.locations : [];
-  if (locations.length === 0) return void 0;
-  const realRoots = roots.map((root) => realExistingPath(root));
-  let first;
-  for (const location of locations) {
-    const reported = isRecord(location) ? location.path : void 0;
-    if (typeof reported !== "string" || !path.isAbsolute(reported)) {
-      return void 0;
-    }
-    const real = realExistingPath(reported);
-    const root = realRoots.find((candidate) => isInside(real, candidate));
-    if (root === void 0) return void 0;
-    first ??= path.relative(root, real) || ".";
-  }
-  const optionId = optionIdOfKind(request.options, "allow_once");
-  if (optionId === void 0) return void 0;
-  const redact = options.redact ?? ((text) => text);
-  const tool = typeof toolCall.name === "string" && toolCall.name !== "" ? toolCall.name : typeof toolCall.title === "string" && toolCall.title !== "" ? toolCall.title : void 0;
-  return {
-    response: { outcome: { outcome: "selected", optionId } },
-    allowed: {
-      ...tool !== void 0 ? { tool: shortString(redact(tool)) } : {},
-      kind: "read",
-      ...first !== void 0 ? { path: shortString(redact(first), 240) } : {}
-    }
-  };
-}
 function realExistingPath(file) {
   const rest = [];
   let current = path.resolve(file);
@@ -986,10 +954,6 @@ function realExistingPath(file) {
       current = parent;
     }
   }
-}
-function isInside(file, root) {
-  const relative = path.relative(root, file);
-  return !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 function methodNotFound(method) {
   return { code: -32601, message: "Method not found", data: { method } };
@@ -1356,17 +1320,6 @@ async function runAcpTurn(input) {
     },
     onRequest: (request) => {
       if (request.method === "session/request_permission") {
-        const read = result.cancel_sent === true ? void 0 : allowReadRequest(
-          request.params,
-          input.plan.allowedReadRoots ?? [],
-          {
-            redact
-          }
-        );
-        if (read) {
-          (result.allowed_reads ??= []).push(read.allowed);
-          return { result: read.response };
-        }
         const { response, denial } = denyPermissionRequest(request.params, {
           cancelled: result.cancel_sent === true,
           redact
@@ -2001,7 +1954,7 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
   const env = options.env ?? {};
   const apiKey = descriptor.api_key;
   const useApiKey = apiKey !== void 0 && (env[apiKey.env] ?? "") !== "";
-  let plan = useApiKey ? { ...basePlan, authenticate: { methodId: apiKey.method_id } } : basePlan;
+  const plan = useApiKey ? { ...basePlan, authenticate: { methodId: apiKey.method_id } } : basePlan;
   const argv = [...invocation2.argv];
   const timeoutSec = options.timeoutSec ?? DEFAULT_TIMEOUT_SEC;
   let privateHome;
@@ -2023,9 +1976,6 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
         `${home.dir_flag}=${privateHome}`,
         `${home.app_data_flag}=${home.app_data_name}`
       );
-      if (home.allow_reads) {
-        plan = { ...plan, allowedReadRoots: [privateHome] };
-      }
     }
     outcome = await context.transport.run({
       executable: invocation2.executable,
@@ -2083,7 +2033,6 @@ function processDiagnostics(outcome, input) {
     ...result.stop_reason ? { stop_reason: result.stop_reason } : {},
     setup: result.setup.map((step) => ({ ...step })),
     ...result.refused_methods.length > 0 ? { refused_methods: [...result.refused_methods] } : {},
-    ...result.allowed_reads?.length ? { allowed_reads: result.allowed_reads.map((read) => ({ ...read })) } : {},
     ...result.cancel_sent ? { cancel_sent: true } : {},
     ...result.session_closed !== void 0 ? { session_closed: result.session_closed } : {},
     ...teardown ? {
@@ -2210,9 +2159,7 @@ var ANTIGRAVITY_DESCRIPTOR = {
       app_data_flag: "--app-data-dir",
       app_data_name: "consensus-agy",
       settings_files: ["antigravity-cli/settings.json", "config/settings.json"],
-      settings: { modelProvider: "gemini" },
-      // agy reads its own transcript under <home>/consensus-agy/brain/.
-      allow_reads: true
+      settings: { modelProvider: "gemini" }
     }
   },
   auth_hint: "Sign in with `agy acp --login` from a desktop terminal, or set GEMINI_API_KEY.",

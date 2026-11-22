@@ -1,18 +1,10 @@
 // Each descriptor's session plan against the sanitized spike frames it was
 // written from, driven through the adapter's own run hook and read back
 // through its hooks. Envelope mapping is covered in run-path.test.ts.
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-} from 'node:fs';
-import os from 'node:os';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { afterAll, afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import type { ProviderAdapter } from '../adapters.js';
 import type { ProviderProcessResult } from '../subprocess.js';
@@ -242,13 +234,11 @@ describe('Antigravity descriptor', () => {
   });
 });
 
-describe('Antigravity read allowance', () => {
+describe('Antigravity permission requests', () => {
   const AGY_KEY_SESSION = '6e89d7b8-52b2-437f-aef7-c936d8475ffc';
   const AGY_DESKTOP_SESSION = 'd1dc1bef-c052-4b55-a232-505704b45765';
   const TRANSCRIPT =
     'consensus-agy/brain/0f8e/.system_generated/logs/transcript.jsonl';
-  const outside = mkdtempSync(path.join(os.tmpdir(), 'consensus-outside-'));
-  afterAll(() => rmSync(outside, { recursive: true, force: true }));
 
   // The recorded session up to the prompt, then one permission request.
   function withReadRequest(
@@ -322,74 +312,18 @@ describe('Antigravity read allowance', () => {
       .outcome.optionId;
   }
 
-  it('allows a read of the agent transcript inside the private home, once', async () => {
+  it('denies a read of the agent transcript inside the private home', async () => {
     const { adapter, result, answer } = await apiKeyRun((home) => ({
       name: 'read_file',
       kind: 'read',
       locations: [{ path: path.join(home, TRANSCRIPT) }],
     }));
 
-    expect(answer).toBe('allow');
-    expect(result.ok).toBe(true);
-    expect(result.diagnostics.acp?.allowed_reads).toEqual([
-      { tool: 'read_file', kind: 'read', path: TRANSCRIPT },
-    ]);
-    expect(adapter.extractPermissionDenials?.(result.stdout)).toBeUndefined();
-  });
-
-  it.each<[string, (home: string) => Record<string, unknown>]>([
-    [
-      'a read outside the private home',
-      () => ({
-        name: 'read_file',
-        kind: 'read',
-        locations: [{ path: path.join(outside, 'package.json') }],
-      }),
-    ],
-    [
-      'an edit inside the private home',
-      (home) => ({
-        name: 'write_file',
-        kind: 'edit',
-        locations: [{ path: path.join(home, TRANSCRIPT) }],
-      }),
-    ],
-    [
-      'a read naming one location inside and one outside',
-      (home) => ({
-        name: 'read_file',
-        kind: 'read',
-        locations: [
-          { path: path.join(home, TRANSCRIPT) },
-          { path: path.join(outside, 'package.json') },
-        ],
-      }),
-    ],
-    [
-      'a read through a symlink in the private home that points outside',
-      (home) => {
-        mkdirSync(path.join(home, 'consensus-agy'), { recursive: true });
-        symlinkSync(outside, path.join(home, 'consensus-agy', 'escape'));
-        return {
-          name: 'read_file',
-          kind: 'read',
-          locations: [{ path: path.join(home, 'consensus-agy/escape/x.txt') }],
-        };
-      },
-    ],
-    [
-      'a read with no location',
-      () => ({ name: 'read_file', kind: 'read', locations: [] }),
-    ],
-  ])('denies %s', async (_label, toolCall) => {
-    const { adapter, result, answer } = await apiKeyRun(toolCall);
-
     expect(answer).toBe('deny');
-    expect(result.diagnostics.acp?.allowed_reads).toBeUndefined();
     expect(adapter.extractPermissionDenials?.(result.stdout)?.count).toBe(1);
   });
 
-  it('allows nothing in desktop mode', async () => {
+  it('denies a read inside the working directory in desktop mode', async () => {
     let cwd = '';
     const recorded = dropSteps(
       await acpFixture('agy-key-default'),

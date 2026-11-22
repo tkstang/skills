@@ -48,9 +48,7 @@ var ANTIGRAVITY_DESCRIPTOR = {
       app_data_flag: "--app-data-dir",
       app_data_name: "consensus-agy",
       settings_files: ["antigravity-cli/settings.json", "config/settings.json"],
-      settings: { modelProvider: "gemini" },
-      // agy reads its own transcript under <home>/consensus-agy/brain/.
-      allow_reads: true
+      settings: { modelProvider: "gemini" }
     }
   },
   auth_hint: "Sign in with `agy acp --login` from a desktop terminal, or set GEMINI_API_KEY.",

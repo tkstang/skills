@@ -195,8 +195,7 @@ delegate fallback, and panel auto-fill never pick them.
   Droid the message lists up to five models on offer. Consensus keeps
   watching the mode: if the agent reports leaving it during the turn, the turn
   is cancelled and fails with `PROVIDER_EXIT` (`acp_mode_changed`).
-- **Deny-all.** Every permission request the agent sends is rejected (the
-  one exception is Antigravity reads in its private home, below), and the
+- **Deny-all.** Every permission request the agent sends is rejected, and the
   client offers the agent no file system or terminal and no MCP servers of its
   own. A turn that is denied a tool and still answers succeeds, with
   `diagnostics.permission_denials` filled; one that ends without an answer
@@ -240,10 +239,7 @@ listed credential variable is forwarded; `--env-allow` is refused.
   routes are smoke-tested.
 - With `GEMINI_API_KEY` set, consensus starts `agy` against a private
   temporary settings directory (mode 0700) that selects the Gemini API, and
-  removes it after the run. A read request inside that directory is allowed,
-  so agy can read its own session files there: its kind must be `read`
-  and every path it names must resolve inside the directory. Allowed reads are
-  recorded in `diagnostics.acp`; every other request is denied.
+  removes it after the run.
 - Read-only mode is `default`. The model is set through the agent's `model`
   option and must be one it offers.
 - Extra brief lines: "Do not use invoke_subagent, swarm, run_workflow or
@@ -266,9 +262,10 @@ listed credential variable is forwarded; `--env-allow` is refused.
     `package.json` or, on the desktop login, its own session transcript in
     its app data. Consensus denies it, and agy ends the turn after that single
     denied read, so the run fails as `PROVIDER_PERMISSION_DENIED` with no
-    answer. The brief line asks agy to stay inside the working directory; in
-    API-key mode its transcript is in the private home, where reads are
-    allowed.
+    answer. The brief line asks agy to stay inside the working directory,
+    which avoids the parent-directory reads; agy may still ask to read its
+    own transcript, in its app data or, in API-key mode, in the private
+    settings directory.
 
 ### Gemini CLI
 

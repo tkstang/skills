@@ -5,7 +5,7 @@
 // redacted error text.
 import type { ProviderErrorCode } from '../types.js';
 import { isRecord } from './jsonrpc.js';
-import type { AcpAllowedRead, AcpPermissionDenial } from './responder.js';
+import type { AcpPermissionDenial } from './responder.js';
 
 export const ACP_TURN_RESULT_SCHEMA = 'consensus.acp-turn.v1';
 
@@ -72,9 +72,6 @@ export interface AcpTurnResult {
   // agent_message_chunk text after the prompt was sent, for our session.
   text: string;
   denials: AcpPermissionDenial[];
-  // Read requests allowed inside the plan's allowed read roots; never
-  // counted as denials.
-  allowed_reads?: AcpAllowedRead[];
   // Agent->client methods refused with -32601 (fs/*, terminal/*, unknown).
   refused_methods: string[];
   usage?: Record<string, number>;

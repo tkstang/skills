@@ -57,9 +57,13 @@ transcript in its app data. agy asks permission for such a read, consensus
 denies it, and agy ends the turn after that single denied read.
 
 Since `6cbe0730`, consensus adds an Antigravity brief line asking it to read
-only inside the working directory, and in API-key mode allows a `read`
-request whose every location resolves inside the private per-run home it
-creates, which holds agy's own transcript. Every other request is denied.
+only inside the working directory. `6cbe0730` also allowed, in API-key mode,
+a `read` request whose every location resolved inside the private per-run
+home; the second cross-model re-check showed that an approval cannot be bound
+to what the agent then reads (a request's reported kind and locations need not
+match its operation, and the file can change after approval), so the
+allowance was removed again and every request is denied. agy's transcript
+read stays a known limit on both routes.
 
 ## Re-smoke 1: 2026-11-21 (run `20261121-204112`)
 
@@ -91,7 +95,7 @@ private-home read allowance), same host and prompts.
   now refuse in the answer text and make no tool call, so they end `ok: true`
   instead of `PROVIDER_PERMISSION_DENIED`.
 - No Antigravity run recorded a permission request, so neither the
-  private-home read allowance nor the desktop transcript-read limit came up.
-  The allowance is covered by unit tests only.
+  private-home read allowance (since removed) nor the transcript-read limit
+  came up.
 - Gemini CLI and Droid were unchanged: all three prompts ok, and the edit was
   refused in text.

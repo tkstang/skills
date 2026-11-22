@@ -21,7 +21,6 @@ import type {
 import { spawnProcessGroup, withTimeout } from './process.js';
 import {
   ACP_CLIENT_CAPABILITIES,
-  allowReadRequest,
   denyPermissionRequest,
   methodNotFound,
   realExistingPath,
@@ -83,9 +82,6 @@ export interface AcpSessionPlan {
   redactions?: readonly RegExp[];
   // Env names whose values are redacted from error text and stderr.
   credentialEnv?: readonly string[];
-  // Directories a `read` permission request may be allowed inside (see
-  // allowReadRequest). Empty or absent: every request is denied.
-  allowedReadRoots?: readonly string[];
 }
 
 export interface AcpTiming {
@@ -200,20 +196,6 @@ export async function runAcpTurn(input: AcpRunInput): Promise<AcpRunOutcome> {
     },
     onRequest: (request) => {
       if (request.method === 'session/request_permission') {
-        const read =
-          result.cancel_sent === true
-            ? undefined
-            : allowReadRequest(
-                request.params,
-                input.plan.allowedReadRoots ?? [],
-                {
-                  redact,
-                },
-              );
-        if (read) {
-          (result.allowed_reads ??= []).push(read.allowed);
-          return { result: read.response };
-        }
         const { response, denial } = denyPermissionRequest(request.params, {
           cancelled: result.cancel_sent === true,
           redact,

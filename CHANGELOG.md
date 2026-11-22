@@ -14,8 +14,7 @@
   no `--env-allow` and no native resume. The provider CLI drives each agent's
   ACP command through its own stdio JSON-RPC client (no new dependency): it
   confirms the provider's read-only mode and the model before the prompt and
-  watches the mode through the turn, denies every permission request (apart
-  from Antigravity reads inside its private per-run home in API-key mode), offers
+  watches the mode through the turn, denies every permission request, offers
   no file system, terminal or MCP servers, prepends read-only brief lines, and
   stops the agent's process group on every exit. Extended runs need a model:
   `--model`, or the new `defaults.provider_models.<id>` consensus-config key,
