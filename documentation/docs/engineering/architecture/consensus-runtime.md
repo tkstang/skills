@@ -1,6 +1,6 @@
 ---
 title: 'Consensus Runtime'
-description: 'How converging consensus workflows coordinate wrappers, the deterministic loop, provider CLI subprocesses and the extended-provider ACP adapter, structured verdicts, and durable run records.'
+description: 'How consensus coordinates wrappers, the deterministic loop, provider CLI subprocesses, the extended-provider ACP adapter, verdicts, and run records.'
 ---
 
 # Consensus Runtime

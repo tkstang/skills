@@ -76,7 +76,7 @@
   - Architecture
     - [Architecture](docs/engineering/architecture/index.md) — The single-owner and generated-installation-unit architecture behind dependency-free shipped skills.
     - [Build & Distribution](docs/engineering/architecture/generated-runtime.md) — The build contract from canonical src/skills owners and distribution declarations to complete standalone and plugin payloads.
-    - [Consensus Runtime](docs/engineering/architecture/consensus-runtime.md) — How converging consensus workflows coordinate wrappers, the deterministic loop, provider CLI subprocesses and the extended-provider ACP adapter, structured verdicts, and durable run records.
+    - [Consensus Runtime](docs/engineering/architecture/consensus-runtime.md) — How consensus coordinates wrappers, the deterministic loop, provider CLI subprocesses, the extended-provider ACP adapter, verdicts, and run records.
     - [Agent Messaging](docs/engineering/architecture/agent-messaging.md) — How durable mail, finite delivery, observer composition, and external state fit together.
     - [Shared transcript-core](docs/engineering/architecture/transcript-core.md) — How per-provider transcript knowledge has one shared source under src/shared/transcript, with a complete generated copy shipped per installation unit.
     - Native session schemas
