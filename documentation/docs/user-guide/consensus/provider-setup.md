@@ -188,6 +188,9 @@ delegate fallback, and panel auto-fill never pick them.
   confirmed both. An unconfirmed mode or model, or a model the agent does not
   offer, fails with `PROVIDER_UNSUPPORTED_OPTION` and `turn: "not_started"`.
   For Antigravity and Droid the message lists some of the models on offer.
+  Consensus keeps watching the mode: if the agent reports leaving it during
+  the turn, the turn is cancelled and fails with `PROVIDER_EXIT`
+  (`acp_mode_changed`).
 - **Deny-all.** Every permission request the agent sends is rejected, and the
   client offers the agent no file system or terminal and no MCP servers of its
   own. A turn that is denied a tool and still answers succeeds, with

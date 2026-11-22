@@ -226,6 +226,9 @@ mode and the denials are what keep the agent from writing there.
 - `PROVIDER_LIMIT_REACHED`: a `max_tokens` or `max_turn_requests` stop, or a
   quota error the provider returned as answer text.
 - `PROVIDER_EMPTY_OUTPUT`: the turn ended with no answer text and no denial.
+- `PROVIDER_EXIT` with `attempts.terminal_reason: "acp_mode_changed"`: the
+  agent reported leaving its read-only mode during the turn. Consensus
+  cancelled the turn and discarded its answer; `turn` is `unknown`.
 
 `diagnostics.acp` records the agent's name and version, whether the run used
 an API key or the saved sign-in, each setup step and what confirmed it, the
