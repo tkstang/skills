@@ -1142,8 +1142,7 @@ var JsonRpcConnection = class {
   pending = /* @__PURE__ */ new Map();
   closed = false;
   counters = {
-    ignored_lines: 0,
-    unmatched_responses: 0
+    ignored_lines: 0
   };
   request(method, params) {
     const id = this.nextId++;
@@ -1208,10 +1207,7 @@ var JsonRpcConnection = class {
   settleResponse(message) {
     const id = message.id;
     const resolve = typeof id === "number" ? this.pending.get(id) : void 0;
-    if (!resolve || typeof id !== "number") {
-      this.counters.unmatched_responses++;
-      return;
-    }
+    if (!resolve || typeof id !== "number") return;
     this.pending.delete(id);
     if ("error" in message) {
       resolve({ kind: "error", error: toErrorObject(message.error) });
@@ -1488,7 +1484,6 @@ function attach(child, options) {
       stderr: stderrBytes,
       max: options.maxOutputBytes
     }),
-    interruptSignal: () => interrupt,
     teardown,
     reraiseInterrupt() {
       if (listening || !interrupt) return;
@@ -1580,12 +1575,10 @@ function describeToolCall(toolCall, redact) {
   if (!isRecord2(toolCall)) return {};
   const short = (value) => typeof value === "string" && value !== "" ? shortString(redact(value)) : void 0;
   const tool = short(toolCall.name) ?? short(toolCall.title);
-  const toolCallId = short(toolCall.toolCallId);
   const kind = short(toolCall.kind);
   const location = Array.isArray(toolCall.locations) && isRecord2(toolCall.locations[0]) ? toolCall.locations[0].path : void 0;
   const firstPath = typeof location === "string" && location !== "" ? location : void 0;
   return {
-    ...toolCallId !== void 0 ? { tool_call_id: toolCallId } : {},
     ...tool !== void 0 ? { tool } : {},
     ...kind !== void 0 ? { kind } : {},
     ...firstPath !== void 0 ? { path: firstPath } : {}
@@ -2568,7 +2561,7 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
     const home = useApiKey ? apiKey.private_home : void 0;
     if (home) {
       privateHome = await mkdtemp(
-        path4.join(context.tmpDir ?? os.tmpdir(), `consensus-${descriptor.id}-`)
+        path4.join(os.tmpdir(), `consensus-${descriptor.id}-`)
       );
       const settings = `${JSON.stringify(home.settings)}
 `;
@@ -5855,7 +5848,7 @@ function isMissing(error) {
   return code === "ENOENT" || code === "ENOTDIR";
 }
 function gitRunner(cwd, options) {
-  const command = options.git ?? "git";
+  const command = "git";
   const base = options.env ?? process.env;
   const run = (env, args, runOptions = {}) => new Promise((resolve, reject) => {
     execFile(

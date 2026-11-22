@@ -62,7 +62,6 @@ export type WorkingTreeSnapshotResult =
 
 export interface WorkingTreeOptions {
   env?: NodeJS.ProcessEnv;
-  git?: string;
 }
 
 export async function snapshotWorkingTree(
@@ -235,7 +234,7 @@ function isMissing(error: unknown) {
 }
 
 function gitRunner(cwd: string, options: WorkingTreeOptions) {
-  const command = options.git ?? 'git';
+  const command = 'git';
   const base = options.env ?? process.env;
   const run = (
     env: NodeJS.ProcessEnv,

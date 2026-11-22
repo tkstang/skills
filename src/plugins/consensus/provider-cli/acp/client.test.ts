@@ -277,7 +277,6 @@ describe('ACP session driver', () => {
     ]);
     expect(outcome.result.denials).toEqual([
       {
-        tool_call_id: 'call_1824620788134260230',
         tool: 'write_file',
         kind: 'edit',
         // Outside the run's cwd, so kept as reported.

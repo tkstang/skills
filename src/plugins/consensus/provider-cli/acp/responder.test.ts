@@ -57,7 +57,6 @@ describe('denyPermissionRequest', () => {
     });
 
     expect(denial).toEqual({
-      tool_call_id: 'call-7',
       tool: 'write_file',
       kind: 'edit',
       path: '/repo/notes.txt',

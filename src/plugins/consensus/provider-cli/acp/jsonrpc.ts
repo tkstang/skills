@@ -36,8 +36,6 @@ export interface JsonRpcConnectionOptions {
 export interface JsonRpcStats {
   // stdout lines that were not JSON-RPC messages.
   ignored_lines: number;
-  // Responses whose id matched no request of ours.
-  unmatched_responses: number;
 }
 
 export class JsonRpcConnection {
@@ -49,7 +47,6 @@ export class JsonRpcConnection {
   private closed = false;
   private readonly counters: JsonRpcStats = {
     ignored_lines: 0,
-    unmatched_responses: 0,
   };
 
   constructor(private readonly options: JsonRpcConnectionOptions) {}
@@ -127,10 +124,7 @@ export class JsonRpcConnection {
   private settleResponse(message: Record<string, unknown>) {
     const id = message.id;
     const resolve = typeof id === 'number' ? this.pending.get(id) : undefined;
-    if (!resolve || typeof id !== 'number') {
-      this.counters.unmatched_responses++;
-      return;
-    }
+    if (!resolve || typeof id !== 'number') return;
     this.pending.delete(id);
     if ('error' in message) {
       resolve({ kind: 'error', error: toErrorObject(message.error) });

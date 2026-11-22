@@ -77,7 +77,6 @@ export interface ProcessGroupHandle {
   hasExited(): boolean;
   stderr(): string;
   outputBytes(): { stdout: number; stderr: number; max: number };
-  interruptSignal(): ForwardedSignal | undefined;
   teardown(options: TeardownOptions): Promise<GroupTeardown>;
   // Re-raises a forwarded interrupt on this process once the run has
   // settled, when no other listener (another run or a host handler) remains.
@@ -361,7 +360,6 @@ function attach(
       stderr: stderrBytes,
       max: options.maxOutputBytes,
     }),
-    interruptSignal: () => interrupt,
     teardown,
     reraiseInterrupt() {
       if (listening || !interrupt) return;

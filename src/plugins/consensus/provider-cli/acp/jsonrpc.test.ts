@@ -67,7 +67,6 @@ describe('JsonRpcConnection', () => {
         result: { answered: 'session/request_permission' },
       },
     ]);
-    expect(rpc.stats().unmatched_responses).toBe(1);
   });
 
   it('treats a method without an id as a notification and skips non-JSON lines', () => {

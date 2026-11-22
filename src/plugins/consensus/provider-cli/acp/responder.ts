@@ -28,7 +28,6 @@ export type PermissionResponse =
 // rawInput, content, diffs or locations, which may hold file text or
 // secrets.
 export interface AcpPermissionDenial {
-  tool_call_id?: string;
   // The tool's name, else its title.
   tool?: string;
   kind?: string;
@@ -120,7 +119,6 @@ function describeToolCall(
       ? shortString(redact(value))
       : undefined;
   const tool = short(toolCall.name) ?? short(toolCall.title);
-  const toolCallId = short(toolCall.toolCallId);
   const kind = short(toolCall.kind);
   const location =
     Array.isArray(toolCall.locations) && isRecord(toolCall.locations[0])
@@ -130,7 +128,6 @@ function describeToolCall(
   const firstPath =
     typeof location === 'string' && location !== '' ? location : undefined;
   return {
-    ...(toolCallId !== undefined ? { tool_call_id: toolCallId } : {}),
     ...(tool !== undefined ? { tool } : {}),
     ...(kind !== undefined ? { kind } : {}),
     ...(firstPath !== undefined ? { path: firstPath } : {}),

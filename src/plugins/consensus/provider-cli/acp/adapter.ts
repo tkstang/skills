@@ -64,8 +64,6 @@ export interface AcpAdapterOptions {
   // that launches the fake agent.
   spawn?: SpawnProcessGroup;
   timing?: Partial<AcpTiming>;
-  // Parent of the private settings directory for API-key runs.
-  tmpDir?: string;
 }
 
 export function acpAdapter(
@@ -232,7 +230,7 @@ async function runAcpInvocation(
     if (home) {
       // mkdtemp creates the directory with mode 0700.
       privateHome = await mkdtemp(
-        path.join(context.tmpDir ?? os.tmpdir(), `consensus-${descriptor.id}-`),
+        path.join(os.tmpdir(), `consensus-${descriptor.id}-`),
       );
       const settings = `${JSON.stringify(home.settings)}\n`;
       for (const file of home.settings_files) {
