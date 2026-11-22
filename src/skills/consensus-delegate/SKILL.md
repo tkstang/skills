@@ -1,6 +1,6 @@
 ---
 name: consensus-delegate
-description: Use when the user asks to hand a task to another AI provider (Codex, Claude, Cursor, or, read-only, Antigravity, Gemini CLI, or Droid), such as implementing a change, fixing a bug, or investigating a failure, and the host must verify the result. Code changes run in a dedicated git worktree; questions and investigations run read-only. For an opinion use phone-a-friend; for a bounded review use review.
+description: Use when the user asks to hand a task to another AI provider (Codex, Claude, Cursor, or, read-only and experimental, Antigravity, Gemini CLI, or Droid), such as implementing a change, fixing a bug, or investigating a failure, and the host must verify the result. Code changes run in a dedicated git worktree; questions and investigations run read-only. For an opinion use phone-a-friend; for a bounded review use review.
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+, git, and the generated consensus CLI.
 allowed-tools: Bash(node:*), Bash(git:*), Read, Write
@@ -30,8 +30,8 @@ an independent reviewer should inspect a bounded branch, file set, or document.
   is a question, review, or investigation ("have Codex look into why X fails").
 - If you genuinely cannot tell, ask one short question.
 
-Cursor and the extended providers (`antigravity`, `gemini`, `droid`) run
-read-only only. For a write task naming one of them, say so and offer a
+Cursor and the experimental extended providers (`antigravity`, `gemini`,
+`droid`) run read-only only. For a write task naming one of them, say so and offer a
 read-only run or another peer.
 
 ## Prerequisites
@@ -51,7 +51,10 @@ If the user named the peer and it is not `ready`, report that and stop; do not
 swap in another provider. If they named none, try the next core provider (Codex,
 Claude, Cursor) other than you (skip Cursor for a write run); an extended
 provider runs only when named. If none is ready, report it and stop; the user
-may name any peer, including your own provider.
+may name any peer, including your own provider. For an extended provider,
+`ready` means only that its CLI is installed at a supported version; preflight
+checks neither its sign-in nor its model, so the run can still fail with
+`PROVIDER_AUTH_REQUIRED` or `model_required`.
 
 ## Workflow
 
@@ -101,7 +104,7 @@ node <skill-dir>/scripts/consensus.mjs run --provider <peer> \
 
 | Input         | Default                                     | Notes                                                                                     |
 | ------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `peer`        | a ready provider other than you             | `--provider`; the user may name any peer                                                  |
+| `peer`        | a ready core provider other than you        | `--provider`; the user may name any peer; extended peers only when named                  |
 | `model`       | provider default                            | `--model`, only when asked; an extended peer needs one (below)                            |
 | `effort`      | provider default                            | `--effort`, only when asked; Cursor and extended peers take none                          |
 | `brief`       | required                                    | `--prompt-file`                                                                           |
@@ -118,13 +121,14 @@ node <skill-dir>/scripts/consensus.mjs run --provider <peer> \
 | Cursor         | `--permission-mode read-only` | not supported                                                        |
 | Extended (ACP) | `--permission-mode read-only` | not supported                                                        |
 
-An extended peer (Antigravity, Gemini CLI, or Droid) runs a model you choose:
+An extended peer (Antigravity, Gemini CLI, or Droid; experimental) runs a
+model you choose:
 `--model`, or else `defaults.provider_models.<id>` from the consensus config.
 With neither, the CLI refuses the run before launch. Never pick a model on
 your own; ask the user. It takes no effort, no `--env-allow`, and no
 continuation. Consensus confirms the provider's read-only mode before the
-prompt, puts its own read-only lines before the brief, and denies every
-permission request the peer makes. The CLI also checks the working tree
+prompt and watches it during the turn, puts its own read-only lines before the
+brief, and denies every permission request the peer makes. The CLI also checks the working tree
 itself: it snapshots the git checkout at `--cwd` before the turn and compares
 it after, so `--cwd` must be a git checkout.
 
@@ -167,13 +171,20 @@ A success has `ok: true`, `output_kind: "text"`, and the peer's final reply in
 - `attempts.terminal_reason: "model_required"`: an extended peer had no model.
   Ask the user for one, or point them at `defaults.provider_models.<id>`.
 - `PROVIDER_WORKTREE_CHANGED`: the checkout changed during an extended
-  read-only turn, whatever the turn returned. Report the message and
-  `diagnostics.working_tree_changes` verbatim; the change may also be the
-  user's own edit during the run. Treat the reply as unusable, and do not
+  read-only turn, whatever the turn returned. Report the message and, when
+  present, `diagnostics.working_tree_changes` verbatim. A leading `HEAD` entry
+  means HEAD moved; with no list, the checkout could not be re-checked and
+  counts as changed. The change may also be the user's own edit during the
+  run. Treat the reply as unusable, and do not
   revert anything unless the user asks.
 - `PROVIDER_PERMISSION_DENIED`: an extended peer asked for a tool outside
-  read-only, was denied, and ended without an answer. Report the denied tools
-  from the message; do not resend.
+  read-only, was denied, and ended without an answer. Report the message and
+  each entry of `diagnostics.permission_denials.requests` (tool, kind, and the
+  first path it named); do not resend.
+- `attempts.terminal_reason: "acp_mode_changed"` (`PROVIDER_EXIT`,
+  `turn: unknown`): an extended peer reported leaving its read-only mode, so
+  consensus cancelled the turn. Report the message, treat any reply as
+  unusable, and do not resend.
 - Any other `turn: not_started`, or a usage or preflight error: nothing reached
   the peer. Fix the cause and run again.
 - `PROVIDER_TIMEOUT`, an interrupt, or `turn: unknown`: the peer may have

@@ -144,12 +144,14 @@ the final report:
   "provider default"; observed comes from `continuation.observed_models`, and
   is "unobserved" when absent. No provider reports effort, so observed effort is
   "unobserved".
-- Permission denials (`diagnostics.permission_denials`), or "none".
+- Permission denials (`diagnostics.permission_denials`, with each request's
+  tool, kind, and path for an extended peer), or "none".
 - For an extended read-only run: the CLI's working-tree check, either
   "unchanged" or the `PROVIDER_WORKTREE_CHANGED` message and
-  `diagnostics.working_tree_changes`, verbatim. The check covers tracked and
-  non-ignored untracked files in the checkout at `--cwd`, not ignored files or
-  paths outside it.
+  `diagnostics.working_tree_changes`, verbatim. The check covers HEAD and the
+  tracked and non-ignored untracked files of the whole git work tree that
+  contains `--cwd`. It does not see ignored files or paths outside that work
+  tree.
 - For a write run: the worktree path and branch, the baseline and closing IDs,
   new commits, staged, unstaged, and untracked changes, the changes this turn
   made, any changes your verification made, and, for Claude, any change to your
