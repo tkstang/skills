@@ -43,10 +43,35 @@ Every run:
 - The desktop-login Antigravity edit run was denied `read_file`, not a write
   tool. That bundle recorded only tool names, so the request's kind and path
   are unknown. A later raw capture showed agy asking permission only for
-  writes inside the workspace.
+  writes inside the workspace; re-smoke 1 below shows the denied requests were
+  reads outside it.
 - Untested routes: the Gemini CLI saved OAuth login (`oauth-personal`) and
   Droid's `FACTORY_API_KEY`.
 
-## Re-smoke
+## Antigravity known limit
 
-- TODO: re-smoke on the fixed bundle (date, bundle sha256, results).
+A read-only Antigravity turn ends as `PROVIDER_PERMISSION_DENIED`, with no
+answer, when agy asks to read outside the workspace: for example a parent
+directory's `package.json`, or, on the desktop login, its own session
+transcript in its app data. agy asks permission for such a read, consensus
+denies it, and agy ends the turn after that single denied read.
+
+## Re-smoke 1: 2026-11-21 (run `20261121-204112`)
+
+Bundle sha256 prefix `d491342e7ee2`, built at feature commit `8219f041`, same
+host and prompts. All 12 runs left a clean tree and no agent process; the
+answer and read results were unchanged; preflight parsed each version
+(agy 1.5.13, gemini 0.70.0, droid 1.16.0). Gemini CLI and Droid again
+answered the edit prompt with a refusal and wrote nothing.
+
+That bundle records each denial's kind and path. Both Antigravity edit runs
+ended as `PROVIDER_PERMISSION_DENIED` on a `read_file` request of kind `read`
+outside the workspace:
+
+- desktop login: the `package.json` in the parent of the scratch repo;
+- `GEMINI_API_KEY`: its own transcript under the private home,
+  `<private home>/consensus-agy/brain/.../transcript.jsonl`.
+
+## Re-smoke 2
+
+- TODO: final re-smoke on the fixed bundle (date, bundle sha256, results).

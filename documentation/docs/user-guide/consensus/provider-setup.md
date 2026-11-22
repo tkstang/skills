@@ -256,6 +256,12 @@ current quota`) fails with `PROVIDER_LIMIT_REACHED`; `agent executor error`
   - Sub-agent write requests go to an approval screen that ACP never shows.
     They fail closed after about 60 seconds without telling the client, which
     is why the brief line bans sub-agents and workflows.
+  - A read outside the workspace ends the turn. agy asks permission to read
+    outside the working directory, for example a parent directory's
+    `package.json` or, on the desktop login, its own session transcript in
+    its app data. Consensus denies it, and agy ends the turn after that single
+    denied read, so the run fails as `PROVIDER_PERMISSION_DENIED` with no
+    answer.
 
 ### Gemini CLI
 
