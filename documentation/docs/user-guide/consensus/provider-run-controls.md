@@ -183,7 +183,8 @@ setup, sign-in, and per-provider limits are in
 [Extended providers](provider-setup.md#extended-providers). Every run is
 read-only, text-only, and single-attempt, and needs a model. Consensus confirms
 the provider's read-only mode and the model before it sends the prompt, and
-answers every permission request with a denial.
+answers every permission request with a denial, apart from Antigravity reads
+inside its private per-run home in API-key mode.
 
 An extended peer loads its own CLI's configuration, except an Antigravity run
 on `GEMINI_API_KEY`, which uses a private temporary settings directory that is

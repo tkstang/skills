@@ -117,8 +117,9 @@ behaviour.
   such as `.env` or build outputs, are outside that check.
 - **Extended peers** run in the provider's read-only mode, confirmed before
   the prompt and held for the whole turn (a mode change cancels the turn and
-  discards its answer), and every permission request they make is denied. Consensus
-  tells them not to edit files or run commands, so the brief asks for
+  discards its answer), and every permission request they make is denied,
+  apart from Antigravity reads inside its own private per-run home in API-key
+  mode. Consensus tells them not to edit files or run commands, so the brief asks for
   file:line evidence rather than a verification command.
 
 A commit made by any peer is reported, never accepted silently.

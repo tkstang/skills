@@ -100,7 +100,11 @@ no provider branches.
   before the prompt stops the run as `not_started`, and one during the turn
   cancels it (`PROVIDER_EXIT`, `acp_mode_changed`). Permission requests get a
   `reject_once` (else `reject_always`) option chosen by its kind, or
-  `cancelled`; every other agent request gets `-32601`. Each denial keeps only
+  `cancelled`; every other agent request gets `-32601`. The one exception is
+  a descriptor's `private_home.allow_reads` (Antigravity in API-key mode): a
+  request whose kind is `read` and whose every location resolves inside the
+  run's private temporary home gets `allow_once`, and is recorded in
+  `diagnostics.acp` rather than as a denial. Each denial keeps only
   the tool, its ACP kind, and the first path it named (relative to the
   working directory when inside it), reported in
   `diagnostics.permission_denials.requests`; never tool input.

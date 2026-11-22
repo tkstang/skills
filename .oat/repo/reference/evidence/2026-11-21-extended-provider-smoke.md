@@ -56,6 +56,11 @@ directory's `package.json`, or, on the desktop login, its own session
 transcript in its app data. agy asks permission for such a read, consensus
 denies it, and agy ends the turn after that single denied read.
 
+Since `6cbe0730`, consensus adds an Antigravity brief line asking it to read
+only inside the working directory, and in API-key mode allows a `read`
+request whose every location resolves inside the private per-run home it
+creates, which holds agy's own transcript. Every other request is denied.
+
 ## Re-smoke 1: 2026-11-21 (run `20261121-204112`)
 
 Bundle sha256 prefix `d491342e7ee2`, built at feature commit `8219f041`, same
