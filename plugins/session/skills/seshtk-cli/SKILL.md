@@ -159,6 +159,11 @@ space for a record and one preceding byte. When extracting context from JSON, ke
 messages, diagnostics, coverage, and cursor. Raw records can hold large or
 sensitive tool payloads.
 
+Cursor pages that start mid-turn miss messages buffered on the earlier page.
+If you need that turn, reread the page containing its terminal event with
+larger record or byte bounds to include the whole turn. If that is impractical,
+inspect the relevant raw records across both pages and report any remaining gap.
+
 Inspect coverage, diagnostics, and returned continuation fields before claiming
 completeness. Continue using returned cursors when needed; do not invent cursor
 tokens or infer offsets from displayed message counts. A source change can
