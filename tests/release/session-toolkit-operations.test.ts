@@ -138,6 +138,26 @@ function cli(
   return { ...result, value: JSON.parse(result.stdout || 'null') };
 }
 describe('built operational CLI', () => {
+  it('accepts backward paging for session reads and explicit files', async () =>
+    fixture(async (home, cwd, paths) => {
+      for (const target of [
+        ['read', '--session', `claude-code:${ID}`],
+        ['parse', paths['claude-code'], '--runtime', 'claude-code'],
+      ]) {
+        const args = [...target, '--max-records', '1', '--json'];
+        const latest = cli(home, cwd, [...args, '--from-end']);
+        expect(latest.status, latest.stdout).toBe(0);
+        expect(latest.value.data.messages[0].text).toBe('fixture answer');
+        const older = cli(home, cwd, [
+          ...args,
+          '--before-cursor',
+          latest.value.data.prevCursor,
+        ]);
+        expect(older.status, older.stdout).toBe(0);
+        expect(older.value.data.messages[0].text).toBe('fixture question');
+        expect(older.value.data.prevCursor).toBeNull();
+      }
+    }));
   it('executes explicit parse/read/list and exact identity across three provider boundaries without state', async () =>
     fixture(async (home, cwd, paths) => {
       const listed = cli(home, cwd, ['list', '--json']);

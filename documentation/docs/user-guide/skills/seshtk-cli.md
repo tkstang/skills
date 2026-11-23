@@ -95,6 +95,11 @@ current identity. When selection remains ambiguous, the agent reports the
 candidates or asks for the missing choice. Large scans need authorization based
 on the returned estimate; the skill does not silently enable `--allow-large-scan`.
 
+After compaction, the agent identifies the current session and reads a bounded
+last page with `read --from-end`. It uses `prevCursor` to fetch earlier pages only
+as needed. This workflow requires the `transcript.backward.v1` capability added
+in Session Toolkit 0.2.0.
+
 ## Results, files, and privacy
 
 The response gives the selected provider/native identity, the useful answer or

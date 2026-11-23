@@ -3,6 +3,14 @@
 Toolkit SemVer and `session-toolkit-vX.Y.Z` tags are independent of Skills and
 plugin versions. These notes describe package content, not publication receipts.
 
+## [0.2.0]
+
+- Read the latest page with `seshtk read --from-end` or `seshtk parse --from-end`.
+  Use `--before-cursor` to continue to earlier pages. The source byte budget
+  counts backward and coverage reports which ends of the transcript were omitted.
+- A forward read that runs out of bytes now identifies the omitted end in its
+  text warning. Forward JSON and cursors keep their existing contract.
+
 ## [0.1.0]
 
 - Introduce `@tkstang/session-toolkit` and the `seshtk` CLI for Node 22.0.0 and 24,

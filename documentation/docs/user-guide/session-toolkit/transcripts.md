@@ -82,6 +82,37 @@ place to resume. Cursor conversation messages also require terminal events in
 the captured page. A page starting mid-turn cannot recover messages buffered on
 an earlier page. Callers that need continuity can retain the raw records.
 
+### Read the newest page first
+
+With Session Toolkit 0.2.0 or later, use `--from-end` on `read` or `parse`.
+Both commands return each page in chronological order. Copy `data.prevCursor`
+to `prev_cursor` before running the second command.
+
+```sh
+seshtk read --session 'codex:SESSION_ID' --from-end --max-records 50 --json
+seshtk read --session 'codex:SESSION_ID' --before-cursor "$prev_cursor" --max-records 50 --json
+```
+
+The byte budget counts back from EOF or the supplied cursor. Use `--max-records`
+to narrow the page further. Backward reads conflict with `--max-messages`,
+`--from-offset`, `--cursor`, and evidence mode. Library callers use `fromEnd: true`
+and then `beforeCursor`. In forward mode, `--from-offset` counts bytes skipped
+before the requested ordinal against the budget.
+
+Backward pages add `coverage.omittedStart` and `coverage.omittedEnd`. A preceding
+page will usually have `omittedEnd: true` because it ends at the cursor. The
+`indexScope: "page"` field marks line, record, and frame counts as relative to
+the page. Byte ranges remain absolute. `nextCursor` is null, and `nextOffset`
+is a page-relative count. Keep the selected source and projection options the
+same when reusing a cursor.
+
+A backward cursor keeps its byte boundary when a live transcript grows by
+appending. It checks for replacement, shrinkage, and same-size modification,
+and assumes the earlier bytes were preserved when the file grew. Stop when
+you have enough context or `coverage.omittedStart` is false. If the budget
+leaves no usable record boundary, `prevCursor` is null and `omittedStart` is
+true. Retry the same request with a larger byte budget if you need that page.
+
 Tool calls and results are independent opt-ins:
 
 | Option                   | Added output                                              |

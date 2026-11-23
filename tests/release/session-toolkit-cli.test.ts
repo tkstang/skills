@@ -5,6 +5,8 @@ import { join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import toolkit from '../../packages/session-toolkit/package.json' with { type: 'json' };
+
 const bin = resolve('packages/session-toolkit/dist/bin.js');
 const library = new URL(
   '../../packages/session-toolkit/dist/index.js',
@@ -46,7 +48,7 @@ describe('Session Toolkit public CLI boundary', () => {
         schema_version: 1,
         data: {
           package: '@tkstang/session-toolkit',
-          version: '0.1.0',
+          version: toolkit.version,
           schema_version: 1,
           node: '>=22.0.0',
           capabilities: [
@@ -57,6 +59,7 @@ describe('Session Toolkit public CLI boundary', () => {
             'sessions.list.v1',
             'transcript.read.v1',
             'transcript.parse.v1',
+            'transcript.backward.v1',
             'transcript.evidence.codex.v1',
             'export.markdown.v1',
             'search.v1',
