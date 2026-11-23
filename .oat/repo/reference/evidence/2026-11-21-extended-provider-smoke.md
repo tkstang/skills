@@ -4,6 +4,14 @@ Date: 2026-11-21 (run `20261121-202124`). Host: dev, in the desktop session.
 Code base: the generated consensus CLI bundle (sha256 prefix `94b28e69ccf5`)
 built at feature commit `45a8fc0d` on `feat/consensus-extended-providers`.
 
+Every bundle in this record, re-smokes included, was built from a branch that
+also carried PR #170's read-only changes to the Claude, Codex and Cursor
+invocations. PR #170 was closed without merging on 2026-11-23, and the branch
+was rebased onto `main` without it. Extended runs executed none of that code:
+the ACP adapter builds its own invocation and runs its own client, and it
+defines no `isProvenReadOnly` hook, so #170's read-only branches never applied
+to them. Commit SHAs in this record are from the branch before that rebase.
+
 Each provider ran three read-only prompts through `consensus run` in a
 scratch git repository:
 

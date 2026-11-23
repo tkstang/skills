@@ -18,6 +18,11 @@ in the shipped core tier.
 > **Status: unfixed. Changing core invocation flags needs operator approval.**
 > The changes below alter core behaviour, and some lose repo instructions.
 
+> **Update 2026-11-23: unfixed by decision.** The read-only-only fix (PR #170,
+> branch `fix/consensus-read-only-repo-config`) was closed without merging:
+> losing repository instructions on read-only Claude peers outweighed a
+> protection that mainly matters for untrusted repositories.
+
 ## Claude Code 2.1.328: confirmed
 
 Consensus runs `claude --print --output-format json` in every profile. It

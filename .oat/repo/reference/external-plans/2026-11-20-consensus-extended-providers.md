@@ -18,7 +18,7 @@ created: '2026-11-20T22:30:00Z'
 > [!NOTE]
 > This is an external implementation plan, not a canonical OAT project `plan.md`.
 > Execute it directly, or import it with `oat-project-import-plan <this-file>`.
-> Status: **Phases 1-3 implemented on `feat/consensus-extended-providers` (rebased onto PR #170): in-house ACP client; antigravity, gemini and droid admitted read-only after live smoke tests on 2026-11-21 (`.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md`); cross-model (Codex) review and three re-checks (the Antigravity private-home read allowance was removed after re-check 2, so every permission request is denied); Devin, Pi and DeepSeek not started**. Steps tagged
+> Status: **Phases 1-3 implemented on `feat/consensus-extended-providers` (based on `main`; PR #170 was closed without merging on 2026-11-23): in-house ACP client; antigravity, gemini and droid admitted read-only after live smoke tests on 2026-11-21 (`.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md`); cross-model (Codex) review and three re-checks (the Antigravity private-home read allowance was removed after re-check 2, so every permission request is denied); Devin, Pi and DeepSeek not started**. Steps tagged
 > **[independent]** can start now. Steps tagged **[hinges: Qn]** wait on the live
 > test question with that number (see "Live-test questions").
 
@@ -96,6 +96,16 @@ Thomas's safety posture (coordinator update #15, Stoa decision `ee3117f3`,
   and no `useAutoModeDuringPlan` override.
 - **Deliberation skills:** no read-only follow-up PR for the core loop paths.
 - **PR #170** is unchanged and waits for Thomas's merge.
+
+Thomas's decision on the core fix (coordinator, 2026-11-23). It replaces the
+"Core security fix" item above:
+
+- **PR #170 is closed without merging.** Its cost, read-only Claude peers
+  losing the repository's `CLAUDE.md` and `AGENTS.md`, outweighs a protection
+  that mainly matters for untrusted repositories. Read-only Claude, Codex and
+  Cursor runs keep loading repository configuration as on `main`. The
+  `fix/consensus-read-only-repo-config` branch is kept, and this work is
+  rebased onto `main` without it.
 
 ## What recon changed
 
