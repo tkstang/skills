@@ -139,9 +139,9 @@ page that fits the question. Add tool calls/results only when relevant; their
 preview options are independent.
 
 After compaction, use `self-identify --json` and form the qualified session
-selector from the authoritative result. Require `transcript.backward.v1`
-(added in Session Toolkit 0.2.0). If the capability is missing, report it and
-give the package's update guidance.
+selector from the authoritative result. This workflow requires Session Toolkit
+0.2.0 or later with `transcript.backward.v1`. If the capability is missing,
+report the required version and give the package's update guidance.
 
 ```sh
 seshtk read --session "$session" --from-end --max-records 50 --json
@@ -153,8 +153,9 @@ context, copy `data.prevCursor` to `prev_cursor` and read the preceding page wit
 the same projection options. Repeat only as far back as needed. Keep each read
 bounded and avoid reading the whole transcript. Inspect
 `data.coverage.omittedStart` and `omittedEnd` for missing source. If a byte budget
-leaves no complete record and no cursor, retry that page with enough bytes to
-fit a record or report the gap. When extracting context from JSON, keep the
+leaves no complete record and no cursor, retry the same page with a larger
+`--max-bytes` (for example, double it) or report the gap. A bounded window needs
+space for a record and one preceding byte. When extracting context from JSON, keep the
 messages, diagnostics, coverage, and cursor. Raw records can hold large or
 sensitive tool payloads.
 

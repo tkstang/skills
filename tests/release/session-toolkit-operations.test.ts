@@ -135,7 +135,10 @@ function cli(
     env: { ...env, ...vars },
     encoding: 'utf8',
   });
-  return { ...result, value: JSON.parse(result.stdout || 'null') };
+  return {
+    ...result,
+    value: args.includes('--json') ? JSON.parse(result.stdout || 'null') : null,
+  };
 }
 describe('built operational CLI', () => {
   it('accepts backward paging for session reads and explicit files', async () =>
@@ -160,6 +163,15 @@ describe('built operational CLI', () => {
     }));
   it('executes explicit parse/read/list and exact identity across three provider boundaries without state', async () =>
     fixture(async (home, cwd, paths) => {
+      const byteLimited = cli(home, cwd, [
+        'read',
+        '--session',
+        `claude-code:${ID}`,
+        '--max-bytes',
+        '1',
+      ]);
+      expect(byteLimited.status).toBe(0);
+      expect(byteLimited.stderr).toContain('End of transcript omitted.');
       const listed = cli(home, cwd, ['list', '--json']);
       expect(listed.status).toBe(0);
       expect(listed.value.data.candidates).toHaveLength(3);

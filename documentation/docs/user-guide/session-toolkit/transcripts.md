@@ -111,7 +111,9 @@ appending. It checks for replacement, shrinkage, and same-size modification,
 and assumes the earlier bytes were preserved when the file grew. Stop when
 you have enough context or `coverage.omittedStart` is false. If the budget
 leaves no usable record boundary, `prevCursor` is null and `omittedStart` is
-true. Retry the same request with a larger byte budget if you need that page.
+true. A window starting after byte zero needs room for a record and one
+preceding byte. If you need that page, retry the same request with a larger
+budget, for example by doubling `--max-bytes`.
 
 Tool calls and results are independent opt-ins:
 

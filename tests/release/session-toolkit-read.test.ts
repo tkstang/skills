@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile, appendFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, appendFile, truncate, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -27,11 +27,19 @@ describe('bounded public parsing', () => {
       const beforeMiddle = Buffer.byteLength(oldest);
       const beforeNewest = Buffer.byteLength(oldest + middle);
       const budget = size - Buffer.from(oldest).indexOf('🚲') - 1;
-      const options = { runtime: 'claude-code', path, maxRecords: 1 } as const;
+      const options = { runtime: 'claude-code', path } as const;
+      const byteBounded = await parseTranscript({
+        ...options,
+        fromEnd: true,
+        maxBytes: budget,
+      });
+      expect(byteBounded.coverage.fromByte).toBe(beforeMiddle);
+      expect(byteBounded.diagnostics).toEqual([]);
       const last = await parseTranscript({
         ...options,
         fromEnd: true,
         maxBytes: budget,
+        maxRecords: 1,
       });
       expect(last).toMatchObject({
         bytesRead: budget,
@@ -52,6 +60,7 @@ describe('bounded public parsing', () => {
         ...options,
         beforeCursor: last.prevCursor!,
         maxBytes: budget,
+        maxRecords: 1,
       });
       expect(previous.messages.map((message) => message.text)).toEqual([
         'middle',
@@ -76,6 +85,10 @@ describe('bounded public parsing', () => {
         omittedStart: false,
         omittedEnd: true,
       });
+      await truncate(path, size);
+      await expect(
+        parseTranscript({ ...options, beforeCursor: previous.prevCursor! }),
+      ).rejects.toMatchObject({ code: 'E_SOURCE_CHANGED' });
     }));
   it('keeps malformed nonblank ordinals separate from decoded objects, physical lines and source bytes', async () =>
     fixture(async (path) => {
