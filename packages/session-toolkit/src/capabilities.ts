@@ -9,6 +9,7 @@ export type CapabilityId =
   | 'sessions.list.v1'
   | 'transcript.read.v1'
   | 'transcript.parse.v1'
+  | 'transcript.backward.v1'
   | 'transcript.evidence.codex.v1'
   | 'export.markdown.v1'
   | 'search.v1'
@@ -39,6 +40,7 @@ export function getCapabilities(): Capabilities {
       'sessions.list.v1',
       'transcript.read.v1',
       'transcript.parse.v1',
+      'transcript.backward.v1',
       'transcript.evidence.codex.v1',
       'export.markdown.v1',
       'search.v1',

@@ -48,7 +48,8 @@ beforeEach(() => {
     join(packed, 'dist'),
   ])
     mkdirSync(path, { recursive: true });
-  const changelog = '# Toolkit\n\n## [0.1.0]\n\n- Controlled release note.\n';
+  const notes = `## [${pkg.version}]\n\n- Controlled release note.\n`;
+  const changelog = `# Toolkit\n\n${notes}`;
   for (const path of [join(root, 'packages/session-toolkit'), packed]) {
     writeFileSync(join(path, 'package.json'), JSON.stringify(pkg));
     writeFileSync(join(path, 'CHANGELOG.md'), changelog);
@@ -92,7 +93,6 @@ beforeEach(() => {
     ].map((path) => `package/${path}`),
   ]);
   const bytes = readFileSync(join(directory, archive));
-  const notes = '## [0.1.0]\n\n- Controlled release note.\n';
   manifest = {
     schema_version: 1,
     name: pkg.name,

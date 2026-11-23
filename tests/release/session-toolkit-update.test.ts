@@ -13,6 +13,8 @@ import { pathToFileURL } from 'node:url';
 
 import { beforeEach, afterEach, expect, it } from 'vitest';
 
+import toolkit from '../../packages/session-toolkit/package.json' with { type: 'json' };
+
 let dir: string, preload: string, requests: string, transcript: string;
 const bin = resolve('packages/session-toolkit/dist/bin.js');
 beforeEach(() => {
@@ -36,7 +38,7 @@ globalThis.fetch = async (url, options) => {
  if (process.env.FIXTURE_NETWORK === 'offline') throw new Error('offline');
  if (process.env.FIXTURE_NETWORK === 'timeout') return await new Promise((resolve, reject) => { const timer = setTimeout(resolve, 60000); options.signal.addEventListener('abort', () => { clearTimeout(timer); appendFileSync(process.env.FIXTURE_REQUESTS + '.aborted', 'aborted'); reject(options.signal.reason); }); });
  if (process.env.FIXTURE_NETWORK === 'invalid-json') return new Response('broken');
- return new Response(JSON.stringify({ version: process.env.FIXTURE_LATEST || '0.2.0' }));
+ return new Response(JSON.stringify({ version: process.env.FIXTURE_LATEST || '100.0.0' }));
 };`,
   );
 });
@@ -93,7 +95,7 @@ it('notifies only on stderr for a newer stable release and reuses its24-hour cac
   const first = run();
   expect(first.status).toBe(0);
   expect(first.stdout).toBe('[user] fixture question\n');
-  expect(first.stderr).toContain('0.2.0 is available');
+  expect(first.stderr).toContain('100.0.0 is available');
   expect(calls()).toBe(1);
   const cached = run(undefined, { FIXTURE_NETWORK: 'offline' });
   expect(cached.status).toBe(0);
@@ -101,7 +103,7 @@ it('notifies only on stderr for a newer stable release and reuses its24-hour cac
   expect(cached.stderr).toBe(first.stderr);
   expect(calls()).toBe(1);
 });
-it.each(['0.1.0', '0.0.9', '0.2.0-beta.1', 'not-a-version'])(
+it.each([toolkit.version, '0.0.9', '100.0.0-beta.1', 'not-a-version'])(
   'stays quiet for current/older/nonstable registry version %s',
   (version) => {
     const result = run(undefined, { FIXTURE_LATEST: version });
@@ -124,10 +126,10 @@ it.each(['offline', 'invalid-json'])(
 );
 it('refreshes malformed/expired caches and uses the default cache root when XDG is absent', () => {
   cache('{broken');
-  expect(run().stderr).toContain('0.2.0');
+  expect(run().stderr).toContain('100.0.0');
   expect(calls()).toBe(1);
-  cache({ checkedAt: Date.now() - 25 * 3600000, latest: '0.2.0' });
-  expect(run(undefined, { FIXTURE_LATEST: '0.1.0' }).stderr).toBe('');
+  cache({ checkedAt: Date.now() - 25 * 3600000, latest: '100.0.0' });
+  expect(run(undefined, { FIXTURE_LATEST: toolkit.version }).stderr).toBe('');
   expect(calls()).toBe(2);
   const fallback = run(undefined, { XDG_CACHE_HOME: '' });
   expect(fallback.status).toBe(0);

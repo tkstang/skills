@@ -4,6 +4,10 @@
 
 ### Changed
 
+- `seshtk-cli` 1.1.0 describes bounded post-compaction readback with Session
+  Toolkit 0.2.0. The CLI adds backward paging to `read` and `parse` and names
+  the omitted end in forward byte-budget warnings. Addresses #172.
+
 - `kim` 1.0.1 (`session` 0.9.1) leads its description with "Keep it moving
   (kim)", and the docs label it Keep It Moving (kim), so skill lists and
   navigation explain the short name. Behavior is unchanged.

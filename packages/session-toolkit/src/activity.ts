@@ -9,7 +9,11 @@ import type { TranscriptPage, SourceRecord, ReadDiagnostic } from './reader.js';
 
 export type ActivityOptions = Omit<
   SessionReadOptions,
-  'includeToolCalls' | 'includeToolResults' | 'includeActivity'
+  | 'includeToolCalls'
+  | 'includeToolResults'
+  | 'includeActivity'
+  | 'fromEnd'
+  | 'beforeCursor'
 >;
 export type ActivityEvent = CorrelatedActivityEvent;
 /** Sensitive captured-source evidence. No preview rendering or sanitization. */
@@ -42,6 +46,8 @@ export async function captureActivity(
     ...options,
     runtime: selected.runtime,
     path: selected.transcriptPath,
+    fromEnd: false,
+    beforeCursor: undefined,
     includeToolCalls: false,
     includeToolResults: false,
     includeActivity: false,

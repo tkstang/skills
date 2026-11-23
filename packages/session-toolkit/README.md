@@ -50,6 +50,11 @@ seshtk read --session 'codex:SESSION_ID' --max-records 100
 seshtk export --session 'codex:SESSION_ID' --out ./conversation.md
 ```
 
+With Session Toolkit 0.2.0 or later, start at the end with
+`seshtk read --session 'codex:SESSION_ID' --from-end --max-records 50 --json`.
+Pass `data.prevCursor` back as `--before-cursor` to continue backward.
+`parse` accepts the same flags for an explicit transcript file.
+
 Reads and exports default to **4,000,000 source bytes**. An export can succeed
 with exit 0 and still be partial: check its `Source coverage` line or
 `data.written[].coverage` in `--json` output. Export has no continuation; increase

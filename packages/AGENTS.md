@@ -20,6 +20,9 @@ The only workspace package is `session-toolkit/`. The root remains private;
   Validate the exact archive in clean installations on both versions.
 - Keep capability IDs truthful: advertise implemented operations only. New
   public exports, wire fields and capability meanings require intentional review.
+- Forward read cursors use global source ordinals and reject generation changes.
+  Backward read cursors use absolute byte boundaries and allow appends between
+  pages. Preserve the forward envelope and keep backward indexes page-relative.
 - Toolkit versions and `session-toolkit-vX.Y.Z` tags are independent of skill,
   plugin and standalone payload release versions. Update the root changelog.
 

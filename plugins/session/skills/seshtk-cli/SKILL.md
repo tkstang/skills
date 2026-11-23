@@ -3,7 +3,7 @@ name: seshtk-cli
 description: Use when the user asks to use or understand seshtk, the Session Toolkit CLI, for local coding-agent session identity, discovery, search, transcript reads, Markdown export, activity capture, or Codex evidence. Also use for CLI capability checks and troubleshooting. Keep explanation-only questions independent of CLI availability.
 metadata:
   author: Thomas Stang
-  version: '1.0.0'
+  version: '1.1.0'
 license: MIT
 compatibility: Instruction-only skill; executing workflows requires Node.js 22+ and the external @tkstang/session-toolkit CLI. Verified baseline 0.1.0.
 disable-model-invocation: false
@@ -98,6 +98,7 @@ provides details without scanning transcripts.
 | Estimate a historical search's candidate bytes     | `search estimate` | `search.estimate.v1`           |
 | Read one qualified session                         | `read`            | `transcript.read.v1`           |
 | Parse a known JSONL file with an explicit provider | `parse`           | `transcript.parse.v1`          |
+| Recover recent context after compaction            | `read --from-end` | `transcript.backward.v1`       |
 | Save sanitized conversation Markdown               | `export`          | `export.markdown.v1`           |
 | Capture sensitive structured activity              | `activity`        | `activity.v1`                  |
 | Inspect recorded Codex cutoff/expansion evidence   | `read --evidence` | `transcript.evidence.codex.v1` |
@@ -136,6 +137,32 @@ when the user supplies a transcript file; parsing that file does not establish
 current identity. Reads default to 4,000,000 source bytes; start with a bounded
 page that fits the question. Add tool calls/results only when relevant; their
 preview options are independent.
+
+After compaction, use `self-identify --json` and form the qualified session
+selector from the authoritative result. This workflow requires Session Toolkit
+0.2.0 or later with `transcript.backward.v1`. If the capability is missing,
+report the required version and give the package's update guidance.
+
+```sh
+seshtk read --session "$session" --from-end --max-records 50 --json
+seshtk read --session "$session" --before-cursor "$prev_cursor" --max-records 50 --json
+```
+
+Use the first page's `data.messages` in chronological order. If you still need
+context, copy `data.prevCursor` to `prev_cursor` and read the preceding page with
+the same projection options. Repeat only as far back as needed. Keep each read
+bounded and avoid reading the whole transcript. Inspect
+`data.coverage.omittedStart` and `omittedEnd` for missing source. If a byte budget
+leaves no complete record and no cursor, retry the same page with a larger
+`--max-bytes` (for example, double it) or report the gap. A bounded window needs
+space for a record and one preceding byte. When extracting context from JSON, keep the
+messages, diagnostics, coverage, and cursor. Raw records can hold large or
+sensitive tool payloads.
+
+Cursor pages that start mid-turn miss messages buffered on the earlier page.
+If you need that turn, reread the page containing its terminal event with
+larger record or byte bounds to include the whole turn. If that is impractical,
+inspect the relevant raw records across both pages and report any remaining gap.
 
 Inspect coverage, diagnostics, and returned continuation fields before claiming
 completeness. Continue using returned cursors when needed; do not invent cursor

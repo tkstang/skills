@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile, appendFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, appendFile, truncate, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -15,6 +15,81 @@ async function fixture(run: (path: string) => Promise<void>) {
   }
 }
 describe('bounded public parsing', () => {
+  it('pages backward across a UTF-8 cut and an append, preserving whole records', async () =>
+    fixture(async (path) => {
+      const line = (content: string) =>
+        JSON.stringify({ type: 'user', message: { content } }) + '\n';
+      const oldest = line('start 🚲\nsecond line');
+      const middle = line('middle');
+      const newest = line('newest');
+      await writeFile(path, oldest + middle + newest);
+      const size = Buffer.byteLength(oldest + middle + newest);
+      const beforeMiddle = Buffer.byteLength(oldest);
+      const beforeNewest = Buffer.byteLength(oldest + middle);
+      const budget = size - Buffer.from(oldest).indexOf('🚲') - 1;
+      const options = { runtime: 'claude-code', path } as const;
+      const byteBounded = await parseTranscript({
+        ...options,
+        fromEnd: true,
+        maxBytes: budget,
+      });
+      expect(byteBounded.coverage.fromByte).toBe(beforeMiddle);
+      expect(byteBounded.diagnostics).toEqual([]);
+      const last = await parseTranscript({
+        ...options,
+        fromEnd: true,
+        maxBytes: budget,
+        maxRecords: 1,
+      });
+      expect(last).toMatchObject({
+        bytesRead: budget,
+        indexScope: 'page',
+        nextCursor: null,
+        prevCursor: expect.any(String),
+        coverage: {
+          fromByte: beforeNewest,
+          throughByte: size,
+          omittedStart: true,
+          omittedEnd: false,
+        },
+        messages: [{ text: 'newest', physicalLine: 1 }],
+        diagnostics: [],
+      });
+      await appendFile(path, line('appended'));
+      const previous = await parseTranscript({
+        ...options,
+        beforeCursor: last.prevCursor!,
+        maxBytes: budget,
+        maxRecords: 1,
+      });
+      expect(previous.messages.map((message) => message.text)).toEqual([
+        'middle',
+      ]);
+      expect(previous.coverage).toMatchObject({
+        fromByte: beforeMiddle,
+        throughByte: beforeNewest,
+        omittedStart: true,
+        omittedEnd: true,
+      });
+      const first = await parseTranscript({
+        ...options,
+        beforeCursor: previous.prevCursor!,
+      });
+      expect(first.messages.map((message) => message.text)).toEqual([
+        'start 🚲\nsecond line',
+      ]);
+      expect(first.prevCursor).toBeNull();
+      expect(first.coverage).toMatchObject({
+        fromByte: 0,
+        throughByte: beforeMiddle,
+        omittedStart: false,
+        omittedEnd: true,
+      });
+      await truncate(path, size);
+      await expect(
+        parseTranscript({ ...options, beforeCursor: previous.prevCursor! }),
+      ).rejects.toMatchObject({ code: 'E_SOURCE_CHANGED' });
+    }));
   it('keeps malformed nonblank ordinals separate from decoded objects, physical lines and source bytes', async () =>
     fixture(async (path) => {
       await writeFile(

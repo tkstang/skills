@@ -71,7 +71,7 @@ function bounds(command: Command): Command {
   return command
     .option(
       '--from-offset <nonnegative-int>',
-      'Provider source ordinal',
+      'Provider source ordinal (earlier bytes count toward the budget)',
       integer,
     )
     .option('--cursor <token>', 'Generation/projection-bound continuation')
@@ -92,6 +92,14 @@ function bounds(command: Command): Command {
       4_000_000,
     );
 }
+function readBounds(command: Command): Command {
+  return bounds(command)
+    .option('--from-end', 'Start with the last transcript page')
+    .option(
+      '--before-cursor <token>',
+      'Read the page before a backward cursor',
+    );
+}
 function projections(command: Command): Command {
   return command
     .option('--include-tool-calls', 'Include recorded tool call previews')
@@ -107,6 +115,8 @@ function readOptions(
   return {
     fromOffset: o.fromOffset as number | undefined,
     cursor: o.cursor as string | undefined,
+    fromEnd: o.fromEnd as boolean | undefined,
+    beforeCursor: o.beforeCursor as string | undefined,
     maxBytes: o.maxBytes as number,
     maxRecords: o.maxRecords as number | undefined,
     maxMessages: o.maxMessages as number | undefined,
@@ -158,10 +168,18 @@ function createProgram(output: Output, json: boolean): Command {
             )
             .join('\n\n') + '\n',
         );
-        if (!page.coverage.complete)
+        if (!page.coverage.complete) {
+          const omitted = [
+            page.coverage.omittedStart ? 'Start of transcript omitted.' : '',
+            (page.coverage.omittedEnd ??
+            page.coverage.reasons.includes('byte-budget'))
+              ? 'End of transcript omitted.'
+              : '',
+          ].filter(Boolean);
           output.stderr(
-            `Partial source coverage: ${page.coverage.reasons.join(', ')}. Use --json for continuation.\n`,
+            `Partial source coverage: ${page.coverage.reasons.join(', ')}. ${[...omitted, 'Use --json for continuation.'].join(' ')}\n`,
           );
+        }
       } else output.stdout(JSON.stringify(data, null, 2) + '\n');
     });
     program.addCommand(command);
@@ -208,7 +226,7 @@ function createProgram(output: Output, json: boolean): Command {
     'Read an explicitly qualified session without persisting selection/offsets',
     (c) =>
       projections(
-        bounds(
+        readBounds(
           c.requiredOption(
             '--session <provider:id>',
             'Qualified native session',
@@ -239,7 +257,12 @@ function createProgram(output: Output, json: boolean): Command {
             'Exact evidence requires JSON output.',
             'Add --json.',
           );
-        if (o.cursor !== undefined || o.fromOffset !== undefined)
+        if (
+          o.cursor !== undefined ||
+          o.fromOffset !== undefined ||
+          o.fromEnd ||
+          o.beforeCursor !== undefined
+        )
           throw new ToolkitError(
             'E_USAGE',
             'Evidence conflicts with ordinary cursor/offset pagination.',
@@ -264,7 +287,7 @@ function createProgram(output: Output, json: boolean): Command {
     'Parse an explicit JSONL file; no discovery',
     (c) =>
       projections(
-        bounds(
+        readBounds(
           c
             .argument('<transcript-path>')
             .requiredOption('--runtime <provider>', 'Explicit provider'),

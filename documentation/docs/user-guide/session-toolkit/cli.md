@@ -69,6 +69,7 @@ is supported. The currently implemented IDs are:
 | Exact current identity                       | `identity.current.v1`                       |
 | Historical listing                           | `sessions.list.v1`                          |
 | Transcript reading and explicit-file parsing | `transcript.read.v1`, `transcript.parse.v1` |
+| Backward transcript paging                   | `transcript.backward.v1`                    |
 | Codex cutoff and expansion evidence          | `transcript.evidence.codex.v1`              |
 | Markdown export                              | `export.markdown.v1`                        |
 | Search and scan estimation                   | `search.v1`, `search.estimate.v1`           |

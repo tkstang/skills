@@ -20,6 +20,8 @@ export interface ReadOptions {
   path: string;
   fromOffset?: number;
   cursor?: string;
+  fromEnd?: boolean;
+  beforeCursor?: string;
   maxBytes?: number;
   maxRecords?: number;
   maxMessages?: number;
@@ -65,11 +67,16 @@ export interface TranscriptPage {
   diagnostics: ReadDiagnostic[];
   nextOffset: number;
   nextCursor: string | null;
+  prevCursor?: string | null;
+  /** Backward pages count record, line and frame indexes from the page start. */
+  indexScope?: 'page';
   coverage: {
     complete: boolean;
     reasons: string[];
     fromByte: number;
     throughByte: number;
+    omittedStart?: boolean;
+    omittedEnd?: boolean;
   };
 }
 interface Position {
@@ -86,6 +93,14 @@ interface Continuation extends Position {
   generation: string;
   projection: string;
 }
+interface BeforeContinuation extends Pick<
+  Continuation,
+  'byte' | 'runtime' | 'path' | 'generation' | 'projection'
+> {
+  v: 2;
+  fileId: string;
+  sourceBytes: number;
+}
 function projection(o: ReadOptions): string {
   return JSON.stringify([
     !!o.includeToolCalls,
@@ -93,12 +108,13 @@ function projection(o: ReadOptions): string {
     !!o.includeActivity,
   ]);
 }
+function decodeToken<T>(token: string): T {
+  if (token.length > 16384 || !/^[\w-]+$/u.test(token)) throw new Error();
+  return JSON.parse(Buffer.from(token, 'base64url').toString()) as T;
+}
 function decode(token: string): Continuation {
   try {
-    if (token.length > 16384 || !/^[\w-]+$/u.test(token)) throw new Error();
-    const c = JSON.parse(
-      Buffer.from(token, 'base64url').toString(),
-    ) as Continuation;
+    const c = decodeToken<Continuation>(token);
     if (
       c.v !== 1 ||
       typeof c.path !== 'string' ||
@@ -120,6 +136,50 @@ function decode(token: string): Continuation {
       'Start a new read without the cursor.',
     );
   }
+}
+function decodeBefore(
+  options: ReadOptions,
+  path: string,
+  generation: string,
+  fileId: string,
+  sourceBytes: number,
+): number {
+  let c: BeforeContinuation;
+  try {
+    c = decodeToken<BeforeContinuation>(options.beforeCursor!);
+    if (
+      c.v !== 2 ||
+      c.runtime !== options.runtime ||
+      c.path !== path ||
+      c.projection !== projection(options) ||
+      typeof c.fileId !== 'string' ||
+      typeof c.generation !== 'string' ||
+      !Number.isSafeInteger(c.byte) ||
+      c.byte < 1 ||
+      !Number.isSafeInteger(c.sourceBytes) ||
+      c.sourceBytes <= c.byte
+    )
+      throw new Error();
+  } catch {
+    throw new ToolkitError(
+      'E_CURSOR_INVALID',
+      'Invalid backward cursor or cursor belongs to a different source or projection.',
+      'Start a fresh read with --from-end or use matching options.',
+    );
+  }
+  // A live transcript can append between pages. Keep the original byte
+  // boundary, and reject replacement, shrinkage and same-size mutations.
+  if (
+    c.fileId !== fileId ||
+    c.sourceBytes > sourceBytes ||
+    (c.sourceBytes === sourceBytes && c.generation !== generation)
+  )
+    throw new ToolkitError(
+      'E_SOURCE_CHANGED',
+      'Transcript generation changed.',
+      'Start a fresh read with --from-end.',
+    );
+  return c.byte;
 }
 /**
  * Prefix counts are nondecreasing for Codex (correlation only adds answers),
@@ -205,6 +265,19 @@ export async function parseTranscript(
   options: ReadOptions,
 ): Promise<TranscriptPage> {
   const runtime = provider(options.runtime);
+  const backward = !!options.fromEnd || options.beforeCursor !== undefined;
+  if (
+    backward &&
+    ((options.fromEnd && options.beforeCursor !== undefined) ||
+      options.cursor !== undefined ||
+      options.fromOffset !== undefined ||
+      options.maxMessages !== undefined)
+  )
+    throw new ToolkitError(
+      'E_USAGE',
+      'Backward paging conflicts with another starting position or a message limit.',
+      'Use --from-end or --before-cursor with --max-records or --max-bytes.',
+    );
   if (options.cursor !== undefined && options.fromOffset !== undefined)
     throw new ToolkitError(
       'E_USAGE',
@@ -269,8 +342,13 @@ export async function parseTranscript(
         );
       p = c;
     }
-    const start = p.byte;
-    const bytes = Buffer.alloc(Math.min(budget, before.size - start));
+    const fileId = `${before.dev}:${before.ino}`;
+    const endByte =
+      options.beforeCursor === undefined
+        ? before.size
+        : decodeBefore(options, path, generation, fileId, before.size);
+    const start = backward ? Math.max(0, endByte - budget) : p.byte;
+    const bytes = Buffer.alloc(Math.min(budget, endByte - start));
     let bytesRead = 0;
     while (bytesRead < bytes.length) {
       const n = await handle.read(
@@ -286,11 +364,25 @@ export async function parseTranscript(
       diagnostics: ReadDiagnostic[] = [];
     const reasons: string[] = [];
     let offset = 0;
+    if (backward && start > 0) {
+      // The first byte serves as a boundary byte. It may be inside a UTF-8
+      // sequence or JSONL record, so decode only after the first LF.
+      const lf = bytes.subarray(0, bytesRead).indexOf(10);
+      offset = lf < 0 ? bytesRead : lf + 1;
+    }
+    if (options.beforeCursor !== undefined && bytes[bytesRead - 1] !== 10)
+      throw new ToolkitError(
+        'E_SOURCE_CHANGED',
+        'Backward cursor no longer points to a record boundary.',
+        'Start a fresh read with --from-end.',
+      );
+    let pageStart = start + offset;
+    if (backward) p.byte = pageStart;
     while (offset < bytesRead) {
       const lf = bytes.indexOf(10, offset);
       const closed = lf >= 0;
       const end = closed ? lf + 1 : bytesRead;
-      if (!closed && start + end < before.size) {
+      if (!closed && start + end < endByte) {
         reasons.push('byte-budget');
         break;
       }
@@ -357,10 +449,36 @@ export async function parseTranscript(
         p.line--;
         break;
       }
-      if (maxRecords && records.length >= maxRecords) {
+      if (!backward && maxRecords && records.length >= maxRecords) {
         if (p.byte < before.size) reasons.push('record-limit');
         break;
       }
+    }
+    if (backward) {
+      if (maxRecords && records.length > maxRecords) {
+        records.splice(0, records.length - maxRecords);
+        const first = records[0];
+        pageStart = first.byteStart;
+        p.source -= first.sourceOrdinal;
+        const firstKeptDiagnostic = diagnostics.findIndex(
+          (row) => row.byteStart >= pageStart,
+        );
+        diagnostics.splice(
+          0,
+          firstKeptDiagnostic < 0 ? diagnostics.length : firstKeptDiagnostic,
+        );
+        const { sourceOrdinal, physicalLine, recordIndex } = first;
+        for (const row of [...records, ...diagnostics]) {
+          row.sourceOrdinal -= sourceOrdinal;
+          row.physicalLine -= physicalLine - 1;
+          if (row.frameIndex !== undefined) row.frameIndex -= physicalLine - 1;
+          if ('recordIndex' in row) row.recordIndex -= recordIndex;
+        }
+        reasons.unshift('record-limit');
+      } else if (pageStart > 0) {
+        reasons.unshift('byte-budget');
+      }
+      if (endByte < before.size) reasons.push('before-cursor');
     }
     if (maxMessages) {
       const boundary = messageBoundary(records, options, maxMessages);
@@ -430,19 +548,23 @@ export async function parseTranscript(
         'Source changed during read.',
         'Retry a fresh page.',
       );
-    const complete = p.byte === before.size && reasons.length === 0;
-    const nextCursor = complete
-      ? null
-      : Buffer.from(
-          JSON.stringify({
-            v: 1,
-            runtime,
-            path,
-            generation,
-            projection: projection(options),
-            ...p,
-          } satisfies Continuation),
-        ).toString('base64url');
+    const complete =
+      (!backward || pageStart === 0) &&
+      p.byte === before.size &&
+      reasons.length === 0;
+    const nextCursor =
+      backward || complete
+        ? null
+        : Buffer.from(
+            JSON.stringify({
+              v: 1,
+              runtime,
+              path,
+              generation,
+              projection: projection(options),
+              ...p,
+            } satisfies Continuation),
+          ).toString('base64url');
     const page: TranscriptPage = {
       runtime,
       path,
@@ -464,8 +586,28 @@ export async function parseTranscript(
       diagnostics,
       nextOffset: p.source,
       nextCursor,
-      coverage: { complete, reasons, fromByte: start, throughByte: p.byte },
+      coverage: { complete, reasons, fromByte: pageStart, throughByte: p.byte },
     };
+    if (backward) {
+      page.indexScope = 'page';
+      page.coverage.omittedStart = pageStart > 0;
+      page.coverage.omittedEnd = p.byte < before.size;
+      page.prevCursor =
+        pageStart > 0 && pageStart < endByte
+          ? Buffer.from(
+              JSON.stringify({
+                v: 2,
+                runtime,
+                path,
+                fileId,
+                generation,
+                projection: projection(options),
+                sourceBytes: before.size,
+                byte: pageStart,
+              } satisfies BeforeContinuation),
+            ).toString('base64url')
+          : null;
+    }
     if (options.includeActivity) page.activity = summarizePage(page);
     return page;
   } finally {
