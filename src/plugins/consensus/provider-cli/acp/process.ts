@@ -28,6 +28,8 @@ export interface ProcessGroupOptions {
   // onOutputCap once.
   maxOutputBytes: number;
   // stderr kept for diagnostics; bytes past it are counted, not kept.
+  // Once stderr is cut short, its unfinished last line is dropped, so
+  // redaction never sees a credential with its tail cut off.
   maxStderrBytes?: number;
   timeoutMs: number;
   onLine: (line: string) => void;
@@ -354,7 +356,10 @@ function attach(
     },
     exit,
     hasExited: () => exited !== undefined,
-    stderr: () => stderrKept,
+    stderr: () =>
+      capped || stderrBytes > stderrKeptBytes
+        ? stderrKept.slice(0, stderrKept.lastIndexOf('\n') + 1)
+        : stderrKept,
     outputBytes: () => ({
       stdout: stdoutBytes,
       stderr: stderrBytes,

@@ -1485,7 +1485,7 @@ function attach(child, options) {
     },
     exit,
     hasExited: () => exited !== void 0,
-    stderr: () => stderrKept,
+    stderr: () => capped || stderrBytes > stderrKeptBytes ? stderrKept.slice(0, stderrKept.lastIndexOf("\n") + 1) : stderrKept,
     outputBytes: () => ({
       stdout: stdoutBytes,
       stderr: stderrBytes,

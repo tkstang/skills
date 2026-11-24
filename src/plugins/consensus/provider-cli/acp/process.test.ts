@@ -46,10 +46,10 @@ describe('spawnProcessGroup', () => {
 
   it('keeps stdin live, delivers stdout lines, and caps kept stderr', async () => {
     const lines: string[] = [];
-    // Echoes each stdin line back once, writes 100 bytes of stderr, and
-    // exits when stdin closes.
+    // Echoes each stdin line back once, writes 110 bytes of stderr ending
+    // in a credential that the cap cuts, and exits when stdin closes.
     const source = [
-      "process.stderr.write('e'.repeat(100));",
+      "process.stderr.write('ok\\nBearer ' + 'e'.repeat(100));",
       "let rest = '';",
       "process.stdin.on('data', (c) => { rest += c; let i; while ((i = rest.indexOf('\\n')) >= 0) { process.stdout.write('echo:' + rest.slice(0, i) + '\\n'); rest = rest.slice(i + 1); } });",
     ].join(' ');
@@ -70,8 +70,9 @@ describe('spawnProcessGroup', () => {
     const teardown = await handle.teardown(TEARDOWN);
 
     expect(lines).toEqual(['echo:one', 'echo:two']);
-    expect(handle.stderr()).toBe('e'.repeat(10));
-    expect(handle.outputBytes().stderr).toBe(100);
+    // The cut line ('Bearer eee…' kept as 'Bearer ') is dropped whole.
+    expect(handle.stderr()).toBe('ok\n');
+    expect(handle.outputBytes().stderr).toBe(110);
     // It exited on stdin close, so the group signal finds nothing left.
     expect(teardown).toMatchObject({
       exited_before_signal: true,
