@@ -119,7 +119,9 @@ pnpm run validate:skill-versions -- --base-ref <ref>
 It is wired into the PR-only `static` CI job and the local `pre-push`
 hook. Shared roots, generated outputs, plugin-shared areas, and rename history
 can affect more than the directly edited path; see the
-[version-impact table](conventions.md#skill-version-bump-on-edit).
+[version-impact table](conventions.md#skill-version-bump-on-edit). It also
+requires a plugin release bump whenever a plugin's shipped content changes; see
+[plugin release bump-on-edit](conventions.md#plugin-release-bump-on-edit).
 
 The same check also requires a changelog entry: for every canonical skill or
 plugin release whose version changes, `CHANGELOG.md` must gain a new line inside

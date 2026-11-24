@@ -46,7 +46,8 @@ and never auto-installed.
 When you ship a behavior or content change to a skill, bump the quoted stable
 SemVer at `metadata.version` in its canonical `src/skills/<name>/SKILL.md`.
 That is the sole authored skill version; top-level `version` is rejected. Every
-generated form inherits it. Plugin release versions are independent.
+generated form inherits it. Plugin release versions are separate numbers with
+their own bump rule, below.
 
 Changed skills must bump their version. Any change under a canonical skill
 directory (`src/skills/<name>/`) — `SKILL.md`, runtime source, tests,
@@ -70,7 +71,27 @@ per-import graph:
 | A declared generated output                                         | Bump its canonical owner; never fix the output directly.                                                                               |
 | Plugin-shared `scripts/`, `agents/`, or `references/` output        | Conservatively bump every owner distributed through that plugin.                                                                       |
 | Provider or marketplace release metadata only                       | Follow that plugin's independent release version; it does not by itself rewrite member skill versions.                                 |
+| Any shipped file under `plugins/<name>/`                            | Raise that plugin's release version above the base (see below), in addition to any skill bump above.                                   |
 | Clean-break rename                                                  | The current owner is compared with the historical owner mapping; no legacy payload is emitted.                                         |
+
+### Plugin release bump-on-edit
+
+Any change to a plugin's shipped content requires that plugin's provider-manifest
+version to be strictly greater than at the base:
+
+```bash
+pnpm tsx scripts/bump-version.ts <x.y.z> --plugin <name>
+```
+
+Shipped content is everything under `plugins/<name>/`: generated `skills/**`
+payloads, `scripts/`, `agents/`, `references/`, and the provider manifests
+themselves. The plugin-root `AGENTS.md` (maintainer guidance) and `README.md`
+(human package docs) and `.gitkeep` placeholders are exempt: no provider loads
+them at runtime. A plugin with no manifest at the base is new and exempt. The
+same validator enforces it, and the changelog rule applies to the new plugin
+version. Provider-manifest agreement is checked by `pnpm run validate`. The rule
+exists because Claude Code's `plugin update` compares manifest versions only, so
+same-version content never reaches existing installs.
 
 Always pass an explicit resolvable base to the validation command. Missing or
 shallow history fails closed instead of fetching or silently skipping the

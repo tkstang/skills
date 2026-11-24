@@ -23,8 +23,12 @@ layouts and provider adapters.
   give the canonical install link when missing, and never auto-install it.
 - Use additive skill frontmatter for portable skills. Fields such as `allowed-tools` may appear when ignored fields are tolerated by other providers. Fields with conflicting provider semantics belong in provider-specific manifests.
 - Use quoted stable SemVer in `metadata.version` as the sole authored skill
-  version field. Plugin release versions are independent from member skill
-  versions.
+  version field. Plugin release versions are separate from member skill
+  versions, but any change to a plugin's shipped content (everything under
+  `plugins/<name>/` except its root `AGENTS.md`, `README.md` and `.gitkeep`
+  placeholders) must raise that plugin's release version with
+  `pnpm tsx scripts/bump-version.ts <x.y.z> --plugin <name>`. A skill change
+  that regenerates a plugin payload needs both bumps.
 - Treat cross-provider testing as a release requirement: validate Claude Code, Cursor, Codex Git/local, and `npx skills add` install paths before claiming support in docs or release notes.
 - Update tests and `scripts/validate.ts` when changing repository invariants.
 - Prefer clean breaks: do not add backward-compatibility machinery (aliases,

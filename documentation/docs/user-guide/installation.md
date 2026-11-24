@@ -358,8 +358,11 @@ claude plugin update session@skills
 `claude plugin update` compares the **plugin manifest version** in
 `plugins/<plugin>/.claude-plugin/plugin.json`, not individual skill `SKILL.md`
 versions. When skills changed but the plugin release version did not, it
-reports `already at the latest version` and keeps the stale copy. There is no
-`--force`; reinstall to re-copy at the current checkout:
+reports `already at the latest version` and keeps the stale copy. A PR check
+requires every merged change to a plugin's shipped content to raise its
+version, so this mainly affects installs from an unmerged branch or a local
+checkout with uncommitted changes. There is no `--force`; reinstall to
+re-copy at the current checkout:
 
 ```bash
 claude plugin uninstall consensus@skills --keep-data

@@ -69,6 +69,13 @@
 
 ### Changed
 
+- `pnpm run validate:skill-versions` now also fails a PR that changes a
+  plugin's shipped content (anything under `plugins/<name>/` except the
+  plugin-root `AGENTS.md`, `README.md` and `.gitkeep` placeholders) without
+  raising that plugin's release version above the merge-base. Claude Code's
+  `plugin update` is version-keyed, so same-version content never reached
+  existing installs. Plugins new at the base are exempt.
+
 - `seshtk-cli` 1.1.0 describes bounded post-compaction readback with Session
   Toolkit 0.2.0. The CLI adds backward paging to `read` and `parse` and names
   the omitted end in forward byte-budget warnings. Addresses #172.
