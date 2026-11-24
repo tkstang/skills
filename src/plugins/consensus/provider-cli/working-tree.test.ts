@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import {
   access,
   chmod,
+  mkdir,
   mkdtemp,
   readFile,
   realpath,
@@ -149,6 +150,29 @@ describe('working-tree snapshot', () => {
 
     expect(await changesAfter(dir, before)).toEqual(['dirty.txt']);
   });
+
+  it.each([
+    ['the repository root', '.'],
+    ['a subdirectory', 'sub'],
+  ])(
+    'lists a permission change to a clean tracked file from %s',
+    async (_label, from) => {
+      const dir = await repo();
+      await mkdir(path.join(dir, 'sub'));
+      await writeFile(path.join(dir, 'sub', 'inner.txt'), 'inner\n');
+      git(dir, 'add', 'sub');
+      git(dir, 'commit', '-q', '-m', 'sub');
+      await chmod(path.join(dir, 'clean.txt'), 0o644);
+      const cwd = path.join(dir, from);
+      const before = await snapshot(cwd);
+      await chmod(path.join(dir, 'clean.txt'), 0o600);
+
+      expect(git(dir, 'status', '--porcelain')).not.toContain('clean.txt');
+      expect(compareWorkingTrees(before, await snapshot(cwd)).paths).toEqual([
+        'clean.txt',
+      ]);
+    },
+  );
 
   it.each([
     ['.git/info/attributes', 'probe'],

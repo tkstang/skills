@@ -5,10 +5,12 @@
 // --untracked-files=all` (ignored files are not covered) plus a sha256 of the
 // current content of every path status lists and of every index entry
 // marked assume-unchanged or skip-worktree, which status never reports.
-// fsmonitor and the untracked cache are disabled and file modes are always
-// compared for these commands, so a repository setting cannot make status
-// skip a change. The repository's info/exclude file is hashed too, so a rule
-// added to hide a new file is itself a change.
+// Every other tracked path gets its permission bits, because status reports
+// only an executable-bit change. fsmonitor and the untracked cache are
+// disabled and file modes are always compared for these commands, so a
+// repository setting cannot make status skip a change. The repository's
+// info/exclude file is hashed too, so a rule added to hide a new file is
+// itself a change.
 //
 // Known limits, accepted because the check is the loud backstop and deny-all
 // plus the confirmed read-only mode are the prevention (each would need a raw
@@ -35,6 +37,8 @@ import path from 'node:path';
 const GIT_TIMEOUT_MS = 30_000;
 const GIT_MAX_BUFFER = 64 * 1024 * 1024;
 const MAX_LISTED_PATHS = 20;
+// Tracked paths lstat-ed at once when recording permission bits.
+const LSTAT_BATCH = 256;
 // What git needs to find itself, the user's global config, and a locale.
 const SNAPSHOT_ENV_ALLOWLIST = [
   'PATH',
@@ -68,8 +72,9 @@ export interface WorkingTreeSnapshot {
   head: string;
   // Porcelain status code (XY) by repository-relative path.
   status: ReadonlyMap<string, string>;
-  // Content fingerprint by path, for the status paths and the index entries
-  // status hides: sha256, `deleted`, `dir`, or `link:<sha>`.
+  // Fingerprint by path. The status paths and the index entries status hides
+  // get `<mode>:<sha256>`, `deleted`, `dir`, or `link:<sha>`; every other
+  // tracked path gets `mode:<mode>`.
   content: ReadonlyMap<string, string>;
 }
 
@@ -107,12 +112,28 @@ export async function snapshotWorkingTree(
       '--ignored=no',
     ]);
     const status = parsePorcelainZ(raw);
-    const hidden = parseHiddenIndexEntries(
-      await unfiltered.run([...TRUTHFUL_STATUS_CONFIG, 'ls-files', '-v', '-z']),
+    // Every tracked path, relative to the root even when cwd is below it.
+    const index = parseIndexEntries(
+      await unfiltered.run([
+        ...TRUTHFUL_STATUS_CONFIG,
+        'ls-files',
+        '-v',
+        '-z',
+        '--full-name',
+        ':/',
+      ]),
     );
     const content = new Map<string, string>();
-    for (const file of new Set([...status.keys(), ...hidden])) {
+    for (const file of new Set([...status.keys(), ...index.hidden])) {
       content.set(file, await fingerprint(path.join(root, file)));
+    }
+    const modeOnly = index.tracked.filter((file) => !content.has(file));
+    for (let start = 0; start < modeOnly.length; start += LSTAT_BATCH) {
+      const batch = modeOnly.slice(start, start + LSTAT_BATCH);
+      const modes = await Promise.all(
+        batch.map((file) => permissionBits(path.join(root, file))),
+      );
+      batch.forEach((file, offset) => content.set(file, modes[offset]));
     }
     const exclude = path.resolve(
       cwd,
@@ -201,14 +222,28 @@ function parsePorcelainZ(raw: string): Map<string, string> {
 
 // `ls-files -v` tags: lowercase means assume-unchanged, `S` (or `s`)
 // skip-worktree. Git does not compare either kind against the working tree.
-function parseHiddenIndexEntries(raw: string): string[] {
+function parseIndexEntries(raw: string) {
+  const tracked = new Set<string>();
   const hidden: string[] = [];
   for (const entry of raw.split('\0')) {
     if (entry.length < 3) continue;
     const tag = entry[0];
-    if (tag === 'S' || (tag >= 'a' && tag <= 'z')) hidden.push(entry.slice(2));
+    const file = entry.slice(2);
+    tracked.add(file);
+    if (tag === 'S' || (tag >= 'a' && tag <= 'z')) hidden.push(file);
   }
-  return hidden;
+  return { tracked: [...tracked], hidden };
+}
+
+// Status reports only an executable-bit change on a clean file, so a chmod
+// 600 would otherwise go unseen. No read, so this is cheap for every path.
+async function permissionBits(file: string): Promise<string> {
+  try {
+    return `mode:${((await lstat(file)).mode & 0o7777).toString(8)}`;
+  } catch (error) {
+    if (isMissing(error)) return 'deleted';
+    throw error;
+  }
 }
 
 async function fingerprint(file: string): Promise<string> {

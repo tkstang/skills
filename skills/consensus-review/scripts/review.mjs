@@ -4764,6 +4764,7 @@ import path11 from "node:path";
 var GIT_TIMEOUT_MS = 3e4;
 var GIT_MAX_BUFFER = 64 * 1024 * 1024;
 var MAX_LISTED_PATHS = 20;
+var LSTAT_BATCH = 256;
 var SNAPSHOT_ENV_ALLOWLIST = [
   "PATH",
   "HOME",
@@ -4808,12 +4809,27 @@ async function snapshotWorkingTree(cwd, options = {}) {
       "--ignored=no"
     ]);
     const status = parsePorcelainZ(raw);
-    const hidden = parseHiddenIndexEntries(
-      await unfiltered.run([...TRUTHFUL_STATUS_CONFIG, "ls-files", "-v", "-z"])
+    const index = parseIndexEntries(
+      await unfiltered.run([
+        ...TRUTHFUL_STATUS_CONFIG,
+        "ls-files",
+        "-v",
+        "-z",
+        "--full-name",
+        ":/"
+      ])
     );
     const content = /* @__PURE__ */ new Map();
-    for (const file of /* @__PURE__ */ new Set([...status.keys(), ...hidden])) {
+    for (const file of /* @__PURE__ */ new Set([...status.keys(), ...index.hidden])) {
       content.set(file, await fingerprint(path11.join(root, file)));
+    }
+    const modeOnly = index.tracked.filter((file) => !content.has(file));
+    for (let start = 0; start < modeOnly.length; start += LSTAT_BATCH) {
+      const batch = modeOnly.slice(start, start + LSTAT_BATCH);
+      const modes = await Promise.all(
+        batch.map((file) => permissionBits(path11.join(root, file)))
+      );
+      batch.forEach((file, offset) => content.set(file, modes[offset]));
     }
     const exclude = path11.resolve(
       cwd,
@@ -4874,14 +4890,25 @@ function parsePorcelainZ(raw) {
   }
   return status;
 }
-function parseHiddenIndexEntries(raw) {
+function parseIndexEntries(raw) {
+  const tracked = /* @__PURE__ */ new Set();
   const hidden = [];
   for (const entry of raw.split("\0")) {
     if (entry.length < 3) continue;
     const tag = entry[0];
-    if (tag === "S" || tag >= "a" && tag <= "z") hidden.push(entry.slice(2));
+    const file = entry.slice(2);
+    tracked.add(file);
+    if (tag === "S" || tag >= "a" && tag <= "z") hidden.push(file);
   }
-  return hidden;
+  return { tracked: [...tracked], hidden };
+}
+async function permissionBits(file) {
+  try {
+    return `mode:${((await lstat(file)).mode & 4095).toString(8)}`;
+  } catch (error) {
+    if (isMissing(error)) return "deleted";
+    throw error;
+  }
 }
 async function fingerprint(file) {
   let stats;
