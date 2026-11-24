@@ -87,7 +87,7 @@ Shipped content is everything under `plugins/<name>/`: generated `skills/**`
 payloads, `scripts/`, `agents/`, `references/`, and the provider manifests
 themselves. The plugin-root `AGENTS.md` (maintainer guidance) and `README.md`
 (human package docs) and `.gitkeep` placeholders are exempt: no provider loads
-them at runtime. A plugin with no manifest at the base is new and exempt. The
+them automatically as plugin components. A plugin with no manifest at the base is new and exempt. The
 same validator enforces it, and the changelog rule applies to the new plugin
 version. Provider-manifest agreement is checked by `pnpm run validate`. The rule
 exists because Claude Code's `plugin update` compares manifest versions only, so

@@ -466,6 +466,30 @@ describe('validate-script', () => {
     expect(malformed.errors.join('\n')).toMatch(/valid semver/);
   });
 
+  it('version consistency rejects a stale marketplace entry version', async () => {
+    const tempRoot = await createValidTempRepository();
+    const marketplacePath = path.join(
+      tempRoot,
+      '.claude-plugin/marketplace.json',
+    );
+    const marketplace = JSON.parse(await readFile(marketplacePath, 'utf8'));
+    const entry = marketplace.plugins.find(
+      (plugin: { name: string }) => plugin.name === 'consensus',
+    );
+    const current = (await validateVersionConsistency(tempRoot)).filter(
+      (issue) => issue.startsWith('consensus '),
+    );
+    expect(current).toEqual([]);
+    entry.version = '0.0.1';
+    await writeJson(marketplacePath, marketplace);
+
+    expect(await validateVersionConsistency(tempRoot)).toEqual([
+      expect.stringMatching(
+        /^consensus plugin manifest versions differ: .*\.claude-plugin\/marketplace\.json:consensus\.version=0\.0\.1/,
+      ),
+    ]);
+  });
+
   it('full repository validation rejects invalid standalone skill directories', async () => {
     const tempRoot = await createValidTempRepository();
     await mkdir(path.join(tempRoot, 'src/skills/bad-skill'), {

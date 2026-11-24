@@ -163,21 +163,32 @@ async function changedFilesSince(
   // The explicit merge-base diff is authoritative for committed changes. The
   // remaining calls add local index, worktree and untracked edits so pre-push
   // use cannot silently miss a version-sensitive change.
+  // NUL-delimited, unquoted paths; --no-renames reports both sides of a move.
   const outputs = await Promise.all([
     git([
       'diff',
       '--name-only',
-      '--diff-filter=ACMRD',
+      '-z',
+      '--no-renames',
+      '--diff-filter=ACMD',
       `${baseRef}...HEAD`,
       '--',
     ]),
-    git(['diff', '--name-only', '--diff-filter=ACMRD', 'HEAD', '--']),
-    git(['ls-files', '--others', '--exclude-standard']),
+    git([
+      'diff',
+      '--name-only',
+      '-z',
+      '--no-renames',
+      '--diff-filter=ACMD',
+      'HEAD',
+      '--',
+    ]),
+    git(['ls-files', '-z', '--others', '--exclude-standard']),
   ]);
   return new Set(
     outputs
-      .flatMap((output) => output.split('\n'))
-      .map((file) => posix(file.trim()))
+      .flatMap((output) => output.split('\0'))
+      .map((file) => posix(file))
       .filter(Boolean),
   );
 }
@@ -392,8 +403,8 @@ async function bumpedPluginReleases(
 }
 
 /**
- * Plugin-root files that are copied into a provider cache but never loaded by
- * a provider runtime: maintainer guidance (`AGENTS.md`), human package docs
+ * Plugin-root files that are copied into a provider cache but not loaded
+ * automatically as plugin components: maintainer guidance (`AGENTS.md`), human package docs
  * (`README.md`) and empty-directory placeholders. Everything else under the
  * plugin root ships, including manifests and generated `skills/` payloads.
  */
@@ -509,12 +520,15 @@ export async function validateChangedSkillVersions(
   bumpedSkills: string[];
   bumpedPlugins: string[];
 }> {
-  const { baseRef } = options;
-  if (!baseRef)
+  const { baseRef: requestedBase } = options;
+  if (!requestedBase)
     throw new Error('validateChangedSkillVersions requires a baseRef');
   const git = options.gitExecFile ?? defaultGitExecFile(root);
   // Fail closed when the caller supplies an unresolved or shallow base.
-  await git(['rev-parse', '--verify', `${baseRef}^{commit}`]);
+  await git(['rev-parse', '--verify', `${requestedBase}^{commit}`]);
+  // Every baseline read (paths, versions, changelog) uses the same merge-base,
+  // so a base branch that moved on cannot mix two baselines.
+  const baseRef = (await git(['merge-base', requestedBase, 'HEAD'])).trim();
 
   const declarations = options.declarations ?? distributions;
   // No repository-wide rename map: every merged rename is already on the base

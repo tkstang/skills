@@ -525,6 +525,16 @@ export async function validateVersionConsistency(
         issues.push(`${relativePath} version must be valid semver`);
       }
     }
+    // Marketplace entries that state a version must match the plugin release;
+    // `bump-version.ts --check-tag` rejects stale ones at release time.
+    for (const relativePath of target.marketplaceManifests) {
+      const marketplace = await parseJsonFile(path.join(root, relativePath));
+      const entry = (
+        marketplace.plugins as Array<Record<string, unknown>> | undefined
+      )?.find((candidate) => candidate.name === target.name);
+      if (entry && Object.hasOwn(entry, 'version'))
+        versions.set(`${relativePath}:${target.name}.version`, entry.version);
+    }
     const uniqueVersions = new Set(versions.values());
     if (uniqueVersions.size > 1) {
       issues.push(

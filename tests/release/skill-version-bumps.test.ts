@@ -708,6 +708,68 @@ metadata:
     },
   );
 
+  it.each([
+    [
+      'moving a shipped file out of the plugin',
+      async (root: string) => {
+        await mkdir(path.join(root, 'moved'), { recursive: true });
+        await git(root, [
+          'mv',
+          'plugins/consensus/scripts/run.mjs',
+          'moved/run.mjs',
+        ]);
+      },
+    ],
+    [
+      'adding a shipped file with a non-ASCII name',
+      async (root: string) => {
+        await writeFile(
+          path.join(root, 'plugins/consensus/scripts/café.mjs'),
+          'export {};\n',
+        );
+        await git(root, ['add', '-A']);
+      },
+    ],
+  ])('flags %s without a release bump', async (_label, change) => {
+    const { root, baseSha } = await initPluginRepo();
+    await change(root);
+    await git(root, ['commit', '-qm', 'change plugin files']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+      declarations: [],
+    });
+
+    expect(result.findings.map((finding) => finding.skill)).toEqual([
+      'plugin:consensus',
+    ]);
+  });
+
+  it('reads every baseline from the merge-base when the base branch moved on', async () => {
+    const { root, baseSha } = await initPluginRepo();
+    const mainBranch = (
+      await git(root, ['rev-parse', '--abbrev-ref', 'HEAD'])
+    ).trim();
+    await writeManifests(root, '0.3.0');
+    await writeChangelogEntry(root, '- `consensus` 0.3.0 release.');
+    await git(root, ['commit', '-aqm', 'release consensus 0.3.0 on main']);
+    await git(root, ['checkout', '-q', '-b', 'feature', baseSha]);
+    await writeFile(
+      path.join(root, 'plugins/consensus/scripts/run.mjs'),
+      'export const value = 2;\n',
+    );
+    await writeManifests(root, '0.2.0');
+    await writeChangelogEntry(root, '- `consensus` 0.2.0 changes its script.');
+    await git(root, ['commit', '-aqm', 'change plugin script with bump']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: mainBranch,
+      declarations: [],
+    });
+
+    expect(result.findings).toEqual([]);
+  });
+
   it('accepts a plugin release version change with no other content', async () => {
     const { root, baseSha } = await initPluginRepo();
     await writeManifests(root, '0.1.1');

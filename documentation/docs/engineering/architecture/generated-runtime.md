@@ -148,8 +148,8 @@ not rewrite its member skill versions; bumping a skill does not rewrite either
 plugin release version. Any change to a plugin's shipped content, including a
 regenerated member-skill payload, must still raise that plugin's release version;
 `scripts/validate-skill-versions.ts` enforces this against the merge-base. The
-plugin-root `AGENTS.md`, `README.md` and `.gitkeep` placeholders do not ship to
-any provider runtime and are exempt.
+plugin-root `AGENTS.md`, `README.md` and `.gitkeep` placeholders are exempt:
+no provider loads them automatically as plugin components.
 
 ## Consensus plugin-local runtime layout
 
