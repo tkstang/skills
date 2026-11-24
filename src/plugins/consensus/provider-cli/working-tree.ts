@@ -23,7 +23,8 @@
 //
 // Every configured filter driver is switched off for these commands, so
 // status compares raw bytes and never runs a filter command, including one a
-// peer added to the repository config. Nothing writes objects or the index:
+// peer added to the repository config or to the config of a checked-out
+// submodule, which status recurses into. Nothing writes objects or the index:
 // no `git add`, and status runs with --no-optional-locks so it never takes
 // index.lock or refreshes the index. git runs with shell:false and an
 // allowlisted environment, so it never sees the caller's credentials and an
@@ -102,7 +103,7 @@ export async function snapshotWorkingTree(
         allowExit: [1],
       })
     ).trim();
-    const unfiltered = await git.withoutFilters();
+    const unfiltered = await git.withoutFilters(root);
     const raw = await unfiltered.run([
       ...TRUTHFUL_STATUS_CONFIG,
       'status',
@@ -290,21 +291,14 @@ function gitRunner(cwd: string, options: WorkingTreeOptions) {
   const run = runGit(cwd, env);
   return {
     run,
-    // A runner with every configured filter driver switched off. The
-    // overrides go through GIT_CONFIG_COUNT because `-c` splits at the first
-    // `=` and so cannot name a driver whose name contains one.
-    async withoutFilters() {
-      const keys = await run(
-        ['config', '-z', '--name-only', '--get-regexp', '^filter\\.'],
-        { allowExit: [1] },
-      );
+    // A runner with every configured filter driver switched off, including
+    // the drivers of checked-out submodules. The overrides go through
+    // GIT_CONFIG_COUNT because `-c` splits at the first `=` and so cannot
+    // name a driver whose name contains one; git passes them on to the git
+    // process status starts in each submodule.
+    async withoutFilters(root: string) {
       const drivers = new Set<string>();
-      for (const key of keys.split('\0')) {
-        const end = key.lastIndexOf('.');
-        if (key.startsWith('filter.') && end > 'filter.'.length) {
-          drivers.add(key.slice('filter.'.length, end));
-        }
-      }
+      await collectFilterDrivers(root, env, drivers);
       const overrides = [...drivers].flatMap((driver) => [
         [`filter.${driver}.clean`, ''],
         [`filter.${driver}.smudge`, ''],
@@ -322,6 +316,46 @@ function gitRunner(cwd: string, options: WorkingTreeOptions) {
       return { run: runGit(cwd, unfiltered) };
     },
   };
+}
+
+// Adds the filter driver names configured for the repository at `root`,
+// then recurses into each checked-out submodule, whose own config status reads.
+async function collectFilterDrivers(
+  root: string,
+  env: NodeJS.ProcessEnv,
+  drivers: Set<string>,
+) {
+  const run = runGit(root, env);
+  const keys = await run(
+    ['config', '-z', '--name-only', '--get-regexp', '^filter\\.'],
+    { allowExit: [1] },
+  );
+  for (const key of keys.split('\0')) {
+    const end = key.lastIndexOf('.');
+    if (key.startsWith('filter.') && end > 'filter.'.length) {
+      drivers.add(key.slice('filter.'.length, end));
+    }
+  }
+  // Gitlinks (mode 160000), relative to `root`; a conflict lists each stage.
+  const submodules = new Set<string>();
+  for (const entry of (await run(['ls-files', '-s', '-z'])).split('\0')) {
+    const tab = entry.indexOf('\t');
+    if (entry.startsWith('160000 ') && tab > 0) {
+      submodules.add(entry.slice(tab + 1));
+    }
+  }
+  for (const submodule of submodules) {
+    const dir = path.join(root, submodule);
+    // Status skips a submodule that is not checked out, and git run there
+    // would find this repository instead.
+    try {
+      await lstat(path.join(dir, '.git'));
+    } catch (error) {
+      if (isMissing(error)) continue;
+      throw error;
+    }
+    await collectFilterDrivers(dir, env, drivers);
+  }
 }
 
 // Only allowlisted variables reach git: no credentials, none of git's

@@ -203,6 +203,53 @@ describe('working-tree snapshot', () => {
     },
   );
 
+  it('runs no filter driver defined in a checked-out submodule config', async () => {
+    const scratch = await scratchDir();
+    const marker = path.join(scratch, 'filter-ran');
+    const submodule = (cwd: string, ...args: string[]) =>
+      git(cwd, '-c', 'protocol.file.allow=always', 'submodule', '-q', ...args);
+    // inner is nested in middle, which is a submodule of the checkout. Each
+    // maps its file to its own driver, so neither name covers the other.
+    for (const name of ['inner', 'middle']) {
+      const source = path.join(scratch, name);
+      await mkdir(source);
+      git(source, 'init', '-q', '-b', 'main');
+      await writeFile(
+        path.join(source, '.gitattributes'),
+        `*.txt filter=${name}\n`,
+      );
+      await writeFile(path.join(source, `${name}.txt`), `${name}\n`);
+      if (name === 'middle') submodule(source, 'add', '../inner', 'inner');
+      git(source, 'add', '.');
+      git(source, 'commit', '-q', '-m', name);
+    }
+    const dir = await repo();
+    submodule(dir, 'add', path.join(scratch, 'middle'), 'middle');
+    submodule(dir, 'update', '--init', '--recursive');
+    git(dir, 'commit', '-q', '-m', 'add submodule');
+    const old = new Date('2020-01-01T00:00:00Z');
+    for (const sub of ['middle', 'middle/inner']) {
+      const subDir = path.join(dir, sub);
+      const name = path.basename(sub);
+      // The submodule's own config, which the superproject's never includes.
+      git(
+        subDir,
+        'config',
+        `filter.${name}.clean`,
+        `echo ${name} >> '${marker}'; cat`,
+      );
+      git(subDir, 'config', `filter.${name}.required`, 'true');
+      // An old mtime makes status re-read the file, which is when it filters.
+      await utimes(path.join(subDir, `${name}.txt`), old, old);
+    }
+
+    const before = await snapshot(dir);
+
+    await expect(access(marker)).rejects.toThrow();
+    expect(await changesAfter(dir, before)).toEqual([]);
+    await expect(access(marker)).rejects.toThrow();
+  });
+
   it('hides the caller environment from git', async () => {
     const dir = await repo();
     const shims = await scratchDir();

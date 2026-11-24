@@ -5807,7 +5807,7 @@ async function snapshotWorkingTree(cwd, options = {}) {
     const head = (await git.run(["rev-parse", "--verify", "--quiet", "HEAD"], {
       allowExit: [1]
     })).trim();
-    const unfiltered = await git.withoutFilters();
+    const unfiltered = await git.withoutFilters(root);
     const raw = await unfiltered.run([
       ...TRUTHFUL_STATUS_CONFIG,
       "status",
@@ -5953,21 +5953,14 @@ function gitRunner(cwd, options) {
   const run = runGit(cwd, env);
   return {
     run,
-    // A runner with every configured filter driver switched off. The
-    // overrides go through GIT_CONFIG_COUNT because `-c` splits at the first
-    // `=` and so cannot name a driver whose name contains one.
-    async withoutFilters() {
-      const keys = await run(
-        ["config", "-z", "--name-only", "--get-regexp", "^filter\\."],
-        { allowExit: [1] }
-      );
+    // A runner with every configured filter driver switched off, including
+    // the drivers of checked-out submodules. The overrides go through
+    // GIT_CONFIG_COUNT because `-c` splits at the first `=` and so cannot
+    // name a driver whose name contains one; git passes them on to the git
+    // process status starts in each submodule.
+    async withoutFilters(root) {
       const drivers = /* @__PURE__ */ new Set();
-      for (const key of keys.split("\0")) {
-        const end = key.lastIndexOf(".");
-        if (key.startsWith("filter.") && end > "filter.".length) {
-          drivers.add(key.slice("filter.".length, end));
-        }
-      }
+      await collectFilterDrivers(root, env, drivers);
       const overrides = [...drivers].flatMap((driver) => [
         [`filter.${driver}.clean`, ""],
         [`filter.${driver}.smudge`, ""],
@@ -5985,6 +5978,36 @@ function gitRunner(cwd, options) {
       return { run: runGit(cwd, unfiltered) };
     }
   };
+}
+async function collectFilterDrivers(root, env, drivers) {
+  const run = runGit(root, env);
+  const keys = await run(
+    ["config", "-z", "--name-only", "--get-regexp", "^filter\\."],
+    { allowExit: [1] }
+  );
+  for (const key of keys.split("\0")) {
+    const end = key.lastIndexOf(".");
+    if (key.startsWith("filter.") && end > "filter.".length) {
+      drivers.add(key.slice("filter.".length, end));
+    }
+  }
+  const submodules = /* @__PURE__ */ new Set();
+  for (const entry of (await run(["ls-files", "-s", "-z"])).split("\0")) {
+    const tab = entry.indexOf("	");
+    if (entry.startsWith("160000 ") && tab > 0) {
+      submodules.add(entry.slice(tab + 1));
+    }
+  }
+  for (const submodule of submodules) {
+    const dir = path11.join(root, submodule);
+    try {
+      await lstat(path11.join(dir, ".git"));
+    } catch (error) {
+      if (isMissing(error)) continue;
+      throw error;
+    }
+    await collectFilterDrivers(dir, env, drivers);
+  }
 }
 function snapshotEnv(base) {
   const env = { GIT_OPTIONAL_LOCKS: "0" };
