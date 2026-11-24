@@ -14,17 +14,25 @@
   no `--env-allow` and no native resume. The provider CLI drives each agent's
   ACP command through its own stdio JSON-RPC client (no new dependency): it
   confirms the provider's read-only mode and the model before the prompt and
-  watches the mode through the turn, denies every permission request, offers
-  no file system, terminal or MCP servers, prepends read-only brief lines, and
-  stops the agent's process group on every exit. Extended runs need a model:
+  watches the mode through the turn (a mode report that arrives before setup
+  counts as the starting state), denies every permission request, offers no
+  file system, terminal or MCP servers, prepends read-only brief lines, and
+  stops the agent's process group on every exit; a teardown that cannot
+  confirm the group exited adds a warning. Extended runs need a model:
   `--model`, or the new `defaults.provider_models.<id>` consensus-config key,
   recorded in the receipt as `default_model`; with neither the run is refused
   before launch. Every extended read-only turn is bracketed by a git
-  working-tree check, so the working directory must be a git checkout. A
-  changed HEAD, or any change to a tracked or non-ignored untracked path,
-  fails the run with the new code `PROVIDER_WORKTREE_CHANGED`, which lists
-  `HEAD` and the paths in `diagnostics.working_tree_changes`; ignored files
-  are not checked. A peer that is denied a tool and ends without an answer
+  working-tree check, so the working directory must be a git checkout. The
+  check compares HEAD, the `git status` entries, and the content and
+  permission bits of tracked and non-ignored untracked files, runs no filter
+  driver and passes git no credentials. A change fails the run with the new
+  code `PROVIDER_WORKTREE_CHANGED`, which lists `HEAD` and the paths in
+  `diagnostics.working_tree_changes`; a run that throws after launch and
+  changed the checkout returns it too, with the error in
+  `diagnostics.warnings`. Ignored files, byte changes git's built-in
+  conversions normalize back, case-only renames on case-insensitive file
+  systems and files inside untracked nested repositories are not covered.
+  A peer that is denied a tool and ends without an answer
   fails with the new code `PROVIDER_PERMISSION_DENIED`. Extended run
   envelopes add `diagnostics.acp` (agent, auth route, phase, stop reason,
   setup evidence, teardown) and `diagnostics.permission_denials.requests`,
@@ -33,10 +41,16 @@
   success and failure, is the answer text only; the values of the provider's
   credential variables and provider patterns such as Droid's pairing code are
   redacted from answer text, metadata, denial details, change paths and
-  stderr. Preflight probes extended providers with `--version` only, without
-  their credentials, and reports only MAJOR.MINOR.PATCH plus a plain
-  prerelease tag, or no version when the version output holds anything
-  redaction would alter.
+  stderr, and everything but answer text, plus the answer of an error-text or
+  limit failure, also loses common credential shapes (API keys, tokens, JWTs,
+  `Bearer` values). Capped stderr ends at its last complete line. Preflight
+  probes extended providers with `--version` only, without their
+  credentials, and reports only MAJOR.MINOR.PATCH plus a plain prerelease
+  tag, or no version when the version output holds anything redaction would
+  alter. The docs state the trust boundary: extended peers, like core ones,
+  load their CLI's configuration, so repository and user hooks and MCP
+  servers can run without a permission request, and the working-tree check is
+  a backstop, not isolation.
   `phone-a-friend` 0.3.5 tells the host that the extended providers are
   text-only and offers a core peer instead.
   `consensus-delegate` 0.2.2 (standalone `delegate`, `consensus:delegate`)

@@ -179,8 +179,23 @@ delegate fallback, and panel auto-fill never pick them.
 | Gemini CLI  | `gemini`      | `gemini --acp -m <model>`        | 0.70.0          | `GEMINI_API_KEY`    |
 | Droid       | `droid`       | `droid exec --output-format acp` | 1.16.0          | `FACTORY_API_KEY`   |
 
+The minimum version is a numeric floor: a prerelease tag is shown but not
+compared, so `1.5.13-rc.1` meets `1.5.13`. Prerequisite pins, above, do
+compare prerelease tags.
+
 ### What every extended run gets
 
+- **Trusted checkouts only.** The read-only controls below govern the
+  agent's tool calls, not the provider CLI's own configuration. Hooks,
+  plugins, and MCP servers configured for the CLI, by you or by the
+  repository, can run code without a permission request, so deny-all cannot
+  stop them: Antigravity project hooks and plugins (`.agents/hooks.json`, even
+  in API-key mode), Droid project hooks (`.factory/hooks.json`) and project
+  and user MCP servers (`.factory/mcp.json`), and Gemini CLI project settings
+  in a folder you have trusted. The working-tree check sees only what they
+  change inside the work tree; it is the backstop, not isolation. Run
+  extended peers only in checkouts and with provider configuration you
+  control.
 - **Read-only only.** A run needs `--permission-mode read-only` and
   `--output text`. Any other mode, an omitted mode, JSON output, effort,
   `--env-allow`, scoped grants, and native resume are refused before launch
@@ -194,32 +209,45 @@ delegate fallback, and panel auto-fill never pick them.
 - **Read-only setup before the prompt.** Consensus sets the provider's
   read-only mode and the model, and sends the prompt only once the agent has
   confirmed both. An unconfirmed mode or model, a model the agent does not
-  offer, or any contrary mode or autonomy update before the prompt fails with
-  `PROVIDER_UNSUPPORTED_OPTION` and `turn: "not_started"`. For Antigravity and
+  offer, or a contrary mode or autonomy update reported while the mode is
+  being confirmed or held fails with `PROVIDER_UNSUPPORTED_OPTION` and
+  `turn: "not_started"`. A mode report that arrives before setup counts as
+  the starting state, so for Antigravity it must already be the read-only
+  mode. For Antigravity and
   Droid the message lists up to five models on offer. Consensus keeps
   watching the mode: if the agent reports leaving it during the turn, the turn
   is cancelled and fails with `PROVIDER_EXIT` (`acp_mode_changed`).
 - **Deny-all.** Every permission request the agent sends is rejected, and the
   client offers the agent no file system or terminal and no MCP servers of its
-  own. A turn that is denied a tool and still answers succeeds, with
-  `diagnostics.permission_denials` filled; one that ends without an answer
-  fails with `PROVIDER_PERMISSION_DENIED`.
+  own. A turn that is denied a tool and still ends normally with answer text
+  succeeds, with `diagnostics.permission_denials` filled. An empty reply, or
+  a turn cancelled after a denial (as Droid does), fails with
+  `PROVIDER_PERMISSION_DENIED`; any text a cancelled turn sent stays in
+  `stdout` and is not an answer.
 - **Redaction.** The values of the provider's credential variables, and
   provider patterns such as Droid's pairing code, are removed from answer
   text, metadata, denial details, working-tree change paths, and stderr.
+  Everything but the answer text, and the answer of an error-text or limit
+  failure, also loses common credential shapes such as API keys, JWTs, and
+  `Bearer` tokens. Redaction matches values and patterns, so it cannot
+  recognize every secret; see
+  [Failure codes](provider-run-controls.md#failure-codes).
 - **Brief lines.** Before your prompt, consensus adds: "This is a read-only
   run. Use only read and search tools. Do not edit files or run shell
   commands; such requests are denied and end the turn." Some providers get one
   more line, listed below.
 - **A working-tree check.** The working directory must be a git checkout.
-  Consensus compares HEAD and the tracked and untracked files before and after
-  the turn, and fails a run that changed them with
-  `PROVIDER_WORKTREE_CHANGED`. Ignored files are not checked; see
-  [Provider run controls](provider-run-controls.md#extended-provider-runs).
+  Before and after the turn, consensus compares HEAD, `git status`, and the
+  content and permission bits of tracked and non-ignored untracked files,
+  without running any filter, and fails a run that changed them with
+  `PROVIDER_WORKTREE_CHANGED`, including a run that failed with an error.
+  Ignored files and a few other cases are not covered; see
+  [Working-tree check](provider-run-controls.md#working-tree-check).
 - **Cleanup.** When the turn ends, consensus closes the session where the agent
   supports that, then stops the agent's whole process group (on Windows, the
-  agent process only), even after a normal exit, so helpers the agent started
-  do not outlive the run.
+  agent process only), even after a normal exit, so helpers in that group do
+  not outlive the run. A helper in its own process group, such as a Droid MCP
+  server, is not reached.
 
 ### Sign-in
 
@@ -310,7 +338,15 @@ listed credential variable is forwarded; `--env-allow` is refused.
 - Droid ends the whole turn when a tool is denied, so a denied run fails with
   `PROVIDER_PERMISSION_DENIED`.
 - Signed out, Droid answers with a device-pairing code, and starts a new code
-  for every session. Consensus redacts the code wherever it reports it.
+  for every session. Consensus redacts the code, in the `Your code: XXXX-XXXX`
+  form Droid prints, wherever it reports it.
+- Accepted limits:
+  - The `loop_*`, ConnectApp, and `computer_*` tools are not
+    permission-gated in `normal` mode; only the brief line keeps Droid from
+    using them. `loop_*` schedules jobs in Droid's local daemon.
+  - Project and user `.factory/mcp.json` servers start in every run, in their
+    own process group, which the group stop does not reach. In testing Droid
+    stopped them itself, including after a SIGKILL.
 
 ## Diagnostics
 

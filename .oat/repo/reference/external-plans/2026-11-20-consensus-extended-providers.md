@@ -18,7 +18,7 @@ created: '2026-11-20T22:30:00Z'
 > [!NOTE]
 > This is an external implementation plan, not a canonical OAT project `plan.md`.
 > Execute it directly, or import it with `oat-project-import-plan <this-file>`.
-> Status: **Phases 1-3 implemented on `feat/consensus-extended-providers` (based on `main`; PR #170 was closed without merging on 2026-11-23): in-house ACP client; antigravity, gemini and droid admitted read-only after live smoke tests on 2026-11-21 (`.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md`); cross-model (Codex) review and three re-checks (the Antigravity private-home read allowance was removed after re-check 2, so every permission request is denied); Devin, Pi and DeepSeek not started**. Steps tagged
+> Status: **Phases 1-3 implemented on `feat/consensus-extended-providers` (based on `main`; PR #170 was closed without merging on 2026-11-23): in-house ACP client; antigravity, gemini and droid admitted read-only after live smoke tests on 2026-11-21 (`.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md`); cross-model (Codex) review and three re-checks (the Antigravity private-home read allowance was removed after re-check 2, so every permission request is denied); the 2026-11-23 code and docs review fixes (snapshot runs no filters with an allowlisted git environment and also records tracked permission bits, a throwing run is still checked, pre-setup mode reports are kept, capped stderr ends at a whole line, error-text answers get full redaction, an unconfirmed teardown warns, and the shipped docs state the trust boundary); Devin, Pi and DeepSeek not started**. Steps tagged
 > **[independent]** can start now. Steps tagged **[hinges: Qn]** wait on the live
 > test question with that number (see "Live-test questions").
 
@@ -72,6 +72,8 @@ Thomas's decisions (coordinator update #13, 2026-11-20):
   never tested live. The admission terms are in update #15 below.
 - **DeepSeek:** test only through its own harness (`dsh`), never through
   Droid's proxy model. Deferred, so it stays registered, not admitted.
+  (No adapter was built at this head: DeepSeek is unregistered, so
+  preflight reports it as an unknown provider, not `PROVIDER_NOT_ADMITTED`.)
 
 Thomas's safety posture (coordinator update #15, Stoa decision `ee3117f3`,
 2026-11-21). It replaces the stricter posture in the earlier updates:
@@ -719,6 +721,13 @@ applies these on every launch:
    (`consensus-delegate/references/accounting.md:24-129`). It does not see
    ignored files or writes outside the checkout; mode confirmation and
    deny-all are what prevent those.
+   As built, the check is its own module
+   (`src/plugins/consensus/provider-cli/working-tree.ts`), not the
+   `delegate_snapshot` helpers. It compares HEAD, the `git status` entries,
+   and content hashes and permission bits, runs no filter driver, passes git
+   an allowlisted environment, and also checks a run that throws after
+   launch. Its known limits are listed in the file header and in the
+   Provider run controls guide.
 6. **Honest turn classification** (correctness, and point 2 for quota):
    - Success requires a `session/prompt` response whose id and session
      match, `stopReason: end_turn`, and **nonblank answer text after

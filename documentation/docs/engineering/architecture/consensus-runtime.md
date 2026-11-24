@@ -96,17 +96,29 @@ no provider branches.
   `authenticate` runs only when the descriptor's API-key variable is set;
   `session/new` sends `mcpServers: []`. The read-only mode and the model are
   set and confirmed before `session/prompt`, or the run stops as
-  `not_started`. The mode stays watched: any contrary mode or autonomy update
-  before the prompt stops the run as `not_started`, and one during the turn
-  cancels it (`PROVIDER_EXIT`, `acp_mode_changed`). Permission requests get a
+  `not_started`. The mode stays watched from session creation: a contrary
+  mode or autonomy update reported while the read-only mode is being
+  confirmed or held stops the run as `not_started`, and one during the turn
+  cancels it (`PROVIDER_EXIT`, `acp_mode_changed`). Mode and config updates
+  that arrive before the `session/new` response is handled are kept (the
+  latest of each kind, for up to four session ids) and replayed once it is,
+  so a pre-setup report counts as the starting state; if it disagrees with
+  the mode in the response, initial-state confirmation (Antigravity's
+  `default`) fails. Permission requests get a
   `reject_once` (else `reject_always`) option chosen by its kind, or
   `cancelled`; every other agent request gets `-32601`. Each denial keeps only
   the tool, its ACP kind, and the first path it named (relative to the
   working directory when inside it), reported in
   `diagnostics.permission_denials.requests`; never tool input.
-- **Redaction.** The values of the descriptor's credential variables and its
-  redaction patterns (such as Droid's pairing code) are removed from answer
-  text, metadata, denial details, working-tree change paths, and stderr.
+- **Redaction.** The values of the descriptor's credential variables (six
+  characters or longer) and its redaction patterns (such as Droid's pairing
+  code) are removed from answer text, metadata, denial details, working-tree
+  change paths, and stderr. Everything but answer text also loses default
+  credential shapes (Google API keys, `sk-`/`ghp_`-style tokens, JWTs,
+  `Bearer` tokens), and so does the failure `stdout` of an `acp_error_text`
+  or `provider_limit_reached` turn. Capped stderr is cut back to its last
+  complete line before redaction. Redaction is value- and pattern-based and
+  cannot recognize every secret.
 - **Process group.** The ACP client tears down the agent's process group on
   every exit path, a normal exit included (a single process on Windows),
   using the spawn primitive in
@@ -115,9 +127,13 @@ no provider branches.
   an output-cap breach), closes stdin, and waits a bounded time for exit (no
   wait after an interrupt). It then signals the group with SIGTERM, or the
   forwarded interrupt signal, and escalates to SIGKILL only if the group
-  outlives the grace period. When a timeout, output-cap breach, interrupt, or
-  mode change stops a turn whose prompt is in flight, it sends
-  `session/cancel` first.
+  outlives the grace period, then waits a bounded time for it to go.
+  `diagnostics.acp.teardown.settled_by` records the step that ended teardown;
+  `settlement_timeout` (the group still present after SIGKILL) adds a
+  warning, and the run keeps its outcome. A helper that starts its own
+  process group, as Droid's MCP servers do, is not reached. When a timeout,
+  output-cap breach, interrupt, or mode change stops a turn whose prompt is
+  in flight, it sends `session/cancel` first.
 - **Model.** `runProviderTurn` requires a model for an extended adapter:
   `request.model`, else `defaults.provider_models.<id>` from the consensus
   config (project before user). With neither it refuses the run before launch.
@@ -126,17 +142,27 @@ no provider branches.
   turn with a snapshot of the whole git work tree that contains the working
   directory
   ([`working-tree.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/working-tree.ts)).
-  It runs `git` with `shell: false`, git's repository-local environment
-  variables cleared, and no optional locks, and it writes no objects or index.
-  No checkout refuses the run before launch. A changed HEAD, or any change to
-  a tracked or non-ignored untracked path (content or file mode), to an
-  assume-unchanged or skip-worktree entry, or to `.git/info/exclude`, fails the
-  run with `PROVIDER_WORKTREE_CHANGED` and lists the paths in
+  It runs `git` with `shell: false`, an allowlisted environment (no
+  credentials, no inherited `GIT_*` repository or config variables), and no
+  optional locks; it writes no objects or index, and it switches off every
+  filter driver configured for the repository or any checked-out submodule,
+  so no filter command runs. No checkout refuses the run before launch. The
+  snapshot is HEAD, the `git status` entries, a content hash with permission
+  bits for every status-listed path and every assume-unchanged or
+  skip-worktree entry, the permission bits of every other tracked file, and
+  `.git/info/exclude`. A change to any of these fails the run with
+  `PROVIDER_WORKTREE_CHANGED` and lists the paths in
   `diagnostics.working_tree_changes`; a checkout that cannot be re-read fails
-  the same way. It is a backstop behind the read-only mode and deny-all, and
-  it does not see ignored files, changes a clean filter normalizes, case-only
-  renames on a case-insensitive file system, changes inside an untracked
-  nested repository, or writes outside the work tree.
+  the same way. The second snapshot runs once the bounded teardown returns,
+  not on a confirmed group exit. A run that throws after launch is checked
+  too: a changed checkout turns the throw into a `PROVIDER_WORKTREE_CHANGED`
+  envelope (`turn: "unknown"`, the error in `diagnostics.warnings`), and an
+  unchanged one lets the error propagate. It is a backstop behind the
+  read-only mode and deny-all, and it does not see ignored files, byte changes
+  git's built-in conversions normalize back, case-only renames on a
+  case-insensitive file system, changes inside an untracked nested
+  repository, submodule changes beyond what `git status` reports, or writes
+  outside the work tree.
 - **Preflight.** The probe runs only `<command> --version`, without the
   provider's credential variables, and reports only the parsed version. It
   never opens a session, because Droid mints a new pairing code on each one,
@@ -162,7 +188,11 @@ replaces it for both
 These are process and configuration safeguards, not a security sandbox. Actual
 sandbox and approval behavior depends on the selected provider and requested
 runtime policy. Environment allowlisting reduces inheritance; it does not make
-peer output trustworthy or prove containment.
+peer output trustworthy or prove containment. Core and extended providers
+both load their own configuration, so repository and user hooks, plugins, and
+MCP servers can run code without a permission request; read-only profiles and
+deny-all govern only the agent's tool calls. Both tiers assume a checkout and
+provider configuration the operator controls.
 
 ## Provider session continuation
 

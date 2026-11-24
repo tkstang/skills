@@ -19,8 +19,11 @@ before spawn; see
 text and takes no schema; passing both is a usage error. In request JSON the
 fields are `output` and `schema_path`, with the same pairing rule.
 
-A text-mode turn reads no schema, adds nothing to your prompt, validates
-nothing, and turns `consensus submit` capture off: no `.consensus/submit`
+A text-mode turn reads no schema, adds no schema or submit instructions to
+your prompt (an extended provider's prompt still gets consensus's read-only
+lines; see
+[What every extended run gets](provider-setup.md#what-every-extended-run-gets)),
+validates nothing, and turns `consensus submit` capture off: no `.consensus/submit`
 sidecar, no submit instructions, and every `CONSENSUS_SUBMIT_*` variable is
 removed from the provider's environment, even one named with `--env-allow`.
 
@@ -58,7 +61,10 @@ auto-approves commands, so text mode rejects it before spawn with
 ## Attempts and retries
 
 `--max-attempts` (`max_attempts`) above 1 is accepted only for a profile that
-is explicitly read-only, so a retried turn cannot repeat writes:
+is explicitly read-only, so the provider's own tools cannot write on a
+retried turn. A retry starts a new provider invocation, so hooks, helpers, or
+MCP servers that the provider loads from repository or user configuration at
+startup run again:
 
 - Codex with `--sandbox read-only` set explicitly.
 - Claude with `--permission-mode read-only` and no edit or Bash grant.
@@ -113,11 +119,17 @@ every exit path, a normal exit included (on Windows, the agent process only).
 Consensus closes the ACP session where the agent supports that (not after an
 output-cap breach), closes its stdin, and waits up to two seconds for the
 agent to exit (no wait after an interrupt). It then signals the group with
-SIGTERM, or the forwarded interrupt signal, and sends SIGKILL half a second
-later if anything in the group survives, so helpers such as MCP servers do not
-outlive the run. When a timeout, output-cap breach, interrupt, or mode change
-stops a turn whose prompt is in flight, it sends `session/cancel` first.
-`diagnostics.acp.teardown` records what was sent.
+SIGTERM, or the forwarded interrupt signal, sends SIGKILL half a second later
+if anything in the group survives, and waits up to a second more for the group
+to go. Helpers in the agent's process group, such as MCP servers it started,
+do not outlive the run; a helper that moves to its own process group escapes
+it, as Droid's MCP servers do. When a timeout, output-cap breach, interrupt,
+or mode change stops a turn whose prompt is in flight, it sends
+`session/cancel` first. `diagnostics.acp.teardown` records the signals sent
+and `settled_by`, the step that ended teardown. `settlement_timeout` means
+the group was still present after SIGKILL and the final wait, so its exit was
+not confirmed; the run keeps its own outcome and adds a warning to
+`diagnostics.warnings`.
 
 ## Claude permission profiles
 
@@ -187,7 +199,13 @@ answers every permission request with a denial.
 
 An extended peer loads its own CLI's configuration, except an Antigravity run
 on `GEMINI_API_KEY`, which uses a private temporary settings directory that is
-removed after the run.
+removed after the run. Either way the CLI can run code from its configuration
+without a permission request: repository hooks, plugins, and MCP servers, and,
+outside that private directory, your user ones. The read-only controls govern
+the agent's tool calls, not that code, and the
+working-tree check below is a backstop, not isolation: run extended peers
+only in checkouts and with provider configuration you control. See
+[What every extended run gets](provider-setup.md#what-every-extended-run-gets).
 
 ### Working-tree check
 
@@ -195,45 +213,67 @@ Consensus checks the whole git work tree that contains the working directory
 around every extended read-only turn, so direct `consensus run` calls are
 covered as well as delegate:
 
-- Before launch it records `HEAD`, the entries of
-  `git status --porcelain=v1 -z --untracked-files=all`, and a SHA-256 of the
+- Before launch it records `HEAD`; the entries of
+  `git status --porcelain=v1 -z --untracked-files=all`; a SHA-256 of the
   current content, with the permission bits, of every path that status lists
   and of every index entry marked assume-unchanged or skip-worktree, which
-  status never reports, plus
-  `.git/info/exclude`. It writes nothing: no `git add`, no index refresh. git
+  status never reports; the permission bits of every other tracked file; and
+  `.git/info/exclude`. Tracked entries are listed from the repository root,
+  so a working directory in a subdirectory still covers the whole tree.
+- The snapshot writes nothing and runs no filters: no `git add`, no index
+  refresh, and every filter driver configured for the repository, or for any
+  checked-out submodule, is switched off, so status compares raw bytes. git
   runs with fsmonitor and the untracked cache turned off and `core.filemode`
-  on, so a repository setting cannot hide a content or file-mode change, and
-  with its repository-local environment variables cleared.
+  on, so a repository setting cannot hide a content or file-mode change. From
+  your environment git gets only `PATH`, `HOME`, `XDG_CONFIG_HOME`, the
+  temporary directory and locale variables, `USER`, `LOGNAME`, and
+  `GIT_CEILING_DIRECTORIES`, so it sees no credentials and an inherited
+  `GIT_DIR` or `GIT_INDEX_FILE` cannot point it at another repository.
 - If the working directory is not inside a git work tree, or the snapshot
   fails, the run is refused before launch with `PROVIDER_UNSUPPORTED_OPTION`
   and `attempts.terminal_reason: "working_tree_unavailable"`.
-- After the agent's process group is gone it takes the same snapshot again.
-  Any change to `HEAD`, the status entries, or a listed file's content or
-  permission bits fails
-  the run with `PROVIDER_WORKTREE_CHANGED` (`retryable: false`,
-  `attempts.terminal_reason: "working_tree_changed"`), even when the turn
-  succeeded. The message names up to 20 changed paths, `HEAD` first when it
-  moved, and says how the turn itself ended; `diagnostics.working_tree_changes`
-  lists them all. A checkout that cannot be read afterwards is reported as
-  changed, without a list. The receipt's `turn` keeps the turn's own state.
+- Once the bounded teardown of the agent's process group has returned (see
+  [Timeouts and process cleanup](#timeouts-and-process-cleanup)), it takes the
+  same snapshot again. Teardown does not always confirm that the group exited;
+  `settled_by: "settlement_timeout"` and its warning say when it did not.
+- Any change to `HEAD`, the status entries, or a recorded file's content or
+  permission bits fails the run with `PROVIDER_WORKTREE_CHANGED`
+  (`retryable: false`, `attempts.terminal_reason: "working_tree_changed"`),
+  even when the turn succeeded. The message names up to 20 changed paths,
+  `HEAD` first when it moved, and says how the turn itself ended;
+  `diagnostics.working_tree_changes` lists them all. A checkout that cannot
+  be read afterwards is reported as changed, without a list. The receipt's
+  `turn` keeps the turn's own state.
+- A run that fails with an error after launch, instead of returning a result,
+  is checked too. If the checkout changed or cannot be re-read, the run
+  returns `PROVIDER_WORKTREE_CHANGED` with `turn: "unknown"`, no `stdout` or
+  `stderr`, and the error, redacted, at the end of the message and in
+  `diagnostics.warnings` as `The run failed: <error>`. If the checkout is
+  unchanged, the error is reported as before: the CLI prints it to stderr and
+  exits 1 without an envelope.
 
 The check is a loud backstop, not the prevention: the confirmed read-only mode
 and the denials are what keep the agent from writing. It cannot tell the
 agent's changes from your own edits made during the run, and it does not see:
 
 - ignored files;
-- a change that a repository clean filter normalizes away;
+- a byte change that git's built-in conversions (line endings, `ident`,
+  `working-tree-encoding`) normalize back to the indexed content;
 - a case-only rename on a case-insensitive file system;
 - changes inside an untracked nested git repository;
-- writes outside the work tree.
+- a change inside a checked-out submodule beyond what `git status` reports
+  for it;
+- writes outside the work tree, including any made by provider hooks or MCP
+  servers.
 
 ### Failure codes
 
 - `PROVIDER_PERMISSION_DENIED`: the agent asked for a tool outside read-only,
-  was denied, and ended the turn without an answer (an empty reply, or a
-  cancelled turn, as Droid does). The message names the denied tools;
-  `turn` is `completed`. A turn that was denied a tool but still answered
-  succeeds, with a warning. In both cases `diagnostics.permission_denials`
+  was denied, and ended the turn without an answer: an empty `end_turn`
+  reply, or a turn cancelled after a denial, as Droid does. The message names
+  the denied tools; `turn` is `completed`. Text a cancelled turn sent before
+  it ended stays in `stdout` and is not an answer. A turn that was denied a
+  tool but still ended normally with answer text succeeds, with a warning. In both cases `diagnostics.permission_denials`
   gives `count`, `tools`, and `requests`: each denied request's `tool`, ACP
   `kind`, and first `path`, relative to the working directory when inside it.
   It never holds tool input or file content.
@@ -245,8 +285,13 @@ agent's changes from your own edits made during the run, and it does not see:
   (`working_tree_unavailable`). After launch but before the prompt is sent,
   with `turn: "not_started"`: a model the agent does not offer
   (`provider_unsupported_option`; the message names up to five that it does),
-  or a read-only mode or model the agent did not confirm, or any contrary mode
-  or autonomy update before the prompt (`acp_setup_unconfirmed`).
+  or a read-only mode or model the agent did not confirm, or a contrary mode
+  or autonomy update reported while the read-only mode is being confirmed or
+  held (`acp_setup_unconfirmed`). A mode report that arrives before setup,
+  even before the agent's `session/new` reply, counts as the starting state;
+  if it disagrees with the mode that reply names, a provider whose read-only
+  mode is its starting mode (Antigravity's `default`) cannot confirm it and
+  fails here.
 - `PROVIDER_LIMIT_REACHED`: a `max_tokens` or `max_turn_requests` stop, or a
   quota error the provider returned as answer text.
 - `PROVIDER_EMPTY_OUTPUT`: the turn ended with no answer text and no denial.
@@ -256,13 +301,29 @@ agent's changes from your own edits made during the run, and it does not see:
   `unknown`.
 
 A failure envelope's `stdout` holds only the answer text gathered before the
-failure, with credential values redacted, never the internal turn record. It
-is empty after `acp_mode_changed`.
+failure, never the internal turn record. It is empty after
+`acp_mode_changed`. Redaction is pattern- and value-based, so it cannot
+recognize every secret:
+
+- Answer text, in `text` or `stdout`, loses the values of the provider's
+  credential variables (values shorter than six characters are not matched)
+  and provider patterns such as Droid's pairing code.
+- When the answer is error text or a stop at a limit
+  (`attempts.terminal_reason` `acp_error_text` or `provider_limit_reached`),
+  its `stdout`, and any of it the message quotes, also lose common credential
+  shapes: Google
+  API keys, `sk-`, `ghp_`, `github_pat_`, and similar tokens, JWTs, and
+  `Bearer` tokens.
+- Messages, metadata, denial details, working-tree change paths, and `stderr`
+  get the same full redaction. `stderr` cut short by an output cap ends at
+  its last complete line, so redaction never sees a partial line;
+  `diagnostics.output_bytes.stderr` still counts every byte.
 
 `diagnostics.acp` records the agent's name and version, whether the run used
 an API key or the saved sign-in, each setup step and what confirmed it, the
 stop reason, and the teardown. It never holds answer text, raw ACP messages,
-tool input, or credentials.
+or tool input; the agent-supplied strings it does hold are redacted like other
+metadata.
 
 For provider readiness and authentication, see [Provider setup](provider-setup.md).
 Saved workflow defaults live in [Configuration](configuration.md).

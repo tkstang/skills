@@ -299,8 +299,13 @@ pushes; the user decides what to keep. Codex and Claude can write and continue
 a session; Cursor and the extended providers are read-only. An extended peer
 needs a model (`--model` or `defaults.provider_models`) and a git checkout.
 The consensus CLI snapshots the checkout before and after the turn and fails
-the run with `PROVIDER_WORKTREE_CHANGED` if HEAD or any tracked or
-non-ignored untracked path changed; ignored files are not checked. See `skills/delegate/SKILL.md` and the
+the run with `PROVIDER_WORKTREE_CHANGED` if HEAD, the `git status` entries, or
+the content or permission bits of a tracked or non-ignored untracked file
+changed; ignored files and a few other cases are not covered (see
+[Working-tree check](https://tkstang.github.io/skills/user-guide/consensus/provider-run-controls/#working-tree-check)).
+The check is a backstop, not isolation: provider hooks and MCP servers can run
+without a permission request, so use extended peers only in checkouts and with
+provider configuration you control. See `skills/delegate/SKILL.md` and the
 [Delegate guide](https://tkstang.github.io/skills/user-guide/consensus/delegate/).
 
 ## Permissions
