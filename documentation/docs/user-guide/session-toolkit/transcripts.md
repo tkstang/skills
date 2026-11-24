@@ -82,6 +82,11 @@ place to resume. Cursor conversation messages also require terminal events in
 the captured page. A page starting mid-turn cannot recover messages buffered on
 an earlier page. Callers that need continuity can retain the raw records.
 
+For Claude Code, the conversation uses the delivered prompt when the enqueue,
+dequeue, and matching user record are in the same page. An enqueue on its own
+can still appear as a queued prompt. API request snapshots remain in the raw
+records.
+
 ### Read the newest page first
 
 With Session Toolkit 0.2.0 or later, use `--from-end` on `read` or `parse`.

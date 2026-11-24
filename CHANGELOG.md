@@ -122,6 +122,10 @@
 
 ### Fixed
 
+- Session Toolkit renders a queued Claude Code prompt once when the captured
+  records include its delivery. API request snapshots stay available as raw
+  records and are omitted from the conversation.
+
 - `consensus` 0.2.12 forwards Cursor `--model` in default and read-only profiles.
   Provider-reported usage, quota, and rate limits now return
   `PROVIDER_LIMIT_REACHED` without retries within the run and surface the human

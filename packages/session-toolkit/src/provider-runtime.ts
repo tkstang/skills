@@ -1928,6 +1928,7 @@ function normalizeClaudeCode(
   // First pass: build tool_use_id → tool name correlation map
   const toolNameById = new Map<string, string>();
   for (const record of records) {
+    if (record.type === 'api-request-blob') continue;
     const message = isObject(record.message) ? record.message : record;
     const content = message.content;
     if (!Array.isArray(content)) continue;
@@ -1940,33 +1941,40 @@ function normalizeClaudeCode(
     }
   }
 
-  // Queue-operation records capture input when it is enqueued. Claude later
-  // repeats a delivered queue item in a queued_command attachment. Correlate
-  // those representations by their ordered enqueue/remove transaction rather
-  // than by prompt text globally: identical human messages are distinct input.
-  const queuedContents: string[] = [];
+  // A removed queue item can reappear in a queued_command attachment. A
+  // dequeued item can reappear as the next user record, which carries the
+  // delivered message's provenance. Keep enqueues without a matched delivery.
+  const queued: { content: string | undefined; recordIndex: number }[] = [];
   const deliveredQueuedContents: string[] = [];
+  const matchedEnqueues = new Set<number>();
+  let dequeued: (typeof queued)[number] | undefined;
 
-  return records.flatMap((record, recordIndex): DigestEntry[] => {
-    if (asString(record.type) === 'queue-operation') {
+  const entries = records.flatMap((record, recordIndex): DigestEntry[] => {
+    const type = asString(record.type);
+    if (type === 'api-request-blob') return [];
+
+    if (type === 'queue-operation') {
       const operation = asString(record.operation);
       if (operation === 'enqueue') {
         const content = asString(record.content);
+        queued.push({ content, recordIndex });
         if (!content) return [];
-        queuedContents.push(content);
         return [messageEntry('user', content, recordIndex, 'queued-user')];
+      }
+
+      if (operation === 'dequeue') {
+        dequeued = queued.shift();
+        return [];
       }
 
       if (operation === 'remove') {
         const content = asString(record.content);
-        const queuedIndex = content
-          ? queuedContents.indexOf(content)
-          : queuedContents.length > 0
-            ? 0
-            : -1;
+        const queuedIndex = queued.findIndex(
+          (item) => item.content && (!content || item.content === content),
+        );
         if (queuedIndex !== -1) {
-          const [deliveredContent] = queuedContents.splice(queuedIndex, 1);
-          deliveredQueuedContents.push(deliveredContent);
+          const [removed] = queued.splice(queuedIndex, 1);
+          if (removed.content) deliveredQueuedContents.push(removed.content);
         }
         return [];
       }
@@ -1990,21 +1998,43 @@ function normalizeClaudeCode(
 
     // Determine role
     const message = isObject(record.message) ? record.message : record;
-    const role =
-      asString(message.role) ?? asString(record.role) ?? asString(record.type);
+    const role = asString(message.role) ?? asString(record.role) ?? type;
 
     if (role !== 'assistant' && role !== 'user') return [];
 
-    return claudeEntriesFromContent(role, message.content, recordIndex, {
-      includeToolCalls,
-      includeToolResults,
-      includeCommandMessages,
-      toolNameById,
-      toolUseResult: record.toolUseResult,
-      userProvenance:
-        role === 'user' ? claudeUserRecordProvenance(record) : 'legacy-absent',
-    });
+    const projected = claudeEntriesFromContent(
+      role,
+      message.content,
+      recordIndex,
+      {
+        includeToolCalls,
+        includeToolResults,
+        includeCommandMessages,
+        toolNameById,
+        toolUseResult: record.toolUseResult,
+        userProvenance:
+          role === 'user'
+            ? claudeUserRecordProvenance(record)
+            : 'legacy-absent',
+      },
+    );
+
+    if (type === 'user' || type === 'assistant') {
+      if (
+        dequeued?.content &&
+        type === 'user' &&
+        role === 'user' &&
+        projected.length === 1 &&
+        projected[0].kind === 'message' &&
+        projected[0].text === dequeued.content
+      ) {
+        matchedEnqueues.add(dequeued.recordIndex);
+      }
+      dequeued = undefined;
+    }
+    return projected;
   });
+  return entries.filter((entry) => !matchedEnqueues.has(entry.recordIndex));
 }
 
 // ---------------------------------------------------------------------------
