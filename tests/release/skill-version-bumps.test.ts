@@ -1,10 +1,10 @@
 import { execFile as execFileCallback } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 
 import { validateChangedSkillVersions } from '../../scripts/validate-skill-versions.js';
 import { gitEnv } from '../helpers/git-env.mjs';
@@ -57,6 +57,7 @@ async function initRepo(
   baseVersion = '1.0.0',
 ): Promise<{ root: string; baseSha: string }> {
   const root = await mkdtemp(path.join(os.tmpdir(), 'skill-version-'));
+  onTestFinished(() => rm(root, { recursive: true, force: true }));
   await git(root, ['init', '-q']);
   await git(root, ['config', 'user.email', 'test@example.com']);
   await git(root, ['config', 'user.name', 'Test']);
@@ -373,6 +374,7 @@ metadata:
 
   it('preserves version identity across a clean-break owner rename', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'skill-version-rename-'));
+    onTestFinished(() => rm(root, { recursive: true, force: true }));
     await git(root, ['init', '-q']);
     await git(root, ['config', 'user.email', 'test@example.com']);
     await git(root, ['config', 'user.name', 'Test']);
@@ -727,6 +729,15 @@ metadata:
           path.join(root, 'plugins/consensus/scripts/café.mjs'),
           'export {};\n',
         );
+        await git(root, ['add', '-A']);
+      },
+    ],
+    [
+      'replacing a shipped file with a symlink',
+      async (root: string) => {
+        const script = path.join(root, 'plugins/consensus/scripts/run.mjs');
+        await rm(script);
+        await symlink('../../../src/skills/demo/scripts/run.mjs', script);
         await git(root, ['add', '-A']);
       },
     ],

@@ -80,7 +80,7 @@ Any change to a plugin's shipped content requires that plugin's provider-manifes
 version to be strictly greater than at the base:
 
 ```bash
-pnpm tsx scripts/bump-version.ts <x.y.z> --plugin <name>
+pnpm exec tsx scripts/bump-version.ts <x.y.z> --plugin <name>
 ```
 
 Shipped content is everything under `plugins/<name>/`: generated `skills/**`
