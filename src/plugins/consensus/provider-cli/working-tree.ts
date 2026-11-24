@@ -326,17 +326,21 @@ function gitRunner(cwd: string, options: WorkingTreeOptions) {
 
 // Adds the filter driver names configured for the repository at `root`,
 // then recurses into each checked-out submodule, whose own config status reads.
+// Driver names and gitlink paths must be exact: an override for a lossily
+// decoded name, or a lookup of a lossily decoded path, would leave the real
+// driver on. So a name that is not valid UTF-8 fails the snapshot.
 async function collectFilterDrivers(
   root: string,
   env: NodeJS.ProcessEnv,
   drivers: Set<string>,
 ) {
-  const run = runGit(root, env);
+  const run = runGitBytes(root, env);
   const keys = await run(
     ['config', '-z', '--name-only', '--get-regexp', '^filter\\.'],
     { allowExit: [1] },
   );
-  for (const key of keys.split('\0')) {
+  for (const rawKey of splitAtNul(keys)) {
+    const key = exactUtf8(rawKey, 'config');
     const end = key.lastIndexOf('.');
     if (key.startsWith('filter.') && end > 'filter.'.length) {
       drivers.add(key.slice('filter.'.length, end));
@@ -344,11 +348,11 @@ async function collectFilterDrivers(
   }
   // Gitlinks (mode 160000), relative to `root`; a conflict lists each stage.
   const submodules = new Set<string>();
-  for (const entry of (await run(['ls-files', '-s', '-z'])).split('\0')) {
+  for (const rawEntry of splitAtNul(await run(['ls-files', '-s', '-z']))) {
+    if (rawEntry.toString('latin1', 0, 7) !== '160000 ') continue;
+    const entry = exactUtf8(rawEntry, 'ls-files');
     const tab = entry.indexOf('\t');
-    if (entry.startsWith('160000 ') && tab > 0) {
-      submodules.add(entry.slice(tab + 1));
-    }
+    if (tab > 0) submodules.add(entry.slice(tab + 1));
   }
   for (const submodule of submodules) {
     const dir = path.join(root, submodule);
@@ -378,16 +382,50 @@ function withoutNewline(output: string) {
   return output.endsWith('\n') ? output.slice(0, -1) : output;
 }
 
+function splitAtNul(output: Buffer): Buffer[] {
+  const entries: Buffer[] = [];
+  let start = 0;
+  for (
+    let end = output.indexOf(0);
+    end !== -1;
+    end = output.indexOf(0, start)
+  ) {
+    entries.push(output.subarray(start, end));
+    start = end + 1;
+  }
+  if (start < output.length) entries.push(output.subarray(start));
+  return entries;
+}
+
+// Fails instead of substituting U+FFFD for bytes that are not valid UTF-8.
+function exactUtf8(bytes: Buffer, command: string): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+      bytes,
+    );
+  } catch {
+    throw new Error(
+      `git ${command} printed a filter driver or submodule name that is not valid UTF-8, so the snapshot cannot switch its filters off`,
+    );
+  }
+}
+
 function runGit(cwd: string, env: NodeJS.ProcessEnv) {
+  const run = runGitBytes(cwd, env);
+  return async (args: string[], runOptions: { allowExit?: number[] } = {}) =>
+    (await run(args, runOptions)).toString('utf8');
+}
+
+function runGitBytes(cwd: string, env: NodeJS.ProcessEnv) {
   return (args: string[], runOptions: { allowExit?: number[] } = {}) =>
-    new Promise<string>((resolve, reject) => {
+    new Promise<Buffer>((resolve, reject) => {
       execFile(
         'git',
         args,
         {
           cwd,
           env,
-          encoding: 'utf8',
+          encoding: 'buffer',
           maxBuffer: GIT_MAX_BUFFER,
           timeout: GIT_TIMEOUT_MS,
           shell: false,
@@ -397,7 +435,7 @@ function runGit(cwd: string, env: NodeJS.ProcessEnv) {
           const exitCode =
             error && typeof error.code === 'number' ? error.code : undefined;
           if (!error || runOptions.allowExit?.includes(exitCode ?? -1)) {
-            resolve(error ? '' : stdout);
+            resolve(error ? Buffer.alloc(0) : stdout);
             return;
           }
           const detail =

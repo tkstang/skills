@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import {
   access,
+  appendFile,
   chmod,
   mkdir,
   mkdtemp,
@@ -273,6 +274,34 @@ describe('working-tree snapshot', () => {
     await expect(access(marker)).rejects.toThrow();
     await writeFile(path.join(dir, 'clean.txt'), 'two\n');
     expect(await changesAfter(dir, before)).toEqual(['clean.txt']);
+    await expect(access(marker)).rejects.toThrow();
+  });
+
+  it('fails rather than miss a filter driver whose name is not valid UTF-8', async () => {
+    const dir = await repo();
+    const marker = path.join(await scratchDir(), 'filter-ran');
+    // Byte 0xff never occurs in UTF-8; git matches the name byte for byte.
+    const driver = Buffer.from([0x70, 0xff]);
+    await appendFile(
+      path.join(dir, '.git', 'config'),
+      Buffer.concat([
+        Buffer.from('[filter "'),
+        driver,
+        Buffer.from(`"]\n\tclean = echo ran >> '${marker}'; cat\n`),
+      ]),
+    );
+    await writeFile(
+      path.join(dir, '.git', 'info', 'attributes'),
+      Buffer.concat([Buffer.from('*.txt filter='), driver, Buffer.from('\n')]),
+    );
+    // An old mtime makes status re-read the file, which is when it filters.
+    const old = new Date('2020-01-01T00:00:00Z');
+    await utimes(path.join(dir, 'clean.txt'), old, old);
+
+    const result = await snapshotWorkingTree(dir, { env });
+
+    expect(result).toMatchObject({ ok: false });
+    expect(result.ok === false && result.message).toMatch(/not valid UTF-8/);
     await expect(access(marker)).rejects.toThrow();
   });
 
