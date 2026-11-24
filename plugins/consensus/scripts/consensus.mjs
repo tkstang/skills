@@ -2644,9 +2644,11 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
       ...context.timing ? { timing: context.timing } : {},
       ...context.spawn ? { spawn: context.spawn } : {}
     });
-  } finally {
-    if (privateHome) await rm3(privateHome, { recursive: true, force: true });
+  } catch (error) {
+    if (privateHome) await removePrivateHomeAfter(privateHome, error);
+    throw error;
   }
+  if (privateHome) await rm3(privateHome, { recursive: true, force: true });
   const result = outcome.result;
   const classification = classifyAcpTurn(result, context.classifyOptions);
   const stdout = serializeAcpTurnResult(result);
@@ -2669,6 +2671,23 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
     retryable: false,
     ...base
   };
+}
+async function removePrivateHomeAfter(privateHome, runError) {
+  const cleanupFailure = await rm3(privateHome, {
+    recursive: true,
+    force: true
+  }).then(
+    () => void 0,
+    (error) => ({ error })
+  );
+  if (!cleanupFailure) return;
+  throw new Error(
+    `${errorMessage(runError)} (removing the private settings directory also failed: ${errorMessage(cleanupFailure.error)})`,
+    { cause: runError }
+  );
+}
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
 function processFailureCode(result) {
   if (result.abort === "timeout") return "PROVIDER_TIMEOUT";

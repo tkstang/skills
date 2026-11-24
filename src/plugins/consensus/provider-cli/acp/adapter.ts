@@ -282,9 +282,12 @@ async function runAcpInvocation(
       ...(context.timing ? { timing: context.timing } : {}),
       ...(context.spawn ? { spawn: context.spawn } : {}),
     });
-  } finally {
-    if (privateHome) await rm(privateHome, { recursive: true, force: true });
+  } catch (error) {
+    // The run's own error wins; a failed removal is added to its message.
+    if (privateHome) await removePrivateHomeAfter(privateHome, error);
+    throw error;
   }
+  if (privateHome) await rm(privateHome, { recursive: true, force: true });
 
   const result = outcome.result;
   const classification = classifyAcpTurn(result, context.classifyOptions);
@@ -308,6 +311,28 @@ async function runAcpInvocation(
     retryable: false,
     ...base,
   };
+}
+
+// Removes the private settings directory after the run threw `runError`.
+// When the removal fails too, throws an error that leads with the run's
+// message, names the cleanup failure, and keeps the run error as its cause.
+async function removePrivateHomeAfter(privateHome: string, runError: unknown) {
+  const cleanupFailure = await rm(privateHome, {
+    recursive: true,
+    force: true,
+  }).then(
+    () => undefined,
+    (error: unknown) => ({ error }),
+  );
+  if (!cleanupFailure) return;
+  throw new Error(
+    `${errorMessage(runError)} (removing the private settings directory also failed: ${errorMessage(cleanupFailure.error)})`,
+    { cause: runError },
+  );
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 // The transport-level code; classifyRunFailure and classifyReportedFailure

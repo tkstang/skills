@@ -2033,9 +2033,11 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
       ...context.timing ? { timing: context.timing } : {},
       ...context.spawn ? { spawn: context.spawn } : {}
     });
-  } finally {
-    if (privateHome) await rm2(privateHome, { recursive: true, force: true });
+  } catch (error) {
+    if (privateHome) await removePrivateHomeAfter(privateHome, error);
+    throw error;
   }
+  if (privateHome) await rm2(privateHome, { recursive: true, force: true });
   const result = outcome.result;
   const classification = classifyAcpTurn(result, context.classifyOptions);
   const stdout = serializeAcpTurnResult(result);
@@ -2058,6 +2060,23 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
     retryable: false,
     ...base
   };
+}
+async function removePrivateHomeAfter(privateHome, runError) {
+  const cleanupFailure = await rm2(privateHome, {
+    recursive: true,
+    force: true
+  }).then(
+    () => void 0,
+    (error) => ({ error })
+  );
+  if (!cleanupFailure) return;
+  throw new Error(
+    `${errorMessage(runError)} (removing the private settings directory also failed: ${errorMessage(cleanupFailure.error)})`,
+    { cause: runError }
+  );
+}
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
 function processFailureCode(result) {
   if (result.abort === "timeout") return "PROVIDER_TIMEOUT";
@@ -6784,7 +6803,7 @@ async function resolveReviewer(input, dependencies = {}) {
     try {
       readiness = await preflight(candidate.provider);
     } catch (error) {
-      const reason = `provider_preflight_failed: ${errorMessage(error)}`;
+      const reason = `provider_preflight_failed: ${errorMessage2(error)}`;
       if (pinned) throw new Error(reason, { cause: error });
       skipped.push({ provider: candidate.provider, reason });
       continue;
@@ -6935,7 +6954,7 @@ function defaultPreflight(env, registry = providerRegistry(), runner = nodeProbe
 function sha2563(value) {
   return createHash3("sha256").update(value).digest("hex");
 }
-function errorMessage(error) {
+function errorMessage2(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -8387,7 +8406,7 @@ async function runReviewCli(argv, dependencies = {}) {
   try {
     parsed = await parseReviewArgs(argv, cwd, fileSystem);
   } catch (error) {
-    const failure3 = error instanceof UsageError ? error : new UsageError("argument_invalid", errorMessage2(error));
+    const failure3 = error instanceof UsageError ? error : new UsageError("argument_invalid", errorMessage3(error));
     return usageOutcome(failure3, argv.includes("--json"));
   }
   const execute = dependencies.execute ?? executeBoundedReview;
@@ -8436,7 +8455,7 @@ async function runReviewCli(argv, dependencies = {}) {
     return localOutputFailure(
       result,
       "markdown_persistence_failed",
-      `Completed review Markdown could not be written: ${errorMessage2(error)}`,
+      `Completed review Markdown could not be written: ${errorMessage3(error)}`,
       parsed.json,
       fileSystem
     );
@@ -8458,7 +8477,7 @@ async function runReviewCli(argv, dependencies = {}) {
       return localOutputFailure(
         result,
         "export_failed",
-        `Completed review was preserved at ${canonicalMarkdown}; export failed: ${errorMessage2(error)}`,
+        `Completed review was preserved at ${canonicalMarkdown}; export failed: ${errorMessage3(error)}`,
         parsed.json,
         fileSystem,
         canonicalMarkdown
@@ -8995,7 +9014,7 @@ Diagnostic artifact: ${diagnosticPath}`
       message,
       invocation_count: result.invocation_count,
       diagnostic_persisted: false,
-      diagnostic_error: errorMessage2(error),
+      diagnostic_error: errorMessage3(error),
       artifacts: {
         json: result.artifactPath,
         ...markdown ? { markdown } : {}
@@ -9006,7 +9025,7 @@ Diagnostic artifact: ${diagnosticPath}`
       json,
       payload,
       human: `${message}
-Diagnostic persistence: failed (${errorMessage2(error)}).`
+Diagnostic persistence: failed (${errorMessage3(error)}).`
     };
   }
 }
@@ -9072,7 +9091,7 @@ function escapeMarkdown(value) {
 function isMissing4(error) {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
-function errorMessage2(error) {
+function errorMessage3(error) {
   return error instanceof Error ? error.message : String(error);
 }
 function isEntrypointPath(argvPath) {

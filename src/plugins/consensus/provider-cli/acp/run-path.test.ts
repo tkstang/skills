@@ -4,6 +4,7 @@
 // git checkout so the working-tree check runs as it does for callers.
 import { execFileSync } from 'node:child_process';
 import {
+  chmod,
   mkdir,
   mkdtemp,
   readFile,
@@ -710,6 +711,38 @@ describe('extended runs through runProviderTurn', () => {
         { transport: failingCleanup },
       ),
     ).rejects.toThrow('cleanup failed');
+  });
+
+  it('keeps the run error, naming the cleanup failure, when both fail', async () => {
+    // Throws after making the private settings directory unremovable.
+    const failingRunAndCleanup: AcpTransport = {
+      async run(input) {
+        const flag = input.argv.find((arg) => arg.startsWith('--gemini-dir='));
+        if (!flag) throw new Error('expected a private settings directory');
+        const locked = path.join(flag.slice('--gemini-dir='.length), 'config');
+        cleanup.push(async () => {
+          await chmod(locked, 0o700);
+          await rm(path.dirname(locked), { recursive: true, force: true });
+        });
+        await chmod(locked, 0o500);
+        throw new Error('run failed');
+      },
+    };
+    const error = await runTurn(
+      ANTIGRAVITY_DESCRIPTOR,
+      await agySession(),
+      { model: 'gemini-3.8-flash' },
+      {
+        transport: failingRunAndCleanup,
+        parentEnv: { GEMINI_API_KEY: 'test-api-key-value' },
+      },
+    ).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toMatch(
+      /^run failed \(removing the private settings directory also failed: EACCES/,
+    );
+    expect((error as Error).cause).toMatchObject({ message: 'run failed' });
   });
 
   it('succeeds with a warning when teardown could not confirm the group exited', async () => {
