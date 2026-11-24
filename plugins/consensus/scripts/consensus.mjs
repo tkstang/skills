@@ -2249,9 +2249,13 @@ var SessionState = class {
   initialMode;
   initialConflict = false;
   // Mode and option updates that arrived before the session/new response
-  // was handled (in the same stdout chunk, or earlier): the latest of each
-  // kind per session id, replayed once the session id is known.
+  // was handled (in the same stdout chunk, or earlier), per session id and
+  // applied once the session id is known: every mode a valid report named
+  // (two or more already disagree with session/new), and the latest valid
+  // option list. A mode report dropped because the buffer is full leaves
+  // the starting mode unknown.
   early = /* @__PURE__ */ new Map();
+  earlyModeDropped = false;
   // Agent-reported strings are redacted before they are shortened, so a
   // clip never leaves part of a secret behind.
   keep(value) {
@@ -2279,12 +2283,18 @@ var SessionState = class {
     }
     const modes = isRecord2(response.modes) ? response.modes : {};
     this.initialMode = typeof modes.currentModeId === "string" ? modes.currentModeId : void 0;
-    this.configOptionsSeen(response.configOptions);
     const early = this.early.get(response.sessionId);
     this.early.clear();
-    for (const params of early?.values() ?? []) {
-      this.notification("session/update", params);
-    }
+    if (this.earlyModeDropped) this.initialConflict = true;
+    for (const mode of early?.modes ?? []) this.startingModeReported(mode);
+    this.configOptionsSeen(early?.configOptions);
+    this.configOptionsSeen(response.configOptions);
+  }
+  // Before the watch, a mode report is part of the starting state; one that
+  // disagrees with session/new leaves the starting mode unknown.
+  startingModeReported(mode) {
+    this.initialMode ??= mode;
+    if (mode !== this.initialMode) this.initialConflict = true;
   }
   configOptionsSeen(options) {
     if (!Array.isArray(options)) return;
@@ -2367,17 +2377,14 @@ var SessionState = class {
     const update = isRecord2(params.update) ? params.update : {};
     const kind = update.sessionUpdate;
     if (this.result.session_id === void 0) {
-      this.keepEarly(params, kind);
+      this.keepEarly(params.sessionId, kind, update);
       return;
     }
     if (params.sessionId !== this.result.session_id) return;
     const watch = this.modeWatch;
     if (kind === "current_mode_update") {
       if (!watch && !this.held && typeof update.currentModeId === "string") {
-        this.initialMode ??= update.currentModeId;
-        if (update.currentModeId !== this.initialMode) {
-          this.initialConflict = true;
-        }
+        this.startingModeReported(update.currentModeId);
       }
       if (this.held && typeof update.currentModeId === "string" && update.currentModeId !== this.held.step.modeId) {
         this.drifted(update.currentModeId);
@@ -2406,19 +2413,22 @@ var SessionState = class {
       watch.echoed ??= "marker";
     }
   }
-  keepEarly(params, kind) {
-    if (kind !== "current_mode_update" && kind !== "config_option_update") {
-      return;
+  keepEarly(sessionId, kind, update) {
+    if (typeof sessionId !== "string") return;
+    const mode = kind === "current_mode_update" && typeof update.currentModeId === "string" ? update.currentModeId : void 0;
+    const options = kind === "config_option_update" && Array.isArray(update.configOptions) ? update.configOptions : void 0;
+    if (mode === void 0 && options === void 0) return;
+    let kept = this.early.get(sessionId);
+    if (!kept) {
+      if (this.early.size >= MAX_EARLY_SESSIONS) {
+        if (mode !== void 0) this.earlyModeDropped = true;
+        return;
+      }
+      kept = { modes: /* @__PURE__ */ new Set() };
+      this.early.set(sessionId, kept);
     }
-    if (typeof params.sessionId !== "string") return;
-    let kinds = this.early.get(params.sessionId);
-    if (!kinds) {
-      if (this.early.size >= MAX_EARLY_SESSIONS) return;
-      kinds = /* @__PURE__ */ new Map();
-      this.early.set(params.sessionId, kinds);
-    }
-    kinds.delete(kind);
-    kinds.set(kind, params);
+    if (mode !== void 0 && kept.modes.size < 2) kept.modes.add(mode);
+    if (options !== void 0) kept.configOptions = options;
   }
 };
 var MAX_DISPLAY_PATH_CHARS = 240;

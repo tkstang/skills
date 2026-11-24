@@ -138,6 +138,53 @@ const AGY_CONFIG = [
   { configId: 'model', value: 'gemini-3.8-flash', requireAdvertised: true },
   { configId: 'thought_level', value: 'low' },
 ];
+const AGY_SESSION = 'd1dc1bef-c052-4b55-a232-505704b45765';
+
+function notificationLine(method: string, params: unknown) {
+  return JSON.stringify({ jsonrpc: '2.0', method, params });
+}
+
+function modeUpdate(sessionId: string, currentModeId: string) {
+  return notificationLine('session/update', {
+    sessionId,
+    update: { sessionUpdate: 'current_mode_update', currentModeId },
+  });
+}
+
+// Runs the recorded agy session with the given lines delivered right before
+// and right after the session/new response, before the driver's await
+// resumes, as one stdout chunk carrying them all would.
+async function runWithEarlyUpdates(
+  early: { before?: string[]; after?: string[] },
+  options: {
+    cutAtResponse?: number;
+    tail?: Record<string, unknown>[];
+    configOptions?: AcpSessionPlan['configOptions'];
+  } = {},
+) {
+  const scenario = cutAfter(
+    await fixture('agy-key-default'),
+    nthIndex((step) => 'respond' in step, options.cutAtResponse ?? 3),
+    options.tail,
+  );
+  return run(
+    scenario,
+    { mode: AGY_MODE, configOptions: options.configOptions ?? AGY_CONFIG },
+    {
+      wrapSpawn: (spawn) => (spawnOptions) =>
+        spawn({
+          ...spawnOptions,
+          onLine: (line) => {
+            const created = JSON.parse(line).result?.sessionId === AGY_SESSION;
+            if (created) early.before?.forEach(spawnOptions.onLine);
+            spawnOptions.onLine(line);
+            if (created) early.after?.forEach(spawnOptions.onLine);
+          },
+        }),
+    },
+  );
+}
+
 const DROID_MODE = {
   modeId: 'normal',
   confirm: { currentModeUpdate: true, configOptionId: 'autonomy_level' },
@@ -469,43 +516,9 @@ describe('ACP session driver', () => {
   });
 
   it('does not confirm the starting mode when a contrary report shares the session/new chunk (agy)', async () => {
-    const recorded = await fixture('agy-key-default');
-    const sessionId = (
-      recorded.steps[3] as { respond: { result: { sessionId: string } } }
-    ).respond.result.sessionId;
-    const scenario = cutAfter(
-      recorded,
-      nthIndex((step) => 'respond' in step, 3),
-    );
-    const modeUpdate = JSON.stringify({
-      jsonrpc: '2.0',
-      method: 'session/update',
-      params: {
-        sessionId,
-        update: {
-          sessionUpdate: 'current_mode_update',
-          currentModeId: 'accept-edits',
-        },
-      },
+    const { outcome, methods } = await runWithEarlyUpdates({
+      after: [modeUpdate(AGY_SESSION, 'accept-edits')],
     });
-    // Delivers the update right after the session/new response, before the
-    // driver's await resumes, as one stdout chunk carrying both would.
-    const { outcome, methods } = await run(
-      scenario,
-      { mode: AGY_MODE, configOptions: AGY_CONFIG },
-      {
-        wrapSpawn: (spawn) => (options) =>
-          spawn({
-            ...options,
-            onLine: (line) => {
-              options.onLine(line);
-              if (JSON.parse(line).result?.sessionId === sessionId) {
-                options.onLine(modeUpdate);
-              }
-            },
-          }),
-      },
-    );
 
     expectNoMismatch(outcome);
     expect(methods).toEqual([
@@ -518,6 +531,84 @@ describe('ACP session driver', () => {
       prompt_sent: false,
       setup: [{ step: 'mode', confirmed: false }],
       error: { phase: 'setup', kind: 'unconfirmed_setup' },
+    });
+  });
+
+  it('keeps an early contrary mode report when a malformed one follows it (agy)', async () => {
+    const malformed = notificationLine('session/update', {
+      sessionId: AGY_SESSION,
+      update: { sessionUpdate: 'current_mode_update' },
+    });
+    const { outcome, methods } = await runWithEarlyUpdates({
+      after: [modeUpdate(AGY_SESSION, 'accept-edits'), malformed],
+    });
+
+    expectNoMismatch(outcome);
+    expect(methods).not.toContain('session/set_config_option');
+    expect(outcome.result).toMatchObject({
+      prompt_sent: false,
+      setup: [{ step: 'mode', confirmed: false }],
+      error: { phase: 'setup', kind: 'unconfirmed_setup' },
+    });
+  });
+
+  it('leaves the starting mode unknown when early reports overflow the buffer (agy)', async () => {
+    // Reports for four other sessions fill the buffer, so the contrary
+    // report for the created session cannot be kept.
+    const others = ['s1', 's2', 's3', 's4'].map((id) =>
+      modeUpdate(id, 'default'),
+    );
+    const { outcome, methods } = await runWithEarlyUpdates({
+      before: [...others, modeUpdate(AGY_SESSION, 'accept-edits')],
+    });
+
+    expectNoMismatch(outcome);
+    expect(methods).not.toContain('session/set_config_option');
+    expect(outcome.result).toMatchObject({
+      prompt_sent: false,
+      setup: [{ step: 'mode', confirmed: false }],
+      error: { phase: 'setup', kind: 'unconfirmed_setup' },
+    });
+  });
+
+  it('keeps the session/new config options over an update sent before them (agy)', async () => {
+    // The update offers one model; session/new, sent after it, also offers
+    // gemini-3.8-flash.
+    const older = notificationLine('session/update', {
+      sessionId: AGY_SESSION,
+      update: {
+        sessionUpdate: 'config_option_update',
+        configOptions: [
+          {
+            id: 'model',
+            currentValue: 'claude-sonnet-4-6',
+            options: [{ value: 'claude-sonnet-4-6' }],
+          },
+        ],
+      },
+    });
+    const { outcome, methods } = await runWithEarlyUpdates(
+      { before: [older] },
+      {
+        cutAtResponse: 4,
+        tail: [
+          { expect: 'session/prompt' },
+          { respond: { result: { stopReason: 'end_turn' } } },
+          { expect: 'session/close' },
+          { respond: { result: {} } },
+        ],
+        configOptions: [AGY_CONFIG[0]],
+      },
+    );
+
+    expectNoMismatch(outcome);
+    expect(methods).toContain('session/set_config_option');
+    expect(outcome.result).toMatchObject({
+      phase: 'complete',
+      setup: [
+        { step: 'mode', confirmed: true },
+        { step: 'config_option', id: 'model', confirmed: true },
+      ],
     });
   });
 

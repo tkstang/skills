@@ -571,9 +571,16 @@ class SessionState {
   private initialMode: string | undefined;
   private initialConflict = false;
   // Mode and option updates that arrived before the session/new response
-  // was handled (in the same stdout chunk, or earlier): the latest of each
-  // kind per session id, replayed once the session id is known.
-  private readonly early = new Map<string, Map<string, unknown>>();
+  // was handled (in the same stdout chunk, or earlier), per session id and
+  // applied once the session id is known: every mode a valid report named
+  // (two or more already disagree with session/new), and the latest valid
+  // option list. A mode report dropped because the buffer is full leaves
+  // the starting mode unknown.
+  private readonly early = new Map<
+    string,
+    { modes: Set<string>; configOptions?: unknown[] }
+  >();
+  private earlyModeDropped = false;
 
   constructor(
     private readonly result: AcpTurnResult,
@@ -616,12 +623,22 @@ class SessionState {
     const modes = isRecord(response.modes) ? response.modes : {};
     this.initialMode =
       typeof modes.currentModeId === 'string' ? modes.currentModeId : undefined;
-    this.configOptionsSeen(response.configOptions);
     const early = this.early.get(response.sessionId as string);
     this.early.clear();
-    for (const params of early?.values() ?? []) {
-      this.notification('session/update', params);
-    }
+    if (this.earlyModeDropped) this.initialConflict = true;
+    for (const mode of early?.modes ?? []) this.startingModeReported(mode);
+    // An early option update may have been sent before session/new, so the
+    // response's options take precedence. Every option set is confirmed
+    // from its own set_config_option response.
+    this.configOptionsSeen(early?.configOptions);
+    this.configOptionsSeen(response.configOptions);
+  }
+
+  // Before the watch, a mode report is part of the starting state; one that
+  // disagrees with session/new leaves the starting mode unknown.
+  private startingModeReported(mode: string) {
+    this.initialMode ??= mode;
+    if (mode !== this.initialMode) this.initialConflict = true;
   }
 
   configOptionsSeen(options: unknown) {
@@ -722,20 +739,15 @@ class SessionState {
     const update = isRecord(params.update) ? params.update : {};
     const kind = update.sessionUpdate;
     if (this.result.session_id === undefined) {
-      this.keepEarly(params, kind);
+      this.keepEarly(params.sessionId, kind, update);
       return;
     }
     // Updates for another session are ignored.
     if (params.sessionId !== this.result.session_id) return;
     const watch = this.modeWatch;
     if (kind === 'current_mode_update') {
-      // Before the watch, a report is part of the starting state; one that
-      // disagrees with session/new leaves the starting mode unknown.
       if (!watch && !this.held && typeof update.currentModeId === 'string') {
-        this.initialMode ??= update.currentModeId;
-        if (update.currentModeId !== this.initialMode) {
-          this.initialConflict = true;
-        }
+        this.startingModeReported(update.currentModeId);
       }
       if (
         this.held &&
@@ -769,20 +781,33 @@ class SessionState {
     }
   }
 
-  private keepEarly(params: Record<string, unknown>, kind: unknown) {
-    if (kind !== 'current_mode_update' && kind !== 'config_option_update') {
-      return;
+  private keepEarly(
+    sessionId: unknown,
+    kind: unknown,
+    update: Record<string, unknown>,
+  ) {
+    if (typeof sessionId !== 'string') return;
+    const mode =
+      kind === 'current_mode_update' && typeof update.currentModeId === 'string'
+        ? update.currentModeId
+        : undefined;
+    const options =
+      kind === 'config_option_update' && Array.isArray(update.configOptions)
+        ? update.configOptions
+        : undefined;
+    if (mode === undefined && options === undefined) return;
+    let kept = this.early.get(sessionId);
+    if (!kept) {
+      if (this.early.size >= MAX_EARLY_SESSIONS) {
+        if (mode !== undefined) this.earlyModeDropped = true;
+        return;
+      }
+      kept = { modes: new Set() };
+      this.early.set(sessionId, kept);
     }
-    if (typeof params.sessionId !== 'string') return;
-    let kinds = this.early.get(params.sessionId);
-    if (!kinds) {
-      if (this.early.size >= MAX_EARLY_SESSIONS) return;
-      kinds = new Map();
-      this.early.set(params.sessionId, kinds);
-    }
-    // Re-inserted so replay keeps arrival order.
-    kinds.delete(kind);
-    kinds.set(kind, params);
+    // Two modes already conflict, so a third need not be kept.
+    if (mode !== undefined && kept.modes.size < 2) kept.modes.add(mode);
+    if (options !== undefined) kept.configOptions = options;
   }
 }
 
