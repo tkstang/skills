@@ -1,10 +1,24 @@
 import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import type { ProbeCommandRunner } from '../probe.js';
 import { runProviderTurn } from '../structured-output.js';
 import type { ProviderProcessResult } from '../subprocess.js';
 import type { ConsensusCliRunRequest } from '../types.js';
+
+// The turn runs a fake subprocess, so the provider program counts as installed
+// whether or not this machine has it on PATH.
+const installedPrograms: ProbeCommandRunner = {
+  env: {},
+  async findExecutable(command) {
+    return path.isAbsolute(command) ? command : `/opt/fake-bin/${command}`;
+  },
+  async run() {
+    throw new Error('no prerequisite version probe is expected');
+  },
+};
 
 describe('submit evidence: no structured-output message', () => {
   it('converts a no-final-JSON turn into a captured verdict via submit', async () => {
@@ -12,6 +26,7 @@ describe('submit evidence: no structured-output message', () => {
       request({ provider: 'codex', max_attempts: 1 }),
       {
         readSchema: async () => schema(),
+        probeRunner: installedPrograms,
         async runSubprocess(_invocation, options) {
           const submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
           if (!submitPath) throw new Error('Missing submit capture path');
@@ -37,6 +52,7 @@ describe('submit evidence: no structured-output message', () => {
       request({ provider: 'codex', max_attempts: 1 }),
       {
         readSchema: async () => schema(),
+        probeRunner: installedPrograms,
         runSubprocess: async () => codexTurnWithoutFinalJson(),
       },
     );

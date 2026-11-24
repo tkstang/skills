@@ -1,11 +1,25 @@
 import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { providerRegistry } from '../adapters.js';
+import type { ProbeCommandRunner } from '../probe.js';
 import { runProviderTurn } from '../structured-output.js';
 import type { ProviderProcessResult } from '../subprocess.js';
 import type { ConsensusCliRunRequest } from '../types.js';
+
+// The turn runs a fake subprocess, so the provider program counts as installed
+// whether or not this machine has it on PATH.
+const installedPrograms: ProbeCommandRunner = {
+  env: {},
+  async findExecutable(command) {
+    return path.isAbsolute(command) ? command : `/opt/fake-bin/${command}`;
+  },
+  async run() {
+    throw new Error('no prerequisite version probe is expected');
+  },
+};
 
 describe('submit evidence: strict-output rejection', () => {
   it('converts a strict-output rejection into a captured verdict via submit', async () => {
@@ -13,6 +27,7 @@ describe('submit evidence: strict-output rejection', () => {
       request({ provider: 'codex', max_attempts: 1 }),
       {
         readSchema: async () => schema(),
+        probeRunner: installedPrograms,
         async runSubprocess(invocation, options) {
           expect(invocation.argv).not.toContain('--output-schema');
           expect(invocation.argv).toContain('--output-last-message');
@@ -50,6 +65,7 @@ describe('submit evidence: strict-output rejection', () => {
           },
         ]),
         readSchema: async () => schema(),
+        probeRunner: installedPrograms,
         runSubprocess: async (invocation) => {
           expect(invocation.argv).toContain('--output-schema');
           return strictOutputRejectedBeforeTurn();
