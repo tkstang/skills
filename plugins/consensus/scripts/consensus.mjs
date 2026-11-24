@@ -5730,6 +5730,20 @@ import path11 from "node:path";
 var GIT_TIMEOUT_MS = 3e4;
 var GIT_MAX_BUFFER = 64 * 1024 * 1024;
 var MAX_LISTED_PATHS = 20;
+var SNAPSHOT_ENV_ALLOWLIST = [
+  "PATH",
+  "HOME",
+  "XDG_CONFIG_HOME",
+  "TMPDIR",
+  "TEMP",
+  "TMP",
+  "USER",
+  "LOGNAME",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+  "GIT_CEILING_DIRECTORIES"
+];
 var TRUTHFUL_STATUS_CONFIG = [
   "--no-optional-locks",
   "-c",
@@ -5742,16 +5756,16 @@ var TRUTHFUL_STATUS_CONFIG = [
 async function snapshotWorkingTree(cwd, options = {}) {
   const git = gitRunner(cwd, options);
   try {
-    const env = await git.cleanEnv();
-    const inside = await git.run(env, ["rev-parse", "--is-inside-work-tree"]);
+    const inside = await git.run(["rev-parse", "--is-inside-work-tree"]);
     if (inside.trim() !== "true") {
       return { ok: false, message: `${cwd} is not inside a git work tree` };
     }
-    const root = (await git.run(env, ["rev-parse", "--show-toplevel"])).trim();
-    const head = (await git.run(env, ["rev-parse", "--verify", "--quiet", "HEAD"], {
+    const root = (await git.run(["rev-parse", "--show-toplevel"])).trim();
+    const head = (await git.run(["rev-parse", "--verify", "--quiet", "HEAD"], {
       allowExit: [1]
     })).trim();
-    const raw = await git.run(env, [
+    const unfiltered = await git.withoutFilters();
+    const raw = await unfiltered.run([
       ...TRUTHFUL_STATUS_CONFIG,
       "status",
       "--porcelain=v1",
@@ -5761,7 +5775,7 @@ async function snapshotWorkingTree(cwd, options = {}) {
     ]);
     const status = parsePorcelainZ(raw);
     const hidden = parseHiddenIndexEntries(
-      await git.run(env, [...TRUTHFUL_STATUS_CONFIG, "ls-files", "-v", "-z"])
+      await unfiltered.run([...TRUTHFUL_STATUS_CONFIG, "ls-files", "-v", "-z"])
     );
     const content = /* @__PURE__ */ new Map();
     for (const file of /* @__PURE__ */ new Set([...status.keys(), ...hidden])) {
@@ -5769,7 +5783,7 @@ async function snapshotWorkingTree(cwd, options = {}) {
     }
     const exclude = path11.resolve(
       cwd,
-      (await git.run(env, ["rev-parse", "--git-path", "info/exclude"])).trim()
+      (await git.run(["rev-parse", "--git-path", "info/exclude"])).trim()
     );
     const excludeKey = path11.relative(root, exclude).startsWith("..") ? exclude : path11.relative(root, exclude);
     content.set(excludeKey, await fingerprint(exclude));
@@ -5866,8 +5880,52 @@ function isMissing(error) {
   return code === "ENOENT" || code === "ENOTDIR";
 }
 function gitRunner(cwd, options) {
-  const base = options.env ?? process.env;
-  const run = (env, args, runOptions = {}) => new Promise((resolve, reject) => {
+  const env = snapshotEnv(options.env ?? process.env);
+  const run = runGit(cwd, env);
+  return {
+    run,
+    // A runner with every configured filter driver switched off. The
+    // overrides go through GIT_CONFIG_COUNT because `-c` splits at the first
+    // `=` and so cannot name a driver whose name contains one.
+    async withoutFilters() {
+      const keys = await run(
+        ["config", "-z", "--name-only", "--get-regexp", "^filter\\."],
+        { allowExit: [1] }
+      );
+      const drivers = /* @__PURE__ */ new Set();
+      for (const key of keys.split("\0")) {
+        const end = key.lastIndexOf(".");
+        if (key.startsWith("filter.") && end > "filter.".length) {
+          drivers.add(key.slice("filter.".length, end));
+        }
+      }
+      const overrides = [...drivers].flatMap((driver) => [
+        [`filter.${driver}.clean`, ""],
+        [`filter.${driver}.smudge`, ""],
+        [`filter.${driver}.process`, ""],
+        [`filter.${driver}.required`, "false"]
+      ]);
+      const unfiltered = {
+        ...env,
+        GIT_CONFIG_COUNT: String(overrides.length)
+      };
+      overrides.forEach(([key, value], index) => {
+        unfiltered[`GIT_CONFIG_KEY_${index}`] = key;
+        unfiltered[`GIT_CONFIG_VALUE_${index}`] = value;
+      });
+      return { run: runGit(cwd, unfiltered) };
+    }
+  };
+}
+function snapshotEnv(base) {
+  const env = { GIT_OPTIONAL_LOCKS: "0" };
+  for (const name of SNAPSHOT_ENV_ALLOWLIST) {
+    if (base[name] !== void 0) env[name] = base[name];
+  }
+  return env;
+}
+function runGit(cwd, env) {
+  return (args, runOptions = {}) => new Promise((resolve, reject) => {
     execFile(
       "git",
       args,
@@ -5895,18 +5953,6 @@ function gitRunner(cwd, options) {
       }
     );
   });
-  return {
-    run,
-    // Drops the variables git itself names as repository-local.
-    async cleanEnv() {
-      const names = await run(base, ["rev-parse", "--local-env-vars"]);
-      const env = { ...base, GIT_OPTIONAL_LOCKS: "0" };
-      for (const name of names.split(/\r?\n/)) {
-        if (name) delete env[name];
-      }
-      return env;
-    }
-  };
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts

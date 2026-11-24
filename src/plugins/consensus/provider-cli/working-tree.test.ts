@@ -1,10 +1,13 @@
 import { execFileSync } from 'node:child_process';
 import {
+  access,
   chmod,
   mkdtemp,
+  readFile,
   realpath,
   rm,
   unlink,
+  utimes,
   writeFile,
 } from 'node:fs/promises';
 import os from 'node:os';
@@ -51,6 +54,14 @@ async function repo() {
   git(dir, 'commit', '-q', '-m', 'init');
   // Already modified before the turn starts.
   await writeFile(path.join(dir, 'dirty.txt'), 'edited once\n');
+  return dir;
+}
+
+async function scratchDir() {
+  const dir = await realpath(
+    await mkdtemp(path.join(os.tmpdir(), 'consensus-worktree-scratch-')),
+  );
+  cleanup.push(dir);
   return dir;
 }
 
@@ -137,6 +148,59 @@ describe('working-tree snapshot', () => {
     await chmod(path.join(dir, 'dirty.txt'), 0o755);
 
     expect(await changesAfter(dir, before)).toEqual(['dirty.txt']);
+  });
+
+  it.each([
+    ['.git/info/attributes', 'probe'],
+    ['.gitattributes', 'probe'],
+    ['.git/info/attributes', 'odd.name=x'],
+  ])(
+    'runs no filter driver mapped in %s (driver %s) on a stat-dirty file',
+    async (attributes, driver) => {
+      const dir = await repo();
+      const marker = path.join(await scratchDir(), 'filter-ran');
+      git(
+        dir,
+        'config',
+        `filter.${driver}.clean`,
+        `echo ran >> '${marker}'; cat`,
+      );
+      git(dir, 'config', `filter.${driver}.required`, 'true');
+      await writeFile(path.join(dir, attributes), `*.txt filter=${driver}\n`);
+      // An old mtime makes status re-read the file, which is when it filters.
+      const old = new Date('2020-01-01T00:00:00Z');
+      await utimes(path.join(dir, 'clean.txt'), old, old);
+
+      const before = await snapshot(dir);
+
+      await expect(access(marker)).rejects.toThrow();
+      expect(await changesAfter(dir, before)).toEqual([]);
+      await expect(access(marker)).rejects.toThrow();
+    },
+  );
+
+  it('hides the caller environment from git', async () => {
+    const dir = await repo();
+    const shims = await scratchDir();
+    const seen = path.join(shims, 'seen');
+    const realGit = execFileSync('sh', ['-c', 'command -v git'], {
+      env,
+      encoding: 'utf8',
+    }).trim();
+    await writeFile(
+      path.join(shims, 'git'),
+      `#!/bin/sh\nprintf '%s\\n' "\${PROBE_SECRET-unset}" >> '${seen}'\nexec '${realGit}' "$@"\n`,
+      { mode: 0o755 },
+    );
+
+    await snapshot(dir, {
+      ...env,
+      PATH: `${shims}${path.delimiter}${env.PATH}`,
+      PROBE_SECRET: 'credential',
+    });
+
+    const values = new Set((await readFile(seen, 'utf8')).trim().split('\n'));
+    expect(values).toEqual(new Set(['unset']));
   });
 
   it('lists an exclude rule added to hide a new file', async () => {

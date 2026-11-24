@@ -13,17 +13,19 @@
 // Known limits, accepted because the check is the loud backstop and deny-all
 // plus the confirmed read-only mode are the prevention (each would need a raw
 // hash of every tracked file or a directory walk on every run):
-// - a clean filter that normalizes the changed bytes back to the indexed
-//   content;
+// - a byte change that git's built-in conversions (line endings, `ident`,
+//   working-tree-encoding) normalize back to the indexed content;
 // - a case-only rename on a case-insensitive filesystem;
 // - files changed inside an untracked nested git repository (status lists
 //   only the directory).
 //
-// Nothing writes objects or the
-// index: no `git add`, and status runs with --no-optional-locks so it never
-// takes index.lock or refreshes the index. git runs with shell:false and
-// with git's repository-local environment variables cleared, so an inherited
-// GIT_DIR or GIT_INDEX_FILE cannot point it at another repository.
+// Every configured filter driver is switched off for these commands, so
+// status compares raw bytes and never runs a filter command, including one a
+// peer added to the repository config. Nothing writes objects or the index:
+// no `git add`, and status runs with --no-optional-locks so it never takes
+// index.lock or refreshes the index. git runs with shell:false and an
+// allowlisted environment, so it never sees the caller's credentials and an
+// inherited GIT_DIR or GIT_INDEX_FILE cannot point it at another repository.
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
@@ -33,6 +35,21 @@ import path from 'node:path';
 const GIT_TIMEOUT_MS = 30_000;
 const GIT_MAX_BUFFER = 64 * 1024 * 1024;
 const MAX_LISTED_PATHS = 20;
+// What git needs to find itself, the user's global config, and a locale.
+const SNAPSHOT_ENV_ALLOWLIST = [
+  'PATH',
+  'HOME',
+  'XDG_CONFIG_HOME',
+  'TMPDIR',
+  'TEMP',
+  'TMP',
+  'USER',
+  'LOGNAME',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'GIT_CEILING_DIRECTORIES',
+] as const;
 // Status must look at the files themselves: no fsmonitor daemon or hook, no
 // cached untracked-directory results, and no index refresh written back.
 const TRUTHFUL_STATUS_CONFIG = [
@@ -70,18 +87,18 @@ export async function snapshotWorkingTree(
 ): Promise<WorkingTreeSnapshotResult> {
   const git = gitRunner(cwd, options);
   try {
-    const env = await git.cleanEnv();
-    const inside = await git.run(env, ['rev-parse', '--is-inside-work-tree']);
+    const inside = await git.run(['rev-parse', '--is-inside-work-tree']);
     if (inside.trim() !== 'true') {
       return { ok: false, message: `${cwd} is not inside a git work tree` };
     }
-    const root = (await git.run(env, ['rev-parse', '--show-toplevel'])).trim();
+    const root = (await git.run(['rev-parse', '--show-toplevel'])).trim();
     const head = (
-      await git.run(env, ['rev-parse', '--verify', '--quiet', 'HEAD'], {
+      await git.run(['rev-parse', '--verify', '--quiet', 'HEAD'], {
         allowExit: [1],
       })
     ).trim();
-    const raw = await git.run(env, [
+    const unfiltered = await git.withoutFilters();
+    const raw = await unfiltered.run([
       ...TRUTHFUL_STATUS_CONFIG,
       'status',
       '--porcelain=v1',
@@ -91,7 +108,7 @@ export async function snapshotWorkingTree(
     ]);
     const status = parsePorcelainZ(raw);
     const hidden = parseHiddenIndexEntries(
-      await git.run(env, [...TRUTHFUL_STATUS_CONFIG, 'ls-files', '-v', '-z']),
+      await unfiltered.run([...TRUTHFUL_STATUS_CONFIG, 'ls-files', '-v', '-z']),
     );
     const content = new Map<string, string>();
     for (const file of new Set([...status.keys(), ...hidden])) {
@@ -99,7 +116,7 @@ export async function snapshotWorkingTree(
     }
     const exclude = path.resolve(
       cwd,
-      (await git.run(env, ['rev-parse', '--git-path', 'info/exclude'])).trim(),
+      (await git.run(['rev-parse', '--git-path', 'info/exclude'])).trim(),
     );
     const excludeKey = path.relative(root, exclude).startsWith('..')
       ? exclude
@@ -234,12 +251,56 @@ function isMissing(error: unknown) {
 }
 
 function gitRunner(cwd: string, options: WorkingTreeOptions) {
-  const base = options.env ?? process.env;
-  const run = (
-    env: NodeJS.ProcessEnv,
-    args: string[],
-    runOptions: { allowExit?: number[] } = {},
-  ) =>
+  const env = snapshotEnv(options.env ?? process.env);
+  const run = runGit(cwd, env);
+  return {
+    run,
+    // A runner with every configured filter driver switched off. The
+    // overrides go through GIT_CONFIG_COUNT because `-c` splits at the first
+    // `=` and so cannot name a driver whose name contains one.
+    async withoutFilters() {
+      const keys = await run(
+        ['config', '-z', '--name-only', '--get-regexp', '^filter\\.'],
+        { allowExit: [1] },
+      );
+      const drivers = new Set<string>();
+      for (const key of keys.split('\0')) {
+        const end = key.lastIndexOf('.');
+        if (key.startsWith('filter.') && end > 'filter.'.length) {
+          drivers.add(key.slice('filter.'.length, end));
+        }
+      }
+      const overrides = [...drivers].flatMap((driver) => [
+        [`filter.${driver}.clean`, ''],
+        [`filter.${driver}.smudge`, ''],
+        [`filter.${driver}.process`, ''],
+        [`filter.${driver}.required`, 'false'],
+      ]);
+      const unfiltered: NodeJS.ProcessEnv = {
+        ...env,
+        GIT_CONFIG_COUNT: String(overrides.length),
+      };
+      overrides.forEach(([key, value], index) => {
+        unfiltered[`GIT_CONFIG_KEY_${index}`] = key;
+        unfiltered[`GIT_CONFIG_VALUE_${index}`] = value;
+      });
+      return { run: runGit(cwd, unfiltered) };
+    },
+  };
+}
+
+// Only allowlisted variables reach git: no credentials, none of git's
+// repository-local variables, and no inherited config injection.
+function snapshotEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { GIT_OPTIONAL_LOCKS: '0' };
+  for (const name of SNAPSHOT_ENV_ALLOWLIST) {
+    if (base[name] !== undefined) env[name] = base[name];
+  }
+  return env;
+}
+
+function runGit(cwd: string, env: NodeJS.ProcessEnv) {
+  return (args: string[], runOptions: { allowExit?: number[] } = {}) =>
     new Promise<string>((resolve, reject) => {
       execFile(
         'git',
@@ -270,16 +331,4 @@ function gitRunner(cwd: string, options: WorkingTreeOptions) {
         },
       );
     });
-  return {
-    run,
-    // Drops the variables git itself names as repository-local.
-    async cleanEnv(): Promise<NodeJS.ProcessEnv> {
-      const names = await run(base, ['rev-parse', '--local-env-vars']);
-      const env: NodeJS.ProcessEnv = { ...base, GIT_OPTIONAL_LOCKS: '0' };
-      for (const name of names.split(/\r?\n/)) {
-        if (name) delete env[name];
-      }
-      return env;
-    },
-  };
 }
