@@ -5277,32 +5277,51 @@ async function runCheckedExtendedTurn(request, dependencies, trace, turnOptions 
       terminalReason: "working_tree_unavailable"
     });
   }
-  const envelope = await runStructuredTurn(
-    request,
-    dependencies,
-    trace,
-    turnOptions
-  );
-  if (!trace.process) return envelope;
+  let envelope;
+  let runError;
+  try {
+    envelope = await runStructuredTurn(
+      request,
+      dependencies,
+      trace,
+      turnOptions
+    );
+  } catch (error) {
+    runError = error;
+  }
+  if (envelope && !trace.process) return envelope;
   const after = await snapshotWorkingTree(cwd, { env });
   const found = after.ok ? compareWorkingTrees(before.snapshot, after.snapshot) : void 0;
-  if (found && !hasWorkingTreeChanges(found)) return envelope;
+  if (found && !hasWorkingTreeChanges(found)) {
+    if (envelope) return envelope;
+    throw runError;
+  }
   const changes = found && { ...found, paths: found.paths.map(redact) };
-  const outcome = envelope.ok ? "succeeded" : `failed with ${envelope.code}`;
-  const message = after.ok ? `The working tree changed during a read-only ${request.provider} run: ${describeWorkingTreeChanges(changes)}. Review and revert these changes; the turn ${outcome}.` : `The working tree could not be re-checked after a read-only ${request.provider} run (${redact(after.message)}); treat it as changed and review it. The turn ${outcome}.`;
+  const runFailure = envelope ? void 0 : redact(runError instanceof Error ? runError.message : String(runError));
+  const outcome = envelope ? `turn ${envelope.ok ? "succeeded" : `failed with ${envelope.code}`}` : `run failed: ${runFailure}`;
+  if (!envelope) {
+    trace.process ??= { ok: false, stdout: "" };
+    trace.turn = "unknown";
+  }
+  const message = after.ok ? `The working tree changed during a read-only ${request.provider} run: ${describeWorkingTreeChanges(changes)}. Review and revert these changes; the ${outcome}.` : `The working tree could not be re-checked after a read-only ${request.provider} run (${redact(after.message)}); treat it as changed and review it. The ${outcome}.`;
+  const warnings = [
+    ...envelope?.diagnostics?.warnings ?? [],
+    ...runFailure !== void 0 ? [`The run failed: ${runFailure}`] : []
+  ];
   return failureEnvelope({
     provider: request.provider,
     code: "PROVIDER_WORKTREE_CHANGED",
     message,
     retryable: false,
-    stdout: envelope.stdout,
-    stderr: envelope.stderr,
+    stdout: envelope?.stdout,
+    stderr: envelope?.stderr,
     attempts: {
-      cli_attempts: envelope.attempts.cli_attempts,
+      cli_attempts: envelope?.attempts.cli_attempts ?? 1,
       terminal_reason: "working_tree_changed"
     },
     diagnostics: {
-      ...envelope.diagnostics,
+      ...envelope?.diagnostics,
+      ...warnings.length > 0 ? { warnings } : {},
       ...changes ? { working_tree_changes: workingTreeChangeList(changes) } : {}
     }
   });

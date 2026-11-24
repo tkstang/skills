@@ -25,6 +25,8 @@ import type {
   ConsensusCliRunRequest,
 } from '../types.js';
 import { acpAdapter } from './adapter.js';
+import type { AcpTransport } from './client.js';
+import { stdioAcpTransport } from './client.js';
 import type { AcpProviderDescriptor } from './descriptors.js';
 import { ANTIGRAVITY_DESCRIPTOR, DROID_DESCRIPTOR } from './descriptors.js';
 import type { FakeAgentHarness, Scenario } from './test-helpers.js';
@@ -84,6 +86,7 @@ interface SetupOptions {
   parentEnv?: Record<string, string>;
   // Written as the user consensus config.
   userConfig?: unknown;
+  transport?: AcpTransport;
 }
 
 async function setup(
@@ -110,7 +113,11 @@ async function setup(
     ...options.parentEnv,
   };
   const registry = providerRegistry([
-    acpAdapter(descriptor, { spawn: harness.spawn, timing: FAST_ACP_TIMING }),
+    acpAdapter(descriptor, {
+      spawn: harness.spawn,
+      timing: FAST_ACP_TIMING,
+      ...(options.transport ? { transport: options.transport } : {}),
+    }),
   ]);
   return { harness, cwd, parentEnv, registry };
 }
@@ -618,6 +625,54 @@ describe('extended runs through runProviderTurn', () => {
       'run: <redacted>.txt.',
     );
     expect(JSON.stringify(envelope)).not.toContain(secret);
+  });
+
+  // Stands in for a cleanup that rejects after the turn, such as removing the
+  // private settings directory.
+  const failingCleanup: AcpTransport = {
+    async run(input) {
+      await stdioAcpTransport.run(input);
+      throw new Error('cleanup failed');
+    },
+  };
+
+  it('fails as changed, keeping the error, when a run that wrote a file then throws', async () => {
+    const scenario = insertAfter(
+      await agySession(),
+      expects('session/prompt'),
+      [{ writeFile: { path: 'peer-note.txt', content: 'written\n' } }],
+    );
+    const { envelope } = await runTurn(
+      ANTIGRAVITY_DESCRIPTOR,
+      scenario,
+      { model: 'gemini-3.8-flash' },
+      { transport: failingCleanup },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_WORKTREE_CHANGED',
+      attempts: { terminal_reason: 'working_tree_changed' },
+      diagnostics: {
+        working_tree_changes: ['peer-note.txt'],
+        warnings: ['The run failed: cleanup failed'],
+      },
+      continuation: { turn: 'unknown' },
+    });
+    expect(envelope.ok === false && envelope.message).toContain(
+      'the run failed: cleanup failed.',
+    );
+  });
+
+  it('lets the error through when a run that changed nothing throws', async () => {
+    await expect(
+      runTurn(
+        ANTIGRAVITY_DESCRIPTOR,
+        await agySession(),
+        { model: 'gemini-3.8-flash' },
+        { transport: failingCleanup },
+      ),
+    ).rejects.toThrow('cleanup failed');
   });
 
   it('refuses to launch outside a git checkout', async () => {

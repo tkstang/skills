@@ -364,7 +364,8 @@ async function extendedProviderModel(
 }
 
 // Snapshots the checkout before an extended read-only turn and compares it
-// after the provider's process group is gone. Any change fails the run with
+// once the turn returns or throws, after the bounded teardown of the
+// provider's process group. Any change fails the run with
 // PROVIDER_WORKTREE_CHANGED and the changed paths, whatever the turn
 // returned; the receipt keeps the turn's own state.
 async function runCheckedExtendedTurn(
@@ -403,39 +404,66 @@ async function runCheckedExtendedTurn(
       terminalReason: 'working_tree_unavailable',
     });
   }
-  const envelope = await runStructuredTurn(
-    request,
-    dependencies,
-    trace,
-    turnOptions,
-  );
-  if (!trace.process) return envelope;
+  // A run that throws after launch (its private settings directory could not
+  // be removed, say) is still checked: a change is reported with the error,
+  // and an unchanged checkout lets the error propagate.
+  let envelope: ConsensusCliRunEnvelope | undefined;
+  let runError: unknown;
+  try {
+    envelope = await runStructuredTurn(
+      request,
+      dependencies,
+      trace,
+      turnOptions,
+    );
+  } catch (error) {
+    runError = error;
+  }
+  if (envelope && !trace.process) return envelope;
 
   const after = await snapshotWorkingTree(cwd, { env });
   const found = after.ok
     ? compareWorkingTrees(before.snapshot, after.snapshot)
     : undefined;
-  if (found && !hasWorkingTreeChanges(found)) return envelope;
+  if (found && !hasWorkingTreeChanges(found)) {
+    if (envelope) return envelope;
+    throw runError;
+  }
   const changes = found && { ...found, paths: found.paths.map(redact) };
-  const outcome = envelope.ok ? 'succeeded' : `failed with ${envelope.code}`;
+  const runFailure = envelope
+    ? undefined
+    : redact(runError instanceof Error ? runError.message : String(runError));
+  const outcome = envelope
+    ? `turn ${envelope.ok ? 'succeeded' : `failed with ${envelope.code}`}`
+    : `run failed: ${runFailure}`;
+  if (!envelope) {
+    // The turn was launched, but whether it was accepted is not known.
+    trace.process ??= { ok: false, stdout: '' };
+    trace.turn = 'unknown';
+  }
   // A checkout that can no longer be read (its .git removed, say) is
   // reported as changed.
   const message = after.ok
-    ? `The working tree changed during a read-only ${request.provider} run: ${describeWorkingTreeChanges(changes!)}. Review and revert these changes; the turn ${outcome}.`
-    : `The working tree could not be re-checked after a read-only ${request.provider} run (${redact(after.message)}); treat it as changed and review it. The turn ${outcome}.`;
+    ? `The working tree changed during a read-only ${request.provider} run: ${describeWorkingTreeChanges(changes!)}. Review and revert these changes; the ${outcome}.`
+    : `The working tree could not be re-checked after a read-only ${request.provider} run (${redact(after.message)}); treat it as changed and review it. The ${outcome}.`;
+  const warnings = [
+    ...(envelope?.diagnostics?.warnings ?? []),
+    ...(runFailure !== undefined ? [`The run failed: ${runFailure}`] : []),
+  ];
   return failureEnvelope({
     provider: request.provider,
     code: 'PROVIDER_WORKTREE_CHANGED',
     message,
     retryable: false,
-    stdout: envelope.stdout,
-    stderr: envelope.stderr,
+    stdout: envelope?.stdout,
+    stderr: envelope?.stderr,
     attempts: {
-      cli_attempts: envelope.attempts.cli_attempts,
+      cli_attempts: envelope?.attempts.cli_attempts ?? 1,
       terminal_reason: 'working_tree_changed',
     },
     diagnostics: {
-      ...envelope.diagnostics,
+      ...envelope?.diagnostics,
+      ...(warnings.length > 0 ? { warnings } : {}),
       ...(changes
         ? { working_tree_changes: workingTreeChangeList(changes) }
         : {}),
