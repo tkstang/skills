@@ -3,6 +3,12 @@
 Toolkit SemVer and `session-toolkit-vX.Y.Z` tags are independent of Skills and
 plugin versions. These notes describe package content, not publication receipts.
 
+## [Unreleased]
+
+- Render queued Claude Code prompts once when the captured records include
+  their delivery. Keep API request snapshots in the raw records and omit them
+  from the conversation.
+
 ## [0.2.0]
 
 - Read the latest page with `seshtk read --from-end` or `seshtk parse --from-end`.

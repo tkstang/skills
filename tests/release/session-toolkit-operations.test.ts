@@ -141,6 +141,63 @@ function cli(
   };
 }
 describe('built operational CLI', () => {
+  it('renders a delivered Claude prompt once and keeps identical repeated and pending prompts', async () =>
+    fixture(async (home, cwd, paths) => {
+      const prompt = 'Review the fixture plan.';
+      const records = [
+        { type: 'queue-operation', operation: 'enqueue', content: prompt },
+        { type: 'queue-operation', operation: 'dequeue' },
+        { type: 'attachment', attachment: { type: 'hook_success' } },
+        {
+          type: 'user',
+          origin: { kind: 'human' },
+          promptSource: 'sdk',
+          message: { content: prompt },
+        },
+        {
+          type: 'api-request-blob',
+          message: { role: 'user', content: [{ type: 'text', text: prompt }] },
+        },
+        { type: 'assistant', message: { content: 'Fixture reviewed.' } },
+        { type: 'user', promptSource: 'typed', message: { content: prompt } },
+        { type: 'queue-operation', operation: 'enqueue', content: prompt },
+      ].map((record) => ({ ...record, sessionId: ID, cwd }));
+      await writeFile(
+        paths['claude-code'],
+        records.map((record) => JSON.stringify(record)).join('\n') + '\n',
+      );
+      const target = ['--session', `claude-code:${ID}`];
+      const plain = cli(home, cwd, ['read', ...target]);
+      expect(plain.status, plain.stderr).toBe(0);
+      const machine = cli(home, cwd, ['read', ...target, '--json']);
+      expect(machine.status).toBe(0);
+      const out = join(home, 'queue.md');
+      const exported = cli(home, cwd, [
+        'export',
+        ...target,
+        '--out',
+        out,
+        '--json',
+      ]);
+      expect(exported.status).toBe(0);
+
+      expect(
+        plain.stdout.split('\n').filter((line) => line === `[user] ${prompt}`),
+      ).toHaveLength(3);
+      expect(
+        (await readFile(out, 'utf8'))
+          .split('\n')
+          .filter((line) => line === prompt),
+      ).toHaveLength(3);
+      expect(
+        machine.value.data.messages.map(
+          (message: { recordIndex: number }) => message.recordIndex,
+        ),
+      ).toEqual([3, 5, 6, 7]);
+      expect(machine.value.data.messages[0].origin).toBe('human');
+      expect(machine.value.data.messages[3].displayRole).toBe('queued-user');
+      expect(machine.value.data.records).toHaveLength(records.length);
+    }));
   it('accepts backward paging for session reads and explicit files', async () =>
     fixture(async (home, cwd, paths) => {
       for (const target of [

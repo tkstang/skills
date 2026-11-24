@@ -185,6 +185,7 @@ function decodeBefore(
  * Prefix counts are nondecreasing for Codex (correlation only adds answers),
  * Cursor (settled groups retain the question/user tail and add terminal output),
  * and Claude except when a reused tool ID changes an earlier answer's type.
+ * A matched Claude dequeue replaces one queued entry with one user entry.
  * With tool results included, both Claude result forms still contribute one.
  */
 function mayReduceMessageCount(
