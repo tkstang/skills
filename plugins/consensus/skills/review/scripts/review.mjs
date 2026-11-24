@@ -709,6 +709,7 @@ function attach(child, options) {
   let stderrBytes = 0;
   let stderrKept = "";
   let stderrKeptBytes = 0;
+  let stderrCut = false;
   let capped = false;
   let stdinClosed = false;
   let stdoutEnded = false;
@@ -738,11 +739,11 @@ function attach(child, options) {
   child.stdout.on("end", endStdout);
   child.stderr.on("data", (chunk) => {
     if (!countOutput("stderr", chunk)) return;
-    const room = maxStderrBytes - stderrKeptBytes;
-    if (room <= 0) return;
-    const kept = takeUtf8Prefix(chunk, room);
+    if (stderrCut) return;
+    const kept = takeUtf8Prefix(chunk, maxStderrBytes - stderrKeptBytes);
     stderrKept += kept.text;
     stderrKeptBytes += kept.bytes;
+    if (kept.bytes < Buffer.byteLength(chunk)) stderrCut = true;
   });
   child.on("exit", (code, signal) => {
     exited = { code, signal };

@@ -179,6 +179,9 @@ function attach(
   let stderrBytes = 0;
   let stderrKept = '';
   let stderrKeptBytes = 0;
+  // Set at the first cut chunk; later chunks are counted, not kept, so a
+  // later newline cannot complete a line the cut damaged.
+  let stderrCut = false;
   let capped = false;
   let stdinClosed = false;
   let stdoutEnded = false;
@@ -208,11 +211,11 @@ function attach(
   child.stdout.on('end', endStdout);
   child.stderr.on('data', (chunk: string) => {
     if (!countOutput('stderr', chunk)) return;
-    const room = maxStderrBytes - stderrKeptBytes;
-    if (room <= 0) return;
-    const kept = takeUtf8Prefix(chunk, room);
+    if (stderrCut) return;
+    const kept = takeUtf8Prefix(chunk, maxStderrBytes - stderrKeptBytes);
     stderrKept += kept.text;
     stderrKeptBytes += kept.bytes;
+    if (kept.bytes < Buffer.byteLength(chunk)) stderrCut = true;
   });
   child.on('exit', (code, signal) => {
     exited = { code, signal };

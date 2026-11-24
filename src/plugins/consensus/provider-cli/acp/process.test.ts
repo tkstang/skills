@@ -81,6 +81,31 @@ describe('spawnProcessGroup', () => {
     });
   });
 
+  it('keeps stderr closed after a multibyte cut so a later newline cannot end the cut line', async () => {
+    // Writes 'ok\nBearer eeeé' (2-byte é), then on stdin writes a lone
+    // newline as a separate stderr chunk and exits.
+    const source = [
+      "process.stderr.write('ok\\nBearer eee\\u00e9');",
+      "process.stdin.on('data', () => process.stderr.write('\\n', () => process.exit(0)));",
+    ].join(' ');
+    // One byte of room is left at the é, which the newline could fill.
+    const spawned = await spawnProcessGroup(
+      options({
+        argv: ['-e', source],
+        maxStderrBytes: 'ok\nBearer eee'.length + 1,
+      }),
+    );
+    if (!spawned.ok) throw new Error(spawned.message);
+    const { handle } = spawned;
+
+    await waitFor(() => handle.outputBytes().stderr === 15);
+    handle.write('go\n');
+    await waitFor(() => handle.outputBytes().stderr === 16);
+    await handle.teardown(TEARDOWN);
+
+    expect(handle.stderr()).toBe('ok\n');
+  });
+
   it.skipIf(process.platform === 'win32')(
     'forwards an interrupt to the caller and removes its listeners at teardown',
     async () => {
