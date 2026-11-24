@@ -1793,7 +1793,7 @@ function classifyAcpTurn(result, options = {}) {
       if (entry.pattern.test(text)) {
         return failure2(
           entry.code,
-          `${name} reported an error instead of an answer: ${firstLine(text)}`,
+          `${name} reported an error instead of an answer: ${firstLine(redactText(text))}`,
           entry.code === "PROVIDER_LIMIT_REACHED" ? "provider_limit_reached" : "acp_error_text",
           "completed"
         );

@@ -147,6 +147,25 @@ describe('classifyAcpTurn', () => {
         'The ACP agent reported an error instead of an answer: ⚠ agent executor error: generating and executing: Error 500',
     });
   });
+
+  it('redacts credential shapes from the error line it reports', () => {
+    const result = turn({
+      stop_reason: 'end_turn',
+      text: 'agent executor error: Bearer abcdefghijklmnopqrstuv',
+    });
+
+    const classification = classifyAcpTurn(result, {
+      errorTextPatterns: [
+        { pattern: /agent executor error/i, code: 'PROVIDER_EXIT' },
+      ],
+    });
+
+    expect(classification).toMatchObject({
+      ok: false,
+      message:
+        'The ACP agent reported an error instead of an answer: agent executor error: <redacted>',
+    });
+  });
 });
 
 describe('redactText', () => {

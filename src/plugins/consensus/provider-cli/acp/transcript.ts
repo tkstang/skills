@@ -399,9 +399,12 @@ export function classifyAcpTurn(
   if (result.stop_reason === 'end_turn') {
     for (const entry of options.errorTextPatterns ?? []) {
       if (entry.pattern.test(text)) {
+        // Error text, not an answer: the default credential shapes come out
+        // too (literal values and descriptor patterns already did), before
+        // the line is shortened.
         return failure(
           entry.code,
-          `${name} reported an error instead of an answer: ${firstLine(text)}`,
+          `${name} reported an error instead of an answer: ${firstLine(redactText(text))}`,
           entry.code === 'PROVIDER_LIMIT_REACHED'
             ? 'provider_limit_reached'
             : 'acp_error_text',
