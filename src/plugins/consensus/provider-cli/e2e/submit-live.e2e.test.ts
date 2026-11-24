@@ -11,7 +11,7 @@ import {
 } from '../structured-output.js';
 import type {
   ConsensusCliRunRequest,
-  FirstScopeProviderId,
+  CoreProviderId,
   ProviderRuntimePolicy,
 } from '../types.js';
 
@@ -87,7 +87,7 @@ describe('live provider submit E2E', () => {
 
 function resolveLiveConfig():
   | {
-      provider: FirstScopeProviderId;
+      provider: CoreProviderId;
       runtimePolicy: ProviderRuntimePolicy;
       cliPath: string;
     }
@@ -103,7 +103,7 @@ function resolveLiveConfig():
   };
 }
 
-function liveProvider(): FirstScopeProviderId {
+function liveProvider(): CoreProviderId {
   const value = process.env.CONSENSUS_LIVE_SUBMIT_PROVIDER ?? 'codex';
   if (value === 'claude' || value === 'codex' || value === 'cursor') {
     return value;
@@ -113,7 +113,7 @@ function liveProvider(): FirstScopeProviderId {
   );
 }
 
-function liveProviderIsReady(cliPath: string, provider: FirstScopeProviderId) {
+function liveProviderIsReady(cliPath: string, provider: CoreProviderId) {
   const result = spawnSync(
     process.execPath,
     [
@@ -150,9 +150,7 @@ function liveProviderIsReady(cliPath: string, provider: FirstScopeProviderId) {
   }
 }
 
-function runtimePolicyFor(
-  provider: FirstScopeProviderId,
-): ProviderRuntimePolicy {
+function runtimePolicyFor(provider: CoreProviderId): ProviderRuntimePolicy {
   if (provider === 'codex') {
     return {
       permission_mode: 'non-interactive',

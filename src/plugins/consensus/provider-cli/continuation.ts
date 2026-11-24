@@ -41,8 +41,11 @@ export function continuationMode(
 }
 
 // Returns a usage message for contradictory or unsafe continuation requests.
+// `isSessionId` is the adapter's session-id rule; omitted, the lowercase UUID
+// rule applies.
 export function continuationUsageError(
   request: ConsensusCliRunRequest,
+  isSessionId?: (value: string) => boolean,
 ): string | undefined {
   const continuation = request.continuation;
   if (!continuation) return undefined;
@@ -91,8 +94,11 @@ export function continuationUsageError(
   if (!continuation.session_id) {
     return 'Native resume requires an explicit provider session id.';
   }
-  if (!isProviderSessionId(continuation.session_id)) {
+  if (!isSessionId && !isProviderSessionId(continuation.session_id)) {
     return 'Native resume requires a lowercase provider session UUID, as reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
+  }
+  if (isSessionId && !isSessionId(continuation.session_id)) {
+    return 'Native resume requires the provider session id reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
   }
   if (continuation.previous_session_id !== undefined) {
     return 'Native resume continues the --resume session itself; --previous-session applies only to reconstructed continuation.';
@@ -167,6 +173,9 @@ export function continuationReceipt(input: {
   consultationId: string;
   trace: ProviderTurnTrace;
   fallbackReason?: string;
+  // The configured model an extended provider ran with because the caller
+  // named none; `requested_model` stays the caller's.
+  defaultModel?: string;
 }): ContinuationReceipt {
   const { request, adapter, mode, trace } = input;
   const observation: ProviderSessionObservation =
@@ -192,6 +201,7 @@ export function continuationReceipt(input: {
     ...(round !== undefined ? { round } : {}),
     cwd: path.resolve(request.cwd ?? process.cwd()),
     ...(request.model ? { requested_model: request.model } : {}),
+    ...(input.defaultModel ? { default_model: input.defaultModel } : {}),
     ...(request.effort ? { requested_effort: request.effort } : {}),
     ...(observation.observed_models
       ? { observed_models: observation.observed_models }

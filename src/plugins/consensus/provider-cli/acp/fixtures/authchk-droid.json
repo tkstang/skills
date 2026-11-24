@@ -1,0 +1,18 @@
+{
+  "source": {
+    "log": "authchk-droid.jsonl",
+    "lines": "1-4",
+    "agent": {
+      "name": "@factory/cli",
+      "version": "1.16.0"
+    },
+    "sanitized": "Sanitized from the ACP spike logs: home paths replaced with /home/user, emails and key or token shapes redacted, availableCommands emptied (they list installed skills), model and option lists trimmed to 5 entries plus the current and requested values; client-sent frames reduced to the expected method.",
+    "notes": "The live pairing code is replaced with the synthetic code QZXW-7342 so redaction can be tested."
+  },
+  "steps": [
+    {"expect":"initialize"},
+    {"respond":{"result":{"protocolVersion":1,"agentCapabilities":{"loadSession":true,"sessionCapabilities":{"list":{},"resume":{},"close":{},"fork":{}},"promptCapabilities":{"image":true,"embeddedContext":true},"mcpCapabilities":{"http":true,"sse":true},"auth":{"logout":{},"status":{}},"_meta":{"terminal-auth":true,"factory":{"modelsList":true,"promptWhileRunning":true,"messageRetraction":true}}},"agentInfo":{"name":"@factory/cli","title":"Factory Droid","version":"1.16.0"},"authMethods":[{"id":"device-pairing","name":"Login","description":"Authenticate with Factory using a device pairing code in your browser."},{"id":"factory-api-key","name":"Factory API Key","description":"Authenticate using a Factory API key set in the FACTORY_API_KEY environment variable."}]}}},
+    {"expect":"session/new"},
+    {"respond":{"error":{"code":-32000,"message":"Authentication required: \n\nYour code: QZXW-7342\n\nClick the \"Login\" button to authenticate, or set a FACTORY_API_KEY environment variable."}}}
+  ]
+}

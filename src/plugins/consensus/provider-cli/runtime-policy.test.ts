@@ -4,13 +4,17 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { providerRegistry } from '../provider-cli/adapters.js';
+import {
+  providerExecutableEnvNames,
+  providerRegistry,
+} from '../provider-cli/adapters.js';
 import {
   normalizeRunRequest,
   parseConsensusCliArgs,
 } from '../provider-cli/args.js';
 import {
   buildChildEnvironment,
+  type BuildChildEnvironmentInput,
   buildProviderProbeEnvironment,
   defaultRuntimePolicy,
   redactedRuntimePolicyDiagnostics,
@@ -18,7 +22,6 @@ import {
 } from '../provider-cli/runtime-policy.js';
 import type {
   ConsensusCliRunRequest,
-  ProviderCapabilities,
   ProviderRuntimePolicy,
 } from '../provider-cli/types.js';
 
@@ -36,7 +39,7 @@ describe('provider runtime policy validation', () => {
           env_allowlist: ['OPENAI_API_KEY'],
         },
       }),
-      capabilities('codex'),
+      adapterFor('codex'),
     );
 
     expect(result).toEqual({ ok: true });
@@ -46,7 +49,7 @@ describe('provider runtime policy validation', () => {
     expect(
       validateProviderOptions(
         request({ provider: 'cursor', model: 'cursor-model' }),
-        capabilities('cursor'),
+        adapterFor('cursor'),
       ),
     ).toMatchObject({
       ok: true,
@@ -57,7 +60,7 @@ describe('provider runtime policy validation', () => {
     expect(
       validateProviderOptions(
         request({ provider: 'cursor', effort: 'high' }),
-        capabilities('cursor'),
+        adapterFor('cursor'),
       ),
     ).toMatchObject({
       ok: false,
@@ -71,7 +74,7 @@ describe('provider runtime policy validation', () => {
           provider: 'claude',
           runtime_policy: { sandbox: 'workspace-write' },
         }),
-        capabilities('claude'),
+        adapterFor('claude'),
       ),
     ).toMatchObject({
       ok: false,
@@ -97,7 +100,7 @@ describe('provider runtime policy validation', () => {
           provider: 'codex',
           runtime_policy: { read_paths: ['/private/brief.md'] },
         }),
-        capabilities('codex'),
+        adapterFor('codex'),
       ),
     ).toMatchObject({ ok: false, option: 'runtime_policy.scoped_tools' });
     expect(
@@ -106,7 +109,7 @@ describe('provider runtime policy validation', () => {
           provider: 'claude',
           runtime_policy: { read_paths: ['/private/**'] },
         }),
-        capabilities('claude'),
+        adapterFor('claude'),
       ),
     ).toMatchObject({ ok: false, option: 'runtime_policy.read_paths' });
     expect(
@@ -118,7 +121,7 @@ describe('provider runtime policy validation', () => {
             web_search: true,
           },
         }),
-        capabilities('claude'),
+        adapterFor('claude'),
       ),
     ).toMatchObject({ ok: false, option: 'runtime_policy.permission_mode' });
   });
@@ -159,7 +162,7 @@ describe('provider runtime policy validation', () => {
       expect(
         validateProviderOptions(
           request({ ...overrides, max_attempts: 3 }),
-          capabilities(overrides.provider as 'claude' | 'codex' | 'cursor'),
+          adapterFor(overrides.provider as 'claude' | 'codex' | 'cursor'),
         ),
       ).toEqual({ ok: true });
     });
@@ -204,7 +207,7 @@ describe('provider runtime policy validation', () => {
       expect(
         validateProviderOptions(
           request({ ...overrides, max_attempts: 2 }),
-          capabilities(id),
+          adapterFor(id),
         ),
       ).toMatchObject({
         ok: false,
@@ -214,7 +217,7 @@ describe('provider runtime policy validation', () => {
       expect(
         validateProviderOptions(
           request({ ...overrides, max_attempts: 1 }),
-          capabilities(id),
+          adapterFor(id),
         ),
       ).toEqual({ ok: true });
     });
@@ -293,7 +296,7 @@ describe('provider runtime policy validation', () => {
       ],
     ])('rejects %s', async (_label, build, message) => {
       expect(
-        validateProviderOptions(await build(), capabilities('cursor')),
+        validateProviderOptions(await build(), adapterFor('cursor')),
       ).toEqual({
         ok: false,
         code: 'PROVIDER_UNSUPPORTED_OPTION',
@@ -307,7 +310,7 @@ describe('provider runtime policy validation', () => {
         await fromFlags(['--permission-mode', 'read-only']),
         await fromRequestJson({ permission_mode: 'read-only' }),
       ]) {
-        expect(validateProviderOptions(built, capabilities('cursor'))).toEqual({
+        expect(validateProviderOptions(built, adapterFor('cursor'))).toEqual({
           ok: true,
         });
       }
@@ -317,7 +320,7 @@ describe('provider runtime policy validation', () => {
       expect(
         validateProviderOptions(
           request({ provider: 'cursor' }),
-          capabilities('cursor'),
+          adapterFor('cursor'),
         ),
       ).toEqual({ ok: true });
     });
@@ -362,7 +365,7 @@ describe('provider runtime policy validation', () => {
       expect(
         validateProviderOptions(
           request({ provider: 'claude', runtime_policy: runtimePolicy }),
-          capabilities('claude'),
+          adapterFor('claude'),
         ),
       ).toEqual({ ok: true });
     });
@@ -384,7 +387,7 @@ describe('provider runtime policy validation', () => {
             provider: 'claude',
             runtime_policy: { permission_mode: mode, ...grants },
           }),
-          capabilities('claude'),
+          adapterFor('claude'),
         ),
       ).toMatchObject({
         ok: false,
@@ -401,7 +404,7 @@ describe('provider runtime policy validation', () => {
               provider: 'claude',
               runtime_policy: { permission_mode: mode },
             }),
-            capabilities('claude'),
+            adapterFor('claude'),
           ),
         ).toMatchObject({
           ok: false,
@@ -430,7 +433,7 @@ describe('provider runtime policy validation', () => {
                 bash_patterns: [pattern],
               },
             }),
-            capabilities('claude'),
+            adapterFor('claude'),
           ),
         ).toMatchObject({ ok: false, option: 'runtime_policy.bash_patterns' });
       }
@@ -443,7 +446,7 @@ describe('provider runtime policy validation', () => {
             provider: 'codex',
             runtime_policy: { bash_patterns: ['git status:*'] },
           }),
-          capabilities('codex'),
+          adapterFor('codex'),
         ),
       ).toMatchObject({ ok: false, option: 'runtime_policy.scoped_tools' });
     });
@@ -459,7 +462,7 @@ describe('provider runtime policy validation', () => {
             provider: 'claude',
             runtime_policy: { edit_paths: [filePath] },
           }),
-          capabilities('claude'),
+          adapterFor('claude'),
         ),
       ).toMatchObject({ ok: false, option: 'runtime_policy.edit_paths' });
     }
@@ -472,7 +475,7 @@ describe('provider runtime policy validation', () => {
             edit_paths: [path.join(directory, 'new-advisory-output.md')],
           },
         }),
-        capabilities('claude'),
+        adapterFor('claude'),
       ),
     ).toEqual({ ok: true });
   });
@@ -481,14 +484,62 @@ describe('provider runtime policy validation', () => {
     [
       'claude',
       ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'],
-      ['OPENAI_API_KEY', 'CURSOR_API_KEY'],
+      ['OPENAI_API_KEY', 'CURSOR_API_KEY', 'GEMINI_API_KEY', 'FACTORY_API_KEY'],
     ],
-    ['codex', ['OPENAI_API_KEY'], ['ANTHROPIC_API_KEY', 'CURSOR_API_KEY']],
-    ['cursor', ['CURSOR_API_KEY'], ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY']],
+    [
+      'codex',
+      ['OPENAI_API_KEY'],
+      [
+        'ANTHROPIC_API_KEY',
+        'CURSOR_API_KEY',
+        'GEMINI_API_KEY',
+        'FACTORY_API_KEY',
+      ],
+    ],
+    [
+      'cursor',
+      ['CURSOR_API_KEY'],
+      [
+        'ANTHROPIC_API_KEY',
+        'OPENAI_API_KEY',
+        'GEMINI_API_KEY',
+        'FACTORY_API_KEY',
+      ],
+    ],
+    [
+      'antigravity',
+      ['GEMINI_API_KEY'],
+      [
+        'ANTHROPIC_API_KEY',
+        'OPENAI_API_KEY',
+        'CURSOR_API_KEY',
+        'FACTORY_API_KEY',
+      ],
+    ],
+    [
+      'gemini',
+      ['GEMINI_API_KEY'],
+      [
+        'ANTHROPIC_API_KEY',
+        'OPENAI_API_KEY',
+        'CURSOR_API_KEY',
+        'FACTORY_API_KEY',
+      ],
+    ],
+    [
+      'droid',
+      ['FACTORY_API_KEY'],
+      [
+        'ANTHROPIC_API_KEY',
+        'OPENAI_API_KEY',
+        'CURSOR_API_KEY',
+        'GEMINI_API_KEY',
+      ],
+    ],
   ] as const)(
     'passes only %s provider credentials plus base and host environment',
     (provider, expectedProviderKeys, omittedProviderKeys) => {
-      const env = buildChildEnvironment({
+      const env = childEnvironment({
         parentEnv: {
           PATH: '/usr/bin',
           HOME: '/Users/test',
@@ -496,6 +547,8 @@ describe('provider runtime policy validation', () => {
           CLAUDE_CODE_OAUTH_TOKEN: 'claude-token',
           OPENAI_API_KEY: 'openai-secret',
           CURSOR_API_KEY: 'cursor-secret',
+          GEMINI_API_KEY: 'gemini-secret',
+          FACTORY_API_KEY: 'factory-secret',
           SECRET_TOKEN: 'do-not-pass',
         },
         request: request({ provider }),
@@ -530,7 +583,7 @@ describe('provider runtime policy validation', () => {
       CONSENSUS_SUBMIT_COMMAND: 'consensus submit',
     };
     const build = (output: 'json' | 'text') =>
-      buildChildEnvironment({
+      childEnvironment({
         parentEnv: { PATH: '/usr/bin', ...submitEnv },
         request: request({
           provider: 'codex',
@@ -561,7 +614,7 @@ describe('provider runtime policy validation', () => {
   });
 
   it('allows explicit env allowlist variables even when unrelated to the selected provider', () => {
-    const env = buildChildEnvironment({
+    const env = childEnvironment({
       parentEnv: {
         PATH: '/usr/bin',
         HOME: '/Users/test',
@@ -597,7 +650,7 @@ describe('provider runtime policy validation', () => {
   });
 
   it('never forwards CONSENSUS_<PROVIDER>_EXECUTABLE, even when a request allowlists it', () => {
-    const env = buildChildEnvironment({
+    const env = childEnvironment({
       parentEnv: {
         PATH: '/usr/bin',
         CONSENSUS_CLAUDE_EXECUTABLE: '/opt/bin/claude-wrapper',
@@ -621,7 +674,7 @@ describe('provider runtime policy validation', () => {
   });
 
   it('merges submit capture variables from host env without requiring allowlist', () => {
-    const env = buildChildEnvironment({
+    const env = childEnvironment({
       parentEnv: {
         PATH: '/usr/bin',
         CONSENSUS_SUBMIT_FILE: '/untrusted/capture.json',
@@ -645,7 +698,7 @@ describe('provider runtime policy validation', () => {
     const policy = {
       env_allowlist: ['CUSTOM_SECRET'],
     };
-    const env = buildChildEnvironment({
+    const env = childEnvironment({
       parentEnv: {
         CUSTOM_SECRET: 'custom-secret-value',
       },
@@ -670,6 +723,7 @@ describe('provider runtime policy validation', () => {
     'limits the %s readiness probe environment to base and selected-provider variables',
     (provider, selectedKeys) => {
       const env = buildProviderProbeEnvironment({
+        credentialEnv: providerRegistry().get(provider)!.credential_env,
         parentEnv: {
           PATH: '/usr/bin',
           HOME: '/Users/test',
@@ -680,7 +734,6 @@ describe('provider runtime policy validation', () => {
           HTTPS_PROXY: 'https://proxy.example.test',
           SECRET_TOKEN: 'do-not-pass',
         },
-        provider,
       });
 
       expect(env).toMatchObject({ PATH: '/usr/bin', HOME: '/Users/test' });
@@ -700,10 +753,26 @@ describe('provider runtime policy validation', () => {
   );
 });
 
-function capabilities(id: 'claude' | 'codex' | 'cursor'): ProviderCapabilities {
+// The run path passes the selected adapter's credentials and every registered
+// program-override name.
+function childEnvironment(
+  input: Omit<
+    BuildChildEnvironmentInput,
+    'credentialEnv' | 'executableOverrideEnv'
+  >,
+) {
+  const registry = providerRegistry();
+  return buildChildEnvironment({
+    ...input,
+    credentialEnv: registry.get(input.request.provider)!.credential_env,
+    executableOverrideEnv: providerExecutableEnvNames(registry),
+  });
+}
+
+function adapterFor(id: 'claude' | 'codex' | 'cursor') {
   const selected = providerRegistry().get(id);
   if (!selected) throw new Error(`Missing adapter fixture: ${id}`);
-  return selected.capabilities;
+  return selected;
 }
 
 function request(

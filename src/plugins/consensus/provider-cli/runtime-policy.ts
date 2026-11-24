@@ -1,10 +1,9 @@
 import { realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 
-import { PROVIDER_EXECUTABLE_ENV } from './executable.js';
+import type { ProviderAdapter } from './adapters.js';
 import type {
   ConsensusCliRunRequest,
-  ProviderCapabilities,
   ProviderErrorCode,
   ProviderRuntimePolicy,
 } from './types.js';
@@ -31,11 +30,16 @@ export interface BuildChildEnvironmentInput {
   parentEnv: Record<string, string | undefined>;
   request: ConsensusCliRunRequest;
   hostEnv: Record<string, string>;
+  // The selected adapter's `credential_env`.
+  credentialEnv: readonly string[];
+  // Every registered program-override name (providerExecutableEnvNames).
+  executableOverrideEnv: readonly string[];
 }
 
 export interface BuildProviderProbeEnvironmentInput {
   parentEnv: Record<string, string | undefined>;
-  provider: string;
+  // The probed adapter's `credential_env`.
+  credentialEnv: readonly string[];
 }
 
 export interface RedactedRuntimePolicyDiagnostics {
@@ -63,16 +67,11 @@ const BASE_ENV_ALLOWLIST = [
   'LANG',
 ] as const;
 
-const PROVIDER_ENV_ALLOWLIST = [
-  ['claude', ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN']],
-  ['codex', ['OPENAI_API_KEY']],
-  ['cursor', ['CURSOR_API_KEY']],
-] as const;
-
 export function validateProviderOptions(
   request: ConsensusCliRunRequest,
-  capabilities: ProviderCapabilities,
+  adapter: Pick<ProviderAdapter, 'capabilities' | 'isProvenReadOnly'>,
 ): ProviderOptionValidationResult {
+  const { capabilities } = adapter;
   if (request.model && !capabilities.options.model) {
     return unsupported('model', 'Provider does not support model selection.');
   }
@@ -141,10 +140,10 @@ export function validateProviderOptions(
       return unsupported(composition.option, composition.message);
     }
   }
-  if (
-    (request.max_attempts ?? 1) > 1 &&
-    !isProvenReadOnlyProfile(request.provider, policy)
-  ) {
+  // Only a proven read-only profile may retry a turn: a resubmitted turn
+  // cannot repeat its writes. The adapter decides which of its profiles
+  // qualify; an adapter without the hook always runs once.
+  if ((request.max_attempts ?? 1) > 1 && !adapter.isProvenReadOnly?.(policy)) {
     return {
       ok: false,
       code: 'CONSENSUS_CLI_USAGE',
@@ -222,24 +221,19 @@ export function validateProviderOptions(
   return { ok: true };
 }
 
-// Only these profiles may retry a turn: each is explicitly read-only, so a
-// resubmitted turn cannot repeat writes. An omitted Codex sandbox, Claude's
-// unscoped non-interactive mode (which installs no restrictions), any Bash or
-// edit grant, and every write profile run once.
-export function isProvenReadOnlyProfile(
-  provider: string,
-  policy: ProviderRuntimePolicy,
-) {
-  if (provider === 'codex') return policy.sandbox === 'read-only';
-  if (provider === 'claude') {
-    return (
-      policy.permission_mode === 'read-only' &&
-      !policy.edit_paths?.length &&
-      !policy.bash_patterns?.length
-    );
-  }
-  if (provider === 'cursor') return policy.permission_mode === 'read-only';
-  return false;
+// Claude's proven read-only profile. An edit or Bash grant can write;
+// unscoped non-interactive installs no restrictions.
+export function isClaudeReadOnlyPolicy(policy: ProviderRuntimePolicy) {
+  return (
+    policy.permission_mode === 'read-only' &&
+    !policy.edit_paths?.length &&
+    !policy.bash_patterns?.length
+  );
+}
+
+// Codex's proven read-only profile. An omitted sandbox is not read-only.
+export function isCodexReadOnlyPolicy(policy: ProviderRuntimePolicy) {
+  return policy.sandbox === 'read-only';
 }
 
 export function hasScopedToolAccess(policy: ProviderRuntimePolicy = {}) {
@@ -270,7 +264,7 @@ export interface ClaudePermissionCompositionFailure {
 }
 
 // The accepted Claude mode and grant pairings are documented in "Claude
-// permission profiles" (documentation/docs/user-guide/consensus/configuration.md);
+// permission profiles" (documentation/docs/user-guide/consensus/provider-run-controls.md);
 // every other pairing is rejected.
 export function composeClaudePermissionProfile(
   policy: ProviderRuntimePolicy,
@@ -412,15 +406,17 @@ export function buildChildEnvironment({
   parentEnv,
   request,
   hostEnv,
+  credentialEnv,
+  executableOverrideEnv,
 }: BuildChildEnvironmentInput): Record<string, string> {
   const allowedNames = new Set<string>([
     ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(request.provider),
+    ...credentialEnv,
     ...(request.runtime_policy?.env_allowlist ?? []),
   ]);
   // Parent-owned program overrides stay with consensus, even when a request
   // names them in env_allowlist.
-  for (const name of Object.values(PROVIDER_EXECUTABLE_ENV)) {
+  for (const name of executableOverrideEnv) {
     allowedNames.delete(name);
   }
   const childEnv: Record<string, string> = {};
@@ -445,11 +441,11 @@ const RESERVED_SUBMIT_ENV_PREFIX = 'CONSENSUS_SUBMIT_';
 
 export function buildProviderProbeEnvironment({
   parentEnv,
-  provider,
+  credentialEnv,
 }: BuildProviderProbeEnvironmentInput): Record<string, string> {
   const allowedNames = new Set<string>([
     ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(provider),
+    ...credentialEnv,
   ]);
   const probeEnv: Record<string, string> = {};
 
@@ -459,10 +455,6 @@ export function buildProviderProbeEnvironment({
   }
 
   return probeEnv;
-}
-
-function providerEnvAllowlist(provider: string): readonly string[] {
-  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
 }
 
 export function redactedRuntimePolicyDiagnostics(

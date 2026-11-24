@@ -1,0 +1,17 @@
+{
+  "source": {
+    "log": "gem-expose2-trusted.jsonl",
+    "lines": "1-1",
+    "agent": {
+      "name": "gemini-cli",
+      "version": "0.70.0"
+    },
+    "sanitized": "Sanitized from the ACP spike logs: home paths replaced with /home/user, emails and key or token shapes redacted, availableCommands emptied (they list installed skills), model and option lists trimmed to 5 entries plus the current and requested values; client-sent frames reduced to the expected method.",
+    "notes": "The log ends after initialize: the agent never answered and survived stdin close (trusted folder with project hooks). The agent version comes from gem-init.jsonl, recorded the same day."
+  },
+  "onStdinEnd": "ignore",
+  "steps": [
+    {"expect":"initialize"},
+    {"hang":true}
+  ]
+}

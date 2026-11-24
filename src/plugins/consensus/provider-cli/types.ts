@@ -1,8 +1,12 @@
-export const FIRST_SCOPE_PROVIDER_IDS = ['claude', 'codex', 'cursor'] as const;
+export const CORE_PROVIDER_IDS = ['claude', 'codex', 'cursor'] as const;
 
-export type FirstScopeProviderId = (typeof FIRST_SCOPE_PROVIDER_IDS)[number];
+export type CoreProviderId = (typeof CORE_PROVIDER_IDS)[number];
 
-export type ProviderId = FirstScopeProviderId | (string & {});
+export type ProviderId = CoreProviderId | (string & {});
+
+// `core` providers run through their native CLIs and may be selected
+// automatically. `extended` providers are used only when named explicitly.
+export type ProviderTier = 'core' | 'extended';
 
 export const PROVIDER_PREFLIGHT_CAPABILITIES = ['run'] as const;
 
@@ -44,6 +48,9 @@ export const OUTPUT_MODES = [
   'json_envelope',
   'last_message_file',
   'sidecar_file',
+  // An ACP session the adapter drives itself; stdout carries the normalized
+  // turn result, never raw frames.
+  'acp_session',
 ] as const;
 
 export type OutputMode = (typeof OUTPUT_MODES)[number];
@@ -88,10 +95,6 @@ export interface ProviderCapabilities {
   supports_same_host_subprocess: boolean;
   supports_host_native_dispatch: boolean;
   continuation?: ProviderContinuationCapability;
-  future_extension_kind?:
-    | 'custom_command'
-    | 'openai_compatible_base_url'
-    | 'acp_like';
 }
 
 export const FIRST_SCOPE_HOST_NATIVE_DISPATCH = {
@@ -104,6 +107,8 @@ export interface ProviderInventoryEntry {
   status: 'ready' | 'missing' | 'unavailable' | 'auth_required' | 'unsupported';
   executable?: string;
   version?: string;
+  // How to install or upgrade what is missing or outside its version pin.
+  install_hint?: string;
   capabilities: ProviderCapabilities;
   host_relation?: 'different_host' | 'same_host' | 'unknown';
   guard?:
@@ -204,12 +209,53 @@ export interface ProviderDiagnostics {
   };
   timeout_sec?: number;
   warnings?: string[];
-  permission_denials?: {
-    count: number;
-    tools: string[];
-  };
+  permission_denials?: ProviderPermissionDenials;
   permission_profile?: ProviderPermissionProfile;
   termination?: ProviderTermination;
+  // Extended (ACP) runs only.
+  acp?: ProviderAcpDiagnostics;
+  // Paths (and `HEAD`) that changed during an extended read-only turn.
+  working_tree_changes?: string[];
+}
+
+// What an ACP session reported, for diagnosis. Never answer text, raw
+// frames, tool input or credentials.
+export interface ProviderAcpDiagnostics {
+  agent?: { name?: string; title?: string; version?: string };
+  // `api_key`: the descriptor's key variable was set and the adapter
+  // authenticated with it; `existing_login`: the agent's own saved login.
+  auth: 'api_key' | 'existing_login';
+  phase: string;
+  stop_reason?: string;
+  // Each read-only setup step and what confirmed it.
+  setup: Array<{
+    step: string;
+    id: string;
+    value: string;
+    confirmed: boolean;
+    evidence?: string;
+  }>;
+  // Agent->client methods refused with -32601.
+  refused_methods?: string[];
+  cancel_sent?: boolean;
+  session_closed?: boolean;
+  // How the agent's process group was stopped after the session.
+  teardown?: {
+    scope: 'process_group' | 'process';
+    exited_before_signal: boolean;
+    signals: string[];
+    settled_by: string;
+  };
+}
+
+// Tool calls the provider reports it denied during the turn.
+export interface ProviderPermissionDenials {
+  count: number;
+  tools: string[];
+  // Extended (ACP) runs: each denied request's tool, its ACP tool kind, and
+  // the first path it named (relative to cwd when inside it). Never tool
+  // input or content.
+  requests?: Array<{ tool?: string; kind?: string; path?: string }>;
 }
 
 // How a timed-out, capped, or interrupted provider run was stopped. `reason`
@@ -266,6 +312,11 @@ export const PROVIDER_ERROR_CODES = [
   'PROVIDER_ARGV_TOO_LARGE',
   'PROVIDER_SESSION_NOT_FOUND',
   'PROVIDER_SESSION_MISMATCH',
+  // An extended (ACP) peer asked for a tool outside read-only, was denied,
+  // and the turn ended without an answer.
+  'PROVIDER_PERMISSION_DENIED',
+  // The git working tree changed during an extended read-only turn.
+  'PROVIDER_WORKTREE_CHANGED',
   'HOST_RECURSION_BLOCKED',
   'CONSENSUS_CLI_USAGE',
 ] as const;
@@ -289,6 +340,9 @@ export interface ContinuationReceipt {
   round?: number;
   cwd: string;
   requested_model?: string;
+  // The consensus-config default an extended provider ran with when the
+  // caller named no model (defaults.provider_models).
+  default_model?: string;
   requested_effort?: string;
   observed_models?: string[];
   runtime_policy?: ProviderRuntimePolicy;

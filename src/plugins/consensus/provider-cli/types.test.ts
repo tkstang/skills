@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   FIRST_SCOPE_HOST_NATIVE_DISPATCH,
-  FIRST_SCOPE_PROVIDER_IDS,
+  CORE_PROVIDER_IDS,
   PROVIDER_ERROR_CODES,
   STRUCTURED_OUTPUT_STRATEGIES,
   type ConsensusCliRunEnvelope,
@@ -10,8 +10,8 @@ import {
 } from '../provider-cli/types.js';
 
 describe('provider CLI model types', () => {
-  it('exposes the first-scope provider IDs', () => {
-    expect(FIRST_SCOPE_PROVIDER_IDS).toEqual(['claude', 'codex', 'cursor']);
+  it('exposes the core provider IDs', () => {
+    expect(CORE_PROVIDER_IDS).toEqual(['claude', 'codex', 'cursor']);
   });
 
   it('includes all structured output strategies including reserved submit-tool support', () => {
@@ -42,6 +42,8 @@ describe('provider CLI model types', () => {
       'PROVIDER_ARGV_TOO_LARGE',
       'PROVIDER_SESSION_NOT_FOUND',
       'PROVIDER_SESSION_MISMATCH',
+      'PROVIDER_PERMISSION_DENIED',
+      'PROVIDER_WORKTREE_CHANGED',
       'HOST_RECURSION_BLOCKED',
       'CONSENSUS_CLI_USAGE',
     ]);

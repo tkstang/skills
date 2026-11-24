@@ -22,7 +22,7 @@ For a worked example, read [Adding a skill or distribution](../documentation/doc
 
 - For wrapper filesystem operations, use the relevant owner's existing confinement/path-resolution helpers and input-size caps. Create, decide, plan, refine, and evaluate each have their own wrapper contract; do not copy a different operation's path or schema assumptions.
 - Read the operation's `schemas/` and wrapper under `skills/<name>/` before changing deliberation I/O. Provider CLI/core contracts live under `plugins/consensus/`; preserve their own boundaries rather than assuming a wrapper schema covers them.
-- Keep peer invocation through the owned provider CLI. Local tests use deterministic fixtures; live provider execution needs explicit authorization.
+- Keep peer invocation through the owned provider CLI. Extended providers run only through the ACP adapter. Local tests use deterministic fixtures; live provider execution needs explicit authorization.
 
 ## Tests and verification
 

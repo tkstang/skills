@@ -29,8 +29,112 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
+// src/plugins/consensus/provider-cli/acp/descriptors.ts
+var ANTIGRAVITY_DESCRIPTOR = {
+  id: "antigravity",
+  display_name: "Antigravity",
+  executable: "agy",
+  executable_env: "CONSENSUS_ANTIGRAVITY_EXECUTABLE",
+  credential_env: ["GEMINI_API_KEY"],
+  install_hint: "Install Google Antigravity and its `agy` command, then sign in with `agy acp --login` from a desktop terminal.",
+  minimum_version: "1.5.13",
+  launch_args: ["acp"],
+  model: { kind: "config_option", config_id: "model" },
+  // models.currentModelId joins model and thinking level
+  // (gemini-3.8-flash-high) and is not updated by set_config_option.
+  model_sources: ["config_model", "current_model_id"],
+  // agy answers set_mode with {} and no echo, so `default` is confirmed by
+  // session/new reporting it. Never accept-edits, auto or plan.
+  mode: {
+    modeId: "default",
+    confirm: { initialState: true, currentModeUpdate: true }
+  },
+  // Without an explicit authenticate, a --gemini-dir run silently used the
+  // desktop login (agy-key-default.jsonl).
+  api_key: {
+    env: "GEMINI_API_KEY",
+    method_id: "gemini-api-key",
+    private_home: {
+      dir_flag: "--gemini-dir",
+      app_data_flag: "--app-data-dir",
+      app_data_name: "consensus-agy",
+      settings_files: ["antigravity-cli/settings.json", "config/settings.json"],
+      settings: { modelProvider: "gemini" }
+    }
+  },
+  auth_hint: "Sign in with `agy acp --login` from a desktop terminal, or set GEMINI_API_KEY.",
+  auth_error_patterns: [/No browser is available/i],
+  // A 429 arrives as answer text with end_turn (agy-key2-default.jsonl),
+  // inside an "agent executor error" line: first match wins, so the limit
+  // pattern stays first.
+  error_text_patterns: [
+    {
+      pattern: /Error 429|exceeded your current quota/i,
+      code: "PROVIDER_LIMIT_REACHED"
+    },
+    { pattern: /agent executor error/i, code: "PROVIDER_EXIT" }
+  ],
+  // In key mode agy retries Gemini API 503s (high demand) silently, for
+  // longer than a turn's deadline (2026-11-22 diagnostic).
+  timeout_hint: "With GEMINI_API_KEY, Gemini API retries (503 high demand) or an exhausted quota can also cause this.",
+  brief_lines: [
+    "Do not use invoke_subagent, swarm, run_workflow or schedule.",
+    "Only read files inside the working directory; do not read parent directories."
+  ]
+};
+var GEMINI_DESCRIPTOR = {
+  id: "gemini",
+  display_name: "Gemini CLI",
+  executable: "gemini",
+  executable_env: "CONSENSUS_GEMINI_EXECUTABLE",
+  credential_env: ["GEMINI_API_KEY"],
+  install_hint: "Install Gemini CLI with `npm install -g @google/gemini-cli`, then sign in by running `gemini` once, or set GEMINI_API_KEY.",
+  minimum_version: "0.70.0",
+  launch_args: ["--acp"],
+  // Gemini advertises no configOptions; -m at launch is the only lever.
+  model: { kind: "launch_flag", flag: "-m" },
+  model_sources: ["usage_models", "current_model_id"],
+  // Plan mode's only echo is this chunk, sent before the set_mode response.
+  mode: {
+    modeId: "plan",
+    confirm: { marker: "[MODE_UPDATE] plan", currentModeUpdate: true }
+  },
+  api_key: { env: "GEMINI_API_KEY", method_id: "gemini-api-key" },
+  auth_hint: "Sign in by running `gemini` once in a terminal, or set GEMINI_API_KEY."
+};
+var DROID_DESCRIPTOR = {
+  id: "droid",
+  display_name: "Droid",
+  executable: "droid",
+  executable_env: "CONSENSUS_DROID_EXECUTABLE",
+  credential_env: ["FACTORY_API_KEY"],
+  install_hint: "Install Factory Droid (https://docs.factory.ai), then sign in by running `droid` in a desktop terminal, or set FACTORY_API_KEY.",
+  minimum_version: "1.16.0",
+  launch_args: ["exec", "--output-format", "acp"],
+  model: { kind: "config_option", config_id: "model" },
+  model_sources: ["config_model"],
+  // The ACP default is auto-medium, which auto-approves writes. normal is
+  // echoed by current_mode_update and the autonomy_level config option.
+  mode: {
+    modeId: "normal",
+    confirm: { currentModeUpdate: true, configOptionId: "autonomy_level" }
+  },
+  api_key: { env: "FACTORY_API_KEY", method_id: "factory-api-key" },
+  auth_hint: "Sign in by running `droid` in a desktop terminal, or set FACTORY_API_KEY.",
+  // The auth-required message carries a live device-pairing code.
+  redactions: [/(?<=Your code:\s*)[A-Z0-9]{4}-[A-Z0-9]{4}\b/g],
+  brief_lines: [
+    "Do not use loop, ConnectApp, automation, or cloud/computer tools."
+  ]
+};
+var ACP_PROVIDER_DESCRIPTORS = [
+  ANTIGRAVITY_DESCRIPTOR,
+  GEMINI_DESCRIPTOR,
+  DROID_DESCRIPTOR
+];
+
 // src/plugins/consensus/provider-cli/types.ts
-var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
+var CORE_PROVIDER_IDS = ["claude", "codex", "cursor"];
 
 // src/plugins/consensus/config/consensus-config.ts
 var BUILT_IN_PROVIDER_ORDER = ["claude", "codex"];
@@ -40,8 +144,12 @@ var DEFAULTS_KEYS = /* @__PURE__ */ new Set([
   "panelists",
   "panel_size",
   "reviewers",
-  "roles"
+  "roles",
+  "provider_models"
 ]);
+var EXTENDED_PROVIDER_IDS = new Set(
+  ACP_PROVIDER_DESCRIPTORS.map((descriptor) => descriptor.id)
+);
 var AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
 var ROLE_KEYS = /* @__PURE__ */ new Set(["panelist", "advisor", "synthesizer"]);
 function parseConsensusDefaultsConfig(value) {
@@ -89,7 +197,29 @@ function parseConsensusDefaults(value) {
   if (value.roles !== void 0) {
     defaults.roles = parseRolesConfig(value.roles);
   }
+  if (value.provider_models !== void 0) {
+    defaults.provider_models = parseProviderModels(value.provider_models);
+  }
   return defaults;
+}
+function parseProviderModels(value) {
+  const label = "Consensus config provider_models";
+  if (!isRecord(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  const models = {};
+  for (const [provider, model] of Object.entries(value)) {
+    if (!EXTENDED_PROVIDER_IDS.has(provider)) {
+      throw new Error(
+        `${label} accepts only registered extended providers (${[...EXTENDED_PROVIDER_IDS].join(", ")}), not: ${provider}`
+      );
+    }
+    if (typeof model !== "string" || model.trim() === "") {
+      throw new Error(`${label}.${provider} must be a non-empty string`);
+    }
+    models[provider] = model;
+  }
+  return models;
 }
 async function readConsensusConfig(input) {
   const configPath = await consensusConfigPath(input);
@@ -252,7 +382,7 @@ function selectPanelAgents(configuredPanelists, targetSize, inventory) {
   const seen = new Set(selected.map((agent) => agent.provider));
   for (const entry of inventory ?? []) {
     if (selected.length >= targetSize) break;
-    if (entry.status !== "ready" || seen.has(entry.id)) continue;
+    if (!isAutoSelectable(entry) || seen.has(entry.id)) continue;
     selected.push({ provider: entry.id });
     seen.add(entry.id);
   }
@@ -265,13 +395,16 @@ function selectPanelAgents(configuredPanelists, targetSize, inventory) {
   return selected;
 }
 function builtInAgents(inventory, count) {
-  const ready = (inventory ?? []).filter((entry) => entry.status === "ready").map((entry) => ({ provider: entry.id }));
+  const ready = (inventory ?? []).filter(isAutoSelectable).map((entry) => ({ provider: entry.id }));
   const selected = ready.slice(0, count);
   for (const agent of missingBuiltInAgents(selected)) {
     if (selected.length >= count) break;
     selected.push(agent);
   }
   return selected;
+}
+function isAutoSelectable(entry) {
+  return entry.status === "ready" && CORE_PROVIDER_IDS.some((id) => id === entry.id);
 }
 function builtInConvergenceAgents(count) {
   return BUILT_IN_PROVIDER_ORDER.slice(0, count).map((provider) => ({
@@ -319,7 +452,7 @@ function parseAgentList(value, options) {
   );
   if (options.knownProvidersOnly) {
     for (const agent of agents) {
-      if (!FIRST_SCOPE_PROVIDER_IDS.some((id) => id === agent.provider)) {
+      if (!CORE_PROVIDER_IDS.some((id) => id === agent.provider)) {
         throw new Error(
           `${options.label} contains unsupported provider: ${agent.provider}`
         );
@@ -406,7 +539,7 @@ function assertKnownKeys(record, knownKeys, label) {
   }
 }
 function hasConsensusDefaults(value) {
-  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.reviewers !== void 0 || value.roles !== void 0;
+  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.reviewers !== void 0 || value.roles !== void 0 || value.provider_models !== void 0;
 }
 function isProviderId(value) {
   return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
@@ -481,6 +614,29 @@ function providerStatusMap(envelope) {
     entries.push([id, String(provider.status ?? "unavailable")]);
   }
   return new Map(entries);
+}
+function providerUnavailability(envelope, id, fallbackStatus) {
+  const providers = Array.isArray(envelope.providers) ? envelope.providers : [];
+  const entry = providers.findLast(
+    (provider) => isJsonRecord(provider) && String(provider.id ?? provider.provider ?? provider.name ?? "") === id
+  );
+  if (!entry) return { id, status: fallbackStatus };
+  return {
+    id,
+    status: String(entry.status ?? "unavailable"),
+    ...unavailabilityEvidence(entry)
+  };
+}
+function unavailabilityEvidence(entry) {
+  const installHint = typeof entry.install_hint === "string" && entry.install_hint.trim() ? entry.install_hint : void 0;
+  const diagnostics = isJsonRecord(entry.diagnostics) ? entry.diagnostics : void 0;
+  const warnings = Array.isArray(diagnostics?.warnings) ? diagnostics.warnings.filter(
+    (warning) => typeof warning === "string"
+  ) : [];
+  return {
+    ...installHint ? { install_hint: installHint } : {},
+    ...warnings.length > 0 ? { warnings } : {}
+  };
 }
 function providerInventoryEntries(envelope) {
   return [...providerStatusMap(envelope)].map(
@@ -1417,19 +1573,28 @@ async function preflightPanelists({
       readiness.push({ agent, status: "ready", diagnostics: [] });
       continue;
     }
-    const preflightStatus = providerStatusMap(preflight).get(agent.provider) ?? "unavailable";
+    const unavailable = providerUnavailability(
+      preflight,
+      agent.provider,
+      "unavailable"
+    );
     readiness.push({
       agent,
       status: "unavailable",
       diagnostics: [
-        panelistUnavailableMessage(agent.provider, preflightStatus)
+        panelistUnavailableMessage(
+          agent.provider,
+          unavailable.status,
+          unavailable.install_hint
+        ),
+        ...unavailable.warnings ?? []
       ]
     });
   }
   return readiness;
 }
-function panelistUnavailableMessage(provider, status) {
-  return `Panelist ${provider} unavailable: ${status}`;
+function panelistUnavailableMessage(provider, status, installHint) {
+  return installHint ? `Panelist ${provider} unavailable: ${status}. Install hint: ${installHint}` : `Panelist ${provider} unavailable: ${status}`;
 }
 async function invokePanelistViaCli({
   panelist,

@@ -22,7 +22,11 @@ import {
 } from '../../../plugins/consensus/core/consensus-loop.js';
 import type { PeerAgent } from '../../../plugins/consensus/core/consensus-loop.js';
 import type { ProviderInventoryEntry as ConsensusProviderInventoryEntry } from '../../../plugins/consensus/provider-cli/types.js';
-import { peerAgentsFromComposition } from '../../../plugins/consensus/shared/cli-helpers.js';
+import {
+  peerAgentsFromComposition,
+  providerUnavailableMessage,
+  unavailabilityEvidence,
+} from '../../../plugins/consensus/shared/cli-helpers.js';
 import {
   isJsonRecord,
   asErrorLike,
@@ -840,19 +844,14 @@ function providerCliUnavailableError(
     return {
       id,
       status: String(entry?.status ?? (entry ? 'unavailable' : 'missing')),
+      ...(entry ? unavailabilityEvidence(entry) : {}),
     };
   });
-  const summary = details
-    .map((entry) => `${entry.id} (${entry.status})`)
-    .join(', ');
-  return new ConsensusError(
-    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id> --capability run" and resolve provider compatibility, authentication, or availability before retrying.`,
-    {
-      code: 'PEER_UNAVAILABLE',
-      exitCode: EXIT_CODES.CONFIG,
-      details: { providers: details },
-    },
-  );
+  return new ConsensusError(providerUnavailableMessage(details), {
+    code: 'PEER_UNAVAILABLE',
+    exitCode: EXIT_CODES.CONFIG,
+    details: { providers: details },
+  });
 }
 
 function resolveProviderCliPeers(

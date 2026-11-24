@@ -1,6 +1,13 @@
 import { spawnSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,16 +17,40 @@ import { describe, expect, it } from 'vitest';
 import { providerRegistry } from '../provider-cli/adapters.js';
 import { processExitForEnvelope } from '../provider-cli/envelope.js';
 import type { ProviderInvocation } from '../provider-cli/invocation.js';
+import type { ProbeCommandRunner } from '../provider-cli/probe.js';
 import {
   buildConsensusSubmitCommand,
   runProviderTurn,
   selectStructuredOutputStrategy,
 } from '../provider-cli/structured-output.js';
+import type { RunProviderTurnDependencies } from '../provider-cli/structured-output.js';
 import type {
   ProviderProcessResult,
   RunProviderSubprocessOptions,
 } from '../provider-cli/subprocess.js';
 import type { ConsensusCliRunRequest } from '../provider-cli/types.js';
+
+// These tests inject a fake subprocess, so every provider program counts as
+// installed: an absolute name as given, a bare name under a fixed directory.
+const installedPrograms: ProbeCommandRunner = {
+  env: {},
+  async findExecutable(command) {
+    return path.isAbsolute(command) ? command : `/opt/fake-bin/${command}`;
+  },
+  async run() {
+    throw new Error('no prerequisite version probe is expected');
+  },
+};
+
+function runTurn(
+  turnRequest: ConsensusCliRunRequest,
+  dependencies: RunProviderTurnDependencies = {},
+) {
+  return runProviderTurn(turnRequest, {
+    probeRunner: installedPrograms,
+    ...dependencies,
+  });
+}
 
 describe('structured provider output coordinator', () => {
   it('selects constrained-native, provider-validated, and prompt-only strategies', () => {
@@ -52,7 +83,7 @@ describe('structured provider output coordinator', () => {
       ],
     });
     const subprocess = fakeSubprocess([processSuccess(providerResult)]);
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       request({
         provider: 'claude',
         runtime_policy: {
@@ -154,7 +185,7 @@ describe('structured provider output coordinator', () => {
           ? processSuccess(stdout)
           : processFailure('PROVIDER_EXIT', true, { stdout }),
       ]);
-      const envelope = await runProviderTurn(
+      const envelope = await runTurn(
         readOnlyRetryRequest('claude', {
           output,
           ...(output === 'text' ? { schema_path: undefined } : {}),
@@ -193,7 +224,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('not json'),
       processFailure('PROVIDER_EXIT', true, { stdout }),
     ]);
-    const envelope = await runProviderTurn(readOnlyRetryRequest('claude'), {
+    const envelope = await runTurn(readOnlyRetryRequest('claude'), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -219,7 +250,7 @@ describe('structured provider output coordinator', () => {
           stdout: JSON.stringify(event),
         }),
       ]);
-      const envelope = await runProviderTurn(readOnlyRetryRequest('codex'), {
+      const envelope = await runTurn(readOnlyRetryRequest('codex'), {
         readSchema: async () => schema(),
         runSubprocess: subprocess.run,
       });
@@ -248,7 +279,7 @@ describe('structured provider output coordinator', () => {
     const subprocess = fakeSubprocess([
       processSuccess(stdout, { last_message: 'Recovered reply.' }),
     ]);
-    const envelope = await runProviderTurn(textRequest('codex'), {
+    const envelope = await runTurn(textRequest('codex'), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -299,7 +330,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('{"verdict":"accept"}'),
     ]);
 
-    const envelope = await runProviderTurn(readOnlyRetryRequest('claude'), {
+    const envelope = await runTurn(readOnlyRetryRequest('claude'), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -321,7 +352,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('{"verdict":"accept"}'),
     ]);
 
-    const envelope = await runProviderTurn(readOnlyRetryRequest('cursor'), {
+    const envelope = await runTurn(readOnlyRetryRequest('cursor'), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -335,7 +366,7 @@ describe('structured provider output coordinator', () => {
     const wrapper = '/opt/keyed/cursor-agent-keyed';
     const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
       parentEnv: { PATH: '/usr/bin', CONSENSUS_CURSOR_EXECUTABLE: wrapper },
@@ -352,7 +383,7 @@ describe('structured provider output coordinator', () => {
   it('refuses a relative CONSENSUS_<PROVIDER>_EXECUTABLE before starting a process', async () => {
     const subprocess = fakeSubprocess([]);
 
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
       parentEnv: { CONSENSUS_CURSOR_EXECUTABLE: './cursor-agent' },
@@ -374,7 +405,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('{"verdict":"accept"}'),
     ]);
 
-    const envelope = await runProviderTurn(readOnlyRetryRequest('cursor'), {
+    const envelope = await runTurn(readOnlyRetryRequest('cursor'), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -390,7 +421,7 @@ describe('structured provider output coordinator', () => {
   it('adds schema instructions to prompt-only provider prompts', async () => {
     const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -408,7 +439,7 @@ describe('structured provider output coordinator', () => {
       cliPath: '/workspace/plugins/consensus/scripts/consensus.mjs',
     });
 
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
       submitCommand,
@@ -437,7 +468,7 @@ describe('structured provider output coordinator', () => {
       ),
     ]);
 
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       request({
         provider: 'claude',
         runtime_policy: { permission_mode: 'workspace-write' },
@@ -462,7 +493,7 @@ describe('structured provider output coordinator', () => {
   it('answers read-only Cursor turns through the final message, not submit', async () => {
     const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       request({
         provider: 'cursor',
         runtime_policy: { permission_mode: 'read-only' },
@@ -496,7 +527,7 @@ describe('structured provider output coordinator', () => {
     });
 
     try {
-      const envelope = await runProviderTurn(
+      const envelope = await runTurn(
         request({ provider: 'cursor', schema_path: schemaPath }),
         {
           readSchema: async () => schema(),
@@ -541,7 +572,7 @@ describe('structured provider output coordinator', () => {
       }),
     ]);
 
-    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+    const envelope = await runTurn(request({ provider: 'codex' }), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -565,7 +596,7 @@ describe('structured provider output coordinator', () => {
       }),
     ]);
 
-    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+    const envelope = await runTurn(request({ provider: 'codex' }), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
       transport: {
@@ -603,7 +634,7 @@ describe('structured provider output coordinator', () => {
     ]);
 
     await expect(
-      runProviderTurn(readOnlyRetryRequest('codex'), {
+      runTurn(readOnlyRetryRequest('codex'), {
         readSchema: async () => schema(),
         runSubprocess: subprocess.run,
       }),
@@ -613,7 +644,7 @@ describe('structured provider output coordinator', () => {
     });
 
     await expect(
-      runProviderTurn(readOnlyRetryRequest('codex'), {
+      runTurn(readOnlyRetryRequest('codex'), {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
           processFailure('PROVIDER_TIMEOUT', false),
@@ -648,7 +679,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('{"verdict":"accept"}'),
     ]);
 
-    const envelope = await runProviderTurn(readOnlyRetryRequest('codex'), {
+    const envelope = await runTurn(readOnlyRetryRequest('codex'), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -668,7 +699,7 @@ describe('structured provider output coordinator', () => {
 
   it('does not retry adapter-classified terminal provider exits', async () => {
     await expect(
-      runProviderTurn(readOnlyRetryRequest('claude'), {
+      runTurn(readOnlyRetryRequest('claude'), {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
           processFailure('PROVIDER_EXIT', true, {
@@ -687,7 +718,7 @@ describe('structured provider output coordinator', () => {
     });
 
     await expect(
-      runProviderTurn(readOnlyRetryRequest('codex'), {
+      runTurn(readOnlyRetryRequest('codex'), {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
           processFailure('PROVIDER_EXIT', true, {
@@ -706,7 +737,7 @@ describe('structured provider output coordinator', () => {
     });
 
     await expect(
-      runProviderTurn(readOnlyRetryRequest('cursor'), {
+      runTurn(readOnlyRetryRequest('cursor'), {
         readSchema: async () => schema(),
         runSubprocess: fakeSubprocess([
           processFailure('PROVIDER_EXIT', true, {
@@ -733,7 +764,7 @@ describe('structured provider output coordinator', () => {
       processSuccess('{"verdict":"accept"}'),
     ]);
 
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       readOnlyRetryRequest('cursor', { max_attempts: 3 }),
       {
         readSchema: async () => schema(),
@@ -753,18 +784,15 @@ describe('structured provider output coordinator', () => {
   });
 
   it('records which exit classification fired in diagnostics', async () => {
-    const transientEnvelope = await runProviderTurn(
-      readOnlyRetryRequest('cursor'),
-      {
-        readSchema: async () => schema(),
-        runSubprocess: fakeSubprocess([
-          processFailure('PROVIDER_EXIT', true, {
-            stderr: 'temporary unavailable, try again',
-          }),
-          processSuccess('{"verdict":"accept"}'),
-        ]).run,
-      },
-    );
+    const transientEnvelope = await runTurn(readOnlyRetryRequest('cursor'), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([
+        processFailure('PROVIDER_EXIT', true, {
+          stderr: 'temporary unavailable, try again',
+        }),
+        processSuccess('{"verdict":"accept"}'),
+      ]).run,
+    });
 
     expect(transientEnvelope).toMatchObject({
       ok: true,
@@ -773,7 +801,7 @@ describe('structured provider output coordinator', () => {
       },
     });
 
-    const unknownEnvelope = await runProviderTurn(
+    const unknownEnvelope = await runTurn(
       readOnlyRetryRequest('cursor', { max_attempts: 3 }),
       {
         readSchema: async () => schema(),
@@ -804,7 +832,7 @@ describe('structured provider output coordinator', () => {
       }),
     ]);
 
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       request({
         provider: 'codex',
         cwd,
@@ -841,11 +869,11 @@ describe('structured provider output coordinator', () => {
     const first = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
     const second = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
-    await runProviderTurn(request({ provider: 'cursor', cwd }), {
+    await runTurn(request({ provider: 'cursor', cwd }), {
       readSchema: async () => schema(),
       runSubprocess: first.run,
     });
-    await runProviderTurn(request({ provider: 'cursor', cwd }), {
+    await runTurn(request({ provider: 'cursor', cwd }), {
       readSchema: async () => schema(),
       runSubprocess: second.run,
     });
@@ -863,7 +891,7 @@ describe('structured provider output coordinator', () => {
   it('uses a valid sidecar verdict as envelope json with verdict_source submit', async () => {
     let submitPath: string | undefined;
 
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
       async runSubprocess(_invocation, options) {
         submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
@@ -886,7 +914,7 @@ describe('structured provider output coordinator', () => {
   it('cleans up the submit sidecar after the provider turn', async () => {
     let submitPath: string | undefined;
 
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
       async runSubprocess(_invocation, options) {
         submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
@@ -906,7 +934,7 @@ describe('structured provider output coordinator', () => {
   it('rejects oversized submit sidecars without copying them into the envelope', async () => {
     const largeVerdict = `{"verdict":"${'x'.repeat(128)}"}`;
 
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       request({
         provider: 'cursor',
         max_attempts: 1,
@@ -936,7 +964,7 @@ describe('structured provider output coordinator', () => {
   });
 
   it('falls back to the parse path when no submit sidecar is present', async () => {
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
       runSubprocess: fakeSubprocess([
         processSuccess('{"verdict":"final-message"}'),
@@ -953,7 +981,7 @@ describe('structured provider output coordinator', () => {
   });
 
   it('uses existing terminal handling when neither submit nor parse yields output', async () => {
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       request({ provider: 'codex', max_attempts: 1 }),
       {
         readSchema: async () => schema(),
@@ -979,27 +1007,21 @@ describe('structured provider output coordinator', () => {
   });
 
   it('keeps the success envelope shape unchanged across submit and parse paths', async () => {
-    const parseEnvelope = await runProviderTurn(
-      request({ provider: 'cursor' }),
-      {
-        readSchema: async () => schema(),
-        runSubprocess: fakeSubprocess([
-          processSuccess('{"verdict":"final-message"}'),
-        ]).run,
+    const parseEnvelope = await runTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      runSubprocess: fakeSubprocess([
+        processSuccess('{"verdict":"final-message"}'),
+      ]).run,
+    });
+    const submitEnvelope = await runTurn(request({ provider: 'cursor' }), {
+      readSchema: async () => schema(),
+      async runSubprocess(_invocation, options) {
+        const submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
+        if (!submitPath) throw new Error('Missing submit capture path');
+        await writeFile(submitPath, '{"verdict":"submit"}', 'utf8');
+        return processSuccess('{"verdict":"final-message"}');
       },
-    );
-    const submitEnvelope = await runProviderTurn(
-      request({ provider: 'cursor' }),
-      {
-        readSchema: async () => schema(),
-        async runSubprocess(_invocation, options) {
-          const submitPath = options.env?.CONSENSUS_SUBMIT_FILE;
-          if (!submitPath) throw new Error('Missing submit capture path');
-          await writeFile(submitPath, '{"verdict":"submit"}', 'utf8');
-          return processSuccess('{"verdict":"final-message"}');
-        },
-      },
-    );
+    });
 
     expect(parseEnvelope.ok).toBe(true);
     expect(submitEnvelope.ok).toBe(true);
@@ -1009,7 +1031,7 @@ describe('structured provider output coordinator', () => {
   });
 
   it('extracts Codex last-message-file output before schema validation', async () => {
-    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+    const envelope = await runTurn(request({ provider: 'codex' }), {
       readSchema: async () => schema(),
       runSubprocess: fakeSubprocess([
         processSuccess(
@@ -1034,7 +1056,7 @@ describe('structured provider output coordinator', () => {
     const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
     await expect(
-      runProviderTurn(request({ provider: 'codex' }), {
+      runTurn(request({ provider: 'codex' }), {
         readSchema: async () => schema(),
         runSubprocess: subprocess.run,
       }),
@@ -1048,7 +1070,7 @@ describe('structured provider output coordinator', () => {
   it('passes inline schema JSON to Claude while redacting diagnostics', async () => {
     const subprocess = fakeSubprocess([processSuccess('{"verdict":"accept"}')]);
 
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       request({
         provider: 'claude',
         schema_path: '/tmp/consensus-schema/schema.json',
@@ -1088,7 +1110,7 @@ describe('structured provider output coordinator', () => {
       structured_output: { verdict: 'accept' },
     });
 
-    const envelope = await runProviderTurn(request({ provider: 'claude' }), {
+    const envelope = await runTurn(request({ provider: 'claude' }), {
       readSchema: async () => schema(),
       runSubprocess: fakeSubprocess([processSuccess(providerStdout)]).run,
     });
@@ -1109,7 +1131,7 @@ describe('structured provider output coordinator', () => {
       result: '{"verdict":"accept"}',
     });
 
-    const envelope = await runProviderTurn(request({ provider: 'claude' }), {
+    const envelope = await runTurn(request({ provider: 'claude' }), {
       readSchema: async () => schema(),
       runSubprocess: fakeSubprocess([processSuccess(providerStdout)]).run,
     });
@@ -1131,7 +1153,7 @@ describe('structured provider output coordinator', () => {
         'I checked the schema. {"verdict":"accept"} This is the final answer.',
     });
 
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
       runSubprocess: fakeSubprocess([processSuccess(providerStdout)]).run,
     });
@@ -1145,7 +1167,7 @@ describe('structured provider output coordinator', () => {
   });
 
   it('emits terminal ok:false envelopes that still exit process 0', async () => {
-    const envelope = await runProviderTurn(request({ max_attempts: 1 }), {
+    const envelope = await runTurn(request({ max_attempts: 1 }), {
       readSchema: async () => schema(),
       runSubprocess: fakeSubprocess([processSuccess('not json')]).run,
     });
@@ -1180,7 +1202,7 @@ describe('text output', () => {
     const subprocess = fakeSubprocess([]);
     let schemaRead = false;
 
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       textRequest('claude', { schema_path: 'unexpected-schema.json' }),
       {
         readSchema: async () => {
@@ -1204,7 +1226,7 @@ describe('text output', () => {
     const stdout = claudeResult({ result: 'The change looks correct.\n' });
     const subprocess = fakeSubprocess([processSuccess(stdout)]);
 
-    const envelope = await runProviderTurn(textRequest('claude'), {
+    const envelope = await runTurn(textRequest('claude'), {
       readSchema: noSchema,
       runSubprocess: subprocess.run,
     });
@@ -1275,7 +1297,7 @@ describe('text output', () => {
         processSuccess(claudeResult({})),
       ]);
 
-      const envelope = await runProviderTurn(
+      const envelope = await runTurn(
         textRequest('claude', {
           max_attempts: 2,
           runtime_policy: { permission_mode: 'read-only' },
@@ -1300,7 +1322,7 @@ describe('text output', () => {
       }),
     ]);
 
-    const envelope = await runProviderTurn(textRequest('codex'), {
+    const envelope = await runTurn(textRequest('codex'), {
       readSchema: noSchema,
       runSubprocess: subprocess.run,
     });
@@ -1322,7 +1344,7 @@ describe('text output', () => {
   ])(
     'fails a %s Codex last-message file as empty output',
     async (_label, lastMessage) => {
-      const envelope = await runProviderTurn(textRequest('codex'), {
+      const envelope = await runTurn(textRequest('codex'), {
         readSchema: noSchema,
         // The real subprocess omits last_message when the file is absent.
         runSubprocess: async () =>
@@ -1349,7 +1371,7 @@ describe('text output', () => {
     });
     const subprocess = fakeSubprocess([processSuccess(stdout)]);
 
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       textRequest('cursor', { model: 'composer-2.5' }),
       {
         readSchema: noSchema,
@@ -1370,7 +1392,7 @@ describe('text output', () => {
   });
 
   it('accepts a Cursor result that carries no subtype', async () => {
-    const envelope = await runProviderTurn(textRequest('cursor'), {
+    const envelope = await runTurn(textRequest('cursor'), {
       readSchema: noSchema,
       runSubprocess: fakeSubprocess([
         processSuccess(JSON.stringify({ type: 'result', result: 'Fine.' })),
@@ -1391,7 +1413,7 @@ describe('text output', () => {
         processSuccess('{"type":"turn.completed"}', { last_message: 'Done.' }),
       ]);
 
-      const envelope = await runProviderTurn(
+      const envelope = await runTurn(
         textRequest('codex', {
           cwd,
           runtime_policy: {
@@ -1437,7 +1459,7 @@ describe('text output', () => {
   it('refuses the text strategy for a JSON-mode turn', async () => {
     const subprocess = fakeSubprocess([]);
 
-    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+    const envelope = await runTurn(request({ provider: 'codex' }), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
       transport: { strategy: 'text' },
@@ -1452,7 +1474,7 @@ describe('text output', () => {
   });
 
   it('marks JSON-mode success envelopes with output_kind json', async () => {
-    const envelope = await runProviderTurn(request({ provider: 'cursor' }), {
+    const envelope = await runTurn(request({ provider: 'cursor' }), {
       readSchema: async () => schema(),
       runSubprocess: fakeSubprocess([processSuccess('{"verdict":"accept"}')])
         .run,
@@ -1467,9 +1489,241 @@ describe('text output', () => {
   });
 });
 
+describe('provider admission and run-path prerequisites', () => {
+  it('refuses a registered but not admitted provider before any spawn', async () => {
+    const codex = providerRegistry().get('codex')!;
+    const subprocess = fakeSubprocess([]);
+
+    const envelope = await runTurn(request({ provider: 'codex' }), {
+      registry: providerRegistry([
+        { ...codex, not_admitted_reason: 'read-only admission pending' },
+      ]),
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_UNSUPPORTED',
+      message:
+        'Provider codex is registered but not admitted: read-only admission pending',
+      attempts: { cli_attempts: 0, terminal_reason: 'provider_not_admitted' },
+      continuation: { turn: 'not_started' },
+    });
+    expect(subprocess.invocations).toHaveLength(0);
+  });
+
+  it('fails a missing prerequisite before spawn with its install hint', async () => {
+    const codex = providerRegistry().get('codex')!;
+    const subprocess = fakeSubprocess([]);
+    const found: string[] = [];
+
+    const envelope = await runTurn(request({ provider: 'codex' }), {
+      registry: providerRegistry([
+        {
+          ...codex,
+          probe: {
+            ...codex.probe,
+            prerequisites: [
+              {
+                name: 'launcher',
+                command: 'launcher',
+                executable_env: 'CONSENSUS_FIXTURE_LAUNCHER_EXECUTABLE',
+                install_hint: 'Install launcher.',
+              },
+            ],
+          },
+        },
+      ]),
+      probeRunner: {
+        env: {},
+        async findExecutable(command) {
+          found.push(command);
+          return undefined;
+        },
+        async run() {
+          throw new Error('a presence-only prerequisite is never run');
+        },
+      },
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_MISSING',
+      message:
+        'Provider codex prerequisite launcher was not found (launcher). Install hint: Install launcher.',
+      attempts: {
+        cli_attempts: 0,
+        terminal_reason: 'provider_prerequisite_missing',
+      },
+      continuation: { turn: 'not_started' },
+    });
+    expect(found).toEqual(['launcher']);
+    expect(subprocess.invocations).toHaveLength(0);
+  });
+});
+
+// These use the real node finder over parentEnv.PATH.
+describe('run-path program resolution', () => {
+  it('spawns the absolute program the preflight finder resolves, never a relative PATH match', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'consensus-run-finder-'));
+    try {
+      const relativeDir = path.join(root, 'relative-bin');
+      const absoluteDir = path.join(root, 'absolute-bin');
+      await writeStub(relativeDir, 'codex');
+      const absoluteStub = await writeStub(absoluteDir, 'codex');
+      // A PATH entry such as `bin` resolves against the process's directory.
+      const relativeEntry = path.relative(process.cwd(), relativeDir);
+      const codex = providerRegistry().get('codex')!;
+      const registry = providerRegistry([
+        { ...codex, install_hint: 'Install Codex.' },
+      ]);
+      const unused = fakeSubprocess([]);
+      const used = fakeSubprocess([codexTurn(SESSION_A)]);
+
+      const missing = await runProviderTurn(request({ provider: 'codex' }), {
+        registry,
+        parentEnv: { PATH: relativeEntry },
+        readSchema: async () => schema(),
+        runSubprocess: unused.run,
+      });
+      const found = await runProviderTurn(request({ provider: 'codex' }), {
+        registry,
+        parentEnv: {
+          PATH: [relativeEntry, absoluteDir].join(path.delimiter),
+        },
+        readSchema: async () => schema(),
+        runSubprocess: used.run,
+      });
+
+      expect(missing).toMatchObject({
+        ok: false,
+        code: 'PROVIDER_MISSING',
+        message:
+          'Provider executable not found: codex. Install hint: Install Codex.',
+        attempts: { cli_attempts: 0, terminal_reason: 'provider_missing' },
+        continuation: { turn: 'not_started' },
+      });
+      expect(unused.invocations).toHaveLength(0);
+      expect(found).toMatchObject({ ok: true });
+      expect(used.invocations[0]?.executable).toBe(absoluteStub);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses a relative program path from the finder before any spawn', async () => {
+    const subprocess = fakeSubprocess([]);
+
+    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+      probeRunner: {
+        ...installedPrograms,
+        findExecutable: async () => 'bin/codex',
+      },
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_MISSING',
+      attempts: { cli_attempts: 0 },
+      continuation: { turn: 'not_started' },
+    });
+    expect(subprocess.invocations).toHaveLength(0);
+  });
+
+  it('keeps the install hint when a found program cannot be started', async () => {
+    const codex = providerRegistry().get('codex')!;
+    const subprocess = fakeSubprocess([
+      processFailure('PROVIDER_MISSING', false, {
+        message: 'Provider executable not found: /opt/fake-bin/codex',
+      }),
+    ]);
+
+    const envelope = await runTurn(request({ provider: 'codex' }), {
+      registry: providerRegistry([
+        { ...codex, install_hint: 'Install Codex.' },
+      ]),
+      readSchema: async () => schema(),
+      runSubprocess: subprocess.run,
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_MISSING',
+      message: expect.stringMatching(/Install hint: Install Codex\.$/),
+    });
+  });
+
+  it('passes the checked prerequisite paths to the invocation builder', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'consensus-run-prereq-'));
+    try {
+      const binDir = path.join(root, 'bin');
+      await writeStub(binDir, 'codex');
+      const launcherStub = await writeStub(
+        path.join(root, 'override'),
+        'launcher-keyed',
+      );
+      const codex = providerRegistry().get('codex')!;
+      let received: unknown;
+      const registry = providerRegistry([
+        {
+          ...codex,
+          probe: {
+            ...codex.probe,
+            prerequisites: [
+              {
+                name: 'launcher',
+                command: 'launcher',
+                executable_env: 'CONSENSUS_FIXTURE_LAUNCHER_EXECUTABLE',
+                install_hint: 'Install launcher.',
+              },
+            ],
+          },
+          buildInvocation(turnRequest, options) {
+            received = options?.prerequisiteExecutables;
+            return codex.buildInvocation(turnRequest, options);
+          },
+        },
+      ]);
+      const subprocess = fakeSubprocess([codexTurn(SESSION_A)]);
+
+      const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+        registry,
+        parentEnv: {
+          PATH: binDir,
+          CONSENSUS_FIXTURE_LAUNCHER_EXECUTABLE: launcherStub,
+        },
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      });
+
+      expect(envelope).toMatchObject({ ok: true });
+      expect(received).toEqual({ launcher: launcherStub });
+      // The override that chose it never reaches the child.
+      expect(subprocess.envs[0]).not.toHaveProperty(
+        'CONSENSUS_FIXTURE_LAUNCHER_EXECUTABLE',
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
+async function writeStub(directory: string, name: string) {
+  await mkdir(directory, { recursive: true });
+  const stub = path.join(directory, name);
+  await writeFile(stub, '#!/bin/sh\n');
+  await chmod(stub, 0o755);
+  return stub;
+}
+
 describe('provider session continuation', () => {
   it('records a new session from provider metadata beside the advisory JSON', async () => {
-    const envelope = await runProviderTurn(request({ provider: 'codex' }), {
+    const envelope = await runTurn(request({ provider: 'codex' }), {
       readSchema: async () => schema(),
       runSubprocess: fakeSubprocess([codexTurn(SESSION_A)]).run,
     });
@@ -1491,7 +1745,7 @@ describe('provider session continuation', () => {
   it('resumes the exact requested session with schema and policy reapplied', async () => {
     const subprocess = fakeSubprocess([codexTurn(SESSION_A)]);
 
-    const envelope = await runProviderTurn(resumeRequest(), {
+    const envelope = await runTurn(resumeRequest(), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -1522,7 +1776,7 @@ describe('provider session continuation', () => {
   it('refuses advice from a different session than the one resumed', async () => {
     const subprocess = fakeSubprocess([codexTurn(SESSION_B)]);
 
-    const envelope = await runProviderTurn(resumeRequest(), {
+    const envelope = await runTurn(resumeRequest(), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -1543,7 +1797,7 @@ describe('provider session continuation', () => {
   it('reports an unknown session without falling back unless allowed', async () => {
     const subprocess = fakeSubprocess([sessionNotFound()]);
 
-    const envelope = await runProviderTurn(resumeRequest(), {
+    const envelope = await runTurn(resumeRequest(), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -1562,7 +1816,7 @@ describe('provider session continuation', () => {
       codexTurn(SESSION_B),
     ]);
 
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       resumeRequest({ fallback: 'reconstructed', fallback_prompt: 'PACKET' }),
       {
         readSchema: async () => schema(),
@@ -1624,7 +1878,7 @@ describe('provider session continuation', () => {
         codexTurn(SESSION_B),
       ]);
 
-      const envelope = await runProviderTurn(
+      const envelope = await runTurn(
         resumeRequest(
           { fallback: 'reconstructed', fallback_prompt: 'PACKET' },
           { provider },
@@ -1663,7 +1917,7 @@ describe('provider session continuation', () => {
     async (_label, failure, code, turn) => {
       const subprocess = fakeSubprocess([failure]);
 
-      const envelope = await runProviderTurn(
+      const envelope = await runTurn(
         resumeRequest({ fallback: 'reconstructed', fallback_prompt: 'PACKET' }),
         {
           readSchema: async () => schema(),
@@ -1685,7 +1939,7 @@ describe('provider session continuation', () => {
       codexTurn(SESSION_A, '{"other":"value"}'),
     ]);
 
-    const envelope = await runProviderTurn(resumeRequest(), {
+    const envelope = await runTurn(resumeRequest(), {
       readSchema: async () => schema(),
       runSubprocess: subprocess.run,
     });
@@ -1700,7 +1954,7 @@ describe('provider session continuation', () => {
 
   it('separates an unverified resume capability from setup failures', async () => {
     const refused = fakeSubprocess([]);
-    const refusedEnvelope = await runProviderTurn(
+    const refusedEnvelope = await runTurn(
       resumeRequest({}, { provider: 'cursor' }),
       { readSchema: async () => schema(), runSubprocess: refused.run },
     );
@@ -1724,7 +1978,7 @@ describe('provider session continuation', () => {
         }),
       ),
     ]);
-    const fallbackEnvelope = await runProviderTurn(
+    const fallbackEnvelope = await runTurn(
       resumeRequest(
         { fallback: 'reconstructed', fallback_prompt: 'PACKET' },
         { provider: 'cursor' },
@@ -1746,7 +2000,7 @@ describe('provider session continuation', () => {
   it('labels an explicit reconstructed continuation as a new disclosed session', async () => {
     const subprocess = fakeSubprocess([codexTurn(SESSION_B)]);
 
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       request({
         provider: 'codex',
         prompt: 'PACKET',
@@ -1782,10 +2036,10 @@ describe('provider session continuation', () => {
     async (_label, continuation, overrides) => {
       const subprocess = fakeSubprocess([]);
 
-      const envelope = await runProviderTurn(
-        resumeRequest(continuation, overrides),
-        { readSchema: async () => schema(), runSubprocess: subprocess.run },
-      );
+      const envelope = await runTurn(resumeRequest(continuation, overrides), {
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      });
 
       expect(envelope).toMatchObject({
         ok: false,
@@ -1796,10 +2050,49 @@ describe('provider session continuation', () => {
     },
   );
 
+  it("validates native-resume ids with the adapter's session-id rule", async () => {
+    const codex = providerRegistry().get('codex')!;
+    const registry = providerRegistry([
+      { ...codex, isSessionId: (value) => /^[a-z]+-[a-z]+$/.test(value) },
+    ]);
+    const subprocess = fakeSubprocess([codexTurn('silent-ankle')]);
+    const unused = fakeSubprocess([]);
+
+    const accepted = await runTurn(
+      resumeRequest({ session_id: 'silent-ankle' }),
+      {
+        registry,
+        readSchema: async () => schema(),
+        runSubprocess: subprocess.run,
+      },
+    );
+    // The adapter rule replaces the UUID default rather than extending it.
+    const rejected = await runTurn(resumeRequest(), {
+      registry,
+      readSchema: async () => schema(),
+      runSubprocess: unused.run,
+    });
+
+    expect(accepted).toMatchObject({
+      ok: true,
+      continuation: {
+        session_id: 'silent-ankle',
+        requested_session_id: 'silent-ankle',
+      },
+    });
+    expect(subprocess.invocations[0]?.argv).toContain('silent-ankle');
+    expect(rejected).toMatchObject({
+      ok: false,
+      code: 'CONSENSUS_CLI_USAGE',
+      continuation: { turn: 'not_started' },
+    });
+    expect(unused.invocations).toHaveLength(0);
+  });
+
   it('keeps the recursion guard on resumed turns', async () => {
     const subprocess = fakeSubprocess([]);
 
-    const envelope = await runProviderTurn(
+    const envelope = await runTurn(
       resumeRequest(
         {},
         {

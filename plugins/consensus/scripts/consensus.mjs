@@ -3,13 +3,13 @@
 // Source: src/plugins/consensus/provider-cli/cli.ts
 
 // src/plugins/consensus/provider-cli/cli.ts
-import { realpathSync as realpathSync2 } from "node:fs";
-import { readFile as readFile3, stat } from "node:fs/promises";
+import { realpathSync as realpathSync4 } from "node:fs";
+import { readFile as readFile3, stat as stat2 } from "node:fs/promises";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // src/plugins/consensus/provider-cli/commands.ts
 import { randomUUID as randomUUID5 } from "node:crypto";
-import { mkdir as mkdir2, rename as rename2, writeFile as writeFile2 } from "node:fs/promises";
+import { mkdir as mkdir3, rename as rename2, writeFile as writeFile3 } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 // src/plugins/consensus/config/consensus-config.ts
@@ -24,8 +24,112 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
+// src/plugins/consensus/provider-cli/acp/descriptors.ts
+var ANTIGRAVITY_DESCRIPTOR = {
+  id: "antigravity",
+  display_name: "Antigravity",
+  executable: "agy",
+  executable_env: "CONSENSUS_ANTIGRAVITY_EXECUTABLE",
+  credential_env: ["GEMINI_API_KEY"],
+  install_hint: "Install Google Antigravity and its `agy` command, then sign in with `agy acp --login` from a desktop terminal.",
+  minimum_version: "1.5.13",
+  launch_args: ["acp"],
+  model: { kind: "config_option", config_id: "model" },
+  // models.currentModelId joins model and thinking level
+  // (gemini-3.8-flash-high) and is not updated by set_config_option.
+  model_sources: ["config_model", "current_model_id"],
+  // agy answers set_mode with {} and no echo, so `default` is confirmed by
+  // session/new reporting it. Never accept-edits, auto or plan.
+  mode: {
+    modeId: "default",
+    confirm: { initialState: true, currentModeUpdate: true }
+  },
+  // Without an explicit authenticate, a --gemini-dir run silently used the
+  // desktop login (agy-key-default.jsonl).
+  api_key: {
+    env: "GEMINI_API_KEY",
+    method_id: "gemini-api-key",
+    private_home: {
+      dir_flag: "--gemini-dir",
+      app_data_flag: "--app-data-dir",
+      app_data_name: "consensus-agy",
+      settings_files: ["antigravity-cli/settings.json", "config/settings.json"],
+      settings: { modelProvider: "gemini" }
+    }
+  },
+  auth_hint: "Sign in with `agy acp --login` from a desktop terminal, or set GEMINI_API_KEY.",
+  auth_error_patterns: [/No browser is available/i],
+  // A 429 arrives as answer text with end_turn (agy-key2-default.jsonl),
+  // inside an "agent executor error" line: first match wins, so the limit
+  // pattern stays first.
+  error_text_patterns: [
+    {
+      pattern: /Error 429|exceeded your current quota/i,
+      code: "PROVIDER_LIMIT_REACHED"
+    },
+    { pattern: /agent executor error/i, code: "PROVIDER_EXIT" }
+  ],
+  // In key mode agy retries Gemini API 503s (high demand) silently, for
+  // longer than a turn's deadline (2026-11-22 diagnostic).
+  timeout_hint: "With GEMINI_API_KEY, Gemini API retries (503 high demand) or an exhausted quota can also cause this.",
+  brief_lines: [
+    "Do not use invoke_subagent, swarm, run_workflow or schedule.",
+    "Only read files inside the working directory; do not read parent directories."
+  ]
+};
+var GEMINI_DESCRIPTOR = {
+  id: "gemini",
+  display_name: "Gemini CLI",
+  executable: "gemini",
+  executable_env: "CONSENSUS_GEMINI_EXECUTABLE",
+  credential_env: ["GEMINI_API_KEY"],
+  install_hint: "Install Gemini CLI with `npm install -g @google/gemini-cli`, then sign in by running `gemini` once, or set GEMINI_API_KEY.",
+  minimum_version: "0.70.0",
+  launch_args: ["--acp"],
+  // Gemini advertises no configOptions; -m at launch is the only lever.
+  model: { kind: "launch_flag", flag: "-m" },
+  model_sources: ["usage_models", "current_model_id"],
+  // Plan mode's only echo is this chunk, sent before the set_mode response.
+  mode: {
+    modeId: "plan",
+    confirm: { marker: "[MODE_UPDATE] plan", currentModeUpdate: true }
+  },
+  api_key: { env: "GEMINI_API_KEY", method_id: "gemini-api-key" },
+  auth_hint: "Sign in by running `gemini` once in a terminal, or set GEMINI_API_KEY."
+};
+var DROID_DESCRIPTOR = {
+  id: "droid",
+  display_name: "Droid",
+  executable: "droid",
+  executable_env: "CONSENSUS_DROID_EXECUTABLE",
+  credential_env: ["FACTORY_API_KEY"],
+  install_hint: "Install Factory Droid (https://docs.factory.ai), then sign in by running `droid` in a desktop terminal, or set FACTORY_API_KEY.",
+  minimum_version: "1.16.0",
+  launch_args: ["exec", "--output-format", "acp"],
+  model: { kind: "config_option", config_id: "model" },
+  model_sources: ["config_model"],
+  // The ACP default is auto-medium, which auto-approves writes. normal is
+  // echoed by current_mode_update and the autonomy_level config option.
+  mode: {
+    modeId: "normal",
+    confirm: { currentModeUpdate: true, configOptionId: "autonomy_level" }
+  },
+  api_key: { env: "FACTORY_API_KEY", method_id: "factory-api-key" },
+  auth_hint: "Sign in by running `droid` in a desktop terminal, or set FACTORY_API_KEY.",
+  // The auth-required message carries a live device-pairing code.
+  redactions: [/(?<=Your code:\s*)[A-Z0-9]{4}-[A-Z0-9]{4}\b/g],
+  brief_lines: [
+    "Do not use loop, ConnectApp, automation, or cloud/computer tools."
+  ]
+};
+var ACP_PROVIDER_DESCRIPTORS = [
+  ANTIGRAVITY_DESCRIPTOR,
+  GEMINI_DESCRIPTOR,
+  DROID_DESCRIPTOR
+];
+
 // src/plugins/consensus/provider-cli/types.ts
-var FIRST_SCOPE_PROVIDER_IDS = ["claude", "codex", "cursor"];
+var CORE_PROVIDER_IDS = ["claude", "codex", "cursor"];
 var PROVIDER_PREFLIGHT_CAPABILITIES = ["run"];
 var RUN_OUTPUT_KINDS = ["json", "text"];
 var CONTINUATION_MODES = [
@@ -43,8 +147,12 @@ var DEFAULTS_KEYS = /* @__PURE__ */ new Set([
   "panelists",
   "panel_size",
   "reviewers",
-  "roles"
+  "roles",
+  "provider_models"
 ]);
+var EXTENDED_PROVIDER_IDS = new Set(
+  ACP_PROVIDER_DESCRIPTORS.map((descriptor) => descriptor.id)
+);
 var AGENT_KEYS = /* @__PURE__ */ new Set(["provider", "model", "effort"]);
 var ROLE_KEYS = /* @__PURE__ */ new Set(["panelist", "advisor", "synthesizer"]);
 function parseConsensusDefaultsConfig(value) {
@@ -92,7 +200,41 @@ function parseConsensusDefaults(value) {
   if (value.roles !== void 0) {
     defaults.roles = parseRolesConfig(value.roles);
   }
+  if (value.provider_models !== void 0) {
+    defaults.provider_models = parseProviderModels(value.provider_models);
+  }
   return defaults;
+}
+function parseProviderModels(value) {
+  const label = "Consensus config provider_models";
+  if (!isRecord(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  const models = {};
+  for (const [provider, model] of Object.entries(value)) {
+    if (!EXTENDED_PROVIDER_IDS.has(provider)) {
+      throw new Error(
+        `${label} accepts only registered extended providers (${[...EXTENDED_PROVIDER_IDS].join(", ")}), not: ${provider}`
+      );
+    }
+    if (typeof model !== "string" || model.trim() === "") {
+      throw new Error(`${label}.${provider} must be a non-empty string`);
+    }
+    models[provider] = model;
+  }
+  return models;
+}
+async function resolveProviderDefaultModel(input) {
+  for (const scope of ["project", "user"]) {
+    const config = await readConsensusConfig({
+      scope,
+      cwd: input.cwd,
+      env: input.env
+    });
+    const model = config?.defaults?.provider_models?.[input.provider];
+    if (model) return { model, source: scope };
+  }
+  return void 0;
 }
 async function readConsensusConfig(input) {
   const configPath = await consensusConfigPath(input);
@@ -287,7 +429,7 @@ function selectPanelAgents(configuredPanelists, targetSize, inventory) {
   const seen = new Set(selected.map((agent) => agent.provider));
   for (const entry of inventory ?? []) {
     if (selected.length >= targetSize) break;
-    if (entry.status !== "ready" || seen.has(entry.id)) continue;
+    if (!isAutoSelectable(entry) || seen.has(entry.id)) continue;
     selected.push({ provider: entry.id });
     seen.add(entry.id);
   }
@@ -300,13 +442,16 @@ function selectPanelAgents(configuredPanelists, targetSize, inventory) {
   return selected;
 }
 function builtInAgents(inventory, count) {
-  const ready = (inventory ?? []).filter((entry) => entry.status === "ready").map((entry) => ({ provider: entry.id }));
+  const ready = (inventory ?? []).filter(isAutoSelectable).map((entry) => ({ provider: entry.id }));
   const selected = ready.slice(0, count);
   for (const agent of missingBuiltInAgents(selected)) {
     if (selected.length >= count) break;
     selected.push(agent);
   }
   return selected;
+}
+function isAutoSelectable(entry) {
+  return entry.status === "ready" && CORE_PROVIDER_IDS.some((id) => id === entry.id);
 }
 function builtInConvergenceAgents(count) {
   return BUILT_IN_PROVIDER_ORDER.slice(0, count).map((provider) => ({
@@ -354,7 +499,7 @@ function parseAgentList(value, options) {
   );
   if (options.knownProvidersOnly) {
     for (const agent of agents) {
-      if (!FIRST_SCOPE_PROVIDER_IDS.some((id) => id === agent.provider)) {
+      if (!CORE_PROVIDER_IDS.some((id) => id === agent.provider)) {
         throw new Error(
           `${options.label} contains unsupported provider: ${agent.provider}`
         );
@@ -441,7 +586,7 @@ function assertKnownKeys(record, knownKeys, label) {
   }
 }
 function hasConsensusDefaults(value) {
-  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.reviewers !== void 0 || value.roles !== void 0;
+  return value.peers !== void 0 || value.panelists !== void 0 || value.panel_size !== void 0 || value.reviewers !== void 0 || value.roles !== void 0 || value.provider_models !== void 0;
 }
 function isProviderId(value) {
   return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
@@ -479,541 +624,10 @@ function assertNever(value) {
   throw new Error(`Unexpected consensus config key: ${String(value)}`);
 }
 
-// src/plugins/consensus/provider-cli/invocation.ts
-import { randomUUID as randomUUID2 } from "node:crypto";
-import { tmpdir } from "node:os";
+// src/plugins/consensus/provider-cli/acp/adapter.ts
+import { mkdir as mkdir2, mkdtemp, rm as rm3, writeFile as writeFile2 } from "node:fs/promises";
+import os from "node:os";
 import path4 from "node:path";
-
-// src/plugins/consensus/provider-cli/runtime-policy.ts
-import { realpathSync, statSync } from "node:fs";
-import path3 from "node:path";
-
-// src/plugins/consensus/provider-cli/executable.ts
-import path2 from "node:path";
-var PROVIDER_EXECUTABLE_ENV = {
-  claude: "CONSENSUS_CLAUDE_EXECUTABLE",
-  codex: "CONSENSUS_CODEX_EXECUTABLE",
-  cursor: "CONSENSUS_CURSOR_EXECUTABLE"
-};
-function resolveProviderExecutable(adapter, env) {
-  const variable = PROVIDER_EXECUTABLE_ENV[adapter.id];
-  const value = env[variable];
-  if (value === void 0 || value === "") {
-    return { ok: true, executable: adapter.executable };
-  }
-  if (!path2.isAbsolute(value)) {
-    return {
-      ok: false,
-      message: `${variable} must be an absolute path to an executable, not ${JSON.stringify(value)}.`
-    };
-  }
-  return { ok: true, executable: value };
-}
-
-// src/plugins/consensus/provider-cli/runtime-policy.ts
-var DEFAULT_RUNTIME_POLICY = {
-  permission_mode: "non-interactive"
-};
-var BASE_ENV_ALLOWLIST = [
-  "PATH",
-  "HOME",
-  "TMPDIR",
-  "TEMP",
-  "TMP",
-  "USER",
-  "LOGNAME",
-  "SHELL",
-  "LANG"
-];
-var PROVIDER_ENV_ALLOWLIST = [
-  ["claude", ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]],
-  ["codex", ["OPENAI_API_KEY"]],
-  ["cursor", ["CURSOR_API_KEY"]]
-];
-function validateProviderOptions(request, capabilities) {
-  if (request.model && !capabilities.options.model) {
-    return unsupported("model", "Provider does not support model selection.");
-  }
-  if (request.effort && capabilities.options.effort === null) {
-    return unsupported("effort", "Provider does not support effort selection.");
-  }
-  const policy = defaultRuntimePolicy(request.runtime_policy);
-  const runtimeCapabilities = capabilities.options.runtime_policy;
-  const permissionResult = validateOptionValue(
-    "runtime_policy.permission_mode",
-    policy.permission_mode,
-    runtimeCapabilities.permission_modes
-  );
-  if (permissionResult) return permissionResult;
-  const sandboxResult = validateOptionValue(
-    "runtime_policy.sandbox",
-    policy.sandbox,
-    runtimeCapabilities.sandboxes
-  );
-  if (sandboxResult) return sandboxResult;
-  const approvalResult = validateOptionValue(
-    "runtime_policy.approval_policy",
-    policy.approval_policy,
-    runtimeCapabilities.approval_policies
-  );
-  if (approvalResult) return approvalResult;
-  if (policy.env_allowlist && policy.env_allowlist.length > 0 && !runtimeCapabilities.env_allowlist) {
-    return unsupported(
-      "runtime_policy.env_allowlist",
-      "Provider does not support child environment allowlist extension."
-    );
-  }
-  const hasScopedTools = hasScopedToolAccess(policy);
-  if (hasScopedTools && request.provider !== "claude") {
-    return unsupported(
-      "runtime_policy.scoped_tools",
-      "Scoped tool grants are supported only by the Claude provider."
-    );
-  }
-  if (request.output === "text" && request.provider === "cursor" && policy.permission_mode !== "read-only") {
-    return unsupported(
-      "runtime_policy.permission_mode",
-      "Cursor text-mode runs require --permission-mode read-only."
-    );
-  }
-  if (request.provider === "claude") {
-    const composition = composeClaudePermissionProfile(policy);
-    if (!composition.ok) {
-      return unsupported(composition.option, composition.message);
-    }
-  }
-  if ((request.max_attempts ?? 1) > 1 && !isProvenReadOnlyProfile(request.provider, policy)) {
-    return {
-      ok: false,
-      code: "CONSENSUS_CLI_USAGE",
-      option: "max_attempts",
-      message: "More than one attempt is allowed only for a proven read-only profile: Codex with --sandbox read-only, Claude with --permission-mode read-only and no edit or Bash grant, or Cursor with --permission-mode read-only. A retried turn could repeat its side effects."
-    };
-  }
-  for (const pattern of policy.bash_patterns ?? []) {
-    if (!isExactBashPattern(pattern)) {
-      return unsupported(
-        "runtime_policy.bash_patterns",
-        "Bash grants require a single-line command pattern without parentheses or commas, naming a command rather than only wildcards."
-      );
-    }
-  }
-  for (const [field, paths] of [
-    ["read_paths", policy.read_paths],
-    ["edit_paths", policy.edit_paths]
-  ]) {
-    for (const filePath of paths ?? []) {
-      if (!path3.isAbsolute(filePath) || path3.normalize(filePath) !== filePath || filePath.split(path3.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
-        return unsupported(
-          `runtime_policy.${field}`,
-          `${field} requires exact absolute paths without parent traversal or glob characters.`
-        );
-      }
-      try {
-        const target = statSync(filePath, { throwIfNoEntry: false });
-        if (target) {
-          if (!target.isFile() || realpathSync(filePath) !== filePath) {
-            return unsupported(
-              `runtime_policy.${field}`,
-              `${field} requires canonical regular-file targets, not directories or symlinks.`
-            );
-          }
-        } else if (field === "read_paths" || realpathSync(path3.dirname(filePath)) !== path3.dirname(filePath)) {
-          return unsupported(
-            `runtime_policy.${field}`,
-            `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
-          );
-        }
-      } catch {
-        return unsupported(
-          `runtime_policy.${field}`,
-          `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
-        );
-      }
-    }
-  }
-  for (const domain of policy.web_fetch_domains ?? []) {
-    if (domain.length > 253 || !/^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
-      domain
-    )) {
-      return unsupported(
-        "runtime_policy.web_fetch_domains",
-        "WebFetch grants require exact domain names without schemes, ports, or wildcards."
-      );
-    }
-  }
-  return { ok: true };
-}
-function isProvenReadOnlyProfile(provider, policy) {
-  if (provider === "codex") return policy.sandbox === "read-only";
-  if (provider === "claude") {
-    return policy.permission_mode === "read-only" && !policy.edit_paths?.length && !policy.bash_patterns?.length;
-  }
-  if (provider === "cursor") return policy.permission_mode === "read-only";
-  return false;
-}
-function hasScopedToolAccess(policy = {}) {
-  return Boolean(
-    policy.read_paths?.length || policy.edit_paths?.length || policy.bash_patterns?.length || policy.web_search || policy.web_fetch_domains?.length
-  );
-}
-function composeClaudePermissionProfile(policy) {
-  const mode = policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode;
-  const readPaths = policy.read_paths ?? [];
-  const editPaths = policy.edit_paths ?? [];
-  const bashPatterns = policy.bash_patterns ?? [];
-  const webFetchDomains = policy.web_fetch_domains ?? [];
-  const webSearch = Boolean(policy.web_search);
-  const readRules = readPaths.map((filePath) => `Read(/${filePath})`);
-  if (mode === "read-only") {
-    if (editPaths.length > 0 || bashPatterns.length > 0 || webSearch || webFetchDomains.length > 0) {
-      return compositionFailure(
-        "Claude read-only accepts only --allow-read grants; use non-interactive for edit or web grants and workspace-write for Bash grants."
-      );
-    }
-    if (readPaths.length === 0) {
-      return { ok: true, mode: "plan", allowed_tools: [], restricted: false };
-    }
-    return {
-      ok: true,
-      mode: "dontAsk",
-      tools: ["Read", "Glob", "Grep"],
-      allowed_tools: readRules,
-      restricted: true
-    };
-  }
-  if (mode === "non-interactive") {
-    if (bashPatterns.length > 0) {
-      return compositionFailure(
-        "Claude Bash grants require --permission-mode workspace-write."
-      );
-    }
-    const allowedTools = [
-      ...readRules,
-      ...editPaths.map((filePath) => `Edit(/${filePath})`),
-      ...webSearch ? ["WebSearch"] : [],
-      ...webFetchDomains.map((domain) => `WebFetch(domain:${domain})`)
-    ];
-    if (allowedTools.length === 0) {
-      return { ok: true, allowed_tools: [], restricted: false };
-    }
-    return {
-      ok: true,
-      mode: "dontAsk",
-      tools: [
-        ...readPaths.length > 0 ? ["Read"] : [],
-        ...editPaths.length > 0 ? ["Edit", "Write"] : [],
-        ...webSearch ? ["WebSearch"] : [],
-        ...webFetchDomains.length > 0 ? ["WebFetch"] : []
-      ],
-      allowed_tools: allowedTools,
-      restricted: true
-    };
-  }
-  if (mode === "workspace-write") {
-    if (readPaths.length > 0 || editPaths.length > 0 || webSearch || webFetchDomains.length > 0) {
-      return compositionFailure(
-        "Claude workspace-write accepts only --allow-bash grants; its file tools already cover the working directory."
-      );
-    }
-    return {
-      ok: true,
-      mode: "acceptEdits",
-      tools: [
-        "Read",
-        "Glob",
-        "Grep",
-        "Edit",
-        "Write",
-        ...bashPatterns.length > 0 ? ["Bash"] : []
-      ],
-      allowed_tools: bashPatterns.map((pattern) => `Bash(${pattern})`),
-      restricted: true
-    };
-  }
-  return compositionFailure(`Unsupported Claude permission mode: ${mode}.`);
-}
-function compositionFailure(message) {
-  return { ok: false, option: "runtime_policy.permission_mode", message };
-}
-function isExactBashPattern(pattern) {
-  return pattern.length > 0 && pattern.length <= 256 && pattern.trim() === pattern && !/[(),]/.test(pattern) && ![...pattern].some((character) => {
-    const code = character.charCodeAt(0);
-    return code < 32 || code === 127;
-  }) && /[^\s*:]/.test(pattern);
-}
-function defaultRuntimePolicy(policy = {}) {
-  return {
-    permission_mode: policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode,
-    ...policy.sandbox ? { sandbox: policy.sandbox } : {},
-    ...policy.approval_policy ? { approval_policy: policy.approval_policy } : {},
-    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {},
-    ...policy.read_paths ? { read_paths: policy.read_paths } : {},
-    ...policy.edit_paths ? { edit_paths: policy.edit_paths } : {},
-    ...policy.bash_patterns ? { bash_patterns: policy.bash_patterns } : {},
-    ...policy.web_search ? { web_search: true } : {},
-    ...policy.web_fetch_domains ? { web_fetch_domains: policy.web_fetch_domains } : {}
-  };
-}
-function buildChildEnvironment({
-  parentEnv,
-  request,
-  hostEnv
-}) {
-  const allowedNames = /* @__PURE__ */ new Set([
-    ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(request.provider),
-    ...request.runtime_policy?.env_allowlist ?? []
-  ]);
-  for (const name of Object.values(PROVIDER_EXECUTABLE_ENV)) {
-    allowedNames.delete(name);
-  }
-  const childEnv = {};
-  for (const name of allowedNames) {
-    const value = parentEnv[name];
-    if (value !== void 0) childEnv[name] = value;
-  }
-  const env = { ...childEnv, ...hostEnv };
-  if (request.output === "text") {
-    for (const name of Object.keys(env)) {
-      if (name.startsWith(RESERVED_SUBMIT_ENV_PREFIX)) delete env[name];
-    }
-  }
-  return env;
-}
-var RESERVED_SUBMIT_ENV_PREFIX = "CONSENSUS_SUBMIT_";
-function buildProviderProbeEnvironment({
-  parentEnv,
-  provider
-}) {
-  const allowedNames = /* @__PURE__ */ new Set([
-    ...BASE_ENV_ALLOWLIST,
-    ...providerEnvAllowlist(provider)
-  ]);
-  const probeEnv = {};
-  for (const name of allowedNames) {
-    const value = parentEnv[name];
-    if (value !== void 0) probeEnv[name] = value;
-  }
-  return probeEnv;
-}
-function providerEnvAllowlist(provider) {
-  return PROVIDER_ENV_ALLOWLIST.find(([id]) => id === provider)?.[1] ?? [];
-}
-function redactedRuntimePolicyDiagnostics(policy = {}) {
-  const effectivePolicy = defaultRuntimePolicy(policy);
-  return {
-    permission_mode: effectivePolicy.permission_mode,
-    ...effectivePolicy.sandbox ? { sandbox: effectivePolicy.sandbox } : {},
-    ...effectivePolicy.approval_policy ? { approval_policy: effectivePolicy.approval_policy } : {},
-    ...effectivePolicy.env_allowlist ? { env_allowlist: [...effectivePolicy.env_allowlist] } : {}
-  };
-}
-function validateOptionValue(option, value, supportedValues) {
-  if (!value) return void 0;
-  if (supportedValues?.includes(value)) return void 0;
-  return unsupported(
-    option,
-    supportedValues ? `Unsupported ${option}: ${value}.` : `Provider does not support ${option}.`
-  );
-}
-function unsupported(option, message) {
-  return {
-    ok: false,
-    code: "PROVIDER_UNSUPPORTED_OPTION",
-    option,
-    message
-  };
-}
-
-// src/plugins/consensus/provider-cli/invocation.ts
-function buildProviderInvocation(adapter, request, options = {}) {
-  return adapter.buildInvocation(request, {
-    strategy: options.strategy ?? defaultStrategy(adapter),
-    inlineJsonSchema: options.inlineJsonSchema,
-    lastMessageFile: options.lastMessageFile,
-    preserveLastMessageFile: options.preserveLastMessageFile,
-    resumeSessionId: options.resumeSessionId,
-    executable: options.executable
-  });
-}
-var buildClaudeInvocation = (request, options = {}) => {
-  const strategy = options.strategy ?? "prompt_only";
-  const argv = ["--print", "--output-format", "json"];
-  const redactedArgv = ["--print", "--output-format", "json"];
-  if (strategy === "provider_validated") {
-    if (!options.inlineJsonSchema) {
-      throw new Error(
-        "Claude provider-validated invocation requires an inline JSON schema."
-      );
-    }
-    argv.push("--json-schema", options.inlineJsonSchema);
-    redactedArgv.push("--json-schema", "<inline-json-schema>");
-  }
-  if (request.model) {
-    argv.push("--model", request.model);
-    redactedArgv.push("--model", request.model);
-  }
-  if (request.effort) {
-    argv.push("--effort", request.effort);
-    redactedArgv.push("--effort", request.effort);
-  }
-  const permission = composeClaudePermissionProfile(
-    request.runtime_policy ?? {}
-  );
-  if (!permission.ok) {
-    throw new Error(permission.message);
-  }
-  if (permission.allowed_tools.length > 0) {
-    argv.push("--allowedTools", ...permission.allowed_tools);
-    redactedArgv.push("--allowedTools", "<scoped-tool-rules>");
-  }
-  if (permission.tools) {
-    argv.push("--tools", permission.tools.join(","));
-    redactedArgv.push("--tools", permission.tools.join(","));
-  }
-  if (permission.restricted) {
-    argv.push("--permission-prompts", "none");
-    redactedArgv.push("--permission-prompts", "none");
-  }
-  if (permission.mode) {
-    argv.push("--permission-mode", permission.mode);
-    redactedArgv.push("--permission-mode", permission.mode);
-  }
-  if (permission.restricted) {
-    argv.push("--strict-mcp-config");
-    redactedArgv.push("--strict-mcp-config");
-  }
-  if (options.resumeSessionId) {
-    argv.push("--resume", options.resumeSessionId);
-    redactedArgv.push("--resume", options.resumeSessionId);
-  }
-  return {
-    ...invocation({
-      executable: options.executable ?? "claude",
-      argv,
-      redactedArgv,
-      request,
-      strategy,
-      outputMode: "stdout_json"
-    }),
-    permission_profile: {
-      mode: permission.mode ?? "provider_default",
-      ...permission.tools ? { tools: [...permission.tools] } : {},
-      // Grant contents stay out of diagnostics, as they do in redacted_command.
-      ...permission.allowed_tools.length > 0 ? {
-        allowed_tools: permission.allowed_tools.map(
-          (rule) => rule.replace(/^(Read|Edit)\(.*\)$/s, "$1(<path>)").replace(/^Bash\(.*\)$/s, "Bash(<pattern>)")
-        )
-      } : {}
-    }
-  };
-};
-var buildCodexInvocation = (request, options = {}) => {
-  const strategy = options.strategy ?? "prompt_only";
-  const lastMessageFile = options.lastMessageFile ?? codexLastMessageFile();
-  const resumeSessionId = options.resumeSessionId;
-  const argv = [
-    "exec",
-    ...resumeSessionId ? ["resume"] : [],
-    "--json",
-    "--output-last-message",
-    lastMessageFile
-  ];
-  if (strategy === "constrained_native") {
-    if (!request.schema_path) {
-      throw new Error("Codex constrained-native invocation requires a schema.");
-    }
-    argv.push("--output-schema", request.schema_path);
-  }
-  if (request.model) argv.push("--model", request.model);
-  if (request.effort) {
-    argv.push(
-      "-c",
-      codexConfigOverride("model_reasoning_effort", request.effort)
-    );
-  }
-  if (request.runtime_policy?.sandbox) {
-    if (resumeSessionId) {
-      argv.push(
-        "-c",
-        codexConfigOverride("sandbox_mode", request.runtime_policy.sandbox)
-      );
-    } else {
-      argv.push("--sandbox", request.runtime_policy.sandbox);
-    }
-  }
-  const approvalPolicy = request.runtime_policy?.approval_policy ?? (request.runtime_policy?.permission_mode === "non-interactive" ? "never" : void 0);
-  if (approvalPolicy) {
-    argv.push("-c", codexConfigOverride("approval_policy", approvalPolicy));
-  }
-  if (resumeSessionId) argv.push(resumeSessionId, "-");
-  return invocation({
-    executable: options.executable ?? "codex",
-    argv,
-    request,
-    strategy,
-    outputMode: "last_message_file",
-    lastMessageFile,
-    cleanupLastMessageFile: !options.preserveLastMessageFile
-  });
-};
-var buildCursorInvocation = (request, options = {}) => {
-  if (options.resumeSessionId) {
-    throw new Error(
-      "Cursor native resume is not verified for this adapter; use a reconstructed continuation."
-    );
-  }
-  const strategy = options.strategy === "submit_tool_candidate" ? "prompt_only" : options.strategy ?? "prompt_only";
-  const argv = request.runtime_policy?.permission_mode === "read-only" ? [
-    "--print",
-    "--output-format",
-    "json",
-    "--trust",
-    "--mode",
-    "ask",
-    "--sandbox",
-    "enabled"
-  ] : ["--print", "--output-format", "json", "--force"];
-  if (request.model) argv.push("--model", request.model);
-  return invocation({
-    executable: options.executable ?? "cursor-agent",
-    argv,
-    request,
-    strategy,
-    outputMode: "stdout_json"
-  });
-};
-function invocation(input) {
-  return {
-    executable: input.executable,
-    argv: input.argv,
-    stdin: input.stdin ?? input.request.prompt,
-    ...input.request.cwd ? { cwd: input.request.cwd } : {},
-    output_mode: input.outputMode,
-    strategy: input.strategy,
-    redacted_command: [input.executable, ...input.redactedArgv ?? input.argv],
-    ...input.lastMessageFile ? {
-      last_message_file: input.lastMessageFile,
-      cleanup_last_message_file: input.cleanupLastMessageFile ?? true
-    } : {},
-    shell: false
-  };
-}
-function codexConfigOverride(key, value) {
-  return `${key}=${JSON.stringify(value)}`;
-}
-function codexLastMessageFile() {
-  return path4.join(
-    tmpdir(),
-    `consensus-codex-last-message-${randomUUID2()}.txt`
-  );
-}
-function defaultStrategy(adapter) {
-  return adapter.capabilities.schema_strategies.find(
-    (strategy) => strategy !== "submit_tool_candidate"
-  ) ?? "prompt_only";
-}
 
 // src/plugins/consensus/provider-cli/subprocess.ts
 import { spawn } from "node:child_process";
@@ -1521,6 +1135,2369 @@ function failure(input) {
   };
 }
 
+// src/plugins/consensus/provider-cli/acp/client.ts
+import { realpathSync as realpathSync2 } from "node:fs";
+import path3 from "node:path";
+
+// src/plugins/consensus/provider-cli/acp/jsonrpc.ts
+var JsonRpcConnection = class {
+  constructor(options) {
+    this.options = options;
+  }
+  options;
+  nextId = 1;
+  pending = /* @__PURE__ */ new Map();
+  closed = false;
+  counters = {
+    ignored_lines: 0
+  };
+  request(method, params) {
+    const id = this.nextId++;
+    if (this.closed) {
+      return { id, outcome: Promise.resolve({ kind: "closed" }) };
+    }
+    const outcome = new Promise((resolve) => {
+      this.pending.set(id, resolve);
+    });
+    this.send({ jsonrpc: "2.0", id, method, params });
+    return { id, outcome };
+  }
+  notify(method, params) {
+    if (this.closed) return;
+    this.send({ jsonrpc: "2.0", method, params });
+  }
+  receiveLine(line) {
+    if (line.trim() === "") return;
+    let message;
+    try {
+      message = JSON.parse(line);
+    } catch {
+      this.counters.ignored_lines++;
+      return;
+    }
+    if (!isRecord2(message)) {
+      this.counters.ignored_lines++;
+      return;
+    }
+    if (typeof message.method === "string") {
+      if (isJsonRpcId(message.id)) {
+        this.answer(message.id, message.method, message.params);
+      } else {
+        this.options.onNotification(message.method, message.params);
+      }
+      return;
+    }
+    if ("result" in message || "error" in message) {
+      this.settleResponse(message);
+      return;
+    }
+    this.counters.ignored_lines++;
+  }
+  // Settles every pending request as closed; later sends are dropped.
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+    for (const resolve of this.pending.values()) resolve({ kind: "closed" });
+    this.pending.clear();
+  }
+  isClosed() {
+    return this.closed;
+  }
+  stats() {
+    return { ...this.counters };
+  }
+  answer(id, method, params) {
+    const reply = this.options.onRequest({ id, method, params });
+    if (this.closed) return;
+    this.send({ jsonrpc: "2.0", id, ...reply });
+  }
+  settleResponse(message) {
+    const id = message.id;
+    const resolve = typeof id === "number" ? this.pending.get(id) : void 0;
+    if (!resolve || typeof id !== "number") return;
+    this.pending.delete(id);
+    if ("error" in message) {
+      resolve({ kind: "error", error: toErrorObject(message.error) });
+      return;
+    }
+    resolve({ kind: "result", result: message.result });
+  }
+  send(message) {
+    this.options.write(`${JSON.stringify(message)}
+`);
+  }
+};
+function toErrorObject(value) {
+  if (!isRecord2(value)) {
+    return { code: -32603, message: "Malformed JSON-RPC error object" };
+  }
+  return {
+    code: typeof value.code === "number" ? value.code : -32603,
+    message: typeof value.message === "string" ? value.message : "",
+    ...value.data !== void 0 ? { data: value.data } : {}
+  };
+}
+function isJsonRpcId(value) {
+  return typeof value === "string" || typeof value === "number";
+}
+function isRecord2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// src/plugins/consensus/provider-cli/acp/process.ts
+import { spawn as spawn2 } from "node:child_process";
+var USE_PROCESS_GROUP2 = process.platform !== "win32";
+var FORWARDED_SIGNALS2 = ["SIGINT", "SIGTERM", "SIGHUP"];
+var DEFAULT_MAX_STDERR_BYTES = 64 * 1024;
+var GROUP_POLL_MS = 20;
+var STDOUT_DRAIN_AFTER_EXIT_MS = 250;
+var LineBuffer = class {
+  pending = "";
+  push(chunk) {
+    const lines = [];
+    let start = 0;
+    let searchFrom = this.pending.length;
+    this.pending += chunk;
+    let newline = this.pending.indexOf("\n", searchFrom);
+    while (newline !== -1) {
+      lines.push(stripCarriageReturn(this.pending.slice(start, newline)));
+      start = newline + 1;
+      searchFrom = start;
+      newline = this.pending.indexOf("\n", searchFrom);
+    }
+    this.pending = this.pending.slice(start);
+    return lines;
+  }
+  // The unterminated remainder, if any, as a final line.
+  flush() {
+    const rest = this.pending;
+    this.pending = "";
+    return rest.length > 0 ? stripCarriageReturn(rest) : void 0;
+  }
+};
+function stripCarriageReturn(line) {
+  return line.endsWith("\r") ? line.slice(0, -1) : line;
+}
+var spawnProcessGroup = (options) => new Promise((resolve) => {
+  let child;
+  try {
+    child = spawn2(options.executable, [...options.argv], {
+      cwd: options.cwd,
+      env: options.env,
+      shell: false,
+      detached: USE_PROCESS_GROUP2,
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+  } catch (error) {
+    const errno = error.code;
+    if (errno !== "E2BIG") throw error;
+    resolve({
+      ok: false,
+      reason: "argv_too_large",
+      errno,
+      message: "Agent arguments or environment exceeded the operating-system limit (E2BIG)."
+    });
+    return;
+  }
+  child.once("error", (error) => {
+    resolve({
+      ok: false,
+      reason: "spawn_failed",
+      ...error.code ? { errno: error.code } : {},
+      message: `Could not start ${options.executable}: ${error.code ?? error.message}`
+    });
+  });
+  child.once("spawn", () => {
+    child.on("error", () => {
+    });
+    resolve({ ok: true, handle: attach(child, options) });
+  });
+});
+function attach(child, options) {
+  const maxStderrBytes = options.maxStderrBytes ?? DEFAULT_MAX_STDERR_BYTES;
+  const lines = new LineBuffer();
+  let stdoutBytes = 0;
+  let stderrBytes = 0;
+  let stderrKept = "";
+  let stderrKeptBytes = 0;
+  let stderrCut = false;
+  let capped = false;
+  let stdinClosed = false;
+  let stdoutEnded = false;
+  let exited;
+  let interrupt;
+  let killedForRepeat = false;
+  let listening = false;
+  let resolveExit;
+  const exit = new Promise((resolve) => {
+    resolveExit = resolve;
+  });
+  const deadline = setTimeout(() => {
+    options.onTimeout?.();
+  }, options.timeoutMs);
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("error", () => {
+  });
+  child.stderr.on("error", () => {
+  });
+  child.stdin.on("error", () => {
+  });
+  child.stdout.on("data", (chunk) => {
+    if (!countOutput("stdout", chunk)) return;
+    for (const line of lines.push(chunk)) options.onLine(line);
+  });
+  child.stdout.on("end", endStdout);
+  child.stderr.on("data", (chunk) => {
+    if (!countOutput("stderr", chunk)) return;
+    if (stderrCut) return;
+    const kept = takeUtf8Prefix(chunk, maxStderrBytes - stderrKeptBytes);
+    stderrKept += kept.text;
+    stderrKeptBytes += kept.bytes;
+    if (kept.bytes < Buffer.byteLength(chunk)) stderrCut = true;
+  });
+  child.on("exit", (code, signal) => {
+    exited = { code, signal };
+    clearTimeout(deadline);
+    resolveExit(exited);
+    setTimeout(endStdout, STDOUT_DRAIN_AFTER_EXIT_MS);
+  });
+  if (USE_PROCESS_GROUP2 && child.pid !== void 0) {
+    listening = true;
+    for (const signal of FORWARDED_SIGNALS2) process.on(signal, onSignal);
+  }
+  function onSignal(signal) {
+    if (interrupt) {
+      killedForRepeat = true;
+      signalGroup("SIGKILL");
+      return;
+    }
+    interrupt = signal;
+    clearTimeout(deadline);
+    options.onInterrupt?.(signal);
+  }
+  function countOutput(stream, chunk) {
+    if (capped) return false;
+    const bytes = Buffer.byteLength(chunk);
+    if (stream === "stdout") stdoutBytes += bytes;
+    else stderrBytes += bytes;
+    if (stdoutBytes + stderrBytes > options.maxOutputBytes) {
+      capped = true;
+      options.onOutputCap?.();
+      return false;
+    }
+    return true;
+  }
+  function endStdout() {
+    if (stdoutEnded) return;
+    stdoutEnded = true;
+    if (!capped) {
+      const rest = lines.flush();
+      if (rest !== void 0) options.onLine(rest);
+    }
+    options.onStdoutEnd?.();
+  }
+  function signalGroup(signal) {
+    if (!USE_PROCESS_GROUP2 || child.pid === void 0) {
+      if (exited) return "gone";
+      child.kill(signal);
+      return "sent";
+    }
+    try {
+      process.kill(-child.pid, signal);
+      return "sent";
+    } catch (error) {
+      if (error.code === "ESRCH") return "gone";
+      child.kill(signal);
+      return "sent";
+    }
+  }
+  function groupAlive() {
+    if (!USE_PROCESS_GROUP2 || child.pid === void 0) return !exited;
+    try {
+      process.kill(-child.pid, 0);
+      return true;
+    } catch (error) {
+      return error.code !== "ESRCH";
+    }
+  }
+  async function waitUntil(condition, ms) {
+    const end = Date.now() + ms;
+    while (!condition()) {
+      if (Date.now() >= end) return false;
+      await delay(GROUP_POLL_MS);
+    }
+    return true;
+  }
+  function closeStdin() {
+    if (stdinClosed) return;
+    stdinClosed = true;
+    child.stdin.end();
+  }
+  async function teardown(teardownOptions) {
+    clearTimeout(deadline);
+    closeStdin();
+    if (teardownOptions.waitForExit !== false && !exited) {
+      await withTimeout(exit, teardownOptions.exitGraceMs);
+    }
+    const result = {
+      scope: USE_PROCESS_GROUP2 ? "process_group" : "process",
+      exited_before_signal: exited !== void 0,
+      signals: [],
+      settled_by: "group_gone"
+    };
+    if (killedForRepeat) result.signals.push("SIGKILL");
+    const first = teardownOptions.firstSignal ?? "SIGTERM";
+    if (signalGroup(first) === "gone") {
+      finishStreams();
+      return result;
+    }
+    result.signals.push(first);
+    if (await waitUntil(() => !groupAlive(), teardownOptions.killGraceMs)) {
+      result.settled_by = USE_PROCESS_GROUP2 ? "first_signal" : "leader_exit";
+      finishStreams();
+      return result;
+    }
+    if (signalGroup("SIGKILL") === "sent") result.signals.push("SIGKILL");
+    const gone = await waitUntil(
+      () => !groupAlive(),
+      teardownOptions.settleMs ?? 1e3
+    );
+    result.settled_by = gone ? "sigkill" : "settlement_timeout";
+    finishStreams();
+    return result;
+  }
+  function finishStreams() {
+    child.stdin.destroy();
+    child.stdout.destroy();
+    child.stderr.destroy();
+    if (listening) {
+      listening = false;
+      for (const signal of FORWARDED_SIGNALS2) {
+        process.removeListener(signal, onSignal);
+      }
+    }
+  }
+  return {
+    pid: child.pid,
+    write(data) {
+      if (stdinClosed || child.stdin.destroyed) return;
+      child.stdin.write(data);
+    },
+    exit,
+    hasExited: () => exited !== void 0,
+    stderr: () => capped || stderrBytes > stderrKeptBytes ? stderrKept.slice(0, stderrKept.lastIndexOf("\n") + 1) : stderrKept,
+    outputBytes: () => ({
+      stdout: stdoutBytes,
+      stderr: stderrBytes,
+      max: options.maxOutputBytes
+    }),
+    teardown,
+    reraiseInterrupt() {
+      if (listening || !interrupt) return;
+      if (process.listenerCount(interrupt) === 0) {
+        process.kill(process.pid, interrupt);
+      }
+    }
+  };
+}
+function withTimeout(promise, ms) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve("timeout"), ms);
+    void promise.then((value) => {
+      clearTimeout(timer);
+      resolve(value);
+    });
+  });
+}
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+// src/plugins/consensus/provider-cli/acp/responder.ts
+import { realpathSync } from "node:fs";
+import path2 from "node:path";
+var ACP_CLIENT_CAPABILITIES = {
+  fs: { readTextFile: false, writeTextFile: false },
+  terminal: false
+};
+var CANCELLED_PERMISSION_OUTCOME = {
+  outcome: { outcome: "cancelled" }
+};
+var REJECT_KINDS = ["reject_once", "reject_always"];
+var MAX_FIELD_CHARS = 120;
+function denyPermissionRequest(params, options = {}) {
+  const request = isRecord2(params) ? params : {};
+  const denialBase = describeToolCall(
+    request.toolCall,
+    options.redact ?? ((text) => text)
+  );
+  if (!options.cancelled) {
+    const optionId = rejectOptionId(request.options);
+    if (optionId !== void 0) {
+      return {
+        response: { outcome: { outcome: "selected", optionId } },
+        denial: { ...denialBase, outcome: "rejected" }
+      };
+    }
+  }
+  return {
+    response: CANCELLED_PERMISSION_OUTCOME,
+    denial: { ...denialBase, outcome: "cancelled" }
+  };
+}
+function realExistingPath(file) {
+  const rest = [];
+  let current = path2.resolve(file);
+  for (; ; ) {
+    try {
+      return path2.join(realpathSync(current), ...rest.toReversed());
+    } catch {
+      const parent = path2.dirname(current);
+      if (parent === current) return path2.resolve(file);
+      rest.push(path2.basename(current));
+      current = parent;
+    }
+  }
+}
+function methodNotFound(method) {
+  return { code: -32601, message: "Method not found", data: { method } };
+}
+function rejectOptionId(options) {
+  for (const kind of REJECT_KINDS) {
+    const optionId = optionIdOfKind(options, kind);
+    if (optionId !== void 0) return optionId;
+  }
+  return void 0;
+}
+function optionIdOfKind(options, kind) {
+  if (!Array.isArray(options)) return void 0;
+  const match = options.find(
+    (option) => isRecord2(option) && option.kind === kind && typeof option.optionId === "string"
+  );
+  return match?.optionId;
+}
+function describeToolCall(toolCall, redact) {
+  if (!isRecord2(toolCall)) return {};
+  const short = (value) => typeof value === "string" && value !== "" ? shortString(redact(value)) : void 0;
+  const tool = short(toolCall.name) ?? short(toolCall.title);
+  const kind = short(toolCall.kind);
+  const location = Array.isArray(toolCall.locations) && isRecord2(toolCall.locations[0]) ? toolCall.locations[0].path : void 0;
+  const firstPath = typeof location === "string" && location !== "" ? location : void 0;
+  return {
+    ...tool !== void 0 ? { tool } : {},
+    ...kind !== void 0 ? { kind } : {},
+    ...firstPath !== void 0 ? { path: firstPath } : {}
+  };
+}
+function shortString(value, max = MAX_FIELD_CHARS) {
+  return value.length > max ? `${value.slice(0, max)}\u2026` : value;
+}
+
+// src/plugins/consensus/provider-cli/acp/transcript.ts
+var ACP_TURN_RESULT_SCHEMA = "consensus.acp-turn.v1";
+function emptyTurnResult() {
+  return {
+    schema: ACP_TURN_RESULT_SCHEMA,
+    phase: "spawn",
+    prompt_sent: false,
+    text: "",
+    denials: [],
+    refused_methods: [],
+    models: {},
+    setup: []
+  };
+}
+function serializeAcpTurnResult(result) {
+  return JSON.stringify(result);
+}
+function parseAcpTurnResult(stdout) {
+  let value;
+  try {
+    value = JSON.parse(stdout);
+  } catch {
+    return void 0;
+  }
+  if (!isRecord2(value) || value.schema !== ACP_TURN_RESULT_SCHEMA || typeof value.text !== "string" || typeof value.prompt_sent !== "boolean" || typeof value.phase !== "string" || !Array.isArray(value.denials) || !Array.isArray(value.refused_methods) || !Array.isArray(value.setup) || !isRecord2(value.models)) {
+    return void 0;
+  }
+  return value;
+}
+var DEFAULT_REDACTIONS = [
+  /AIza[0-9A-Za-z_-]{20,}/g,
+  /\b(?:sk|fk|pk|ghp|gho|ghs|github_pat|xox[a-z])[-_][A-Za-z0-9_-]{12,}/g,
+  /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g,
+  /\bBearer\s+[A-Za-z0-9._~+/-]{12,}=*/gi
+];
+var MIN_SECRET_VALUE_CHARS = 6;
+var REDACTED = "<redacted>";
+function redactText(text, options = {}) {
+  let redacted = redactSecretValues(text, options.secretValues);
+  for (const pattern of [...DEFAULT_REDACTIONS, ...options.patterns ?? []]) {
+    redacted = redacted.replace(globalPattern(pattern), REDACTED);
+  }
+  return redacted;
+}
+function redactSecretValues(text, secretValues = []) {
+  let redacted = text;
+  for (const value of secretValues) {
+    if (value.length < MIN_SECRET_VALUE_CHARS) continue;
+    redacted = redacted.split(value).join(REDACTED);
+  }
+  return redacted;
+}
+function sanitizeTurnResult(result, options) {
+  const redact = (text2) => redactText(text2, options);
+  const walk = (value) => {
+    if (typeof value === "string") return redact(value);
+    if (Array.isArray(value)) return value.map(walk);
+    if (isRecord2(value)) {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, entry]) => [redact(key), walk(entry)])
+      );
+    }
+    return value;
+  };
+  const { schema, text, ...rest } = result;
+  return {
+    ...walk(rest),
+    schema,
+    text: (options.patterns ?? []).reduce(
+      (redacted, pattern) => redacted.replace(globalPattern(pattern), REDACTED),
+      redactSecretValues(text, options.secretValues)
+    )
+  };
+}
+function globalPattern(pattern) {
+  return pattern.global ? pattern : new RegExp(pattern.source, `${pattern.flags}g`);
+}
+var AUTH_REQUIRED_CODE = -32e3;
+function classifyAcpTurn(result, options = {}) {
+  const name = options.displayName ?? result.agent?.name ?? "The ACP agent";
+  const startedTurn = result.prompt_sent ? "unknown" : "not_started";
+  if (result.abort === "timeout") {
+    return failure2(
+      "PROVIDER_TIMEOUT",
+      result.prompt_sent ? `${name} did not finish the turn before the deadline; the turn was cancelled.${options.timeoutHint ? ` ${options.timeoutHint}` : ""}` : `${name} did not finish starting the session before the deadline.`,
+      "provider_timeout",
+      startedTurn
+    );
+  }
+  if (result.abort === "output_cap") {
+    return failure2(
+      "PROVIDER_OUTPUT_CAP_EXCEEDED",
+      `${name} exceeded the output cap.`,
+      "output_cap_exceeded",
+      startedTurn
+    );
+  }
+  if (result.abort === "mode_changed") {
+    return failure2(
+      "PROVIDER_EXIT",
+      `${name} left read-only mode during the turn (now ${result.mode_drift ?? "unknown"}); the turn was cancelled and its answer discarded.`,
+      "acp_mode_changed",
+      "unknown"
+    );
+  }
+  if (result.abort === "interrupt") {
+    return failure2(
+      "PROVIDER_EXIT",
+      `The ${name} run was interrupted by a signal sent to consensus.`,
+      "provider_run_interrupted",
+      startedTurn
+    );
+  }
+  const error = result.error;
+  if (error) {
+    if (error.kind === "spawn") {
+      return error.errno === "E2BIG" ? failure2(
+        "PROVIDER_ARGV_TOO_LARGE",
+        error.message,
+        "provider_argv_too_large",
+        "not_started"
+      ) : failure2(
+        "PROVIDER_MISSING",
+        error.message,
+        "provider_missing",
+        "not_started"
+      );
+    }
+    if (error.kind === "unsupported_option") {
+      return failure2(
+        "PROVIDER_UNSUPPORTED_OPTION",
+        error.message,
+        "provider_unsupported_option",
+        "not_started"
+      );
+    }
+    if (error.kind === "unconfirmed_setup") {
+      return failure2(
+        "PROVIDER_UNSUPPORTED_OPTION",
+        `${name} did not confirm its read-only setup: ${error.message}`,
+        "acp_setup_unconfirmed",
+        "not_started"
+      );
+    }
+    if (error.kind === "jsonrpc" && isAuthError(error, options)) {
+      const hint = options.authHint ? ` ${options.authHint}` : "";
+      return failure2(
+        "PROVIDER_AUTH_REQUIRED",
+        `${name} needs authentication: ${error.message}.${hint}`,
+        "provider_auth_required",
+        error.phase === "prompt" ? "unknown" : "not_started"
+      );
+    }
+    if (error.kind === "client_error") {
+      return failure2(
+        "PROVIDER_EXIT",
+        `The consensus ACP client failed during ${error.phase}: ${error.message}`,
+        "acp_client_error",
+        startedTurn
+      );
+    }
+    if (error.kind === "agent_exit") {
+      return failure2(
+        "PROVIDER_EXIT",
+        `${name} exited during ${error.phase}: ${error.message}`,
+        "provider_exit_terminal",
+        startedTurn
+      );
+    }
+    return failure2(
+      error.kind === "malformed" ? "PROVIDER_MALFORMED_RESULT" : "PROVIDER_EXIT",
+      `${name} failed during ${error.phase}: ${error.message}`,
+      error.kind === "malformed" ? "acp_malformed_response" : "acp_jsonrpc_error",
+      error.phase === "prompt" ? "unknown" : "not_started"
+    );
+  }
+  if (!result.prompt_sent) {
+    return failure2(
+      "PROVIDER_EXIT",
+      `${name} ended before the prompt was sent.`,
+      "acp_prompt_not_sent",
+      "not_started"
+    );
+  }
+  if (result.stop_reason === void 0) {
+    return failure2(
+      "PROVIDER_EXIT",
+      `${name} ended without answering the prompt.`,
+      "acp_no_prompt_response",
+      "unknown"
+    );
+  }
+  const text = result.text;
+  const blank = text.trim() === "";
+  const denials = result.denials;
+  if (result.stop_reason === "end_turn") {
+    for (const entry of options.errorTextPatterns ?? []) {
+      if (entry.pattern.test(text)) {
+        return failure2(
+          entry.code,
+          `${name} reported an error instead of an answer: ${firstLine(redactText(text))}`,
+          entry.code === "PROVIDER_LIMIT_REACHED" ? "provider_limit_reached" : "acp_error_text",
+          "completed"
+        );
+      }
+    }
+    if (blank && denials.length > 0) return permissionDenied(name, denials);
+    if (blank) {
+      return failure2(
+        "PROVIDER_EMPTY_OUTPUT",
+        `${name} ended the turn without answer text.`,
+        "provider_empty_output",
+        "completed"
+      );
+    }
+    const warnings = denials.length > 0 ? [
+      `${name} asked for ${denials.length} tool permission(s) outside read-only; all were denied (${toolList(denials)}).`
+    ] : [];
+    return { ok: true, text, warnings };
+  }
+  if (result.stop_reason === "cancelled" && denials.length > 0) {
+    return permissionDenied(name, denials);
+  }
+  if (result.stop_reason === "max_tokens" || result.stop_reason === "max_turn_requests") {
+    return failure2(
+      "PROVIDER_LIMIT_REACHED",
+      `${name} stopped at a limit (${result.stop_reason}).`,
+      "provider_limit_reached",
+      "completed"
+    );
+  }
+  return failure2(
+    "PROVIDER_EXIT",
+    `${name} ended the turn with stop reason ${result.stop_reason}.`,
+    "acp_stop_reason",
+    "completed"
+  );
+}
+function permissionDenied(name, denials) {
+  return failure2(
+    "PROVIDER_PERMISSION_DENIED",
+    `${name} tried to act outside read-only and was denied (${toolList(denials)}); the turn ended without an answer.`,
+    "acp_permission_denied",
+    "completed"
+  );
+}
+function isAuthError(error, options) {
+  if (error.code === AUTH_REQUIRED_CODE) return true;
+  return (options.authErrorPatterns ?? []).some(
+    (pattern) => pattern.test(error.message)
+  );
+}
+function toolList(denials) {
+  const tools = [
+    ...new Set(denials.map((denial) => denial.tool ?? denial.kind ?? "tool"))
+  ];
+  return tools.join(", ");
+}
+function firstLine(text) {
+  const line = text.split(/\r?\n/).map((part) => part.trim()).find((part) => part !== "") ?? "";
+  return line.length > 200 ? `${line.slice(0, 200)}\u2026` : line;
+}
+function failure2(code, message, terminalReason, turn) {
+  return {
+    ok: false,
+    code,
+    message,
+    retryable: false,
+    terminal_reason: terminalReason,
+    turn
+  };
+}
+
+// src/plugins/consensus/provider-cli/acp/client.ts
+var ACP_PROTOCOL_VERSION = 1;
+var DEFAULT_ACP_TIMING = {
+  cancelGraceMs: 1500,
+  closeTimeoutMs: 1e3,
+  exitGraceMs: 2e3,
+  killGraceMs: 500,
+  settleMs: 1e3
+};
+var DEFAULT_MAX_OUTPUT_BYTES2 = 10 * 1024 * 1024;
+var MAX_REFUSED_METHODS = 20;
+var MAX_META_CHARS = 200;
+var ADVERTISED_SAMPLE = 5;
+var MAX_EARLY_SESSIONS = 4;
+var stdioAcpTransport = { run: runAcpTurn };
+async function runAcpTurn(input) {
+  const timing = { ...DEFAULT_ACP_TIMING, ...input.timing };
+  const maxOutputBytes = input.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES2;
+  const secretValues = (input.plan.credentialEnv ?? []).map((name) => input.env?.[name]).filter((value) => typeof value === "string");
+  const redaction = { patterns: input.plan.redactions, secretValues };
+  const redact = (text) => redactText(text, redaction);
+  const result = emptyTurnResult();
+  let abortReason;
+  let interruptSignal;
+  let resolveAbort;
+  const aborted = new Promise((resolve) => {
+    resolveAbort = resolve;
+  });
+  const abort = (reason) => {
+    if (abortReason) return;
+    abortReason = reason;
+    resolveAbort({ kind: "aborted" });
+  };
+  const clientFailure = (error) => {
+    if (!result.error) {
+      result.error = {
+        phase: result.phase,
+        kind: "client_error",
+        message: redact(error instanceof Error ? error.message : String(error))
+      };
+    }
+    resolveAbort({ kind: "aborted" });
+  };
+  const session = new SessionState(result, redact, () => {
+    if (result.prompt_sent) abort("mode_changed");
+  });
+  const io = {};
+  const connection = new JsonRpcConnection({
+    write: (line) => {
+      try {
+        io.group?.write(line);
+      } catch (error) {
+        clientFailure(error);
+      }
+    },
+    onRequest: (request) => {
+      if (request.method === "session/request_permission") {
+        const { response, denial } = denyPermissionRequest(request.params, {
+          cancelled: result.cancel_sent === true,
+          redact
+        });
+        result.denials.push(denial);
+        return { result: response };
+      }
+      if (!result.refused_methods.includes(request.method) && result.refused_methods.length < MAX_REFUSED_METHODS) {
+        result.refused_methods.push(clip(redact(request.method)));
+      }
+      return { error: methodNotFound(request.method) };
+    },
+    onNotification: (method, params) => session.notification(method, params)
+  });
+  const spawned = await (input.spawn ?? spawnProcessGroup)({
+    executable: input.executable,
+    argv: input.argv,
+    cwd: input.cwd,
+    env: input.env,
+    maxOutputBytes,
+    maxStderrBytes: input.maxStderrBytes,
+    timeoutMs: input.timeoutMs,
+    onLine: (line) => connection.receiveLine(line),
+    onStdoutEnd: () => connection.close(),
+    onTimeout: () => abort("timeout"),
+    onOutputCap: () => abort("output_cap"),
+    onInterrupt: (signal) => {
+      interruptSignal = signal;
+      abort("interrupt");
+    }
+  });
+  if (!spawned.ok) {
+    result.error = {
+      phase: "spawn",
+      kind: "spawn",
+      message: redact(spawned.message),
+      ...spawned.errno ? { errno: spawned.errno } : {}
+    };
+    return {
+      result,
+      stderr: "",
+      exit_code: null,
+      signal: null,
+      output_bytes: { stdout: 0, stderr: 0, max: maxOutputBytes }
+    };
+  }
+  const group = spawned.handle;
+  io.group = group;
+  const call = (method, params) => Promise.race([connection.request(method, params).outcome, aborted]);
+  let promptOutcome;
+  let teardown;
+  try {
+    await drive();
+  } catch (error) {
+    clientFailure(error);
+  }
+  try {
+    await finish();
+  } catch (error) {
+    clientFailure(error);
+  } finally {
+    await tearDownGroup();
+  }
+  const exit = group.hasExited() ? await group.exit : void 0;
+  return finalize();
+  async function drive() {
+    result.phase = "initialize";
+    const initialized = await call("initialize", {
+      protocolVersion: ACP_PROTOCOL_VERSION,
+      clientCapabilities: ACP_CLIENT_CAPABILITIES,
+      clientInfo: input.plan.clientInfo
+    });
+    const init = expectResult(initialized, "initialize");
+    if (!init) return;
+    session.initialized(init);
+    if (init.protocolVersion !== ACP_PROTOCOL_VERSION) {
+      fail(
+        "malformed",
+        `unsupported ACP protocol version ${String(init.protocolVersion)}`
+      );
+      return;
+    }
+    if (input.plan.authenticate) {
+      result.phase = "authenticate";
+      const authenticated = await call("authenticate", {
+        methodId: input.plan.authenticate.methodId
+      });
+      if (!expectResult(authenticated, "authenticate")) return;
+    }
+    result.phase = "session_new";
+    const created = await call("session/new", {
+      cwd: input.cwd,
+      mcpServers: []
+    });
+    const newSession = expectResult(created, "session/new");
+    if (!newSession) return;
+    if (typeof newSession.sessionId !== "string" || newSession.sessionId === "") {
+      fail("malformed", "session/new returned no sessionId");
+      return;
+    }
+    session.created(newSession);
+    result.phase = "setup";
+    if (!await setup()) return;
+    const drift = session.modeDrift();
+    if (drift !== void 0) {
+      fail(
+        "unconfirmed_setup",
+        `the agent left mode ${input.plan.mode?.modeId} (now ${drift}) before the prompt`
+      );
+      return;
+    }
+    result.phase = "prompt";
+    const text = [...input.plan.briefLines ?? [], input.prompt].join("\n\n");
+    result.prompt_sent = true;
+    session.promptStarted();
+    const prompt = connection.request("session/prompt", {
+      sessionId: result.session_id,
+      prompt: [{ type: "text", text }]
+    });
+    promptOutcome = prompt.outcome;
+    const answered = await Promise.race([prompt.outcome, aborted]);
+    const response = expectResult(answered, "session/prompt");
+    if (!response) return;
+    session.promptAnswered(response);
+    result.phase = "complete";
+  }
+  async function setup() {
+    const expected = input.plan.expectCurrentModel;
+    if (expected !== void 0) {
+      const current = result.models.current_model_id;
+      const confirmed = current === expected;
+      result.setup.push({
+        step: "model_state",
+        id: "currentModelId",
+        value: expected,
+        confirmed,
+        ...confirmed ? { evidence: "session_state" } : {}
+      });
+      if (!confirmed) {
+        fail(
+          "unconfirmed_setup",
+          `the session started with model ${current ?? "unknown"}, not ${expected}`
+        );
+        return false;
+      }
+    }
+    const mode = input.plan.mode;
+    if (mode) {
+      session.watchMode(mode);
+      const set = await call("session/set_mode", {
+        sessionId: result.session_id,
+        modeId: mode.modeId
+      });
+      if (!expectResult(set, "session/set_mode")) return false;
+      const evidence = session.modeEvidence();
+      result.setup.push({
+        step: "mode",
+        id: "mode",
+        value: mode.modeId,
+        confirmed: evidence !== void 0,
+        ...evidence ? { evidence } : {}
+      });
+      if (!evidence) {
+        fail("unconfirmed_setup", `mode ${mode.modeId} was not confirmed`);
+        return false;
+      }
+      session.holdMode(mode);
+    }
+    for (const step of input.plan.configOptions ?? []) {
+      const advertised = session.optionValues(step.configId);
+      if (advertised === void 0) {
+        fail(
+          "unsupported_option",
+          `${agentLabel()} does not advertise the config option ${step.configId}`
+        );
+        return false;
+      }
+      if (step.requireAdvertised && !advertised.includes(step.value)) {
+        const sample = advertised.slice(0, ADVERTISED_SAMPLE).join(", ");
+        fail(
+          "unsupported_option",
+          `${step.configId} ${step.value} is not offered by ${agentLabel()} (offered: ${sample}${advertised.length > ADVERTISED_SAMPLE ? ", \u2026" : ""})`
+        );
+        return false;
+      }
+      const set = await call("session/set_config_option", {
+        sessionId: result.session_id,
+        configId: step.configId,
+        value: step.value
+      });
+      const response = expectResult(set, "session/set_config_option");
+      if (!response) return false;
+      const current = currentValueOf(response.configOptions, step.configId);
+      session.configOptionsSeen(response.configOptions);
+      const confirmed = current === step.value;
+      result.setup.push({
+        step: "config_option",
+        id: step.configId,
+        value: step.value,
+        confirmed,
+        ...confirmed ? { evidence: "response" } : {}
+      });
+      if (!confirmed) {
+        fail(
+          "unconfirmed_setup",
+          `${step.configId} is ${current ?? "unset"} after setting ${step.value}`
+        );
+        return false;
+      }
+    }
+    return true;
+  }
+  async function finish() {
+    const promptInFlight = result.prompt_sent && result.stop_reason === void 0 && !result.error;
+    if (abortReason && promptInFlight && !connection.isClosed()) {
+      result.cancel_sent = true;
+      connection.notify("session/cancel", { sessionId: result.session_id });
+      if ((abortReason === "timeout" || abortReason === "mode_changed") && promptOutcome) {
+        const late = await withTimeout(promptOutcome, timing.cancelGraceMs);
+        if (late !== "timeout" && late.kind === "result") {
+          session.promptAnswered(late.result);
+        }
+      }
+    }
+    if (result.session_id && session.closeAdvertised() && !connection.isClosed() && abortReason !== "output_cap") {
+      const closed = await withTimeout(
+        connection.request("session/close", { sessionId: result.session_id }).outcome,
+        timing.closeTimeoutMs
+      );
+      result.session_closed = closed !== "timeout" && closed.kind === "result";
+    }
+  }
+  async function tearDownGroup() {
+    try {
+      teardown = await group.teardown({
+        exitGraceMs: timing.exitGraceMs,
+        killGraceMs: timing.killGraceMs,
+        settleMs: timing.settleMs,
+        firstSignal: interruptSignal ?? "SIGTERM",
+        waitForExit: abortReason !== "interrupt"
+      });
+    } catch (error) {
+      clientFailure(error);
+      killGroupNow(group.pid);
+    } finally {
+      connection.close();
+    }
+  }
+  function finalize() {
+    if (abortReason) result.abort = abortReason;
+    if (abortReason === "mode_changed") result.text = "";
+    result.denials = result.denials.map(
+      (denial) => denial.path ? { ...denial, path: displayPath(denial.path, input.cwd, redact) } : denial
+    );
+    const ignored = connection.stats().ignored_lines;
+    if (ignored > 0) result.ignored_lines = ignored;
+    const outcome = {
+      result: sanitizeTurnResult(result, redaction),
+      stderr: redact(group.stderr()),
+      exit_code: exit?.code ?? null,
+      signal: exit?.signal ?? null,
+      ...teardown ? { teardown } : {},
+      output_bytes: group.outputBytes()
+    };
+    queueMicrotask(() => group.reraiseInterrupt());
+    return outcome;
+  }
+  function expectResult(outcome, method) {
+    if (outcome.kind === "aborted") return void 0;
+    if (outcome.kind === "closed") {
+      fail(
+        "agent_exit",
+        `the agent closed the connection before answering ${method}`
+      );
+      return void 0;
+    }
+    if (outcome.kind === "error") {
+      fail(
+        "jsonrpc",
+        `${method} failed: ${outcome.error.message || "no message"} (${outcome.error.code})`,
+        outcome.error.code
+      );
+      return void 0;
+    }
+    if (!isRecord2(outcome.result)) {
+      fail("malformed", `${method} returned a non-object result`);
+      return void 0;
+    }
+    return outcome.result;
+  }
+  function fail(kind, message, code) {
+    if (result.error) return;
+    result.error = {
+      phase: result.phase,
+      kind,
+      ...code !== void 0 ? { code } : {},
+      message: redact(message)
+    };
+  }
+  function agentLabel() {
+    return result.agent?.name ?? "the agent";
+  }
+}
+var SessionState = class {
+  constructor(result, redact, onModeDrift = () => {
+  }) {
+    this.result = result;
+    this.redact = redact;
+    this.onModeDrift = onModeDrift;
+  }
+  result;
+  redact;
+  onModeDrift;
+  closeCapability = false;
+  configOptions;
+  modeWatch;
+  // The confirmed read-only mode, watched until the session ends.
+  held;
+  promptActive = false;
+  // The starting mode: session/new's report, unless a mode report before
+  // the watch began disagrees with it (initialConflict).
+  initialMode;
+  initialConflict = false;
+  // Mode and option updates that arrived before the session/new response
+  // was handled (in the same stdout chunk, or earlier), per session id and
+  // applied once the session id is known: every mode a valid report named
+  // (two or more already disagree with session/new), and the latest valid
+  // option list. A mode report dropped because the buffer is full leaves
+  // the starting mode unknown.
+  early = /* @__PURE__ */ new Map();
+  earlyModeDropped = false;
+  // Agent-reported strings are redacted before they are shortened, so a
+  // clip never leaves part of a secret behind.
+  keep(value) {
+    return clip(this.redact(value));
+  }
+  initialized(init) {
+    const info = isRecord2(init.agentInfo) ? init.agentInfo : {};
+    const agent = {};
+    for (const key of ["name", "title", "version"]) {
+      if (typeof info[key] === "string") agent[key] = this.keep(info[key]);
+    }
+    if (Object.keys(agent).length > 0) this.result.agent = agent;
+    const capabilities = isRecord2(init.agentCapabilities) ? init.agentCapabilities : {};
+    const sessionCapabilities = capabilities.sessionCapabilities ?? capabilities.session_capabilities;
+    this.closeCapability = isRecord2(sessionCapabilities) && sessionCapabilities.close != null;
+  }
+  closeAdvertised() {
+    return this.closeCapability;
+  }
+  created(response) {
+    this.result.session_id = this.keep(response.sessionId);
+    const models = isRecord2(response.models) ? response.models : {};
+    if (typeof models.currentModelId === "string") {
+      this.result.models.current_model_id = this.keep(models.currentModelId);
+    }
+    const modes = isRecord2(response.modes) ? response.modes : {};
+    this.initialMode = typeof modes.currentModeId === "string" ? modes.currentModeId : void 0;
+    const early = this.early.get(response.sessionId);
+    this.early.clear();
+    if (this.earlyModeDropped) this.initialConflict = true;
+    for (const mode of early?.modes ?? []) this.startingModeReported(mode);
+    this.configOptionsSeen(early?.configOptions);
+    this.configOptionsSeen(response.configOptions);
+  }
+  // Before the watch, a mode report is part of the starting state; one that
+  // disagrees with session/new leaves the starting mode unknown.
+  startingModeReported(mode) {
+    this.initialMode ??= mode;
+    if (mode !== this.initialMode) this.initialConflict = true;
+  }
+  configOptionsSeen(options) {
+    if (!Array.isArray(options)) return;
+    this.configOptions = options;
+    const model = currentValueOf(options, "model");
+    if (model !== void 0) this.result.models.config_model = this.keep(model);
+    const watch = this.modeWatch;
+    const optionId = watch?.step.confirm.configOptionId;
+    if (watch && optionId) {
+      const value = currentValueOf(options, optionId);
+      if (value === watch.step.modeId) watch.echoed ??= "config_option_update";
+    }
+    const step = watch?.step ?? this.held?.step;
+    if (!step) return;
+    for (const value of modeOptionValues(options, step)) {
+      if (value === step.modeId) continue;
+      if (watch) watch.contrary = true;
+      else this.drifted(value);
+    }
+  }
+  holdMode(step) {
+    this.held = { step };
+  }
+  modeDrift() {
+    return this.held?.drift;
+  }
+  drifted(mode) {
+    const held = this.held;
+    if (!held || held.drift !== void 0) return;
+    held.drift = this.keep(mode);
+    this.result.mode_drift = held.drift;
+    this.onModeDrift();
+  }
+  optionValues(configId) {
+    if (!Array.isArray(this.configOptions)) return void 0;
+    const option = this.configOptions.find(
+      (entry) => isRecord2(entry) && entry.id === configId
+    );
+    if (!isRecord2(option)) return void 0;
+    return flattenOptionValues(option.options);
+  }
+  watchMode(step) {
+    this.modeWatch = {
+      step,
+      initial: this.initialConflict ? void 0 : this.initialMode,
+      contrary: false
+    };
+  }
+  modeEvidence() {
+    const watch = this.modeWatch;
+    this.modeWatch = void 0;
+    if (!watch || watch.contrary) return void 0;
+    if (watch.echoed) return watch.echoed;
+    if (watch.step.confirm.initialState && watch.initial === watch.step.modeId) {
+      return "initial_state";
+    }
+    return void 0;
+  }
+  promptStarted() {
+    this.promptActive = true;
+  }
+  promptAnswered(response) {
+    this.promptActive = false;
+    if (!isRecord2(response)) return;
+    if (typeof response.stopReason === "string") {
+      this.result.stop_reason = this.keep(response.stopReason);
+    }
+    const usage = numericFields(response.usage);
+    if (usage) this.result.usage = usage;
+    const meta = isRecord2(response._meta) ? response._meta : {};
+    const quota = isRecord2(meta.quota) ? meta.quota : {};
+    if (Array.isArray(quota.model_usage)) {
+      const models = quota.model_usage.map((entry) => isRecord2(entry) ? entry.model : void 0).filter((model) => typeof model === "string").map((model) => this.keep(model));
+      if (models.length > 0)
+        this.result.models.usage_models = [...new Set(models)];
+    }
+  }
+  notification(method, params) {
+    if (method !== "session/update" || !isRecord2(params)) return;
+    const update = isRecord2(params.update) ? params.update : {};
+    const kind = update.sessionUpdate;
+    if (this.result.session_id === void 0) {
+      this.keepEarly(params.sessionId, kind, update);
+      return;
+    }
+    if (params.sessionId !== this.result.session_id) return;
+    const watch = this.modeWatch;
+    if (kind === "current_mode_update") {
+      if (!watch && !this.held && typeof update.currentModeId === "string") {
+        this.startingModeReported(update.currentModeId);
+      }
+      if (this.held && typeof update.currentModeId === "string" && update.currentModeId !== this.held.step.modeId) {
+        this.drifted(update.currentModeId);
+      }
+      if (watch && typeof update.currentModeId === "string") {
+        if (update.currentModeId !== watch.step.modeId) watch.contrary = true;
+        else if (watch.step.confirm.currentModeUpdate) {
+          watch.echoed ??= "current_mode_update";
+        }
+      }
+      return;
+    }
+    if (kind === "config_option_update") {
+      this.configOptionsSeen(update.configOptions);
+      return;
+    }
+    if (kind !== "agent_message_chunk") return;
+    const content = isRecord2(update.content) ? update.content : {};
+    if (content.type !== "text" || typeof content.text !== "string") return;
+    if (this.promptActive) {
+      this.result.text += content.text;
+      return;
+    }
+    const marker = watch?.step.confirm.marker;
+    if (watch && marker !== void 0 && content.text === marker) {
+      watch.echoed ??= "marker";
+    }
+  }
+  keepEarly(sessionId, kind, update) {
+    if (typeof sessionId !== "string") return;
+    const mode = kind === "current_mode_update" && typeof update.currentModeId === "string" ? update.currentModeId : void 0;
+    const options = kind === "config_option_update" && Array.isArray(update.configOptions) ? update.configOptions : void 0;
+    if (mode === void 0 && options === void 0) return;
+    let kept = this.early.get(sessionId);
+    if (!kept) {
+      if (this.early.size >= MAX_EARLY_SESSIONS) {
+        if (mode !== void 0) this.earlyModeDropped = true;
+        return;
+      }
+      kept = { modes: /* @__PURE__ */ new Set() };
+      this.early.set(sessionId, kept);
+    }
+    if (mode !== void 0 && kept.modes.size < 2) kept.modes.add(mode);
+    if (options !== void 0) kept.configOptions = options;
+  }
+};
+var MAX_DISPLAY_PATH_CHARS = 240;
+function displayPath(reported, cwd, redact) {
+  let shown = reported;
+  if (path3.isAbsolute(reported)) {
+    const realCwd = realpathOrSelf(path3.resolve(cwd));
+    const relative = path3.relative(realCwd, realExistingPath(reported));
+    if (!relative.startsWith("..") && !path3.isAbsolute(relative)) {
+      shown = relative === "" ? "." : relative;
+    }
+  }
+  return clip(redact(shown), MAX_DISPLAY_PATH_CHARS);
+}
+function realpathOrSelf(file) {
+  try {
+    return realpathSync2(file);
+  } catch {
+    return file;
+  }
+}
+function killGroupNow(pid) {
+  if (pid === void 0) return;
+  try {
+    process.kill(process.platform === "win32" ? pid : -pid, "SIGKILL");
+  } catch {
+  }
+}
+function modeOptionValues(options, step) {
+  return options.filter(
+    (option) => isRecord2(option) && (option.id === step.confirm.configOptionId || option.id === "mode" || option.category === "mode")
+  ).map((option) => option.currentValue).filter((value) => typeof value === "string");
+}
+function currentValueOf(options, id) {
+  if (!Array.isArray(options)) return void 0;
+  const option = options.find((entry) => isRecord2(entry) && entry.id === id);
+  return isRecord2(option) && typeof option.currentValue === "string" ? option.currentValue : void 0;
+}
+function flattenOptionValues(options) {
+  if (!Array.isArray(options)) return [];
+  const values = [];
+  for (const entry of options) {
+    if (!isRecord2(entry)) continue;
+    if (typeof entry.value === "string") values.push(entry.value);
+    else if (Array.isArray(entry.options)) {
+      values.push(...flattenOptionValues(entry.options));
+    }
+  }
+  return values;
+}
+function numericFields(value) {
+  if (!isRecord2(value)) return void 0;
+  const fields = {};
+  for (const [key, field] of Object.entries(value)) {
+    if (typeof field === "number" && Number.isFinite(field))
+      fields[key] = field;
+  }
+  return Object.keys(fields).length > 0 ? fields : void 0;
+}
+function clip(value, max = MAX_META_CHARS) {
+  return value.length > max ? `${value.slice(0, max)}\u2026` : value;
+}
+
+// src/plugins/consensus/provider-cli/acp/adapter.ts
+var ACP_READ_ONLY_BRIEF_LINE = "This is a read-only run. Use only read and search tools. Do not edit files or run shell commands; such requests are denied and end the turn.";
+var ACP_CLIENT_INFO = { name: "consensus", version: "0" };
+var FULLY_REDACTED_STDOUT = /* @__PURE__ */ new Set([
+  "acp_error_text",
+  "provider_limit_reached"
+]);
+var ACP_UNSETTLED_TEARDOWN_WARNING = "The agent's process group was still present after SIGKILL; the post-run working-tree check could not confirm the group had exited.";
+var AcpNotLaunchedError = class extends Error {
+};
+function acpAdapter(descriptor, options = {}) {
+  const transport = options.transport ?? stdioAcpTransport;
+  const classifyOptions = {
+    displayName: descriptor.display_name,
+    authHint: descriptor.auth_hint,
+    ...descriptor.auth_error_patterns ? { authErrorPatterns: descriptor.auth_error_patterns } : {},
+    ...descriptor.error_text_patterns ? { errorTextPatterns: descriptor.error_text_patterns } : {},
+    ...descriptor.timeout_hint ? { timeoutHint: descriptor.timeout_hint } : {}
+  };
+  const classify = (stdout) => {
+    const result = parseAcpTurnResult(stdout);
+    return result ? classifyAcpTurn(result, classifyOptions) : void 0;
+  };
+  return {
+    id: descriptor.id,
+    tier: "extended",
+    display_name: descriptor.display_name,
+    executable: descriptor.executable,
+    executable_env: descriptor.executable_env,
+    credential_env: descriptor.credential_env,
+    install_hint: descriptor.install_hint,
+    ...descriptor.redactions ? { redaction_patterns: descriptor.redactions } : {},
+    ...descriptor.not_admitted_reason ? { not_admitted_reason: descriptor.not_admitted_reason } : {},
+    probe: {
+      version_args: ["--version"],
+      minimum_version: descriptor.minimum_version,
+      // Establishing the run capability needs an ACP handshake, which
+      // preflight never performs (Droid mints a pairing code on
+      // session/new), so the version output stands in for it.
+      capabilities: {
+        run: { args: ["--version"], required_output_patterns: [] }
+      }
+    },
+    buildInvocation: (request, invocationOptions) => buildAcpInvocation(descriptor, request, invocationOptions),
+    run: (invocation2, runOptions) => runAcpInvocation(descriptor, invocation2, runOptions, {
+      transport,
+      classifyOptions,
+      ...options
+    }),
+    classifyRunFailure: (failure3) => failureClassification(classify(failure3.stdout)) ?? {
+      code: failure3.code,
+      message: failure3.message,
+      retryable: false,
+      terminal_reason: "acp_unreadable_result",
+      exit_classification: "terminal"
+    },
+    classifyReportedFailure: (stdout) => failureClassification(classify(stdout)),
+    extractText: (_invocation, result) => extractAcpText(result.stdout),
+    // Never the serialized turn result: only its (redacted) answer text.
+    envelopeStdout: (stdout) => {
+      const result = parseAcpTurnResult(stdout);
+      if (!result) return "";
+      const classification = classifyAcpTurn(result, classifyOptions);
+      return !classification.ok && FULLY_REDACTED_STDOUT.has(classification.terminal_reason) ? redactText(result.text) : result.text;
+    },
+    extractSession: (stdout) => extractAcpSession(stdout, descriptor),
+    extractPermissionDenials: extractAcpPermissionDenials,
+    submitCaptureEligible: () => false,
+    capabilities: {
+      schema_strategies: ["text"],
+      output_modes: ["acp_session"],
+      options: {
+        model: true,
+        effort: null,
+        runtime_policy: {
+          permission_modes: ["read-only"],
+          env_allowlist: false
+        }
+      },
+      supports_submit_tool: false,
+      supports_same_host_subprocess: true,
+      supports_host_native_dispatch: false
+    }
+  };
+}
+function buildAcpInvocation(descriptor, request, options = {}) {
+  const executable = options.executable ?? descriptor.executable;
+  const model = request.model;
+  const argv = [
+    ...descriptor.launch_args,
+    ...model && descriptor.model.kind === "launch_flag" ? [descriptor.model.flag, model] : []
+  ];
+  const plan = {
+    clientInfo: { ...ACP_CLIENT_INFO },
+    mode: descriptor.mode,
+    ...model && descriptor.model.kind === "config_option" ? {
+      configOptions: [
+        {
+          configId: descriptor.model.config_id,
+          value: model,
+          requireAdvertised: true
+        }
+      ]
+    } : {},
+    ...model && descriptor.model.kind === "launch_flag" ? { expectCurrentModel: model } : {},
+    briefLines: [ACP_READ_ONLY_BRIEF_LINE, ...descriptor.brief_lines ?? []],
+    ...descriptor.redactions ? { redactions: descriptor.redactions } : {},
+    credentialEnv: descriptor.credential_env
+  };
+  return {
+    executable,
+    argv,
+    stdin: request.prompt,
+    ...request.cwd ? { cwd: request.cwd } : {},
+    output_mode: "acp_session",
+    strategy: "text",
+    redacted_command: [executable, ...argv],
+    acp_plan: plan,
+    shell: false
+  };
+}
+async function runAcpInvocation(descriptor, invocation2, options, context) {
+  const basePlan = invocation2.acp_plan;
+  if (!basePlan) {
+    throw new AcpNotLaunchedError(
+      `${descriptor.id} invocation has no ACP session plan.`
+    );
+  }
+  const env = options.env ?? {};
+  const apiKey = descriptor.api_key;
+  const useApiKey = apiKey !== void 0 && (env[apiKey.env] ?? "") !== "";
+  const plan = useApiKey ? { ...basePlan, authenticate: { methodId: apiKey.method_id } } : basePlan;
+  const argv = [...invocation2.argv];
+  const timeoutSec = options.timeoutSec ?? DEFAULT_TIMEOUT_SEC;
+  let privateHome;
+  let outcome;
+  let launched = false;
+  try {
+    const home = useApiKey ? apiKey.private_home : void 0;
+    if (home) {
+      privateHome = await mkdtemp(
+        path4.join(os.tmpdir(), `consensus-${descriptor.id}-`)
+      );
+      const settings = `${JSON.stringify(home.settings)}
+`;
+      for (const file of home.settings_files) {
+        const target = path4.join(privateHome, file);
+        await mkdir2(path4.dirname(target), { recursive: true, mode: 448 });
+        await writeFile2(target, settings, { mode: 384 });
+      }
+      argv.push(
+        `${home.dir_flag}=${privateHome}`,
+        `${home.app_data_flag}=${home.app_data_name}`
+      );
+    }
+    launched = true;
+    outcome = await context.transport.run({
+      executable: invocation2.executable,
+      argv,
+      cwd: invocation2.cwd ?? process.cwd(),
+      env,
+      prompt: invocation2.stdin,
+      plan,
+      timeoutMs: timeoutSec * 1e3,
+      ...options.maxOutputBytes !== void 0 ? { maxOutputBytes: options.maxOutputBytes } : {},
+      ...context.timing ? { timing: context.timing } : {},
+      ...context.spawn ? { spawn: context.spawn } : {}
+    });
+  } catch (error) {
+    const failure3 = privateHome ? await withPrivateHomeRemoved(privateHome, error) : error;
+    if (launched) throw failure3;
+    throw new AcpNotLaunchedError(errorMessage(failure3), { cause: failure3 });
+  }
+  if (privateHome) {
+    const unsettled = outcome.teardown?.settled_by === "settlement_timeout";
+    await rm3(privateHome, { recursive: true, force: true }).catch(
+      (error) => {
+        if (!unsettled) throw error;
+        throw new Error(
+          `${errorMessage(error)}. ${ACP_UNSETTLED_TEARDOWN_WARNING}`,
+          { cause: error }
+        );
+      }
+    );
+  }
+  const result = outcome.result;
+  const classification = classifyAcpTurn(result, context.classifyOptions);
+  const stdout = serializeAcpTurnResult(result);
+  const diagnostics = processDiagnostics(outcome, {
+    auth: useApiKey ? "api_key" : "existing_login",
+    timeoutSec
+  });
+  const base = {
+    stdout,
+    stderr: outcome.stderr,
+    exit_code: outcome.exit_code,
+    signal: outcome.signal,
+    diagnostics
+  };
+  if (classification.ok) return { ok: true, ...base };
+  return {
+    ok: false,
+    code: processFailureCode(result),
+    message: classification.message,
+    retryable: false,
+    ...base
+  };
+}
+async function withPrivateHomeRemoved(privateHome, runError) {
+  const cleanupFailure = await rm3(privateHome, {
+    recursive: true,
+    force: true
+  }).then(
+    () => void 0,
+    (error) => ({ error })
+  );
+  if (!cleanupFailure) return runError;
+  return new Error(
+    `${errorMessage(runError)} (removing the private settings directory also failed: ${errorMessage(cleanupFailure.error)})`,
+    { cause: runError }
+  );
+}
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+function processFailureCode(result) {
+  if (result.abort === "timeout") return "PROVIDER_TIMEOUT";
+  if (result.abort === "output_cap") return "PROVIDER_OUTPUT_CAP_EXCEEDED";
+  if (result.error?.kind === "spawn") {
+    return result.error.errno === "E2BIG" ? "PROVIDER_ARGV_TOO_LARGE" : "PROVIDER_MISSING";
+  }
+  return "PROVIDER_EXIT";
+}
+function processDiagnostics(outcome, input) {
+  const result = outcome.result;
+  const teardown = outcome.teardown;
+  const acp = {
+    ...result.agent ? { agent: result.agent } : {},
+    auth: input.auth,
+    phase: result.phase,
+    ...result.stop_reason ? { stop_reason: result.stop_reason } : {},
+    setup: result.setup.map((step) => ({ ...step })),
+    ...result.refused_methods.length > 0 ? { refused_methods: [...result.refused_methods] } : {},
+    ...result.cancel_sent ? { cancel_sent: true } : {},
+    ...result.session_closed !== void 0 ? { session_closed: result.session_closed } : {},
+    ...teardown ? {
+      teardown: {
+        scope: teardown.scope,
+        exited_before_signal: teardown.exited_before_signal,
+        signals: [...teardown.signals],
+        settled_by: teardown.settled_by
+      }
+    } : {}
+  };
+  const termination = result.abort && result.abort !== "mode_changed" && teardown ? terminationFor(result.abort, teardown) : void 0;
+  const unsettled = teardown?.settled_by === "settlement_timeout";
+  return {
+    provider_exit_code: outcome.exit_code,
+    provider_signal: outcome.signal,
+    output_bytes: { ...outcome.output_bytes },
+    timeout_sec: input.timeoutSec,
+    ...termination ? { termination } : {},
+    ...unsettled ? { warnings: [ACP_UNSETTLED_TEARDOWN_WARNING] } : {},
+    acp
+  };
+}
+function terminationFor(reason, teardown) {
+  const settled = teardown.settled_by;
+  return {
+    reason,
+    scope: teardown.scope,
+    signals: [...teardown.signals],
+    settled_by: settled === "first_signal" ? teardown.signals[0] === "SIGTERM" ? "sigterm" : "forwarded_signal" : settled
+  };
+}
+function failureClassification(classification) {
+  if (!classification || classification.ok) return void 0;
+  return {
+    code: classification.code,
+    message: classification.message,
+    retryable: false,
+    terminal_reason: classification.terminal_reason,
+    exit_classification: "terminal",
+    turn: classification.turn
+  };
+}
+function extractAcpText(stdout) {
+  const result = parseAcpTurnResult(stdout);
+  if (!result) {
+    return {
+      ok: false,
+      code: "PROVIDER_MALFORMED_RESULT",
+      message: "The ACP adapter returned no readable turn result.",
+      terminal_reason: "malformed_result"
+    };
+  }
+  if (result.text.trim() === "") {
+    return {
+      ok: false,
+      code: "PROVIDER_EMPTY_OUTPUT",
+      message: "The ACP agent ended the turn without answer text.",
+      terminal_reason: "empty_output"
+    };
+  }
+  return { ok: true, raw: result.text, text: result.text };
+}
+function extractAcpSession(stdout, descriptor) {
+  const result = parseAcpTurnResult(stdout);
+  if (!result) return {};
+  const models = firstModels(result, descriptor.model_sources);
+  return {
+    ...result.session_id ? { session_id: result.session_id } : {},
+    ...models.length > 0 ? { observed_models: models } : {}
+  };
+}
+function firstModels(result, sources) {
+  for (const source of sources) {
+    const value = result.models[source];
+    const models = Array.isArray(value) ? value : value ? [value] : [];
+    if (models.length > 0) return models;
+  }
+  return [];
+}
+function extractAcpPermissionDenials(stdout) {
+  const result = parseAcpTurnResult(stdout);
+  if (!result || result.denials.length === 0) return void 0;
+  return {
+    count: result.denials.length,
+    tools: [
+      ...new Set(
+        result.denials.map((denial) => denial.tool ?? denial.kind ?? "tool")
+      )
+    ],
+    requests: result.denials.map((denial) => ({
+      ...denial.tool !== void 0 ? { tool: denial.tool } : {},
+      ...denial.kind !== void 0 ? { kind: denial.kind } : {},
+      ...denial.path !== void 0 ? { path: denial.path } : {}
+    }))
+  };
+}
+
+// src/plugins/consensus/provider-cli/invocation.ts
+import { randomUUID as randomUUID2 } from "node:crypto";
+import { tmpdir } from "node:os";
+import path6 from "node:path";
+
+// src/plugins/consensus/provider-cli/runtime-policy.ts
+import { realpathSync as realpathSync3, statSync } from "node:fs";
+import path5 from "node:path";
+var DEFAULT_RUNTIME_POLICY = {
+  permission_mode: "non-interactive"
+};
+var BASE_ENV_ALLOWLIST = [
+  "PATH",
+  "HOME",
+  "TMPDIR",
+  "TEMP",
+  "TMP",
+  "USER",
+  "LOGNAME",
+  "SHELL",
+  "LANG"
+];
+function validateProviderOptions(request, adapter) {
+  const { capabilities } = adapter;
+  if (request.model && !capabilities.options.model) {
+    return unsupported("model", "Provider does not support model selection.");
+  }
+  if (request.effort && capabilities.options.effort === null) {
+    return unsupported("effort", "Provider does not support effort selection.");
+  }
+  const policy = defaultRuntimePolicy(request.runtime_policy);
+  const runtimeCapabilities = capabilities.options.runtime_policy;
+  const permissionResult = validateOptionValue(
+    "runtime_policy.permission_mode",
+    policy.permission_mode,
+    runtimeCapabilities.permission_modes
+  );
+  if (permissionResult) return permissionResult;
+  const sandboxResult = validateOptionValue(
+    "runtime_policy.sandbox",
+    policy.sandbox,
+    runtimeCapabilities.sandboxes
+  );
+  if (sandboxResult) return sandboxResult;
+  const approvalResult = validateOptionValue(
+    "runtime_policy.approval_policy",
+    policy.approval_policy,
+    runtimeCapabilities.approval_policies
+  );
+  if (approvalResult) return approvalResult;
+  if (policy.env_allowlist && policy.env_allowlist.length > 0 && !runtimeCapabilities.env_allowlist) {
+    return unsupported(
+      "runtime_policy.env_allowlist",
+      "Provider does not support child environment allowlist extension."
+    );
+  }
+  const hasScopedTools = hasScopedToolAccess(policy);
+  if (hasScopedTools && request.provider !== "claude") {
+    return unsupported(
+      "runtime_policy.scoped_tools",
+      "Scoped tool grants are supported only by the Claude provider."
+    );
+  }
+  if (request.output === "text" && request.provider === "cursor" && policy.permission_mode !== "read-only") {
+    return unsupported(
+      "runtime_policy.permission_mode",
+      "Cursor text-mode runs require --permission-mode read-only."
+    );
+  }
+  if (request.provider === "claude") {
+    const composition = composeClaudePermissionProfile(policy);
+    if (!composition.ok) {
+      return unsupported(composition.option, composition.message);
+    }
+  }
+  if ((request.max_attempts ?? 1) > 1 && !adapter.isProvenReadOnly?.(policy)) {
+    return {
+      ok: false,
+      code: "CONSENSUS_CLI_USAGE",
+      option: "max_attempts",
+      message: "More than one attempt is allowed only for a proven read-only profile: Codex with --sandbox read-only, Claude with --permission-mode read-only and no edit or Bash grant, or Cursor with --permission-mode read-only. A retried turn could repeat its side effects."
+    };
+  }
+  for (const pattern of policy.bash_patterns ?? []) {
+    if (!isExactBashPattern(pattern)) {
+      return unsupported(
+        "runtime_policy.bash_patterns",
+        "Bash grants require a single-line command pattern without parentheses or commas, naming a command rather than only wildcards."
+      );
+    }
+  }
+  for (const [field, paths] of [
+    ["read_paths", policy.read_paths],
+    ["edit_paths", policy.edit_paths]
+  ]) {
+    for (const filePath of paths ?? []) {
+      if (!path5.isAbsolute(filePath) || path5.normalize(filePath) !== filePath || filePath.split(path5.sep).includes("..") || /[\r\n,*?]/.test(filePath) || filePath.includes("[") || filePath.includes("]")) {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires exact absolute paths without parent traversal or glob characters.`
+        );
+      }
+      try {
+        const target = statSync(filePath, { throwIfNoEntry: false });
+        if (target) {
+          if (!target.isFile() || realpathSync3(filePath) !== filePath) {
+            return unsupported(
+              `runtime_policy.${field}`,
+              `${field} requires canonical regular-file targets, not directories or symlinks.`
+            );
+          }
+        } else if (field === "read_paths" || realpathSync3(path5.dirname(filePath)) !== path5.dirname(filePath)) {
+          return unsupported(
+            `runtime_policy.${field}`,
+            `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
+          );
+        }
+      } catch {
+        return unsupported(
+          `runtime_policy.${field}`,
+          `${field} requires an existing canonical file (or an existing canonical parent for a new edit file).`
+        );
+      }
+    }
+  }
+  for (const domain of policy.web_fetch_domains ?? []) {
+    if (domain.length > 253 || !/^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
+      domain
+    )) {
+      return unsupported(
+        "runtime_policy.web_fetch_domains",
+        "WebFetch grants require exact domain names without schemes, ports, or wildcards."
+      );
+    }
+  }
+  return { ok: true };
+}
+function isClaudeReadOnlyPolicy(policy) {
+  return policy.permission_mode === "read-only" && !policy.edit_paths?.length && !policy.bash_patterns?.length;
+}
+function isCodexReadOnlyPolicy(policy) {
+  return policy.sandbox === "read-only";
+}
+function hasScopedToolAccess(policy = {}) {
+  return Boolean(
+    policy.read_paths?.length || policy.edit_paths?.length || policy.bash_patterns?.length || policy.web_search || policy.web_fetch_domains?.length
+  );
+}
+function composeClaudePermissionProfile(policy) {
+  const mode = policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode;
+  const readPaths = policy.read_paths ?? [];
+  const editPaths = policy.edit_paths ?? [];
+  const bashPatterns = policy.bash_patterns ?? [];
+  const webFetchDomains = policy.web_fetch_domains ?? [];
+  const webSearch = Boolean(policy.web_search);
+  const readRules = readPaths.map((filePath) => `Read(/${filePath})`);
+  if (mode === "read-only") {
+    if (editPaths.length > 0 || bashPatterns.length > 0 || webSearch || webFetchDomains.length > 0) {
+      return compositionFailure(
+        "Claude read-only accepts only --allow-read grants; use non-interactive for edit or web grants and workspace-write for Bash grants."
+      );
+    }
+    if (readPaths.length === 0) {
+      return { ok: true, mode: "plan", allowed_tools: [], restricted: false };
+    }
+    return {
+      ok: true,
+      mode: "dontAsk",
+      tools: ["Read", "Glob", "Grep"],
+      allowed_tools: readRules,
+      restricted: true
+    };
+  }
+  if (mode === "non-interactive") {
+    if (bashPatterns.length > 0) {
+      return compositionFailure(
+        "Claude Bash grants require --permission-mode workspace-write."
+      );
+    }
+    const allowedTools = [
+      ...readRules,
+      ...editPaths.map((filePath) => `Edit(/${filePath})`),
+      ...webSearch ? ["WebSearch"] : [],
+      ...webFetchDomains.map((domain) => `WebFetch(domain:${domain})`)
+    ];
+    if (allowedTools.length === 0) {
+      return { ok: true, allowed_tools: [], restricted: false };
+    }
+    return {
+      ok: true,
+      mode: "dontAsk",
+      tools: [
+        ...readPaths.length > 0 ? ["Read"] : [],
+        ...editPaths.length > 0 ? ["Edit", "Write"] : [],
+        ...webSearch ? ["WebSearch"] : [],
+        ...webFetchDomains.length > 0 ? ["WebFetch"] : []
+      ],
+      allowed_tools: allowedTools,
+      restricted: true
+    };
+  }
+  if (mode === "workspace-write") {
+    if (readPaths.length > 0 || editPaths.length > 0 || webSearch || webFetchDomains.length > 0) {
+      return compositionFailure(
+        "Claude workspace-write accepts only --allow-bash grants; its file tools already cover the working directory."
+      );
+    }
+    return {
+      ok: true,
+      mode: "acceptEdits",
+      tools: [
+        "Read",
+        "Glob",
+        "Grep",
+        "Edit",
+        "Write",
+        ...bashPatterns.length > 0 ? ["Bash"] : []
+      ],
+      allowed_tools: bashPatterns.map((pattern) => `Bash(${pattern})`),
+      restricted: true
+    };
+  }
+  return compositionFailure(`Unsupported Claude permission mode: ${mode}.`);
+}
+function compositionFailure(message) {
+  return { ok: false, option: "runtime_policy.permission_mode", message };
+}
+function isExactBashPattern(pattern) {
+  return pattern.length > 0 && pattern.length <= 256 && pattern.trim() === pattern && !/[(),]/.test(pattern) && ![...pattern].some((character) => {
+    const code = character.charCodeAt(0);
+    return code < 32 || code === 127;
+  }) && /[^\s*:]/.test(pattern);
+}
+function defaultRuntimePolicy(policy = {}) {
+  return {
+    permission_mode: policy.permission_mode ?? DEFAULT_RUNTIME_POLICY.permission_mode,
+    ...policy.sandbox ? { sandbox: policy.sandbox } : {},
+    ...policy.approval_policy ? { approval_policy: policy.approval_policy } : {},
+    ...policy.env_allowlist ? { env_allowlist: policy.env_allowlist } : {},
+    ...policy.read_paths ? { read_paths: policy.read_paths } : {},
+    ...policy.edit_paths ? { edit_paths: policy.edit_paths } : {},
+    ...policy.bash_patterns ? { bash_patterns: policy.bash_patterns } : {},
+    ...policy.web_search ? { web_search: true } : {},
+    ...policy.web_fetch_domains ? { web_fetch_domains: policy.web_fetch_domains } : {}
+  };
+}
+function buildChildEnvironment({
+  parentEnv,
+  request,
+  hostEnv,
+  credentialEnv,
+  executableOverrideEnv
+}) {
+  const allowedNames = /* @__PURE__ */ new Set([
+    ...BASE_ENV_ALLOWLIST,
+    ...credentialEnv,
+    ...request.runtime_policy?.env_allowlist ?? []
+  ]);
+  for (const name of executableOverrideEnv) {
+    allowedNames.delete(name);
+  }
+  const childEnv = {};
+  for (const name of allowedNames) {
+    const value = parentEnv[name];
+    if (value !== void 0) childEnv[name] = value;
+  }
+  const env = { ...childEnv, ...hostEnv };
+  if (request.output === "text") {
+    for (const name of Object.keys(env)) {
+      if (name.startsWith(RESERVED_SUBMIT_ENV_PREFIX)) delete env[name];
+    }
+  }
+  return env;
+}
+var RESERVED_SUBMIT_ENV_PREFIX = "CONSENSUS_SUBMIT_";
+function buildProviderProbeEnvironment({
+  parentEnv,
+  credentialEnv
+}) {
+  const allowedNames = /* @__PURE__ */ new Set([
+    ...BASE_ENV_ALLOWLIST,
+    ...credentialEnv
+  ]);
+  const probeEnv = {};
+  for (const name of allowedNames) {
+    const value = parentEnv[name];
+    if (value !== void 0) probeEnv[name] = value;
+  }
+  return probeEnv;
+}
+function redactedRuntimePolicyDiagnostics(policy = {}) {
+  const effectivePolicy = defaultRuntimePolicy(policy);
+  return {
+    permission_mode: effectivePolicy.permission_mode,
+    ...effectivePolicy.sandbox ? { sandbox: effectivePolicy.sandbox } : {},
+    ...effectivePolicy.approval_policy ? { approval_policy: effectivePolicy.approval_policy } : {},
+    ...effectivePolicy.env_allowlist ? { env_allowlist: [...effectivePolicy.env_allowlist] } : {}
+  };
+}
+function validateOptionValue(option, value, supportedValues) {
+  if (!value) return void 0;
+  if (supportedValues?.includes(value)) return void 0;
+  return unsupported(
+    option,
+    supportedValues ? `Unsupported ${option}: ${value}.` : `Provider does not support ${option}.`
+  );
+}
+function unsupported(option, message) {
+  return {
+    ok: false,
+    code: "PROVIDER_UNSUPPORTED_OPTION",
+    option,
+    message
+  };
+}
+
+// src/plugins/consensus/provider-cli/invocation.ts
+function buildProviderInvocation(adapter, request, options = {}) {
+  return adapter.buildInvocation(request, {
+    strategy: options.strategy ?? defaultStrategy(adapter),
+    inlineJsonSchema: options.inlineJsonSchema,
+    lastMessageFile: options.lastMessageFile,
+    preserveLastMessageFile: options.preserveLastMessageFile,
+    resumeSessionId: options.resumeSessionId,
+    executable: options.executable,
+    ...options.prerequisiteExecutables ? { prerequisiteExecutables: options.prerequisiteExecutables } : {}
+  });
+}
+var buildClaudeInvocation = (request, options = {}) => {
+  const strategy = options.strategy ?? "prompt_only";
+  const argv = ["--print", "--output-format", "json"];
+  const redactedArgv = ["--print", "--output-format", "json"];
+  if (strategy === "provider_validated") {
+    if (!options.inlineJsonSchema) {
+      throw new Error(
+        "Claude provider-validated invocation requires an inline JSON schema."
+      );
+    }
+    argv.push("--json-schema", options.inlineJsonSchema);
+    redactedArgv.push("--json-schema", "<inline-json-schema>");
+  }
+  if (request.model) {
+    argv.push("--model", request.model);
+    redactedArgv.push("--model", request.model);
+  }
+  if (request.effort) {
+    argv.push("--effort", request.effort);
+    redactedArgv.push("--effort", request.effort);
+  }
+  const permission = composeClaudePermissionProfile(
+    request.runtime_policy ?? {}
+  );
+  if (!permission.ok) {
+    throw new Error(permission.message);
+  }
+  if (permission.allowed_tools.length > 0) {
+    argv.push("--allowedTools", ...permission.allowed_tools);
+    redactedArgv.push("--allowedTools", "<scoped-tool-rules>");
+  }
+  if (permission.tools) {
+    argv.push("--tools", permission.tools.join(","));
+    redactedArgv.push("--tools", permission.tools.join(","));
+  }
+  if (permission.restricted) {
+    argv.push("--permission-prompts", "none");
+    redactedArgv.push("--permission-prompts", "none");
+  }
+  if (permission.mode) {
+    argv.push("--permission-mode", permission.mode);
+    redactedArgv.push("--permission-mode", permission.mode);
+  }
+  if (permission.restricted) {
+    argv.push("--strict-mcp-config");
+    redactedArgv.push("--strict-mcp-config");
+  }
+  if (options.resumeSessionId) {
+    argv.push("--resume", options.resumeSessionId);
+    redactedArgv.push("--resume", options.resumeSessionId);
+  }
+  return {
+    ...invocation({
+      executable: options.executable ?? "claude",
+      argv,
+      redactedArgv,
+      request,
+      strategy,
+      outputMode: "stdout_json"
+    }),
+    permission_profile: {
+      mode: permission.mode ?? "provider_default",
+      ...permission.tools ? { tools: [...permission.tools] } : {},
+      // Grant contents stay out of diagnostics, as they do in redacted_command.
+      ...permission.allowed_tools.length > 0 ? {
+        allowed_tools: permission.allowed_tools.map(
+          (rule) => rule.replace(/^(Read|Edit)\(.*\)$/s, "$1(<path>)").replace(/^Bash\(.*\)$/s, "Bash(<pattern>)")
+        )
+      } : {}
+    }
+  };
+};
+var buildCodexInvocation = (request, options = {}) => {
+  const strategy = options.strategy ?? "prompt_only";
+  const lastMessageFile = options.lastMessageFile ?? codexLastMessageFile();
+  const resumeSessionId = options.resumeSessionId;
+  const argv = [
+    "exec",
+    ...resumeSessionId ? ["resume"] : [],
+    "--json",
+    "--output-last-message",
+    lastMessageFile
+  ];
+  if (strategy === "constrained_native") {
+    if (!request.schema_path) {
+      throw new Error("Codex constrained-native invocation requires a schema.");
+    }
+    argv.push("--output-schema", request.schema_path);
+  }
+  if (request.model) argv.push("--model", request.model);
+  if (request.effort) {
+    argv.push(
+      "-c",
+      codexConfigOverride("model_reasoning_effort", request.effort)
+    );
+  }
+  if (request.runtime_policy?.sandbox) {
+    if (resumeSessionId) {
+      argv.push(
+        "-c",
+        codexConfigOverride("sandbox_mode", request.runtime_policy.sandbox)
+      );
+    } else {
+      argv.push("--sandbox", request.runtime_policy.sandbox);
+    }
+  }
+  const approvalPolicy = request.runtime_policy?.approval_policy ?? (request.runtime_policy?.permission_mode === "non-interactive" ? "never" : void 0);
+  if (approvalPolicy) {
+    argv.push("-c", codexConfigOverride("approval_policy", approvalPolicy));
+  }
+  if (resumeSessionId) argv.push(resumeSessionId, "-");
+  return invocation({
+    executable: options.executable ?? "codex",
+    argv,
+    request,
+    strategy,
+    outputMode: "last_message_file",
+    lastMessageFile,
+    cleanupLastMessageFile: !options.preserveLastMessageFile
+  });
+};
+var buildCursorInvocation = (request, options = {}) => {
+  if (options.resumeSessionId) {
+    throw new Error(
+      "Cursor native resume is not verified for this adapter; use a reconstructed continuation."
+    );
+  }
+  const strategy = options.strategy === "submit_tool_candidate" ? "prompt_only" : options.strategy ?? "prompt_only";
+  const argv = request.runtime_policy?.permission_mode === "read-only" ? [
+    "--print",
+    "--output-format",
+    "json",
+    "--trust",
+    "--mode",
+    "ask",
+    "--sandbox",
+    "enabled"
+  ] : ["--print", "--output-format", "json", "--force"];
+  if (request.model) argv.push("--model", request.model);
+  return invocation({
+    executable: options.executable ?? "cursor-agent",
+    argv,
+    request,
+    strategy,
+    outputMode: "stdout_json"
+  });
+};
+function invocation(input) {
+  return {
+    executable: input.executable,
+    argv: input.argv,
+    stdin: input.stdin ?? input.request.prompt,
+    ...input.request.cwd ? { cwd: input.request.cwd } : {},
+    output_mode: input.outputMode,
+    strategy: input.strategy,
+    redacted_command: [input.executable, ...input.redactedArgv ?? input.argv],
+    ...input.lastMessageFile ? {
+      last_message_file: input.lastMessageFile,
+      cleanup_last_message_file: input.cleanupLastMessageFile ?? true
+    } : {},
+    shell: false
+  };
+}
+function codexConfigOverride(key, value) {
+  return `${key}=${JSON.stringify(value)}`;
+}
+function codexLastMessageFile() {
+  return path6.join(
+    tmpdir(),
+    `consensus-codex-last-message-${randomUUID2()}.txt`
+  );
+}
+function defaultStrategy(adapter) {
+  return adapter.capabilities.schema_strategies.find(
+    (strategy) => strategy !== "submit_tool_candidate"
+  ) ?? "prompt_only";
+}
+
+// src/plugins/consensus/provider-cli/schema-validate.ts
+function validateSchemaSubset(value, schema) {
+  if (!isRecord3(schema)) return { ok: true };
+  if (schema.type === "object" && !isRecord3(value)) {
+    return { ok: false, message: "Expected provider JSON to be an object." };
+  }
+  if (Array.isArray(schema.required)) {
+    if (!isRecord3(value)) {
+      return {
+        ok: false,
+        message: "Expected provider JSON to be an object with required fields."
+      };
+    }
+    for (const field of schema.required) {
+      if (typeof field === "string" && !(field in value)) {
+        return {
+          ok: false,
+          message: `Missing required JSON field: ${field}`
+        };
+      }
+    }
+  }
+  if (isRecord3(schema.properties) && isRecord3(value)) {
+    for (const [field, fieldSchema] of Object.entries(schema.properties)) {
+      if (!(field in value) || !isRecord3(fieldSchema)) continue;
+      const type = fieldSchema.type;
+      if (typeof type === "string" && !matchesJsonType(value[field], type)) {
+        return {
+          ok: false,
+          message: `Field ${field} must be ${type}.`
+        };
+      }
+    }
+  }
+  return { ok: true };
+}
+function isRecord3(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function matchesJsonType(value, type) {
+  if (type === "array") return Array.isArray(value);
+  if (type === "object") return isRecord3(value);
+  if (type === "integer") return Number.isInteger(value);
+  return typeof value === type;
+}
+
+// src/plugins/consensus/provider-cli/provider-output.ts
+function extractProviderResultText(invocation2, result, options = {}) {
+  const empty = (message) => ({
+    ok: false,
+    code: "PROVIDER_EMPTY_OUTPUT",
+    message,
+    terminal_reason: "empty_output"
+  });
+  const malformed = (message) => ({
+    ok: false,
+    code: "PROVIDER_MALFORMED_RESULT",
+    message,
+    terminal_reason: "malformed_result"
+  });
+  if (invocation2.output_mode === "last_message_file") {
+    const lastMessage = result.last_message;
+    if (lastMessage === void 0) {
+      return empty("Provider did not write a last-message file response.");
+    }
+    if (!lastMessage.trim()) {
+      return empty("Provider wrote a blank last-message file response.");
+    }
+    return { ok: true, raw: lastMessage, text: lastMessage };
+  }
+  if (!result.stdout.trim()) {
+    return empty("Provider produced no output.");
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout.trim());
+  } catch {
+    return malformed("Provider output is not a JSON result object.");
+  }
+  if (!isRecord3(parsed)) {
+    return malformed("Provider output is not a JSON result object.");
+  }
+  if (parsed.is_error === true) {
+    return malformed("Provider reported an error result.");
+  }
+  const subtype = parsed.subtype;
+  if (options.requireSuccessSubtype && subtype !== "success" || subtype !== void 0 && subtype !== "success") {
+    return malformed(
+      `Provider result subtype is ${typeof subtype === "string" ? subtype : "missing"}, not success.`
+    );
+  }
+  if (typeof parsed.result !== "string") {
+    return malformed("Provider result object has no text result.");
+  }
+  if (!parsed.result.trim()) {
+    return empty("Provider returned a blank text result.");
+  }
+  return { ok: true, raw: result.stdout, text: parsed.result };
+}
+function extractStructuredJsonValue(value) {
+  if (!isRecord3(value)) return value;
+  if ("structured_output" in value) {
+    return value.structured_output;
+  }
+  const result = value.result;
+  if (typeof result !== "string") return value;
+  try {
+    return JSON.parse(result.trim());
+  } catch {
+    return extractFirstJsonObject(result) ?? value;
+  }
+}
+function extractFirstJsonObject(text) {
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (start === -1) {
+      if (char === "{") {
+        start = index;
+        depth = 1;
+      }
+      continue;
+    }
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char !== "}") continue;
+    depth -= 1;
+    if (depth !== 0) continue;
+    const candidate = text.slice(start, index + 1);
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      start = -1;
+      depth = 0;
+    }
+  }
+  return void 0;
+}
+
 // src/plugins/consensus/provider-cli/adapters.ts
 var COMMON_AUTH_REQUIRED_PATTERNS = [
   /auth(?:entication)? required/i,
@@ -1581,11 +3558,23 @@ var CURSOR_TRANSIENT_EXIT_PATTERNS = [
 var DEFAULT_PROVIDER_ADAPTERS = [
   {
     id: "claude",
+    tier: "core",
     classifyReportedFailure: classifyClaudeLimit,
     display_name: "Claude",
     executable: "claude",
+    executable_env: "CONSENSUS_CLAUDE_EXECUTABLE",
+    credential_env: ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"],
     buildInvocation: buildClaudeInvocation,
     extractSession: extractJsonResultSession,
+    // Claude always reports a subtype; anything but `success` is a failure.
+    extractText: (invocation2, result) => extractProviderResultText(invocation2, result, {
+      requireSuccessSubtype: true
+    }),
+    // Scoped and workspace-write profiles allow no Bash beyond explicit
+    // grants, so they cannot run the submit command.
+    submitCaptureEligible: (request) => !(hasScopedToolAccess(request.runtime_policy) || request.runtime_policy?.permission_mode === "workspace-write"),
+    extractPermissionDenials: extractClaudePermissionDenials,
+    isProvenReadOnly: isClaudeReadOnlyPolicy,
     classifyRunFailure: defaultRunFailureClassifier({
       session_not_found_patterns: CLAUDE_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
@@ -1645,11 +3634,15 @@ var DEFAULT_PROVIDER_ADAPTERS = [
   },
   {
     id: "codex",
+    tier: "core",
     classifyReportedFailure: classifyCodexLimit,
     display_name: "Codex",
     executable: "codex",
+    executable_env: "CONSENSUS_CODEX_EXECUTABLE",
+    credential_env: ["OPENAI_API_KEY"],
     buildInvocation: buildCodexInvocation,
     extractSession: extractCodexJsonlSession,
+    isProvenReadOnly: isCodexReadOnlyPolicy,
     classifyRunFailure: defaultRunFailureClassifier({
       session_not_found_patterns: CODEX_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
@@ -1713,10 +3706,16 @@ var DEFAULT_PROVIDER_ADAPTERS = [
   },
   {
     id: "cursor",
+    tier: "core",
     display_name: "Cursor",
     executable: "cursor-agent",
+    executable_env: "CONSENSUS_CURSOR_EXECUTABLE",
+    credential_env: ["CURSOR_API_KEY"],
     buildInvocation: buildCursorInvocation,
     extractSession: extractJsonResultSession,
+    // Read-only Cursor runs in ask mode, which cannot run the submit command.
+    submitCaptureEligible: (request) => request.runtime_policy?.permission_mode !== "read-only",
+    isProvenReadOnly: (policy) => policy.permission_mode === "read-only",
     classifyRunFailure: defaultRunFailureClassifier({
       session_not_found_patterns: [],
       auth_required_patterns: [
@@ -1767,7 +3766,9 @@ var DEFAULT_PROVIDER_ADAPTERS = [
         evidence: "Cursor documents `--resume [chatId]` and a JSON result `session_id`. Raw CLI resume passed a same-session marker smoke on 2026-09-29 (cursor-agent 2026.09.28, cursor-grok-4.6-high, `--print --mode ask --sandbox enabled`, run by the user because agent shells cannot read the Cursor login). During that smoke a transport reconnect replayed each resumed turn, so its result held two answers. The wrapper resume path is not implemented; a future one should require the read-only policy (`--trust --mode ask --sandbox enabled`), not the default `--force`."
       }
     }
-  }
+  },
+  // Extended providers, used only when named: one ACP adapter each.
+  ...ACP_PROVIDER_DESCRIPTORS.map((descriptor) => acpAdapter(descriptor))
 ];
 function providerRegistry(adapters = DEFAULT_PROVIDER_ADAPTERS) {
   const byId = /* @__PURE__ */ new Map();
@@ -1781,40 +3782,48 @@ function providerRegistry(adapters = DEFAULT_PROVIDER_ADAPTERS) {
     }
   };
 }
+function providerExecutableEnvNames(registry) {
+  return registry.list().flatMap((adapter) => [
+    adapter.executable_env,
+    ...(adapter.probe.prerequisites ?? []).map(
+      (prerequisite) => prerequisite.executable_env
+    )
+  ]);
+}
 function defaultRunFailureClassifier(patterns) {
-  return (failure2) => {
-    if (failure2.diagnostics?.termination?.reason === "interrupt") {
+  return (failure3) => {
+    if (failure3.diagnostics?.termination?.reason === "interrupt") {
       return {
-        code: failure2.code,
-        message: failure2.message,
+        code: failure3.code,
+        message: failure3.message,
         retryable: false,
         terminal_reason: "provider_run_interrupted",
         exit_classification: "terminal"
       };
     }
-    if (failure2.code !== "PROVIDER_EXIT") {
+    if (failure3.code !== "PROVIDER_EXIT") {
       return {
-        code: failure2.code,
-        message: failure2.message,
-        retryable: failure2.retryable,
-        terminal_reason: terminalReasonForNonExitFailure(failure2.code),
+        code: failure3.code,
+        message: failure3.message,
+        retryable: failure3.retryable,
+        terminal_reason: terminalReasonForNonExitFailure(failure3.code),
         exit_classification: "terminal"
       };
     }
-    const output = `${failure2.stdout}
-${failure2.stderr}
-${failure2.message}`;
+    const output = `${failure3.stdout}
+${failure3.stderr}
+${failure3.message}`;
     const outputLine = firstNonEmptyLine(output);
-    if (isReliableExternalInterrupt(failure2)) {
+    if (isReliableExternalInterrupt(failure3)) {
       return {
         code: "PROVIDER_EXIT",
-        message: `Provider subprocess was interrupted by signal ${failure2.signal}.`,
+        message: `Provider subprocess was interrupted by signal ${failure3.signal}.`,
         retryable: true,
         terminal_reason: "provider_exit_interrupted",
         exit_classification: "interrupted"
       };
     }
-    if (failure2.stdout.trim() === "" && matchesAny(failure2.stderr, patterns.session_not_found_patterns)) {
+    if (failure3.stdout.trim() === "" && matchesAny(failure3.stderr, patterns.session_not_found_patterns)) {
       return {
         code: "PROVIDER_SESSION_NOT_FOUND",
         message: outputLine ?? "Provider could not find the requested session.",
@@ -1844,24 +3853,24 @@ ${failure2.message}`;
     if (matchesAny(output, patterns.unavailable_patterns)) {
       return {
         code: "PROVIDER_EXIT",
-        message: outputLine ?? failure2.message,
+        message: outputLine ?? failure3.message,
         retryable: false,
         terminal_reason: "provider_unavailable_exit",
         exit_classification: "terminal"
       };
     }
     if (/\b429\b|\brate limit (?:exceeded|reached)\b|rate limiter has requested a/i.test(
-      failure2.stderr
+      failure3.stderr
     )) {
       return limitFailure(
-        firstNonEmptyLine(failure2.stderr) ?? failure2.message,
+        firstNonEmptyLine(failure3.stderr) ?? failure3.message,
         "unknown"
       );
     }
     if (matchesAny(output, patterns.transient_exit_patterns)) {
       return {
         code: "PROVIDER_EXIT",
-        message: outputLine ?? failure2.message,
+        message: outputLine ?? failure3.message,
         retryable: true,
         terminal_reason: "provider_exit_transient",
         exit_classification: "transient"
@@ -1869,7 +3878,7 @@ ${failure2.message}`;
     }
     return {
       code: "PROVIDER_EXIT",
-      message: outputLine ?? failure2.message,
+      message: outputLine ?? failure3.message,
       retryable: false,
       terminal_reason: "provider_exit_terminal",
       exit_classification: "unknown"
@@ -1882,29 +3891,29 @@ function classifyClaudeLimit(stdout) {
     return void 0;
   if (result.api_error_status !== 429 && result.api_error !== "usage_limit_reached")
     return void 0;
-  const usage = isRecord2(result.usage) ? result.usage : void 0;
-  const noWork = result.num_turns === 1 && usage?.input_tokens === 0 && usage.output_tokens === 0 && (usage.cache_read_input_tokens === void 0 || usage.cache_read_input_tokens === 0) && (usage.cache_creation_input_tokens === void 0 || usage.cache_creation_input_tokens === 0) && (!isRecord2(result.modelUsage) || Object.keys(result.modelUsage).length === 0);
+  const usage = isRecord4(result.usage) ? result.usage : void 0;
+  const noWork = result.num_turns === 1 && usage?.input_tokens === 0 && usage.output_tokens === 0 && (usage.cache_read_input_tokens === void 0 || usage.cache_read_input_tokens === 0) && (usage.cache_creation_input_tokens === void 0 || usage.cache_creation_input_tokens === 0) && (!isRecord4(result.modelUsage) || Object.keys(result.modelUsage).length === 0);
   return limitFailure(
     typeof result.result === "string" && result.result.trim() ? result.result : "Provider usage or rate limit reached.",
     noWork ? "not_started" : "unknown"
   );
 }
 function classifyCodexLimit(stdout) {
-  let failure2;
+  let failure3;
   for (const line of stdout.split(/\r?\n/)) {
     const event = parseJsonRecord(line);
     if (!event) continue;
     if (event.type === "turn.completed" || event.type === "turn.failed")
-      failure2 = void 0;
-    const message = event.type === "turn.failed" && isRecord2(event.error) ? event.error.message : event.type === "error" ? event.message : void 0;
+      failure3 = void 0;
+    const message = event.type === "turn.failed" && isRecord4(event.error) ? event.error.message : event.type === "error" ? event.message : void 0;
     if (typeof message !== "string") continue;
     if (/^You've hit your usage limit[. ]/.test(message) || message.startsWith(
       "Quota exceeded. Check your plan and billing details."
     ) || message.startsWith("rate limit exceeded: ")) {
-      failure2 = limitFailure(message, "unknown");
+      failure3 = limitFailure(message, "unknown");
     }
   }
-  return failure2;
+  return failure3;
 }
 function limitFailure(message, turn) {
   return {
@@ -1919,10 +3928,26 @@ function limitFailure(message, turn) {
 function parseJsonRecord(value) {
   try {
     const parsed = JSON.parse(value);
-    return isRecord2(parsed) ? parsed : void 0;
+    return isRecord4(parsed) ? parsed : void 0;
   } catch {
     return void 0;
   }
+}
+function extractClaudePermissionDenials(stdout) {
+  const result = parseJsonRecord(stdout);
+  if (!result || !Array.isArray(result.permission_denials)) {
+    return void 0;
+  }
+  const denials = result.permission_denials;
+  if (denials.length === 0) return void 0;
+  const tools = [
+    ...new Set(
+      denials.filter(isRecord4).map((denial) => denial.tool_name).filter(
+        (name) => typeof name === "string" && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name)
+      )
+    )
+  ];
+  return { count: denials.length, tools };
 }
 function extractJsonResultSession(stdout) {
   let parsed;
@@ -1931,12 +3956,12 @@ function extractJsonResultSession(stdout) {
   } catch {
     return {};
   }
-  if (!isRecord2(parsed)) return {};
+  if (!isRecord4(parsed)) return {};
   const observation = {};
   if (typeof parsed.session_id === "string" && parsed.session_id) {
     observation.session_id = parsed.session_id;
   }
-  if (isRecord2(parsed.modelUsage)) {
+  if (isRecord4(parsed.modelUsage)) {
     const models = Object.keys(parsed.modelUsage);
     if (models.length > 0) observation.observed_models = models;
   }
@@ -1952,13 +3977,13 @@ function extractCodexJsonlSession(stdout) {
     } catch {
       continue;
     }
-    if (isRecord2(event) && event.type === "thread.started" && typeof event.thread_id === "string" && event.thread_id) {
+    if (isRecord4(event) && event.type === "thread.started" && typeof event.thread_id === "string" && event.thread_id) {
       return { session_id: event.thread_id };
     }
   }
   return {};
 }
-function isRecord2(value) {
+function isRecord4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function terminalReasonForNonExitFailure(code) {
@@ -2748,7 +4773,7 @@ function parseRequestJson(contents) {
       cause: String(error)
     });
   }
-  if (!isRecord3(parsed)) {
+  if (!isRecord5(parsed)) {
     throw new ConsensusCliUsageError("Request JSON must be an object");
   }
   if (parsed.schema_version !== "v1") {
@@ -2803,7 +4828,7 @@ function parseRequestJson(contents) {
 }
 function validateRuntimePolicy(value) {
   if (value === void 0) return;
-  if (!isRecord3(value)) {
+  if (!isRecord5(value)) {
     throw new ConsensusCliUsageError(
       "Request JSON runtime_policy must be an object"
     );
@@ -2850,7 +4875,7 @@ function validateRuntimePolicy(value) {
 }
 function validateContinuation(value) {
   if (value === void 0) return;
-  if (!isRecord3(value)) {
+  if (!isRecord5(value)) {
     throw new ConsensusCliUsageError(
       "Request JSON continuation must be an object"
     );
@@ -2881,7 +4906,7 @@ function validateContinuation(value) {
 }
 function validateHostContext(value) {
   if (value === void 0) return;
-  if (!isRecord3(value)) {
+  if (!isRecord5(value)) {
     throw new ConsensusCliUsageError("Request JSON host must be an object");
   }
   validateRequiredStringField(value, "runtime", "Request JSON host.runtime");
@@ -2896,7 +4921,7 @@ function validateHostContext(value) {
 }
 function validateRedaction(value) {
   if (value === void 0) return;
-  if (!isRecord3(value)) {
+  if (!isRecord5(value)) {
     throw new ConsensusCliUsageError(
       "Request JSON redaction must be an object"
     );
@@ -3017,7 +5042,7 @@ function parsePositiveInteger(flag, value) {
   }
   return Number(value);
 }
-function isRecord3(value) {
+function isRecord5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -3103,8 +5128,27 @@ function buildAttemptSummary(attempts, retryable) {
 
 // src/plugins/consensus/provider-cli/probe.ts
 import { constants } from "node:fs";
-import { access as access2 } from "node:fs/promises";
-import path5 from "node:path";
+import { access as access2, stat } from "node:fs/promises";
+import path8 from "node:path";
+
+// src/plugins/consensus/provider-cli/executable.ts
+import path7 from "node:path";
+function resolveProviderExecutable(adapter, env) {
+  const variable = adapter.executable_env;
+  const value = env[variable];
+  if (value === void 0 || value === "") {
+    return { ok: true, executable: adapter.executable };
+  }
+  if (!path7.isAbsolute(value)) {
+    return {
+      ok: false,
+      message: `${variable} must be an absolute path to an executable, not ${JSON.stringify(value)}.`
+    };
+  }
+  return { ok: true, executable: value };
+}
+
+// src/plugins/consensus/provider-cli/probe.ts
 var DEFAULT_PROBE_TIMEOUT_SEC = 10;
 var DEFAULT_PROBE_MAX_OUTPUT_BYTES = 64 * 1024;
 async function probeProviderRegistry({
@@ -3115,7 +5159,7 @@ async function probeProviderRegistry({
 }) {
   const adapters = provider ? [registry.get(provider)].filter(
     (adapter) => adapter !== void 0
-  ) : registry.list();
+  ) : registry.list().filter((adapter) => adapter.tier === "core");
   return Promise.all(
     adapters.map(
       (adapter) => probeProviderReadiness(adapter, { runner, requiredCapabilities })
@@ -3123,6 +5167,20 @@ async function probeProviderRegistry({
   );
 }
 async function probeProviderReadiness(adapter, options) {
+  const notAdmitted = notAdmittedEntry(adapter);
+  if (notAdmitted) return notAdmitted;
+  const prerequisites = await checkProviderPrerequisites(
+    adapter,
+    options.runner
+  );
+  if (!prerequisites.ok) {
+    const prerequisite = prerequisites.failure;
+    return providerEntry(adapter, prerequisite.status, {
+      ...prerequisite.install_hint ? { install_hint: prerequisite.install_hint } : {},
+      diagnostics: prerequisite.diagnostics,
+      warnings: [prerequisite.warning]
+    });
+  }
   const resolved = resolveProviderExecutable(adapter, options.runner.env ?? {});
   if (!resolved.ok) {
     return providerEntry(adapter, "missing", {
@@ -3131,17 +5189,31 @@ async function probeProviderReadiness(adapter, options) {
   }
   const command = resolved.executable;
   const executable = await options.runner.findExecutable(command);
-  if (!executable) {
+  if (!executable || !path8.isAbsolute(executable)) {
     return providerEntry(adapter, "missing", {
+      ...adapter.install_hint ? { install_hint: adapter.install_hint } : {},
       warnings: [
         `PROVIDER_MISSING: executable not found for ${adapter.id} (${command})`
       ]
     });
   }
+  const extended = adapter.tier === "extended";
+  const probed = extended ? { id: adapter.id, credential_env: [] } : adapter;
+  const redact = probeOutputRedactor(adapter, options.runner.env ?? {});
+  const outputRedacts = (output2) => redact(output2) !== output2;
+  const versionLabel = (output2) => {
+    const version = extended ? outputRedacts(output2) ? void 0 : releaseLabel(output2, redact) : redact(firstNonEmptyLine2(output2) ?? "") || void 0;
+    return version ? { version } : {};
+  };
+  const detectedLabel = (output2, detected) => {
+    if (!extended) return formatNumericVersion(detected);
+    if (outputRedacts(output2)) return "version";
+    return printedNumericVersion(output2) ?? formatNumericVersion(detected);
+  };
   const result = await options.runner.run(
-    command,
+    executable,
     adapter.probe.version_args,
-    adapter.id
+    probed
   );
   const probeFailure = probeFailureEntry(adapter, executable, result);
   if (probeFailure) return probeFailure;
@@ -3150,13 +5222,17 @@ ${result.stderr}`;
   if (matchesAny2(output, adapter.probe.auth_required_patterns)) {
     return providerEntry(adapter, "auth_required", {
       executable,
-      warnings: [`PROVIDER_AUTH_REQUIRED: ${firstNonEmptyLine2(output)}`]
+      warnings: [
+        `PROVIDER_AUTH_REQUIRED: ${redact(`${firstNonEmptyLine2(output)}`)}`
+      ]
     });
   }
   if (result.code !== 0 || matchesAny2(output, adapter.probe.unavailable_patterns)) {
     return providerEntry(adapter, "unavailable", {
       executable,
-      warnings: [`PROVIDER_UNAVAILABLE: ${firstNonEmptyLine2(output)}`]
+      warnings: [
+        `PROVIDER_UNAVAILABLE: ${redact(`${firstNonEmptyLine2(output)}`)}`
+      ]
     });
   }
   const detectedVersion = parseNumericVersion(output);
@@ -3164,7 +5240,7 @@ ${result.stderr}`;
   if (!detectedVersion || !minimumVersion) {
     return providerEntry(adapter, "unavailable", {
       executable,
-      version: firstNonEmptyLine2(output),
+      ...versionLabel(output),
       warnings: [
         `PROVIDER_VERSION_UNPARSEABLE: could not establish ${adapter.id} compatibility from version output`
       ]
@@ -3173,18 +5249,18 @@ ${result.stderr}`;
   if (compareNumericVersions(detectedVersion, minimumVersion) < 0) {
     return providerEntry(adapter, "unavailable", {
       executable,
-      version: firstNonEmptyLine2(output),
+      ...versionLabel(output),
       warnings: [
-        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${formatNumericVersion(detectedVersion)} is below required ${adapter.probe.minimum_version}`
+        `PROVIDER_VERSION_UNSUPPORTED: ${adapter.id} ${redact(detectedLabel(output, detectedVersion))} is below required ${adapter.probe.minimum_version}`
       ]
     });
   }
   for (const capability of options.requiredCapabilities ?? []) {
     const definition = adapter.probe.capabilities[capability];
     const capabilityResult = await options.runner.run(
-      command,
+      executable,
       definition.args,
-      adapter.id
+      probed
     );
     const capabilityFailure = probeFailureEntry(
       adapter,
@@ -3199,7 +5275,7 @@ ${capabilityResult.stderr}`;
     )) {
       return providerEntry(adapter, "unavailable", {
         executable,
-        version: firstNonEmptyLine2(output),
+        ...versionLabel(output),
         warnings: [
           `PROVIDER_CAPABILITY_MISSING: ${adapter.id} does not expose required local capability ${capability}`
         ]
@@ -3208,7 +5284,90 @@ ${capabilityResult.stderr}`;
   }
   return providerEntry(adapter, "ready", {
     executable,
-    version: firstNonEmptyLine2(output)
+    ...versionLabel(output)
+  });
+}
+async function checkProviderPrerequisites(adapter, runner) {
+  const executables = {};
+  const failed = (failure3) => ({ ok: false, failure: failure3 });
+  for (const prerequisite of adapter.probe.prerequisites ?? []) {
+    const missing = (detail) => ({
+      status: "missing",
+      warning: `PROVIDER_PREREQUISITE_MISSING: ${detail}`,
+      message: `Provider ${adapter.id} prerequisite ${detail}.`,
+      install_hint: prerequisite.install_hint
+    });
+    const resolved = resolveProviderExecutable(
+      {
+        executable: prerequisite.command,
+        executable_env: prerequisite.executable_env
+      },
+      runner.env ?? {}
+    );
+    if (!resolved.ok) {
+      return failed(
+        missing(`${prerequisite.name} is unusable: ${resolved.message}`)
+      );
+    }
+    const executable = await runner.findExecutable(resolved.executable);
+    if (!executable || !path8.isAbsolute(executable)) {
+      return failed(
+        missing(`${prerequisite.name} was not found (${resolved.executable})`)
+      );
+    }
+    const pin = prerequisite.version;
+    if (!pin) {
+      executables[prerequisite.name] = executable;
+      continue;
+    }
+    const pinError = versionPinError(pin);
+    if (pinError) {
+      const detail = `${prerequisite.name} declares an invalid version pin: ${pinError}`;
+      return failed({
+        status: "unsupported",
+        warning: `PROVIDER_PREREQUISITE_PIN_INVALID: ${detail}`,
+        message: `Provider ${adapter.id} prerequisite ${detail}.`
+      });
+    }
+    const result = await runner.run(executable, pin.args, adapter);
+    if (result.failure_code === "PROVIDER_MISSING") {
+      return failed(
+        missing(`${prerequisite.name} failed to start (${executable})`)
+      );
+    }
+    const output = `${result.stdout}
+${result.stderr}`;
+    if (result.failure_code || result.code !== 0) {
+      const detail = `${prerequisite.name} version check failed: ${result.failure_code ?? firstNonEmptyLine2(output) ?? `exit ${result.code}`}`;
+      return failed({
+        status: "unavailable",
+        warning: `PROVIDER_PREREQUISITE_UNAVAILABLE: ${detail}`,
+        message: `Provider ${adapter.id} prerequisite ${detail}.`,
+        diagnostics: result.diagnostics
+      });
+    }
+    const detected = parseVersion(output);
+    const required = describeVersionPin(pin);
+    if (!detected || !satisfiesVersionPin(detected, pin)) {
+      const found = detected ? formatVersion(detected) : `unparseable version output ${JSON.stringify(firstNonEmptyLine2(output) ?? "")}`;
+      const detail = `${prerequisite.name} ${found} is outside the required ${required}`;
+      return failed({
+        status: "unsupported",
+        warning: `PROVIDER_PREREQUISITE_VERSION_UNSUPPORTED: ${detail}`,
+        message: `Provider ${adapter.id} prerequisite ${detail}.`,
+        install_hint: prerequisite.install_hint
+      });
+    }
+    executables[prerequisite.name] = executable;
+  }
+  return { ok: true, executables };
+}
+function notAdmittedEntry(adapter) {
+  if (!adapter.not_admitted_reason) return void 0;
+  return providerEntry(adapter, "unsupported", {
+    warnings: [
+      `PROVIDER_NOT_ADMITTED: registered, not admitted: ${adapter.not_admitted_reason}`
+    ]
   });
 }
 function nodeProbeCommandRunner(env = process.env, options = {}) {
@@ -3217,30 +5376,45 @@ function nodeProbeCommandRunner(env = process.env, options = {}) {
     findExecutable(command) {
       return findExecutable(command, env);
     },
-    run(command, args, provider) {
+    run(command, args, adapter) {
       return runProbeCommand(
         command,
         args,
-        buildProviderProbeEnvironment({ parentEnv: env, provider }),
+        buildProviderProbeEnvironment({
+          parentEnv: env,
+          credentialEnv: adapter.credential_env
+        }),
         options
       );
     }
   };
 }
 async function findExecutable(command, env) {
-  if (command.includes(path5.sep)) {
-    return canExecute(command).then((ok) => ok ? command : void 0);
+  if (command.includes(path8.sep)) {
+    return firstExecutable(command);
   }
   const pathValue = env.PATH ?? "";
-  for (const searchPath of pathValue.split(path5.delimiter)) {
-    if (!searchPath) continue;
-    const candidate = path5.join(searchPath, command);
+  for (const searchPath of pathValue.split(path8.delimiter)) {
+    if (!path8.isAbsolute(searchPath)) continue;
+    const found = await firstExecutable(path8.join(searchPath, command));
+    if (found) return found;
+  }
+  return void 0;
+}
+var WINDOWS_EXECUTABLE_EXTENSIONS = [".exe", ".com"];
+async function firstExecutable(filePath) {
+  const candidates = process.platform === "win32" && !path8.extname(filePath) ? [
+    filePath,
+    ...WINDOWS_EXECUTABLE_EXTENSIONS.map((ext) => filePath + ext)
+  ] : [filePath];
+  for (const candidate of candidates) {
     if (await canExecute(candidate)) return candidate;
   }
   return void 0;
 }
 async function canExecute(filePath) {
   try {
+    if (!(await stat(filePath)).isFile()) return false;
     await access2(filePath, constants.X_OK);
     return true;
   } catch {
@@ -3275,11 +5449,28 @@ function runProbeCommand(command, args, env, options) {
     diagnostics: result.diagnostics
   }));
 }
+function releaseLabel(output, redact) {
+  const parsed = parseVersion(output);
+  if (!parsed || parsed.release.length !== 3) return void 0;
+  const release = parsed.text.split(/[-+]/)[0];
+  if (redact(release) !== release) return void 0;
+  const prerelease = parsed.prerelease.join(".");
+  const label = `${release}-${prerelease}`;
+  return prerelease && /^[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*$/.test(prerelease) && redact(label) === label ? label : release;
+}
+function probeOutputRedactor(adapter, env) {
+  const secretValues = adapter.credential_env.map((name) => env[name]).filter((value) => typeof value === "string");
+  return (text) => redactText(text, {
+    patterns: adapter.redaction_patterns,
+    secretValues
+  });
+}
 function probeFailureEntry(adapter, executable, result) {
   if (!result.failure_code) return void 0;
   if (result.failure_code === "PROVIDER_MISSING") {
     return providerEntry(adapter, "missing", {
       executable,
+      ...adapter.install_hint ? { install_hint: adapter.install_hint } : {},
       diagnostics: result.diagnostics,
       warnings: [
         `PROVIDER_MISSING: executable failed to start for ${adapter.id}`
@@ -3317,6 +5508,7 @@ function providerEntry(adapter, status, options = {}) {
     capabilities: adapter.capabilities,
     ...options.executable ? { executable: options.executable } : {},
     ...options.version ? { version: options.version } : {},
+    ...options.install_hint ? { install_hint: options.install_hint } : {},
     ...diagnostics ? { diagnostics } : {}
   };
 }
@@ -3337,10 +5529,18 @@ function matchesAny2(value, patterns) {
 function firstNonEmptyLine2(value) {
   return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
 }
+var NUMERIC_VERSION = /\b(\d+(?:\.\d+){2,})\b/;
 function parseNumericVersion(value) {
-  const match = value.match(/\b(\d+(?:\.\d+){2,})\b/);
+  const match = value.match(NUMERIC_VERSION);
   if (!match) return void 0;
-  return match[1].split(".").map(Number);
+  return safeComponents(match[1]);
+}
+function printedNumericVersion(value) {
+  return value.match(NUMERIC_VERSION)?.[1];
+}
+function safeComponents(release) {
+  const parts = release.split(".").map(Number);
+  return parts.every((part) => Number.isSafeInteger(part)) ? parts : void 0;
 }
 function compareNumericVersions(left, right) {
   const length = Math.max(left.length, right.length);
@@ -3353,61 +5553,94 @@ function compareNumericVersions(left, right) {
 function formatNumericVersion(version) {
   return version.join(".");
 }
-
-// src/plugins/consensus/provider-cli/schema-validate.ts
-function validateSchemaSubset(value, schema) {
-  if (!isRecord4(schema)) return { ok: true };
-  if (schema.type === "object" && !isRecord4(value)) {
-    return { ok: false, message: "Expected provider JSON to be an object." };
-  }
-  if (Array.isArray(schema.required)) {
-    if (!isRecord4(value)) {
-      return {
-        ok: false,
-        message: "Expected provider JSON to be an object with required fields."
-      };
-    }
-    for (const field of schema.required) {
-      if (typeof field === "string" && !(field in value)) {
-        return {
-          ok: false,
-          message: `Missing required JSON field: ${field}`
-        };
-      }
-    }
-  }
-  if (isRecord4(schema.properties) && isRecord4(value)) {
-    for (const [field, fieldSchema] of Object.entries(schema.properties)) {
-      if (!(field in value) || !isRecord4(fieldSchema)) continue;
-      const type = fieldSchema.type;
-      if (typeof type === "string" && !matchesJsonType(value[field], type)) {
-        return {
-          ok: false,
-          message: `Field ${field} must be ${type}.`
-        };
-      }
-    }
-  }
-  return { ok: true };
+var IDENTIFIERS = "[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*";
+var VERSION_TOKEN = `v?(\\d+(?:\\.\\d+){2,})(?:-(${IDENTIFIERS}))?(?:\\+(${IDENTIFIERS}))?`;
+var OUTPUT_VERSION = new RegExp(
+  `(?<![0-9A-Za-z.+-])${VERSION_TOKEN}(?![0-9A-Za-z.+-])`
+);
+var PIN_VERSION = new RegExp(`^${VERSION_TOKEN}$`);
+function parseVersion(value, pattern = OUTPUT_VERSION) {
+  const match = value.match(pattern);
+  if (!match) return void 0;
+  const release = safeComponents(match[1]);
+  if (!release) return void 0;
+  return {
+    text: `${match[1]}${match[2] ? `-${match[2]}` : ""}${match[3] ? `+${match[3]}` : ""}`,
+    release,
+    prerelease: match[2] ? match[2].split(".") : [],
+    build: match[3] ? match[3].split(".") : []
+  };
 }
-function isRecord4(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function formatVersion(version) {
+  const release = version.release.join(".");
+  const prerelease = version.prerelease.length > 0 ? `-${version.prerelease.join(".")}` : "";
+  const build = version.build.length > 0 ? `+${version.build.join(".")}` : "";
+  return `${release}${prerelease}${build}`;
 }
-function matchesJsonType(value, type) {
-  if (type === "array") return Array.isArray(value);
-  if (type === "object") return isRecord4(value);
-  if (type === "integer") return Number.isInteger(value);
-  return typeof value === type;
+function compareVersions(left, right) {
+  const release = compareNumericVersions(left.release, right.release);
+  if (release !== 0) return release;
+  if (left.prerelease.length === 0 || right.prerelease.length === 0) {
+    return Math.sign(right.prerelease.length - left.prerelease.length);
+  }
+  const length = Math.max(left.prerelease.length, right.prerelease.length);
+  for (let index = 0; index < length; index += 1) {
+    const a = left.prerelease[index];
+    const b = right.prerelease[index];
+    if (a === void 0) return -1;
+    if (b === void 0) return 1;
+    if (a === b) continue;
+    const aNumeric = /^\d+$/.test(a);
+    const bNumeric = /^\d+$/.test(b);
+    if (aNumeric && bNumeric) return Math.sign(Number(a) - Number(b));
+    if (aNumeric) return -1;
+    if (bNumeric) return 1;
+    return a < b ? -1 : 1;
+  }
+  return 0;
+}
+function satisfiesVersionPin(detected, pin) {
+  const bound = (value, accept) => {
+    if (value === void 0) return true;
+    const parsed = parseVersion(value, PIN_VERSION);
+    return parsed !== void 0 && accept(compareVersions(detected, parsed), parsed);
+  };
+  return bound(pin.exact, (_order, parsed) => detected.text === parsed.text) && bound(pin.min, (order) => order >= 0) && bound(pin.max, (order) => order <= 0);
+}
+function versionPinError(pin) {
+  const bounds = { exact: pin.exact, min: pin.min, max: pin.max };
+  const parsed = {};
+  for (const [field, value] of Object.entries(bounds)) {
+    if (value === void 0) continue;
+    const version = parseVersion(value, PIN_VERSION);
+    if (!version) return `${field} ${JSON.stringify(value)} is not a version`;
+    parsed[field] = version;
+  }
+  if (parsed.exact && (parsed.min || parsed.max)) {
+    return "exact cannot be combined with min or max";
+  }
+  if (parsed.min && parsed.max && compareVersions(parsed.min, parsed.max) > 0) {
+    return `min ${pin.min} is above max ${pin.max}`;
+  }
+  return void 0;
+}
+function describeVersionPin(pin) {
+  const parts = [
+    ...pin.exact !== void 0 ? [`=${pin.exact}`] : [],
+    ...pin.min !== void 0 ? [`>=${pin.min}`] : [],
+    ...pin.max !== void 0 ? [`<=${pin.max}`] : []
+  ];
+  return parts.length > 0 ? `version ${parts.join(" ")}` : "version";
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts
-import { readFile as readFile2, rm as rm3 } from "node:fs/promises";
-import path8 from "node:path";
+import { readFile as readFile2, rm as rm4 } from "node:fs/promises";
+import path12 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/plugins/consensus/provider-cli/continuation.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
-import path6 from "node:path";
+import path9 from "node:path";
 var UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 var NOT_STARTED_FAILURE_CODES = [
   "PROVIDER_MISSING",
@@ -3422,7 +5655,7 @@ function isProviderSessionId(value) {
 function continuationMode(request) {
   return request.continuation?.mode ?? "new";
 }
-function continuationUsageError(request) {
+function continuationUsageError(request, isSessionId) {
   const continuation = request.continuation;
   if (!continuation) return void 0;
   const { mode } = continuation;
@@ -3458,8 +5691,11 @@ function continuationUsageError(request) {
   if (!continuation.session_id) {
     return "Native resume requires an explicit provider session id.";
   }
-  if (!isProviderSessionId(continuation.session_id)) {
+  if (!isSessionId && !isProviderSessionId(continuation.session_id)) {
     return 'Native resume requires a lowercase provider session UUID, as reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
+  }
+  if (isSessionId && !isSessionId(continuation.session_id)) {
+    return 'Native resume requires the provider session id reported in the continuation receipt; titles, names, and "latest" selectors are not accepted.';
   }
   if (continuation.previous_session_id !== void 0) {
     return "Native resume continues the --resume session itself; --previous-session applies only to reconstructed continuation.";
@@ -3517,8 +5753,9 @@ function continuationReceipt(input) {
     ...mode === "reconstructed" && previousSessionId(request) ? { previous_session_id: previousSessionId(request) } : {},
     consultation_id: input.consultationId,
     ...round !== void 0 ? { round } : {},
-    cwd: path6.resolve(request.cwd ?? process.cwd()),
+    cwd: path9.resolve(request.cwd ?? process.cwd()),
     ...request.model ? { requested_model: request.model } : {},
+    ...input.defaultModel ? { default_model: input.defaultModel } : {},
     ...request.effort ? { requested_effort: request.effort } : {},
     ...observation.observed_models ? { observed_models: observation.observed_models } : {},
     runtime_policy: redactedRuntimePolicyDiagnostics(request.runtime_policy),
@@ -3538,7 +5775,7 @@ function previousSessionId(request) {
 
 // src/plugins/consensus/provider-cli/submit-capture.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
-import path7 from "node:path";
+import path10 from "node:path";
 var DEFAULT_SUBMIT_CAPTURE_MAX_BYTES = 1024 * 1024 * 10;
 var CONSENSUS_SUBMIT_MAX_BYTES_ENV = "CONSENSUS_SUBMIT_MAX_BYTES";
 var CONSENSUS_SUBMIT_CAPTURE_DIR = ".consensus/submit";
@@ -3577,10 +5814,327 @@ function submitCaptureLimitMessage(bytes, maxBytes) {
   return `Submitted verdict exceeds submit capture limit of ${maxBytes} bytes (${bytes} bytes).`;
 }
 function submitCaptureDirectory(cwd) {
-  return path7.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
+  return path10.resolve(cwd, CONSENSUS_SUBMIT_CAPTURE_DIR);
 }
 function submitCaptureFilePath(cwd, id = randomUUID4()) {
-  return path7.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
+  return path10.join(submitCaptureDirectory(cwd), `consensus-submit-${id}.json`);
+}
+
+// src/plugins/consensus/provider-cli/working-tree.ts
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { lstat, readlink } from "node:fs/promises";
+import path11 from "node:path";
+var GIT_TIMEOUT_MS = 3e4;
+var GIT_MAX_BUFFER = 64 * 1024 * 1024;
+var MAX_LISTED_PATHS = 20;
+var LSTAT_BATCH = 256;
+var SNAPSHOT_ENV_ALLOWLIST = [
+  "PATH",
+  "HOME",
+  "XDG_CONFIG_HOME",
+  "TMPDIR",
+  "TEMP",
+  "TMP",
+  "USER",
+  "LOGNAME",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+  "GIT_CEILING_DIRECTORIES"
+];
+var TRUTHFUL_STATUS_CONFIG = [
+  "--no-optional-locks",
+  "-c",
+  "core.fsmonitor=false",
+  "-c",
+  "core.untrackedCache=false",
+  "-c",
+  "core.filemode=true"
+];
+async function snapshotWorkingTree(cwd, options = {}) {
+  const git = gitRunner(cwd, options);
+  try {
+    const inside = await git.run(["rev-parse", "--is-inside-work-tree"]);
+    if (inside.trim() !== "true") {
+      return { ok: false, message: `${cwd} is not inside a git work tree` };
+    }
+    const root = withoutNewline(
+      await git.run(["rev-parse", "--show-toplevel"])
+    );
+    const head = (await git.run(["rev-parse", "--verify", "--quiet", "HEAD"], {
+      allowExit: [1]
+    })).trim();
+    const unfiltered = await git.withoutFilters(root);
+    const raw = await unfiltered.run([
+      ...TRUTHFUL_STATUS_CONFIG,
+      "status",
+      "--porcelain=v1",
+      "-z",
+      "--untracked-files=all",
+      "--ignored=no"
+    ]);
+    const status = parsePorcelainZ(raw);
+    const index = parseIndexEntries(
+      await unfiltered.run([
+        ...TRUTHFUL_STATUS_CONFIG,
+        "ls-files",
+        "-v",
+        "-z",
+        "--full-name",
+        ":/"
+      ])
+    );
+    const content = /* @__PURE__ */ new Map();
+    for (const file of /* @__PURE__ */ new Set([...status.keys(), ...index.hidden])) {
+      content.set(file, await fingerprint(path11.join(root, file)));
+    }
+    const modeOnly = index.tracked.filter((file) => !content.has(file));
+    for (let start = 0; start < modeOnly.length; start += LSTAT_BATCH) {
+      const batch = modeOnly.slice(start, start + LSTAT_BATCH);
+      const modes = await Promise.all(
+        batch.map((file) => permissionBits(path11.join(root, file)))
+      );
+      batch.forEach((file, offset) => content.set(file, modes[offset]));
+    }
+    const exclude = path11.resolve(
+      cwd,
+      withoutNewline(
+        await git.run(["rev-parse", "--git-path", "info/exclude"])
+      )
+    );
+    const excludeKey = path11.relative(root, exclude).startsWith("..") ? exclude : path11.relative(root, exclude);
+    content.set(excludeKey, await fingerprint(exclude));
+    return { ok: true, snapshot: { root, head, status, content } };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+function compareWorkingTrees(before, after) {
+  const paths = /* @__PURE__ */ new Set();
+  for (const file of /* @__PURE__ */ new Set([
+    ...before.status.keys(),
+    ...after.status.keys(),
+    ...before.content.keys(),
+    ...after.content.keys()
+  ])) {
+    if (before.status.get(file) !== after.status.get(file) || before.content.get(file) !== after.content.get(file)) {
+      paths.add(file);
+    }
+  }
+  return {
+    head_changed: before.head !== after.head,
+    paths: [...paths].toSorted()
+  };
+}
+function hasWorkingTreeChanges(changes) {
+  return changes.head_changed || changes.paths.length > 0;
+}
+function workingTreeChangeList(changes) {
+  return [...changes.head_changed ? ["HEAD"] : [], ...changes.paths];
+}
+function describeWorkingTreeChanges(changes) {
+  const list = workingTreeChangeList(changes);
+  const shown = list.slice(0, MAX_LISTED_PATHS).join(", ");
+  const more = list.length > MAX_LISTED_PATHS ? ` and ${list.length - MAX_LISTED_PATHS} more` : "";
+  return `${shown}${more}`;
+}
+function parsePorcelainZ(raw) {
+  const status = /* @__PURE__ */ new Map();
+  const tokens = raw.split("\0");
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token.length < 4) continue;
+    const code = token.slice(0, 2);
+    status.set(token.slice(3), code);
+    if (code.includes("R") || code.includes("C")) {
+      const source = tokens[index + 1];
+      if (source) status.set(source, `${code}<`);
+      index += 1;
+    }
+  }
+  return status;
+}
+function parseIndexEntries(raw) {
+  const tracked = /* @__PURE__ */ new Set();
+  const hidden = [];
+  for (const entry of raw.split("\0")) {
+    if (entry.length < 3) continue;
+    const tag = entry[0];
+    const file = entry.slice(2);
+    tracked.add(file);
+    if (tag === "S" || tag >= "a" && tag <= "z") hidden.push(file);
+  }
+  return { tracked: [...tracked], hidden };
+}
+async function permissionBits(file) {
+  try {
+    return `mode:${((await lstat(file)).mode & 4095).toString(8)}`;
+  } catch (error) {
+    if (isMissing(error)) return "deleted";
+    throw error;
+  }
+}
+async function fingerprint(file) {
+  let stats;
+  try {
+    stats = await lstat(file);
+  } catch (error) {
+    if (isMissing(error)) return "deleted";
+    throw error;
+  }
+  if (stats.isSymbolicLink()) {
+    return `link:${sha256(await readlink(file))}`;
+  }
+  if (stats.isDirectory()) return "dir";
+  return `${(stats.mode & 4095).toString(8)}:${await hashFile(file)}`;
+}
+function hashFile(file) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("sha256");
+    createReadStream(file).on("data", (chunk) => hash.update(chunk)).on("error", (error) => {
+      if (isMissing(error)) resolve("deleted");
+      else reject(error);
+    }).on("end", () => resolve(hash.digest("hex")));
+  });
+}
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+function isMissing(error) {
+  const code = error?.code;
+  return code === "ENOENT" || code === "ENOTDIR";
+}
+function gitRunner(cwd, options) {
+  const env = snapshotEnv(options.env ?? process.env);
+  const run = runGit(cwd, env);
+  return {
+    run,
+    // A runner with every configured filter driver switched off, including
+    // the drivers of checked-out submodules. The overrides go through
+    // GIT_CONFIG_COUNT because `-c` splits at the first `=` and so cannot
+    // name a driver whose name contains one; git passes them on to the git
+    // process status starts in each submodule.
+    async withoutFilters(root) {
+      const drivers = /* @__PURE__ */ new Set();
+      await collectFilterDrivers(root, env, drivers);
+      const overrides = [...drivers].flatMap((driver) => [
+        [`filter.${driver}.clean`, ""],
+        [`filter.${driver}.smudge`, ""],
+        [`filter.${driver}.process`, ""],
+        [`filter.${driver}.required`, "false"]
+      ]);
+      const unfiltered = {
+        ...env,
+        GIT_CONFIG_COUNT: String(overrides.length)
+      };
+      overrides.forEach(([key, value], index) => {
+        unfiltered[`GIT_CONFIG_KEY_${index}`] = key;
+        unfiltered[`GIT_CONFIG_VALUE_${index}`] = value;
+      });
+      return { run: runGit(cwd, unfiltered) };
+    }
+  };
+}
+async function collectFilterDrivers(root, env, drivers) {
+  const run = runGitBytes(root, env);
+  const keys = await run(
+    ["config", "-z", "--name-only", "--get-regexp", "^filter\\."],
+    { allowExit: [1] }
+  );
+  for (const rawKey of splitAtNul(keys)) {
+    const key = exactUtf8(rawKey, "config");
+    const end = key.lastIndexOf(".");
+    if (key.startsWith("filter.") && end > "filter.".length) {
+      drivers.add(key.slice("filter.".length, end));
+    }
+  }
+  const submodules = /* @__PURE__ */ new Set();
+  for (const rawEntry of splitAtNul(await run(["ls-files", "-s", "-z"]))) {
+    if (rawEntry.toString("latin1", 0, 7) !== "160000 ") continue;
+    const entry = exactUtf8(rawEntry, "ls-files");
+    const tab = entry.indexOf("	");
+    if (tab > 0) submodules.add(entry.slice(tab + 1));
+  }
+  for (const submodule of submodules) {
+    const dir = path11.join(root, submodule);
+    try {
+      await lstat(path11.join(dir, ".git"));
+    } catch (error) {
+      if (isMissing(error)) continue;
+      throw error;
+    }
+    await collectFilterDrivers(dir, env, drivers);
+  }
+}
+function snapshotEnv(base) {
+  const env = { GIT_OPTIONAL_LOCKS: "0" };
+  for (const name of SNAPSHOT_ENV_ALLOWLIST) {
+    if (base[name] !== void 0) env[name] = base[name];
+  }
+  return env;
+}
+function withoutNewline(output) {
+  return output.endsWith("\n") ? output.slice(0, -1) : output;
+}
+function splitAtNul(output) {
+  const entries = [];
+  let start = 0;
+  for (let end = output.indexOf(0); end !== -1; end = output.indexOf(0, start)) {
+    entries.push(output.subarray(start, end));
+    start = end + 1;
+  }
+  if (start < output.length) entries.push(output.subarray(start));
+  return entries;
+}
+function exactUtf8(bytes, command) {
+  try {
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(
+      bytes
+    );
+  } catch {
+    throw new Error(
+      `git ${command} printed a filter driver or submodule name that is not valid UTF-8, so the snapshot cannot switch its filters off`
+    );
+  }
+}
+function runGit(cwd, env) {
+  const run = runGitBytes(cwd, env);
+  return async (args, runOptions = {}) => (await run(args, runOptions)).toString("utf8");
+}
+function runGitBytes(cwd, env) {
+  return (args, runOptions = {}) => new Promise((resolve, reject) => {
+    execFile(
+      "git",
+      args,
+      {
+        cwd,
+        env,
+        encoding: "buffer",
+        maxBuffer: GIT_MAX_BUFFER,
+        timeout: GIT_TIMEOUT_MS,
+        shell: false,
+        windowsHide: true
+      },
+      (error, stdout, stderr) => {
+        const exitCode = error && typeof error.code === "number" ? error.code : void 0;
+        if (!error || runOptions.allowExit?.includes(exitCode ?? -1)) {
+          resolve(error ? Buffer.alloc(0) : stdout);
+          return;
+        }
+        const detail = String(stderr).trim().split(/\r?\n/)[0] || error.message;
+        reject(
+          new Error(
+            `git ${args.filter((arg) => !TRUTHFUL_STATUS_CONFIG.includes(arg)).join(" ")} failed${detail ? `: ${detail}` : ""}`
+          )
+        );
+      }
+    );
+  });
 }
 
 // src/plugins/consensus/provider-cli/structured-output.ts
@@ -3603,6 +6157,7 @@ async function runProviderTurn(request, dependencies = {}) {
   const adapter = registry.get(request.provider);
   const consultationId = consultationIdFor(request);
   const mode = continuationMode(request);
+  let defaultModel;
   const withReceipt = (envelope2, receiptMode, trace2, fallbackReason) => ({
     ...envelope2,
     continuation: continuationReceipt({
@@ -3611,10 +6166,23 @@ async function runProviderTurn(request, dependencies = {}) {
       mode: receiptMode,
       consultationId,
       trace: trace2,
-      fallbackReason
+      fallbackReason,
+      defaultModel
     })
   });
-  const usageError = continuationUsageError(request);
+  if (adapter?.not_admitted_reason) {
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: "PROVIDER_UNSUPPORTED",
+        message: `Provider ${request.provider} is registered but not admitted: ${adapter.not_admitted_reason}`,
+        terminalReason: "provider_not_admitted"
+      }),
+      mode,
+      {}
+    );
+  }
+  const usageError = continuationUsageError(request, adapter?.isSessionId);
   if (usageError) {
     return withReceipt(
       preInvocationFailure({
@@ -3627,12 +6195,31 @@ async function runProviderTurn(request, dependencies = {}) {
       {}
     );
   }
+  let turnRequest = request;
+  if (adapter?.tier === "extended") {
+    const model = await extendedProviderModel(request, dependencies);
+    if (!model.ok) {
+      return withReceipt(
+        preInvocationFailure({
+          provider: request.provider,
+          code: model.code,
+          message: model.message,
+          terminalReason: model.terminalReason
+        }),
+        mode,
+        {}
+      );
+    }
+    defaultModel = model.defaultModel;
+    turnRequest = { ...request, model: model.model };
+  }
+  const runTurn = adapter?.tier === "extended" ? runCheckedExtendedTurn : runStructuredTurn;
   const continuation = request.continuation;
   const runReconstructed = async (packet, fallbackReason, rejected) => {
     const trace2 = {};
-    const envelope2 = await runStructuredTurn(
+    const envelope2 = await runTurn(
       {
-        ...request,
+        ...turnRequest,
         prompt: reconstructedContinuationPrompt(packet, fallbackReason)
       },
       dependencies,
@@ -3650,7 +6237,7 @@ async function runProviderTurn(request, dependencies = {}) {
   }
   if (mode !== "native-resume" || !continuation?.session_id) {
     const trace2 = {};
-    const envelope2 = await runStructuredTurn(request, dependencies, trace2);
+    const envelope2 = await runTurn(turnRequest, dependencies, trace2);
     return withReceipt(envelope2, "new", trace2);
   }
   const requestedSessionId = continuation.session_id;
@@ -3671,7 +6258,7 @@ async function runProviderTurn(request, dependencies = {}) {
     );
   }
   const trace = {};
-  const envelope = await runStructuredTurn(request, dependencies, trace, {
+  const envelope = await runTurn(turnRequest, dependencies, trace, {
     resumeSessionId: requestedSessionId
   });
   const receipt = continuationReceipt({
@@ -3679,7 +6266,8 @@ async function runProviderTurn(request, dependencies = {}) {
     adapter,
     mode: "native-resume",
     consultationId,
-    trace
+    trace,
+    defaultModel
   });
   if (!envelope.ok && envelope.code === "PROVIDER_SESSION_NOT_FOUND" && receipt.turn === "not_started" && fallbackPacket) {
     return runReconstructed(fallbackPacket, "session_not_found", envelope);
@@ -3718,6 +6306,109 @@ function withRejectedResume(envelope, rejected) {
     }
   };
 }
+async function extendedProviderModel(request, dependencies) {
+  if (request.model) return { ok: true, model: request.model };
+  let configured;
+  try {
+    configured = await resolveProviderDefaultModel({
+      provider: request.provider,
+      cwd: request.cwd ?? process.cwd(),
+      env: dependencies.parentEnv ?? process.env
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      code: "CONSENSUS_CLI_USAGE",
+      message: `Could not read the consensus config for the ${request.provider} default model: ${error instanceof Error ? error.message : String(error)}`,
+      terminalReason: "consensus_config_invalid"
+    };
+  }
+  if (configured) {
+    return {
+      ok: true,
+      model: configured.model,
+      defaultModel: configured.model
+    };
+  }
+  return {
+    ok: false,
+    code: "PROVIDER_UNSUPPORTED_OPTION",
+    message: `${request.provider} needs a model: pass --model or set defaults.provider_models.${request.provider}.`,
+    terminalReason: "model_required"
+  };
+}
+async function runCheckedExtendedTurn(request, dependencies, trace, turnOptions = {}) {
+  if (defaultRuntimePolicy(request.runtime_policy).permission_mode !== "read-only") {
+    return runStructuredTurn(request, dependencies, trace, turnOptions);
+  }
+  const cwd = path12.resolve(request.cwd ?? process.cwd());
+  const env = dependencies.parentEnv ?? process.env;
+  const adapter = (dependencies.registry ?? providerRegistry()).get(
+    request.provider
+  );
+  const redact = (text) => redactText(text, {
+    patterns: adapter?.redaction_patterns,
+    secretValues: (adapter?.credential_env ?? []).map((name) => env[name]).filter((value) => typeof value === "string")
+  });
+  const before = await snapshotWorkingTree(cwd, { env });
+  if (!before.ok) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_UNSUPPORTED_OPTION",
+      message: `Extended read-only runs need a git checkout so the working tree can be checked before and after the turn: ${redact(before.message)}`,
+      terminalReason: "working_tree_unavailable"
+    });
+  }
+  let envelope;
+  let runError;
+  try {
+    envelope = await runStructuredTurn(
+      request,
+      dependencies,
+      trace,
+      turnOptions
+    );
+  } catch (error) {
+    runError = error;
+  }
+  if (envelope && !trace.process) return envelope;
+  const after = await snapshotWorkingTree(cwd, { env });
+  const found = after.ok ? compareWorkingTrees(before.snapshot, after.snapshot) : void 0;
+  const runFailure = envelope ? void 0 : redact(runError instanceof Error ? runError.message : String(runError));
+  if (found && !hasWorkingTreeChanges(found)) {
+    if (envelope) return envelope;
+    throw new Error(runFailure);
+  }
+  const changes = found && { ...found, paths: found.paths.map(redact) };
+  const notLaunched = runError instanceof AcpNotLaunchedError;
+  const outcome = envelope ? `turn ${envelope.ok ? "succeeded" : `failed with ${envelope.code}`}` : `run failed: ${runFailure}`;
+  if (!envelope && !notLaunched) {
+    trace.process ??= { ok: false, stdout: "" };
+    trace.turn = "unknown";
+  }
+  const message = after.ok ? `The working tree changed during a read-only ${request.provider} run: ${describeWorkingTreeChanges(changes)}. Review and revert these changes; the ${outcome}.` : `The working tree could not be re-checked after a read-only ${request.provider} run (${redact(after.message)}); treat it as changed and review it. The ${outcome}.`;
+  const warnings = [
+    ...envelope?.diagnostics?.warnings ?? [],
+    ...runFailure !== void 0 ? [`The run failed: ${runFailure}`] : []
+  ];
+  return failureEnvelope({
+    provider: request.provider,
+    code: "PROVIDER_WORKTREE_CHANGED",
+    message,
+    retryable: false,
+    stdout: envelope?.stdout,
+    stderr: envelope?.stderr,
+    attempts: {
+      cli_attempts: envelope?.attempts.cli_attempts ?? (notLaunched ? 0 : 1),
+      terminal_reason: "working_tree_changed"
+    },
+    diagnostics: {
+      ...envelope?.diagnostics,
+      ...warnings.length > 0 ? { warnings } : {},
+      ...changes ? { working_tree_changes: workingTreeChangeList(changes) } : {}
+    }
+  });
+}
 async function runStructuredTurn(request, dependencies, trace, turnOptions = {}) {
   const registry = dependencies.registry ?? providerRegistry();
   const adapter = registry.get(request.provider);
@@ -3729,10 +6420,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       terminalReason: "unsupported_provider"
     });
   }
-  const optionValidation = validateProviderOptions(
-    request,
-    adapter.capabilities
-  );
+  const optionValidation = validateProviderOptions(request, adapter);
   if (!optionValidation.ok) {
     return preInvocationFailure({
       provider: request.provider,
@@ -3801,7 +6489,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     runtime_policy: defaultRuntimePolicy(request.runtime_policy)
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
-  const submitCaptureEnabled = !textMode && (dependencies.transport?.submitCaptureEnabled ?? true) && !(request.provider === "claude" && (hasScopedToolAccess(request.runtime_policy) || request.runtime_policy?.permission_mode === "workspace-write")) && !(request.provider === "cursor" && request.runtime_policy?.permission_mode === "read-only");
+  const submitCaptureEnabled = !textMode && (dependencies.transport?.submitCaptureEnabled ?? true) && (adapter.submitCaptureEligible?.(request) ?? true);
   const strategy = selectStructuredOutputStrategy(adapter, {
     output: request.output,
     submitCaptureEnabled,
@@ -3815,7 +6503,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       terminalReason: "structured_output_strategy"
     });
   }
-  const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
+  const runSubprocess = adapter.run ?? dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
   const resolvedExecutable = resolveProviderExecutable(adapter, parentEnv);
   if (!resolvedExecutable.ok) {
@@ -3826,19 +6514,53 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
       terminalReason: "provider_executable_invalid"
     });
   }
+  const finder = dependencies.probeRunner ?? nodeProbeCommandRunner(parentEnv);
+  let prerequisiteExecutables;
+  if (adapter.probe.prerequisites?.length) {
+    const prerequisites = await checkProviderPrerequisites(adapter, finder);
+    if (!prerequisites.ok) {
+      const prerequisite = prerequisites.failure;
+      return preInvocationFailure({
+        provider: request.provider,
+        code: PREREQUISITE_FAILURE_CODES[prerequisite.status],
+        message: withInstallHint(
+          prerequisite.message,
+          prerequisite.install_hint
+        ),
+        terminalReason: `provider_prerequisite_${prerequisite.status}`,
+        diagnostics: { warnings: [prerequisite.warning] }
+      });
+    }
+    prerequisiteExecutables = prerequisites.executables;
+  }
+  const executable = await finder.findExecutable(resolvedExecutable.executable);
+  if (!executable || !path12.isAbsolute(executable)) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: "PROVIDER_MISSING",
+      message: withInstallHint(
+        `Provider executable not found: ${resolvedExecutable.executable}`,
+        adapter.install_hint
+      ),
+      terminalReason: "provider_missing",
+      diagnostics: hostGuard.diagnostics
+    });
+  }
   const submitCapturePath = submitCaptureEnabled ? submitCaptureFilePath(effectiveRequest.cwd ?? process.cwd()) : void 0;
   const maxSubmitBytes = submitCaptureMaxBytes(request.max_output_bytes);
   const submitCommand = submitCaptureEnabled ? dependencies.submitCommand ?? buildConsensusSubmitCommand() : void 0;
   const childEnv = buildChildEnvironment({
     parentEnv,
     request: effectiveRequest,
+    credentialEnv: adapter.credential_env,
+    executableOverrideEnv: providerExecutableEnvNames(registry),
     hostEnv: {
       ...hostGuard.child_env,
       ...submitCaptureEnabled && submitCommand && submitCapturePath && schemaPath ? {
         CONSENSUS_SUBMIT_COMMAND: submitCommand,
         CONSENSUS_SUBMIT_FILE: submitCapturePath,
         [CONSENSUS_SUBMIT_MAX_BYTES_ENV]: String(maxSubmitBytes),
-        CONSENSUS_SUBMIT_SCHEMA: path8.resolve(schemaPath)
+        CONSENSUS_SUBMIT_SCHEMA: path12.resolve(schemaPath)
       } : {}
     }
   });
@@ -3867,7 +6589,8 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         lastMessageFile: dependencies.transport?.lastMessageFile,
         preserveLastMessageFile: dependencies.transport?.preserveLastMessageFile,
         resumeSessionId: turnOptions.resumeSessionId,
-        executable: resolvedExecutable.executable
+        executable,
+        ...prerequisiteExecutables ? { prerequisiteExecutables } : {}
       });
       lastInvocation = invocation2;
       const processResult = await runSubprocess(invocation2, {
@@ -3887,7 +6610,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         },
         hostGuard.diagnostics,
         processResult.diagnostics,
-        permissionDenialDiagnostics(request.provider, processResult.stdout),
+        permissionDenialDiagnostics(adapter, processResult.stdout),
         exitClassificationDiagnostics(exitClassification)
       );
       const reportedFailure = processResult.ok || processResult.code === "PROVIDER_EXIT" && !processResult.signal && !processResult.diagnostics?.termination ? adapter.classifyReportedFailure?.(processResult.stdout) : void 0;
@@ -3906,9 +6629,11 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         return failureEnvelope({
           provider: request.provider,
           code: classification.code,
-          message: classification.message,
+          // The binary was found but could not be started (removed or
+          // replaced after lookup): keep the install hint here too.
+          message: classification.code === "PROVIDER_MISSING" ? withInstallHint(classification.message, adapter.install_hint) : classification.message,
           retryable: false,
-          stdout: processResult.stdout,
+          stdout: envelopeStdout(adapter, processResult.stdout),
           stderr: processResult.stderr,
           attempts: {
             cli_attempts: attempt,
@@ -3918,10 +6643,9 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
         });
       }
       if (textMode) {
-        const extracted = extractProviderText(
+        const extracted = (adapter.extractText ?? extractProviderResultText)(
           invocation2,
-          processResult,
-          request.provider
+          processResult
         );
         if (!extracted.ok) {
           return failureEnvelope({
@@ -3929,7 +6653,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
             code: extracted.code,
             message: extracted.message,
             retryable: false,
-            stdout: processResult.stdout,
+            stdout: envelopeStdout(adapter, processResult.stdout),
             stderr: processResult.stderr,
             attempts: {
               cli_attempts: attempt,
@@ -4011,7 +6735,7 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
           diagnostics: finalMessageDiagnostics
         });
       }
-      const verdictJson = extractStructuredJsonValue(parsed.value);
+      const verdictJson = (adapter.extractStructuredValue ?? extractStructuredJsonValue)(parsed.value);
       const validation = validateSchemaSubset(verdictJson, schema);
       if (!validation.ok) {
         if (attempt < maxAttempts) {
@@ -4066,36 +6790,31 @@ async function runStructuredTurn(request, dependencies, trace, turnOptions = {})
     }
   }
 }
-function permissionDenialDiagnostics(provider, stdout) {
-  if (provider !== "claude") return void 0;
-  let result;
-  try {
-    result = JSON.parse(stdout);
-  } catch {
-    return void 0;
-  }
-  if (!isRecord4(result) || !Array.isArray(result.permission_denials)) {
-    return void 0;
-  }
-  const denials = result.permission_denials;
-  if (denials.length === 0) return void 0;
-  const tools = [
-    ...new Set(
-      denials.filter(isRecord4).map((denial) => denial.tool_name).filter(
-        (name) => typeof name === "string" && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name)
-      )
-    )
-  ];
+function envelopeStdout(adapter, stdout) {
+  return adapter.envelopeStdout ? adapter.envelopeStdout(stdout) : stdout;
+}
+function permissionDenialDiagnostics(adapter, stdout) {
+  const denials = adapter.extractPermissionDenials?.(stdout);
+  if (!denials) return void 0;
   return {
-    permission_denials: { count: denials.length, tools },
+    permission_denials: denials,
     warnings: [
-      `Claude reported ${denials.length} denied tool call(s); verify task completeness independently of schema and transport success.`
+      `${adapter.display_name} reported ${denials.count} denied tool call(s); verify task completeness independently of schema and transport success.`
     ]
   };
 }
 async function readJsonSchema(schemaPath) {
   return JSON.parse(await readFile2(schemaPath, "utf8"));
 }
+function withInstallHint(message, installHint) {
+  if (!installHint) return message;
+  return `${message.endsWith(".") ? message : `${message}.`} Install hint: ${installHint}`;
+}
+var PREREQUISITE_FAILURE_CODES = {
+  missing: "PROVIDER_MISSING",
+  unsupported: "PROVIDER_UNSUPPORTED",
+  unavailable: "PROVIDER_UNAVAILABLE"
+};
 function preInvocationFailure(input) {
   return failureEnvelope({
     provider: input.provider,
@@ -4120,58 +6839,6 @@ function extractProviderOutput(invocation2, result) {
     ok: false,
     message: "Provider did not write a last-message file response."
   };
-}
-function extractProviderText(invocation2, result, provider) {
-  const empty = (message) => ({
-    ok: false,
-    code: "PROVIDER_EMPTY_OUTPUT",
-    message,
-    terminal_reason: "empty_output"
-  });
-  const malformed = (message) => ({
-    ok: false,
-    code: "PROVIDER_MALFORMED_RESULT",
-    message,
-    terminal_reason: "malformed_result"
-  });
-  if (invocation2.output_mode === "last_message_file") {
-    const lastMessage = result.last_message;
-    if (lastMessage === void 0) {
-      return empty("Provider did not write a last-message file response.");
-    }
-    if (!lastMessage.trim()) {
-      return empty("Provider wrote a blank last-message file response.");
-    }
-    return { ok: true, raw: lastMessage, text: lastMessage };
-  }
-  if (!result.stdout.trim()) {
-    return empty("Provider produced no output.");
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(result.stdout.trim());
-  } catch {
-    return malformed("Provider output is not a JSON result object.");
-  }
-  if (!isRecord4(parsed)) {
-    return malformed("Provider output is not a JSON result object.");
-  }
-  if (parsed.is_error === true) {
-    return malformed("Provider reported an error result.");
-  }
-  const subtype = parsed.subtype;
-  if (provider === "claude" && subtype !== "success" || subtype !== void 0 && subtype !== "success") {
-    return malformed(
-      `Provider result subtype is ${typeof subtype === "string" ? subtype : "missing"}, not success.`
-    );
-  }
-  if (typeof parsed.result !== "string") {
-    return malformed("Provider result object has no text result.");
-  }
-  if (!parsed.result.trim()) {
-    return empty("Provider returned a blank text result.");
-  }
-  return { ok: true, raw: result.stdout, text: parsed.result };
 }
 function parseProviderJson(stdout) {
   try {
@@ -4201,21 +6868,8 @@ async function readSubmittedVerdict(filePath, schema, maxBytes) {
 }
 async function cleanupSubmitCaptureFile(filePath) {
   try {
-    await rm3(filePath, { force: true });
+    await rm4(filePath, { force: true });
   } catch {
-  }
-}
-function extractStructuredJsonValue(value) {
-  if (!isRecord4(value)) return value;
-  if ("structured_output" in value) {
-    return value.structured_output;
-  }
-  const result = value.result;
-  if (typeof result !== "string") return value;
-  try {
-    return JSON.parse(result.trim());
-  } catch {
-    return extractFirstJsonObject(result) ?? value;
   }
 }
 function promptForStrategy(input) {
@@ -4251,51 +6905,6 @@ function promptForStrategy(input) {
   }
   return parts.join("\n\n");
 }
-function extractFirstJsonObject(text) {
-  let start = -1;
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    if (start === -1) {
-      if (char === "{") {
-        start = index;
-        depth = 1;
-      }
-      continue;
-    }
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (char === "\\") {
-        escaped = true;
-      } else if (char === '"') {
-        inString = false;
-      }
-      continue;
-    }
-    if (char === '"') {
-      inString = true;
-      continue;
-    }
-    if (char === "{") {
-      depth += 1;
-      continue;
-    }
-    if (char !== "}") continue;
-    depth -= 1;
-    if (depth !== 0) continue;
-    const candidate = text.slice(start, index + 1);
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      start = -1;
-      depth = 0;
-    }
-  }
-  return void 0;
-}
 function mergeDiagnostics(...diagnostics) {
   const merged = {};
   const warnings = [];
@@ -4316,7 +6925,7 @@ function buildConsensusSubmitCommand(input = {}) {
   return `${shellQuote(nodePath)} ${shellQuote(cliPath)} submit --json -`;
 }
 function currentConsensusCliPath() {
-  if (process.argv[1]) return path8.resolve(process.argv[1]);
+  if (process.argv[1]) return path12.resolve(process.argv[1]);
   return fileURLToPath(import.meta.url);
 }
 function shellQuote(value) {
@@ -4372,7 +6981,7 @@ async function runPreflight(options) {
     options.host
   );
   const usable = providers.every((provider) => provider.status === "ready");
-  const diagnostics = options.provider && providers[0]?.status === "unsupported" ? {
+  const diagnostics = options.provider && !registry.some((entry) => entry.id === options.provider) ? {
     warnings: [
       `Requested provider is not registered: ${options.provider}`
     ]
@@ -4528,7 +7137,8 @@ async function runConsensusCli(argv, io, options = {}) {
     const request = await normalizeRunRequest(command, io);
     const envelope = await runProviderTurn(request, {
       readSchema: async (schemaPath) => JSON.parse(await io.readFile(schemaPath)),
-      parentEnv: io.env
+      parentEnv: io.env,
+      ...options.adapters ? { registry: options.adapters } : {}
     });
     writeJson(io, envelope);
     return processExitForEnvelope(envelope);
@@ -4662,7 +7272,8 @@ function effectiveFieldSources(user, project) {
     ["panelists", "panelists"],
     ["panel-size", "panel_size"],
     ["reviewers", "reviewers"],
-    ["roles", "roles"]
+    ["roles", "roles"],
+    ["provider-models", "provider_models"]
   ];
   for (const [key, field] of fields) {
     if (project?.defaults?.[field] !== void 0) {
@@ -4688,6 +7299,12 @@ function mergeConfigFields(target, source) {
   if (source.panel_size !== void 0) target.panel_size = source.panel_size;
   if (source.reviewers !== void 0) target.reviewers = source.reviewers;
   if (source.roles !== void 0) target.roles = source.roles;
+  if (source.provider_models !== void 0) {
+    target.provider_models = {
+      ...target.provider_models,
+      ...source.provider_models
+    };
+  }
 }
 function configHasDefaults(config) {
   return config !== null && configDefaultsHasValues(config.defaults);
@@ -4740,7 +7357,7 @@ function configWithDefaultsPatch(base, patch) {
   return config;
 }
 function configDefaultsHasValues(defaults) {
-  return defaults !== void 0 && (defaults.peers !== void 0 || defaults.panelists !== void 0 || defaults.panel_size !== void 0 || defaults.reviewers !== void 0 || defaults.roles !== void 0);
+  return defaults !== void 0 && (defaults.peers !== void 0 || defaults.panelists !== void 0 || defaults.panel_size !== void 0 || defaults.reviewers !== void 0 || defaults.roles !== void 0 || defaults.provider_models !== void 0);
 }
 function parseAgentSpecList(value) {
   return value.split(",").map((item) => item.trim()).filter((item) => item.length > 0).map(parseAgentSpec);
@@ -4775,12 +7392,12 @@ function submitFailure(io, message, exitCode) {
 }
 async function writeJsonFileAtomic(filePath, contents) {
   const directory = dirname(filePath);
-  await mkdir2(directory, { recursive: true });
+  await mkdir3(directory, { recursive: true });
   const tempPath = join(
     directory,
     `.${basename(filePath)}.${process.pid}.${randomUUID5()}.tmp`
   );
-  await writeFile2(tempPath, contents, "utf8");
+  await writeFile3(tempPath, contents, "utf8");
   await rename2(tempPath, filePath);
 }
 function defaultProbeOptions(options, env) {
@@ -4838,22 +7455,27 @@ function mergeDiagnostics2(current, next) {
 async function resolveRegistry(registry, options = {}, provider, requiredCapabilities) {
   if (Array.isArray(registry)) return registry;
   if (typeof registry === "function") return registry();
+  const adapters = options.adapters ?? providerRegistry();
   if (options.probeRunner) {
     return probeProviderRegistry({
-      registry: providerRegistry(),
+      registry: adapters,
       runner: options.probeRunner,
       ...provider ? { provider } : {},
       ...requiredCapabilities ? { requiredCapabilities } : {}
     });
   }
-  return defaultProviderRegistry();
+  return defaultProviderRegistry(adapters, provider);
 }
-function defaultProviderRegistry() {
-  return providerRegistry().list().map((adapter) => ({
-    id: adapter.id,
-    status: "missing",
-    capabilities: adapter.capabilities
-  }));
+function defaultProviderRegistry(adapters, provider) {
+  return adapters.list().filter(
+    (adapter) => provider ? adapter.id === provider : adapter.tier === "core"
+  ).map(
+    (adapter) => notAdmittedEntry(adapter) ?? {
+      id: adapter.id,
+      status: "missing",
+      capabilities: adapter.capabilities
+    }
+  );
 }
 function placeholderCapabilities() {
   return {
@@ -4886,7 +7508,7 @@ function nodeIo() {
 }
 async function readUtf8File(filePath, maxBytes) {
   if (maxBytes !== void 0) {
-    const file = await stat(filePath);
+    const file = await stat2(filePath);
     if (file.size > maxBytes) {
       throw new SubmitCaptureLimitError(file.size, maxBytes);
     }
@@ -4923,7 +7545,7 @@ function readAllStdin(stdin, maxBytes) {
 }
 function isEntrypointPath(argvPath) {
   try {
-    return realpathSync2(argvPath) === realpathSync2(fileURLToPath2(import.meta.url));
+    return realpathSync4(argvPath) === realpathSync4(fileURLToPath2(import.meta.url));
   } catch (error) {
     const code = error.code;
     if (code === "ENOENT" || code === "ENOTDIR") return false;

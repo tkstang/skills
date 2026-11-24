@@ -1,6 +1,6 @@
 ---
 title: 'Consensus Runtime'
-description: 'How converging consensus workflows coordinate wrappers, the deterministic loop, provider CLI subprocesses, structured verdicts, and durable run records.'
+description: 'How consensus coordinates wrappers, the deterministic loop, provider CLI subprocesses, the extended-provider ACP adapter, verdicts, and run records.'
 ---
 
 # Consensus Runtime
@@ -38,7 +38,9 @@ records and host or user direction when resuming an in-flight section.
 Peer execution crosses two child-process boundaries: a wrapper/core process
 invokes the generated consensus CLI, and that CLI invokes the selected provider
 executable. Provider adapters hide incompatible command shapes behind one run
-request. Claude receives output flags and optional inline schema flags;
+request. The core tier (`claude`, `codex`, `cursor`) uses each provider's
+native CLI; the extended tier runs through one ACP adapter, described
+[below](#extended-providers-over-acp). Claude receives output flags and optional inline schema flags;
 Codex uses `exec`, a last-message file, and optional output-schema/config flags;
 Cursor uses its own JSON output flags. Every provider reads the prompt from
 stdin, so a large prompt never reaches argv; an oversized argument such as
@@ -67,6 +69,116 @@ it turns submit capture off, strips `CONSENSUS_SUBMIT_*` from the child
 environment, and fails unreadable output as `PROVIDER_EMPTY_OUTPUT` or
 `PROVIDER_MALFORMED_RESULT` rather than returning raw text.
 
+### Extended providers over ACP
+
+The extended tier (`antigravity`, `gemini`, `droid`) is experimental and used
+only when named. Each provider is a plain data descriptor in
+[`acp/descriptors.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/acp/descriptors.ts):
+launch arguments, credential and override variables, minimum version, the
+read-only mode and how it is confirmed, how the model is set, auth and
+redaction patterns, error-text patterns, and extra brief lines.
+`acpAdapter(descriptor)` in
+[`acp/adapter.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/acp/adapter.ts)
+turns each into a `ProviderAdapter` with tier `extended`, and the module has
+no provider branches.
+
+- **Transport.** An in-house client speaks newline-delimited JSON-RPC 2.0 over
+  the agent's stdin and stdout. There is no acpx or other dependency, and the
+  agent command is the only process started besides `git`. The client sits
+  behind an `AcpTransport` interface so another backend could be added.
+- **Run hook.** An adapter can supply `run`, which `runStructuredTurn` uses in
+  place of `runProviderSubprocess`; only ACP adapters do. Its result's
+  `stdout` is a serialized, normalized turn result (text, stop reason, session,
+  models, sanitized denials, setup evidence), never raw frames, and the
+  adapter's hooks parse it back. The envelope's `text`, and a failure
+  envelope's `stdout`, hold only the answer text, never the turn record.
+- **Session.** `initialize` advertises no file system or terminal;
+  `authenticate` runs only when the descriptor's API-key variable is set;
+  `session/new` sends `mcpServers: []`. The read-only mode and the model are
+  set and confirmed before `session/prompt`, or the run stops as
+  `not_started`. The mode stays watched from session creation: a contrary
+  mode or autonomy update reported while the read-only mode is being
+  confirmed or held stops the run as `not_started`, and one during the turn
+  cancels it (`PROVIDER_EXIT`, `acp_mode_changed`). Valid mode and config
+  updates that arrive before the `session/new` response is handled are kept
+  for up to four session ids and applied once it is; malformed ones are
+  ignored. Every early mode report counts as the starting state: if one
+  disagrees with the response or another report, or one was dropped because
+  the buffer was full, initial-state confirmation (Antigravity's `default`)
+  fails. The response's config options take precedence over an early option
+  update. Permission requests get a
+  `reject_once` (else `reject_always`) option chosen by its kind, or
+  `cancelled`; every other agent request gets `-32601`. Each denial keeps only
+  the tool, its ACP kind, and the first path it named (relative to the
+  working directory when inside it), reported in
+  `diagnostics.permission_denials.requests`; never tool input.
+- **Redaction.** The values of the descriptor's credential variables (six
+  characters or longer) and its redaction patterns (such as Droid's pairing
+  code) are removed from answer text, metadata, denial details, working-tree
+  change paths, and stderr. Everything but answer text also loses default
+  credential shapes (Google API keys, `sk-`/`ghp_`-style tokens, JWTs,
+  `Bearer` tokens), and so does the failure `stdout` of an `acp_error_text`
+  or `provider_limit_reached` turn. Stderr is kept up to 64 KiB; after the
+  first cut chunk nothing more is kept, and the kept text is cut back to its
+  last complete line before the cut, before redaction. Redaction is value- and pattern-based and
+  cannot recognize every secret.
+- **Process group.** The ACP client tears down the agent's process group on
+  every exit path, a normal exit included (a single process on Windows),
+  using the spawn primitive in
+  [`acp/process.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/acp/process.ts).
+  The client sends `session/close` where the agent advertises it (not after
+  an output-cap breach), closes stdin, and waits a bounded time for exit (no
+  wait after an interrupt). It then signals the group with SIGTERM, or the
+  forwarded interrupt signal, and escalates to SIGKILL only if the group
+  outlives the grace period, then waits a bounded time for it to go.
+  `diagnostics.acp.teardown.settled_by` records the step that ended teardown;
+  `settlement_timeout` (the group still present after SIGKILL) adds a
+  warning, and the run keeps its outcome; if removing the private settings
+  directory then fails, that error carries the warning. A helper that starts its own
+  process group, as Droid's MCP servers do, is not reached. When a timeout,
+  output-cap breach, interrupt, or mode change stops a turn whose prompt is
+  in flight, it sends `session/cancel` first.
+- **Model.** `runProviderTurn` requires a model for an extended adapter:
+  `request.model`, else `defaults.provider_models.<id>` from the consensus
+  config (project before user). With neither it refuses the run before launch.
+  A configured model is recorded in the receipt as `default_model`.
+- **Working-tree check.** `runProviderTurn` wraps every extended read-only
+  turn with a snapshot of the whole git work tree that contains the working
+  directory
+  ([`working-tree.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/working-tree.ts)).
+  It runs `git` with `shell: false`, an allowlisted environment (no
+  credentials, no inherited `GIT_*` repository or config variables), and no
+  optional locks; it writes no objects or index, and it switches off every
+  filter driver configured for the repository or any checked-out submodule,
+  so no filter command runs. Discovery reads git's output as bytes; a filter
+  driver name or checked-out submodule path that is not valid UTF-8 fails
+  the snapshot, since it could not be switched off exactly. No checkout, or a
+  failed snapshot, refuses the run before launch. The snapshot is HEAD, the
+  `git status` entries, a fingerprint of every status-listed path and every
+  assume-unchanged or skip-worktree entry (content hash with permission bits
+  for a regular file, a target hash for a symlink, a marker for a
+  directory), the permission bits of every other tracked file, and
+  `.git/info/exclude`. A change to any of these fails the run with
+  `PROVIDER_WORKTREE_CHANGED` and lists the paths in
+  `diagnostics.working_tree_changes`; a checkout that cannot be re-read fails
+  the same way. The second snapshot runs once the bounded teardown returns,
+  not on a confirmed group exit. A run that throws is checked too: a changed
+  checkout turns the throw into a `PROVIDER_WORKTREE_CHANGED` envelope with
+  the redacted error in `diagnostics.warnings` (`turn: "unknown"`, or
+  `not_started` with `cli_attempts` 0 when the adapter threw
+  `AcpNotLaunchedError` before launch), and an unchanged one rethrows only
+  the redacted message. It is a backstop behind the
+  read-only mode and deny-all, and it does not see ignored files, byte changes
+  git's built-in conversions normalize back, case-only renames on a
+  case-insensitive file system, changes inside an untracked nested
+  repository, submodule changes beyond what `git status` reports, or writes
+  outside the work tree.
+- **Preflight.** The probe runs only `<command> --version`, without the
+  provider's credential variables, and reports only the parsed version. It
+  never opens a session, because Droid mints a new pairing code on each one,
+  so a `ready` extended provider is installed at or above its minimum
+  version, but its sign-in and model are first checked by a run.
+
 ## Guardrails, not isolation
 
 When host context is available, the [host guard](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/host-guard.ts)
@@ -77,15 +189,20 @@ child host metadata to allowed calls. Unknown or absent host context cannot
 provide that recursion check. The runtime policy defaults calls to
 non-interactive mode and builds a child environment from base variables,
 provider credential variables, explicitly allowed additions, and host metadata.
-Each provider's program defaults to its CLI name on `PATH`; a
+Each provider's program defaults to its CLI name, resolved against the absolute
+`PATH` entries to the absolute path that both readiness probes and runs start; a
 `CONSENSUS_<PROVIDER>_EXECUTABLE` absolute path in the parent environment
-replaces it for both readiness probes and runs
+replaces it for both
 ([`executable.ts`](https://github.com/tkstang/skills/blob/main/src/plugins/consensus/provider-cli/executable.ts)).
 
 These are process and configuration safeguards, not a security sandbox. Actual
 sandbox and approval behavior depends on the selected provider and requested
 runtime policy. Environment allowlisting reduces inheritance; it does not make
-peer output trustworthy or prove containment.
+peer output trustworthy or prove containment. Core and extended providers
+both load their own configuration, so repository and user hooks, plugins, and
+MCP servers can run code without a permission request; read-only profiles and
+deny-all govern only the agent's tool calls. Both tiers assume a checkout and
+provider configuration the operator controls.
 
 ## Provider session continuation
 
@@ -134,7 +251,11 @@ runs the state machine.
   adapter's capability evidence.
 
 Each adapter's continuation capability is either `verified`, `unverified`, or
-`unsupported`, and only `verified` adapters reach a native resume.
+`unsupported`, and only `verified` adapters reach a native resume. Extended
+adapters declare none, so they never reach one. A `--resume` request is
+refused before launch with `PROVIDER_UNSUPPORTED_OPTION`
+(`native_resume_unsupported`), unless `--resume-fallback reconstructed`
+supplies a packet, which then runs a new reconstructed session.
 Verification means that a live same-session marker smoke passed for the
 recorded CLI version. It does not certify later versions or every policy
 combination.

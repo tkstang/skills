@@ -165,7 +165,9 @@ describe('consensus panel provider execution', () => {
           panelArgv(context, 'expanded'),
           runOptions(context, expandedCalls),
         );
-        expect(expandedCalls).toEqual(['claude', 'codex', 'cursor', 'gemini']);
+        // Auto-fill recruits core providers only; a ready non-core inventory
+        // entry joins a panel only when named.
+        expect(expandedCalls).toEqual(['claude', 'codex', 'cursor']);
       },
       { CONSENSUS_STUB_PROVIDERS: 'claude,codex,cursor,gemini' },
     );

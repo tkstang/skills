@@ -1,13 +1,13 @@
 ---
 name: consensus-delegate
-description: Use when the user asks to hand a task to another AI provider (Codex, Claude, or Cursor), such as implementing a change, fixing a bug, or investigating a failure, and the host must verify the result. Code changes run in a dedicated git worktree; questions and investigations run read-only. For an opinion use phone-a-friend; for a bounded review use review.
+description: Use when the user asks to hand a task to another AI provider (Codex, Claude, Cursor, or, read-only and experimental, Antigravity, Gemini CLI, or Droid), such as implementing a change, fixing a bug, or investigating a failure, and the host must verify the result. Code changes run in a dedicated git worktree; questions and investigations run read-only. For an opinion use phone-a-friend; for a bounded review use review.
 license: MIT
 compatibility: Agent Skills baseline; requires Node.js 22+, git, and the generated consensus CLI.
 allowed-tools: Bash(node:*), Bash(git:*), Read, Write
 argument-hint: '"<task>" [--peer <provider-id>] [--model <model>] [--effort <effort>]'
 metadata:
   author: Thomas Stang
-  version: '0.2.1'
+  version: '0.2.2'
 ---
 
 # Delegate
@@ -30,7 +30,8 @@ an independent reviewer should inspect a bounded branch, file set, or document.
   is a question, review, or investigation ("have Codex look into why X fails").
 - If you genuinely cannot tell, ask one short question.
 
-Cursor runs read-only only. For a write task naming Cursor, say so and offer a
+Cursor and the experimental extended providers (`antigravity`, `gemini`,
+`droid`) run read-only only. For a write task naming one of them, say so and offer a
 read-only run or another peer.
 
 ## Prerequisites
@@ -47,15 +48,21 @@ node <skill-dir>/scripts/consensus.mjs preflight --json --provider <peer> --capa
 ```
 
 If the user named the peer and it is not `ready`, report that and stop; do not
-swap in another provider. If they named none, try the next provider other than
-you (skip Cursor for a write run). If none is ready, report it and stop; the
-user may name any peer, including your own provider.
+swap in another provider. If they named none, try the next core provider (Codex,
+Claude, Cursor) other than you (skip Cursor for a write run); an extended
+provider runs only when named. If none is ready, report it and stop; the user
+may name any peer, including your own provider. For an extended provider,
+`ready` means only that its CLI is installed at a supported version; preflight
+checks neither its sign-in nor its model, so the run can still fail with
+`PROVIDER_AUTH_REQUIRED` or `model_required`.
 
 ## Workflow
 
 1. **Write the brief** from the [brief template](references/brief-template.md):
    `<task>`, `<output_contract>`, and `<verification_loop>` blocks, with the
-   exact verification command. Include only the context the task needs, and
+   exact verification command, or for a read-only run the file:line evidence
+   requirement. Always use the evidence requirement for an extended peer,
+   which cannot run commands. Include only the context the task needs, and
    never secrets or credentials. Save it in the state directory described in
    [accounting](references/accounting.md#state-directory), outside the
    worktree, so it does not show up as a change.
@@ -73,9 +80,10 @@ user may name any peer, including your own provider.
    never accept one silently.
 6. **Verify.** Read the full diff (write mode) or check the load-bearing claims
    against source (read-only). Rerun the brief's verification command yourself
-   in the same directory. In read-only mode, use a command that cannot write
-   to the checkout, or run it in a separate worktree. Give a reason for every
-   claim or change you dismiss.
+   in the same directory; for an evidence brief, open each cited file:line and
+   confirm it supports the claim. In read-only mode, use a command that cannot
+   write to the checkout, or run it in a separate worktree. Give a reason for
+   every claim or change you dismiss.
    If verification finds an ordinary failure within the original task, follow
    [Continue](#continue) to have the same peer fix it automatically, then account
    for and verify that turn too.
@@ -97,23 +105,39 @@ node <skill-dir>/scripts/consensus.mjs run --provider <peer> \
   --output text --max-attempts 1 --max-depth 1 --json > <state-dir>/turn-1.json
 ```
 
-| Input         | Default                                     | Notes                                                             |
-| ------------- | ------------------------------------------- | ----------------------------------------------------------------- |
-| `peer`        | a ready provider other than you             | `--provider`; the user may name any peer                          |
-| `model`       | provider default                            | `--model`, only when asked                                        |
-| `effort`      | provider default                            | `--effort`, only when asked; Cursor takes none                    |
-| `brief`       | required                                    | `--prompt-file`                                                   |
-| `mode`        | by [Choose the mode](#choose-the-mode)      | `<mode-flags>` below                                              |
-| `cwd`         | repo root (read-only); the worktree (write) | `--cwd`                                                           |
-| `env_allow`   | none                                        | repeatable `--env-allow`; `CONSENSUS_SUBMIT_*` is always stripped |
-| `timeout_sec` | 900 read-only, 1800 write                   | `--timeout-sec`                                                   |
-| `continue`    | none                                        | Claude and Codex only; see [Continue](#continue)                  |
+| Input         | Default                                     | Notes                                                                                     |
+| ------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `peer`        | a ready core provider other than you        | `--provider`; the user may name any peer; extended peers only when named                  |
+| `model`       | provider default                            | `--model`, only when asked; an extended peer needs one (below)                            |
+| `effort`      | provider default                            | `--effort`, only when asked; Cursor and extended peers take none                          |
+| `brief`       | required                                    | `--prompt-file`                                                                           |
+| `mode`        | by [Choose the mode](#choose-the-mode)      | `<mode-flags>` below                                                                      |
+| `cwd`         | repo root (read-only); the worktree (write) | `--cwd`                                                                                   |
+| `env_allow`   | none                                        | repeatable `--env-allow`; `CONSENSUS_SUBMIT_*` is always stripped; not for extended peers |
+| `timeout_sec` | 900 read-only, 1800 write                   | `--timeout-sec`                                                                           |
+| `continue`    | none                                        | Claude and Codex only; see [Continue](#continue)                                          |
 
-| Peer   | Read-only flags               | Write flags                                                          |
-| ------ | ----------------------------- | -------------------------------------------------------------------- |
-| Codex  | `--sandbox read-only`         | `--sandbox workspace-write --approval-policy never`                  |
-| Claude | `--permission-mode read-only` | `--permission-mode workspace-write`, plus `--allow-bash '<pattern>'` |
-| Cursor | `--permission-mode read-only` | not supported                                                        |
+| Peer           | Read-only flags               | Write flags                                                          |
+| -------------- | ----------------------------- | -------------------------------------------------------------------- |
+| Codex          | `--sandbox read-only`         | `--sandbox workspace-write --approval-policy never`                  |
+| Claude         | `--permission-mode read-only` | `--permission-mode workspace-write`, plus `--allow-bash '<pattern>'` |
+| Cursor         | `--permission-mode read-only` | not supported                                                        |
+| Extended (ACP) | `--permission-mode read-only` | not supported                                                        |
+
+An extended peer (Antigravity, Gemini CLI, or Droid; experimental) runs a
+model you choose:
+`--model`, or else `defaults.provider_models.<id>` from the consensus config.
+With neither, the CLI refuses the run before launch. Never pick a model on
+your own; ask the user. It takes no effort, no `--env-allow`, and no
+continuation. Consensus confirms the provider's read-only mode before the
+prompt and watches it during the turn, puts its own read-only lines before the
+brief, and denies every permission request the peer makes. The CLI also
+checks the working tree itself: it snapshots the whole git work tree that
+contains `--cwd` before the turn and compares it after, so `--cwd` must be
+inside a git checkout. These controls govern the peer's tool calls only: the
+provider's own hooks and MCP servers, from the user's or the repository's
+configuration, can run without a permission request. Run an extended peer
+only in a checkout, and with provider configuration, the user controls.
 
 For a Claude write run, grant the brief's verification command, such as
 `--allow-bash 'pnpm run test:*'`, and any other command the task needs. Other
@@ -134,10 +158,12 @@ A success has `ok: true`, `output_kind: "text"`, and the peer's final reply in
 `text`. Both successes and failures can carry:
 
 - `continuation`: `session_id`, `consultation_id`, `round`, `runtime_policy`,
-  `requested_model`, `requested_effort`, `observed_models`, and `turn`.
+  `requested_model`, `default_model` (an extended peer's configured model),
+  `requested_effort`, `observed_models`, and `turn`.
 - `attempts.terminal_reason`.
-- `diagnostics.permission_denials`, `diagnostics.permission_profile`, and
-  `diagnostics.termination`.
+- `diagnostics.permission_denials`, `diagnostics.permission_profile`,
+  `diagnostics.termination`, and, for extended peers,
+  `diagnostics.working_tree_changes` and `diagnostics.acp`.
 
 `ok: true` proves that a reply came back, not that the task is done.
 
@@ -149,11 +175,34 @@ A success has `ok: true`, `output_kind: "text"`, and the peer's final reply in
 - `PROVIDER_LIMIT_REACHED`: report the provider's message and stop. Do not
   retry within this run or switch providers. If `turn` is `unknown`, inspect
   the worktree as below; the limit may have followed earlier work.
+- `attempts.terminal_reason: "model_required"`: an extended peer had no model.
+  Ask the user for one, or point them at `defaults.provider_models.<id>`.
+- `PROVIDER_WORKTREE_CHANGED`: the checkout changed during an extended
+  read-only turn, whatever the turn returned. Report the message and, when
+  present, `diagnostics.working_tree_changes` verbatim. A leading `HEAD` entry
+  means HEAD moved; with no list, the checkout could not be re-checked and
+  counts as changed. A `The run failed: ...` entry in `diagnostics.warnings`
+  means the run also failed with an error: after launch (`turn: unknown`),
+  or before it (`turn: not_started`, `attempts.cli_attempts` 0); report it
+  too. The change may also be the user's own edit during the
+  run. Treat the reply as unusable, and do not
+  revert anything unless the user asks.
+- `PROVIDER_PERMISSION_DENIED`: an extended peer asked for a tool outside
+  read-only, was denied, and ended without an answer; any partial text in
+  `stdout` is not an answer. Report the message and
+  each entry of `diagnostics.permission_denials.requests` (tool, kind, and the
+  first path it named); do not resend.
+- `attempts.terminal_reason: "acp_mode_changed"` (`PROVIDER_EXIT`,
+  `turn: unknown`): an extended peer reported leaving its read-only mode, so
+  consensus cancelled the turn. Report the message, treat any reply as
+  unusable, and do not resend.
 - Any other `turn: not_started`, or a usage or preflight error: nothing reached
   the peer. Fix the cause and run again.
 - `PROVIDER_TIMEOUT`, an interrupt, or `turn: unknown`: the peer may have
   changed files. Inspect the worktree with the after-run procedure and report.
-  Never resend the brief.
+  For an extended peer, report the CLI's working-tree check from
+  [accounting](references/accounting.md#report) instead, and run no Git
+  command in the checkout. Never resend the brief.
 - `turn: completed` with `PROVIDER_EMPTY_OUTPUT` or
   `PROVIDER_MALFORMED_RESULT`: the turn ran but its reply is unusable. Account
   for the worktree and report; do not resend.
@@ -174,8 +223,8 @@ while the peer is making progress within the original task; stop and report
 when verification passes, progress stops, or the fix is blocked or outside that
 task. Do not widen permissions or weaken verification to get a pass. The
 [Failures](#failures) rules still stop timeouts, interrupts, unknown turn states,
-and unusable replies. Cursor has no native continuation, so report the failed
-verification instead of starting another session.
+and unusable replies. Cursor and extended peers have no native continuation,
+so report the failed verification instead of starting another session.
 
 Also continue when the user explicitly asks for further work. On Claude or
 Codex, use:

@@ -2,7 +2,10 @@ import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { providerRegistry } from './adapters.js';
+import { resolveProviderDefaultModel } from '../config/consensus-config.js';
+import { AcpNotLaunchedError } from './acp/adapter.js';
+import { redactText } from './acp/transcript.js';
+import { providerExecutableEnvNames, providerRegistry } from './adapters.js';
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
 import {
   consultationIdFor,
@@ -21,13 +24,18 @@ import { resolveProviderExecutable } from './executable.js';
 import { evaluateHostGuard } from './host-guard.js';
 import { buildProviderInvocation } from './invocation.js';
 import type { ProviderInvocation } from './invocation.js';
+import { checkProviderPrerequisites, nodeProbeCommandRunner } from './probe.js';
+import type { ProbeCommandRunner } from './probe.js';
+import {
+  extractProviderResultText,
+  extractStructuredJsonValue,
+} from './provider-output.js';
 import {
   buildChildEnvironment,
   defaultRuntimePolicy,
-  hasScopedToolAccess,
   validateProviderOptions,
 } from './runtime-policy.js';
-import { isRecord, validateSchemaSubset } from './schema-validate.js';
+import { validateSchemaSubset } from './schema-validate.js';
 import {
   assertWithinSubmitCaptureLimit,
   CONSENSUS_SUBMIT_MAX_BYTES_ENV,
@@ -36,20 +44,23 @@ import {
 } from './submit-capture.js';
 import { readBoundedRegularFile, runProviderSubprocess } from './subprocess.js';
 import type { RunProviderSubprocessOptions } from './subprocess.js';
-import type {
-  ProviderProcessResult,
-  ProviderProcessSuccess,
-} from './subprocess.js';
+import type { ProviderProcessResult } from './subprocess.js';
 import type {
   ConsensusCliRunEnvelope,
   ConsensusCliRunRequest,
   ContinuationMode,
   ProviderDiagnostics,
   ProviderErrorCode,
-  ProviderId,
   RunOutputKind,
   StructuredOutputStrategy,
 } from './types.js';
+import {
+  compareWorkingTrees,
+  describeWorkingTreeChanges,
+  hasWorkingTreeChanges,
+  snapshotWorkingTree,
+  workingTreeChangeList,
+} from './working-tree.js';
 
 export interface RunProviderTurnDependencies {
   registry?: ProviderAdapterRegistry;
@@ -59,6 +70,10 @@ export interface RunProviderTurnDependencies {
     options: RunProviderSubprocessOptions,
   ) => Promise<ProviderProcessResult>;
   parentEnv?: NodeJS.ProcessEnv;
+  // Resolves the provider program and checks adapter prerequisites before
+  // spawn, with the finder preflight uses. Default: a node runner over
+  // parentEnv.
+  probeRunner?: ProbeCommandRunner;
   submitCommand?: string;
   transport?: ProviderTurnTransportOptions;
 }
@@ -106,6 +121,7 @@ export async function runProviderTurn(
   const adapter = registry.get(request.provider);
   const consultationId = consultationIdFor(request);
   const mode = continuationMode(request);
+  let defaultModel: string | undefined;
   const withReceipt = (
     envelope: ConsensusCliRunEnvelope,
     receiptMode: ContinuationMode,
@@ -120,10 +136,24 @@ export async function runProviderTurn(
       consultationId,
       trace,
       fallbackReason,
+      defaultModel,
     }),
   });
 
-  const usageError = continuationUsageError(request);
+  if (adapter?.not_admitted_reason) {
+    return withReceipt(
+      preInvocationFailure({
+        provider: request.provider,
+        code: 'PROVIDER_UNSUPPORTED',
+        message: `Provider ${request.provider} is registered but not admitted: ${adapter.not_admitted_reason}`,
+        terminalReason: 'provider_not_admitted',
+      }),
+      mode,
+      {},
+    );
+  }
+
+  const usageError = continuationUsageError(request, adapter?.isSessionId);
   if (usageError) {
     return withReceipt(
       preInvocationFailure({
@@ -137,6 +167,30 @@ export async function runProviderTurn(
     );
   }
 
+  // Extended providers always run a named model, so a turn never falls back
+  // to a provider default the caller did not choose.
+  let turnRequest = request;
+  if (adapter?.tier === 'extended') {
+    const model = await extendedProviderModel(request, dependencies);
+    if (!model.ok) {
+      return withReceipt(
+        preInvocationFailure({
+          provider: request.provider,
+          code: model.code,
+          message: model.message,
+          terminalReason: model.terminalReason,
+        }),
+        mode,
+        {},
+      );
+    }
+    defaultModel = model.defaultModel;
+    turnRequest = { ...request, model: model.model };
+  }
+  // Every extended read-only turn is bracketed by a working-tree check.
+  const runTurn: typeof runStructuredTurn =
+    adapter?.tier === 'extended' ? runCheckedExtendedTurn : runStructuredTurn;
+
   const continuation = request.continuation;
   const runReconstructed = async (
     packet: string,
@@ -144,9 +198,9 @@ export async function runProviderTurn(
     rejected?: ConsensusCliRunEnvelope,
   ) => {
     const trace: ProviderTurnTrace = {};
-    const envelope = await runStructuredTurn(
+    const envelope = await runTurn(
       {
-        ...request,
+        ...turnRequest,
         prompt: reconstructedContinuationPrompt(packet, fallbackReason),
       },
       dependencies,
@@ -165,7 +219,7 @@ export async function runProviderTurn(
   }
   if (mode !== 'native-resume' || !continuation?.session_id) {
     const trace: ProviderTurnTrace = {};
-    const envelope = await runStructuredTurn(request, dependencies, trace);
+    const envelope = await runTurn(turnRequest, dependencies, trace);
     return withReceipt(envelope, 'new', trace);
   }
 
@@ -191,7 +245,7 @@ export async function runProviderTurn(
   }
 
   const trace: ProviderTurnTrace = {};
-  const envelope = await runStructuredTurn(request, dependencies, trace, {
+  const envelope = await runTurn(turnRequest, dependencies, trace, {
     resumeSessionId: requestedSessionId,
   });
   const receipt = continuationReceipt({
@@ -200,6 +254,7 @@ export async function runProviderTurn(
     mode: 'native-resume',
     consultationId,
     trace,
+    defaultModel,
   });
   // Only a definitive pre-turn rejection may fall back; anything that could
   // have reached the session is reported instead of resubmitted.
@@ -265,6 +320,162 @@ interface StructuredTurnOptions {
   resumeSessionId?: string;
 }
 
+type ExtendedModelResult =
+  | { ok: true; model: string; defaultModel?: string }
+  | {
+      ok: false;
+      code: ProviderErrorCode;
+      message: string;
+      terminalReason: string;
+    };
+
+async function extendedProviderModel(
+  request: ConsensusCliRunRequest,
+  dependencies: RunProviderTurnDependencies,
+): Promise<ExtendedModelResult> {
+  if (request.model) return { ok: true, model: request.model };
+  let configured: Awaited<ReturnType<typeof resolveProviderDefaultModel>>;
+  try {
+    configured = await resolveProviderDefaultModel({
+      provider: request.provider,
+      cwd: request.cwd ?? process.cwd(),
+      env: dependencies.parentEnv ?? process.env,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      code: 'CONSENSUS_CLI_USAGE',
+      message: `Could not read the consensus config for the ${request.provider} default model: ${error instanceof Error ? error.message : String(error)}`,
+      terminalReason: 'consensus_config_invalid',
+    };
+  }
+  if (configured) {
+    return {
+      ok: true,
+      model: configured.model,
+      defaultModel: configured.model,
+    };
+  }
+  return {
+    ok: false,
+    code: 'PROVIDER_UNSUPPORTED_OPTION',
+    message: `${request.provider} needs a model: pass --model or set defaults.provider_models.${request.provider}.`,
+    terminalReason: 'model_required',
+  };
+}
+
+// Snapshots the checkout before an extended read-only turn and compares it
+// once the turn returns or throws, after the bounded teardown of the
+// provider's process group. Any change fails the run with
+// PROVIDER_WORKTREE_CHANGED and the changed paths, whatever the turn
+// returned; the receipt keeps the turn's own state.
+async function runCheckedExtendedTurn(
+  request: ConsensusCliRunRequest,
+  dependencies: RunProviderTurnDependencies,
+  trace: ProviderTurnTrace,
+  turnOptions: StructuredTurnOptions = {},
+): Promise<ConsensusCliRunEnvelope> {
+  // Extended providers accept only read-only; anything else is refused by
+  // option validation before launch.
+  if (
+    defaultRuntimePolicy(request.runtime_policy).permission_mode !== 'read-only'
+  ) {
+    return runStructuredTurn(request, dependencies, trace, turnOptions);
+  }
+  const cwd = path.resolve(request.cwd ?? process.cwd());
+  const env = dependencies.parentEnv ?? process.env;
+  // Paths and git messages can carry a credential (a file named after one),
+  // so they are redacted like other run diagnostics.
+  const adapter = (dependencies.registry ?? providerRegistry()).get(
+    request.provider,
+  );
+  const redact = (text: string) =>
+    redactText(text, {
+      patterns: adapter?.redaction_patterns,
+      secretValues: (adapter?.credential_env ?? [])
+        .map((name) => env[name])
+        .filter((value): value is string => typeof value === 'string'),
+    });
+  const before = await snapshotWorkingTree(cwd, { env });
+  if (!before.ok) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: 'PROVIDER_UNSUPPORTED_OPTION',
+      message: `Extended read-only runs need a git checkout so the working tree can be checked before and after the turn: ${redact(before.message)}`,
+      terminalReason: 'working_tree_unavailable',
+    });
+  }
+  // A run that throws (its private settings directory could not be removed,
+  // say) is still checked: a change is reported with the error, and an
+  // unchanged checkout lets the error propagate. Either way only its redacted
+  // message leaves.
+  let envelope: ConsensusCliRunEnvelope | undefined;
+  let runError: unknown;
+  try {
+    envelope = await runStructuredTurn(
+      request,
+      dependencies,
+      trace,
+      turnOptions,
+    );
+  } catch (error) {
+    runError = error;
+  }
+  if (envelope && !trace.process) return envelope;
+
+  const after = await snapshotWorkingTree(cwd, { env });
+  const found = after.ok
+    ? compareWorkingTrees(before.snapshot, after.snapshot)
+    : undefined;
+  const runFailure = envelope
+    ? undefined
+    : redact(runError instanceof Error ? runError.message : String(runError));
+  if (found && !hasWorkingTreeChanges(found)) {
+    if (envelope) return envelope;
+    // No cause: it would carry the unredacted text.
+    throw new Error(runFailure);
+  }
+  const changes = found && { ...found, paths: found.paths.map(redact) };
+  // A run that failed before launch made no attempt and started no turn.
+  const notLaunched = runError instanceof AcpNotLaunchedError;
+  const outcome = envelope
+    ? `turn ${envelope.ok ? 'succeeded' : `failed with ${envelope.code}`}`
+    : `run failed: ${runFailure}`;
+  if (!envelope && !notLaunched) {
+    // The turn was launched, but whether it was accepted is not known.
+    trace.process ??= { ok: false, stdout: '' };
+    trace.turn = 'unknown';
+  }
+  // A checkout that can no longer be read (its .git removed, say) is
+  // reported as changed.
+  const message = after.ok
+    ? `The working tree changed during a read-only ${request.provider} run: ${describeWorkingTreeChanges(changes!)}. Review and revert these changes; the ${outcome}.`
+    : `The working tree could not be re-checked after a read-only ${request.provider} run (${redact(after.message)}); treat it as changed and review it. The ${outcome}.`;
+  const warnings = [
+    ...(envelope?.diagnostics?.warnings ?? []),
+    ...(runFailure !== undefined ? [`The run failed: ${runFailure}`] : []),
+  ];
+  return failureEnvelope({
+    provider: request.provider,
+    code: 'PROVIDER_WORKTREE_CHANGED',
+    message,
+    retryable: false,
+    stdout: envelope?.stdout,
+    stderr: envelope?.stderr,
+    attempts: {
+      cli_attempts: envelope?.attempts.cli_attempts ?? (notLaunched ? 0 : 1),
+      terminal_reason: 'working_tree_changed',
+    },
+    diagnostics: {
+      ...envelope?.diagnostics,
+      ...(warnings.length > 0 ? { warnings } : {}),
+      ...(changes
+        ? { working_tree_changes: workingTreeChangeList(changes) }
+        : {}),
+    },
+  });
+}
+
 async function runStructuredTurn(
   request: ConsensusCliRunRequest,
   dependencies: RunProviderTurnDependencies,
@@ -282,10 +493,7 @@ async function runStructuredTurn(
     });
   }
 
-  const optionValidation = validateProviderOptions(
-    request,
-    adapter.capabilities,
-  );
+  const optionValidation = validateProviderOptions(request, adapter);
   if (!optionValidation.ok) {
     return preInvocationFailure({
       provider: request.provider,
@@ -360,21 +568,12 @@ async function runStructuredTurn(
   };
   const maxAttempts = effectiveRequest.max_attempts ?? 1;
   // Peers that cannot run a shell command cannot call `consensus submit`, so
-  // they answer through the final message instead. Claude's scoped and
-  // workspace-write profiles allow no Bash beyond explicit grants. Text mode
-  // has no verdict to submit.
+  // they answer through the final message instead; the adapter decides which
+  // of its profiles can. Text mode has no verdict to submit.
   const submitCaptureEnabled =
     !textMode &&
     (dependencies.transport?.submitCaptureEnabled ?? true) &&
-    !(
-      request.provider === 'claude' &&
-      (hasScopedToolAccess(request.runtime_policy) ||
-        request.runtime_policy?.permission_mode === 'workspace-write')
-    ) &&
-    !(
-      request.provider === 'cursor' &&
-      request.runtime_policy?.permission_mode === 'read-only'
-    );
+    (adapter.submitCaptureEligible?.(request) ?? true);
   const strategy = selectStructuredOutputStrategy(adapter, {
     output: request.output,
     submitCaptureEnabled,
@@ -391,7 +590,10 @@ async function runStructuredTurn(
       terminalReason: 'structured_output_strategy',
     });
   }
-  const runSubprocess = dependencies.runSubprocess ?? runProviderSubprocess;
+  // An adapter that drives its provider itself (ACP) runs through its own
+  // hook; a test runner never replaces it.
+  const runSubprocess =
+    adapter.run ?? dependencies.runSubprocess ?? runProviderSubprocess;
   const parentEnv = dependencies.parentEnv ?? process.env;
   const resolvedExecutable = resolveProviderExecutable(adapter, parentEnv);
   if (!resolvedExecutable.ok) {
@@ -400,6 +602,45 @@ async function runStructuredTurn(
       code: 'PROVIDER_MISSING',
       message: resolvedExecutable.message,
       terminalReason: 'provider_executable_invalid',
+    });
+  }
+  const finder = dependencies.probeRunner ?? nodeProbeCommandRunner(parentEnv);
+  // `run` never probes, so a missing or out-of-pin prerequisite is reported
+  // here with its install hint instead of surfacing as a spawn failure. The
+  // checked paths reach the invocation builder: the override variables that
+  // chose them never reach the child.
+  let prerequisiteExecutables: Record<string, string> | undefined;
+  if (adapter.probe.prerequisites?.length) {
+    const prerequisites = await checkProviderPrerequisites(adapter, finder);
+    if (!prerequisites.ok) {
+      const prerequisite = prerequisites.failure;
+      return preInvocationFailure({
+        provider: request.provider,
+        code: PREREQUISITE_FAILURE_CODES[prerequisite.status],
+        message: withInstallHint(
+          prerequisite.message,
+          prerequisite.install_hint,
+        ),
+        terminalReason: `provider_prerequisite_${prerequisite.status}`,
+        diagnostics: { warnings: [prerequisite.warning] },
+      });
+    }
+    prerequisiteExecutables = prerequisites.executables;
+  }
+  // Spawn the absolute path the preflight finder resolves, never a bare
+  // command that spawn would look up again from the request's working
+  // directory. An absolute override is checked and kept as is.
+  const executable = await finder.findExecutable(resolvedExecutable.executable);
+  if (!executable || !path.isAbsolute(executable)) {
+    return preInvocationFailure({
+      provider: request.provider,
+      code: 'PROVIDER_MISSING',
+      message: withInstallHint(
+        `Provider executable not found: ${resolvedExecutable.executable}`,
+        adapter.install_hint,
+      ),
+      terminalReason: 'provider_missing',
+      diagnostics: hostGuard.diagnostics,
     });
   }
   const submitCapturePath = submitCaptureEnabled
@@ -412,6 +653,8 @@ async function runStructuredTurn(
   const childEnv = buildChildEnvironment({
     parentEnv,
     request: effectiveRequest,
+    credentialEnv: adapter.credential_env,
+    executableOverrideEnv: providerExecutableEnvNames(registry),
     hostEnv: {
       ...hostGuard.child_env,
       ...(submitCaptureEnabled &&
@@ -457,7 +700,8 @@ async function runStructuredTurn(
         preserveLastMessageFile:
           dependencies.transport?.preserveLastMessageFile,
         resumeSessionId: turnOptions.resumeSessionId,
-        executable: resolvedExecutable.executable,
+        executable,
+        ...(prerequisiteExecutables ? { prerequisiteExecutables } : {}),
       });
       lastInvocation = invocation;
       const processResult = await runSubprocess(invocation, {
@@ -479,7 +723,7 @@ async function runStructuredTurn(
         },
         hostGuard.diagnostics,
         processResult.diagnostics,
-        permissionDenialDiagnostics(request.provider, processResult.stdout),
+        permissionDenialDiagnostics(adapter, processResult.stdout),
         exitClassificationDiagnostics(exitClassification),
       );
 
@@ -514,9 +758,14 @@ async function runStructuredTurn(
         return failureEnvelope({
           provider: request.provider,
           code: classification.code,
-          message: classification.message,
+          // The binary was found but could not be started (removed or
+          // replaced after lookup): keep the install hint here too.
+          message:
+            classification.code === 'PROVIDER_MISSING'
+              ? withInstallHint(classification.message, adapter.install_hint)
+              : classification.message,
           retryable: false,
-          stdout: processResult.stdout,
+          stdout: envelopeStdout(adapter, processResult.stdout),
           stderr: processResult.stderr,
           attempts: {
             cli_attempts: attempt,
@@ -529,10 +778,9 @@ async function runStructuredTurn(
       if (textMode) {
         // Extraction failures are terminal: a reply that arrived but cannot
         // be read is not a transient process failure, so it is not retried.
-        const extracted = extractProviderText(
+        const extracted = (adapter.extractText ?? extractProviderResultText)(
           invocation,
           processResult,
-          request.provider,
         );
         if (!extracted.ok) {
           return failureEnvelope({
@@ -540,7 +788,7 @@ async function runStructuredTurn(
             code: extracted.code,
             message: extracted.message,
             retryable: false,
-            stdout: processResult.stdout,
+            stdout: envelopeStdout(adapter, processResult.stdout),
             stderr: processResult.stderr,
             attempts: {
               cli_attempts: attempt,
@@ -630,7 +878,9 @@ async function runStructuredTurn(
         });
       }
 
-      const verdictJson = extractStructuredJsonValue(parsed.value);
+      const verdictJson = (
+        adapter.extractStructuredValue ?? extractStructuredJsonValue
+      )(parsed.value);
       const validation = validateSchemaSubset(verdictJson, schema);
       if (!validation.ok) {
         if (attempt < maxAttempts) {
@@ -691,38 +941,22 @@ async function runStructuredTurn(
   }
 }
 
+// What a failure envelope shows of the provider's stdout. An adapter whose
+// stdout is an internal record (ACP) returns only the answer text.
+function envelopeStdout(adapter: ProviderAdapter, stdout: string) {
+  return adapter.envelopeStdout ? adapter.envelopeStdout(stdout) : stdout;
+}
+
 function permissionDenialDiagnostics(
-  provider: string,
+  adapter: ProviderAdapter,
   stdout: string,
 ): ProviderDiagnostics | undefined {
-  if (provider !== 'claude') return undefined;
-  let result: unknown;
-  try {
-    result = JSON.parse(stdout);
-  } catch {
-    return undefined;
-  }
-  if (!isRecord(result) || !Array.isArray(result.permission_denials)) {
-    return undefined;
-  }
-  const denials = result.permission_denials;
-  if (denials.length === 0) return undefined;
-  const tools = [
-    ...new Set(
-      denials
-        .filter(isRecord)
-        .map((denial) => denial.tool_name)
-        .filter(
-          (name): name is string =>
-            typeof name === 'string' &&
-            /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name),
-        ),
-    ),
-  ];
+  const denials = adapter.extractPermissionDenials?.(stdout);
+  if (!denials) return undefined;
   return {
-    permission_denials: { count: denials.length, tools },
+    permission_denials: denials,
     warnings: [
-      `Claude reported ${denials.length} denied tool call(s); verify task completeness independently of schema and transport success.`,
+      `${adapter.display_name} reported ${denials.count} denied tool call(s); verify task completeness independently of schema and transport success.`,
     ],
   };
 }
@@ -730,6 +964,17 @@ function permissionDenialDiagnostics(
 async function readJsonSchema(schemaPath: string): Promise<unknown> {
   return JSON.parse(await readFile(schemaPath, 'utf8'));
 }
+
+function withInstallHint(message: string, installHint: string | undefined) {
+  if (!installHint) return message;
+  return `${message.endsWith('.') ? message : `${message}.`} Install hint: ${installHint}`;
+}
+
+const PREREQUISITE_FAILURE_CODES = {
+  missing: 'PROVIDER_MISSING',
+  unsupported: 'PROVIDER_UNSUPPORTED',
+  unavailable: 'PROVIDER_UNAVAILABLE',
+} as const satisfies Record<string, ProviderErrorCode>;
 
 function preInvocationFailure(input: {
   provider: ConsensusCliRunRequest['provider'];
@@ -781,79 +1026,6 @@ function extractProviderOutput(
   };
 }
 
-type ExtractTextResult =
-  | { ok: true; raw: string; text: string }
-  | {
-      ok: false;
-      code: 'PROVIDER_EMPTY_OUTPUT' | 'PROVIDER_MALFORMED_RESULT';
-      message: string;
-      terminal_reason: 'empty_output' | 'malformed_result';
-    };
-
-// Strict text extraction: a reply is either the provider's own final text or
-// a failure. Malformed or error-shaped output never becomes raw-text success.
-function extractProviderText(
-  invocation: ProviderInvocation,
-  result: ProviderProcessSuccess,
-  provider: ProviderId,
-): ExtractTextResult {
-  const empty = (message: string): ExtractTextResult => ({
-    ok: false,
-    code: 'PROVIDER_EMPTY_OUTPUT',
-    message,
-    terminal_reason: 'empty_output',
-  });
-  const malformed = (message: string): ExtractTextResult => ({
-    ok: false,
-    code: 'PROVIDER_MALFORMED_RESULT',
-    message,
-    terminal_reason: 'malformed_result',
-  });
-
-  if (invocation.output_mode === 'last_message_file') {
-    const lastMessage = result.last_message;
-    if (lastMessage === undefined) {
-      return empty('Provider did not write a last-message file response.');
-    }
-    if (!lastMessage.trim()) {
-      return empty('Provider wrote a blank last-message file response.');
-    }
-    return { ok: true, raw: lastMessage, text: lastMessage };
-  }
-
-  if (!result.stdout.trim()) {
-    return empty('Provider produced no output.');
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(result.stdout.trim());
-  } catch {
-    return malformed('Provider output is not a JSON result object.');
-  }
-  if (!isRecord(parsed)) {
-    return malformed('Provider output is not a JSON result object.');
-  }
-  if (parsed.is_error === true) {
-    return malformed('Provider reported an error result.');
-  }
-  const subtype = parsed.subtype;
-  if (
-    (provider === 'claude' && subtype !== 'success') ||
-    (subtype !== undefined && subtype !== 'success')
-  ) {
-    return malformed(
-      `Provider result subtype is ${typeof subtype === 'string' ? subtype : 'missing'}, not success.`,
-    );
-  }
-  if (typeof parsed.result !== 'string') {
-    return malformed('Provider result object has no text result.');
-  }
-  if (!parsed.result.trim()) {
-    return empty('Provider returned a blank text result.');
-  }
-  return { ok: true, raw: result.stdout, text: parsed.result };
-}
-
 function parseProviderJson(stdout: string): ParseResult {
   try {
     return { ok: true, value: JSON.parse(stdout.trim()) };
@@ -895,23 +1067,6 @@ async function cleanupSubmitCaptureFile(filePath: string) {
     await rm(filePath, { force: true });
   } catch {
     // Best-effort cleanup mirrors the existing transient capture-file posture.
-  }
-}
-
-function extractStructuredJsonValue(value: unknown): unknown {
-  if (!isRecord(value)) return value;
-
-  if ('structured_output' in value) {
-    return value.structured_output;
-  }
-
-  const result = value.result;
-  if (typeof result !== 'string') return value;
-
-  try {
-    return JSON.parse(result.trim());
-  } catch {
-    return extractFirstJsonObject(result) ?? value;
   }
 }
 
@@ -958,61 +1113,6 @@ function promptForStrategy(input: {
   }
 
   return parts.join('\n\n');
-}
-
-function extractFirstJsonObject(text: string): unknown | undefined {
-  let start = -1;
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-
-    if (start === -1) {
-      if (char === '{') {
-        start = index;
-        depth = 1;
-      }
-      continue;
-    }
-
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (char === '\\') {
-        escaped = true;
-      } else if (char === '"') {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (char === '"') {
-      inString = true;
-      continue;
-    }
-
-    if (char === '{') {
-      depth += 1;
-      continue;
-    }
-
-    if (char !== '}') continue;
-
-    depth -= 1;
-    if (depth !== 0) continue;
-
-    const candidate = text.slice(start, index + 1);
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      start = -1;
-      depth = 0;
-    }
-  }
-
-  return undefined;
 }
 
 function mergeDiagnostics(

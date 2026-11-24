@@ -1,25 +1,60 @@
+import { acpAdapter } from './acp/adapter.js';
+import { ACP_PROVIDER_DESCRIPTORS } from './acp/descriptors.js';
 import {
   buildClaudeInvocation,
   buildCodexInvocation,
   buildCursorInvocation,
 } from './invocation.js';
-import type { ProviderInvocationBuilder } from './invocation.js';
+import type {
+  ProviderInvocation,
+  ProviderInvocationBuilder,
+} from './invocation.js';
 import type { ProviderProbeDefinition } from './probe.js';
+import { extractProviderResultText } from './provider-output.js';
+import type { ProviderTextExtraction } from './provider-output.js';
+import {
+  hasScopedToolAccess,
+  isClaudeReadOnlyPolicy,
+  isCodexReadOnlyPolicy,
+} from './runtime-policy.js';
 import { isReliableExternalInterrupt } from './subprocess.js';
 import type {
-  FirstScopeProviderId,
+  ProviderProcessResult,
+  ProviderProcessSuccess,
+  RunProviderSubprocessOptions,
+} from './subprocess.js';
+import type {
+  ConsensusCliRunRequest,
   ProviderExitClassification,
   ProviderCapabilities,
   ProviderDiagnostics,
   ProviderErrorCode,
   ProviderId,
+  ProviderPermissionDenials,
+  ProviderRuntimePolicy,
+  ProviderTier,
   StructuredOutputStrategy,
 } from './types.js';
 
 export interface ProviderAdapter {
-  id: FirstScopeProviderId;
+  id: ProviderId;
+  tier: ProviderTier;
   display_name: string;
   executable: string;
+  // Parent-only variable that replaces `executable` (see
+  // resolveProviderExecutable). It never reaches a provider child.
+  executable_env: string;
+  // Credential variables the provider's child and probe environments inherit.
+  credential_env: readonly string[];
+  // How to install the provider CLI, reported when it is missing.
+  install_hint?: string;
+  // Credential shapes this provider prints (Droid's pairing code), redacted
+  // with the credential values from probe output and run diagnostics.
+  redaction_patterns?: readonly RegExp[];
+  // Set while the provider is registered but has not passed its live
+  // admission test: preflight reports it `unsupported` and `run` refuses it
+  // before launching anything.
+  not_admitted_reason?: string;
   probe: ProviderProbeDefinition;
   classifyRunFailure: ProviderRunFailureClassifier;
   // Provider-owned error output can be returned even with exit status zero.
@@ -29,6 +64,36 @@ export interface ProviderAdapter {
   buildInvocation: ProviderInvocationBuilder;
   extractSession: ProviderSessionExtractor;
   capabilities: ProviderCapabilities;
+  // Optional hooks. Each omitted hook keeps the default noted beside it.
+  // Final text of a text-mode turn. Default: extractProviderResultText.
+  extractText?: (
+    invocation: ProviderInvocation,
+    result: ProviderProcessSuccess,
+  ) => ProviderTextExtraction;
+  // The verdict inside parsed final-message JSON. Default:
+  // extractStructuredJsonValue.
+  extractStructuredValue?: (value: unknown) => unknown;
+  // Accepts a native-resume session id. Default: lowercase UUID.
+  isSessionId?: (value: string) => boolean;
+  // Whether a JSON turn may offer `consensus submit`; a profile that cannot
+  // run the command answers through the final message. Default: eligible.
+  submitCaptureEligible?: (request: ConsensusCliRunRequest) => boolean;
+  // Tool calls the provider reports it denied. Default: none reported.
+  extractPermissionDenials?: (
+    stdout: string,
+  ) => ProviderPermissionDenials | undefined;
+  // A profile that cannot repeat side effects, so its turn may be retried.
+  // Default: not proven, so the turn runs once.
+  isProvenReadOnly?: (policy: ProviderRuntimePolicy) => boolean;
+  // The part of the run's stdout a failure envelope may carry. Default: all
+  // of it.
+  envelopeStdout?: (stdout: string) => string;
+  // Runs the invocation in place of the subprocess runner, for providers
+  // the adapter drives itself (ACP sessions). Default: runProviderSubprocess.
+  run?: (
+    invocation: ProviderInvocation,
+    options: RunProviderSubprocessOptions,
+  ) => Promise<ProviderProcessResult>;
 }
 
 export interface ProviderSessionObservation {
@@ -71,7 +136,9 @@ export interface ProviderRunFailureClassification {
   retryable: boolean;
   terminal_reason: string;
   exit_classification: ProviderExitClassification;
-  turn?: 'not_started' | 'unknown';
+  // `completed`: the provider finished the turn but its answer is unusable
+  // (an ACP peer that was denied a tool and ended without an answer).
+  turn?: 'not_started' | 'unknown' | 'completed';
 }
 
 export type ProviderRunFailureClassifier = (
@@ -146,11 +213,28 @@ const CURSOR_TRANSIENT_EXIT_PATTERNS = [
 export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   {
     id: 'claude',
+    tier: 'core',
     classifyReportedFailure: classifyClaudeLimit,
     display_name: 'Claude',
     executable: 'claude',
+    executable_env: 'CONSENSUS_CLAUDE_EXECUTABLE',
+    credential_env: ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'],
     buildInvocation: buildClaudeInvocation,
     extractSession: extractJsonResultSession,
+    // Claude always reports a subtype; anything but `success` is a failure.
+    extractText: (invocation, result) =>
+      extractProviderResultText(invocation, result, {
+        requireSuccessSubtype: true,
+      }),
+    // Scoped and workspace-write profiles allow no Bash beyond explicit
+    // grants, so they cannot run the submit command.
+    submitCaptureEligible: (request) =>
+      !(
+        hasScopedToolAccess(request.runtime_policy) ||
+        request.runtime_policy?.permission_mode === 'workspace-write'
+      ),
+    extractPermissionDenials: extractClaudePermissionDenials,
+    isProvenReadOnly: isClaudeReadOnlyPolicy,
     classifyRunFailure: defaultRunFailureClassifier({
       session_not_found_patterns: CLAUDE_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
@@ -211,11 +295,15 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   },
   {
     id: 'codex',
+    tier: 'core',
     classifyReportedFailure: classifyCodexLimit,
     display_name: 'Codex',
     executable: 'codex',
+    executable_env: 'CONSENSUS_CODEX_EXECUTABLE',
+    credential_env: ['OPENAI_API_KEY'],
     buildInvocation: buildCodexInvocation,
     extractSession: extractCodexJsonlSession,
+    isProvenReadOnly: isCodexReadOnlyPolicy,
     classifyRunFailure: defaultRunFailureClassifier({
       session_not_found_patterns: CODEX_SESSION_NOT_FOUND_PATTERNS,
       auth_required_patterns: COMMON_AUTH_REQUIRED_PATTERNS,
@@ -280,10 +368,17 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   },
   {
     id: 'cursor',
+    tier: 'core',
     display_name: 'Cursor',
     executable: 'cursor-agent',
+    executable_env: 'CONSENSUS_CURSOR_EXECUTABLE',
+    credential_env: ['CURSOR_API_KEY'],
     buildInvocation: buildCursorInvocation,
     extractSession: extractJsonResultSession,
+    // Read-only Cursor runs in ask mode, which cannot run the submit command.
+    submitCaptureEligible: (request) =>
+      request.runtime_policy?.permission_mode !== 'read-only',
+    isProvenReadOnly: (policy) => policy.permission_mode === 'read-only',
     classifyRunFailure: defaultRunFailureClassifier({
       session_not_found_patterns: [],
       auth_required_patterns: [
@@ -336,6 +431,8 @@ export const DEFAULT_PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
       },
     },
   },
+  // Extended providers, used only when named: one ACP adapter each.
+  ...ACP_PROVIDER_DESCRIPTORS.map((descriptor) => acpAdapter(descriptor)),
 ];
 
 export function providerRegistry(
@@ -352,6 +449,22 @@ export function providerRegistry(
       return byId.get(id);
     },
   };
+}
+
+// Every program-override variable the registry owns, prerequisites included.
+// Consensus reads them from its own environment and strips all of them from
+// every provider child.
+export function providerExecutableEnvNames(
+  registry: ProviderAdapterRegistry,
+): string[] {
+  return registry
+    .list()
+    .flatMap((adapter) => [
+      adapter.executable_env,
+      ...(adapter.probe.prerequisites ?? []).map(
+        (prerequisite) => prerequisite.executable_env,
+      ),
+    ]);
 }
 
 export function defaultSchemaStrategy(
@@ -579,6 +692,30 @@ function parseJsonRecord(value: string): Record<string, unknown> | undefined {
   } catch {
     return undefined;
   }
+}
+
+function extractClaudePermissionDenials(
+  stdout: string,
+): ProviderPermissionDenials | undefined {
+  const result = parseJsonRecord(stdout);
+  if (!result || !Array.isArray(result.permission_denials)) {
+    return undefined;
+  }
+  const denials = result.permission_denials;
+  if (denials.length === 0) return undefined;
+  const tools = [
+    ...new Set(
+      denials
+        .filter(isRecord)
+        .map((denial) => denial.tool_name)
+        .filter(
+          (name): name is string =>
+            typeof name === 'string' &&
+            /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(name),
+        ),
+    ),
+  ];
+  return { count: denials.length, tools };
 }
 
 export function extractJsonResultSession(

@@ -139,11 +139,32 @@ the final report:
 - `final_text`: the envelope's `text`, or "none" on a failure.
 - The session id (`continuation.session_id`) and the turn state
   (`continuation.turn`).
-- Requested and observed model and effort: requested is what you passed, or
+- Requested and observed model and effort: requested is what you passed, the
+  configured model in `continuation.default_model` for an extended peer, or
   "provider default"; observed comes from `continuation.observed_models`, and
   is "unobserved" when absent. No provider reports effort, so observed effort is
   "unobserved".
-- Permission denials (`diagnostics.permission_denials`), or "none".
+- Permission denials (`diagnostics.permission_denials`, with each request's
+  tool, kind, and path for an extended peer), or "none".
+- For an extended read-only run: the CLI's working-tree check. It covers HEAD,
+  the `git status` entries, and the content and permission bits of tracked
+  and non-ignored untracked files in the whole git work tree that contains
+  `--cwd`, but not ignored files, paths outside that work tree, or the other
+  limits listed in the Provider run controls guide. Report it as one of:
+  - The `PROVIDER_WORKTREE_CHANGED` message and
+    `diagnostics.working_tree_changes`, verbatim, whenever the code is
+    `PROVIDER_WORKTREE_CHANGED`. A run that changed the checkout returns it
+    even when it fails with an error, before launch or after.
+  - "comparison unavailable", when no before/after comparison result
+    exists: `attempts.cli_attempts` is 0, so the run was refused or failed
+    before launch (give the terminal reason, such as `model_required` or
+    `working_tree_unavailable`), or the CLI exited without a JSON envelope.
+    For a missing envelope, report the CLI's error output. Do not run
+    `git status` or any other Git command in the checkout to fill the gap:
+    ordinary Git commands can run the filter drivers the CLI's check
+    switches off.
+  - "unchanged", when a launched run (`attempts.cli_attempts` 1 or more)
+    returned any other code.
 - For a write run: the worktree path and branch, the baseline and closing IDs,
   new commits, staged, unstaged, and untracked changes, the changes this turn
   made, any changes your verification made, and, for Claude, any change to your

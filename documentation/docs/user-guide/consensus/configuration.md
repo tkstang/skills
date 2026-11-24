@@ -1,6 +1,6 @@
 ---
 title: 'Configuration'
-description: 'Consensus configuration examples, field types, model and effort support, precedence, and workflow defaults.'
+description: 'Consensus configuration examples, field types, model and effort support, extended-provider models, precedence, and workflow defaults.'
 ---
 
 # Configuration
@@ -138,26 +138,27 @@ Only `schema_version` is required in the root object; `defaults` and each of its
 fields are optional. Inside an agent object, `provider` is required. Unknown keys are rejected at every level;
 omit optional values rather than setting them to `null`.
 
-| JSON field                   | Type and constraints                                        | When omitted / behavior                                                                                                            |
-| ---------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `schema_version`             | Required string, exactly `"v1"`                             | Invalid if missing.                                                                                                                |
-| `defaults`                   | Object                                                      | This file supplies no overrides.                                                                                                   |
-| `defaults.peers`             | Array of exactly two agent objects, distinct providers      | Falls through to lower-precedence peer defaults, then built-ins.                                                                   |
-| `defaults.panelists`         | Array of at least two agent objects, distinct providers     | Falls through to lower-precedence panel defaults, then built-ins.                                                                  |
-| `defaults.panel_size`        | Integer ≥ 2, not a numeric string                           | Uses a lower-precedence size when applicable, otherwise the selected list length, or 2.                                            |
-| `defaults.reviewers`         | Nonempty ordered array of agent objects, distinct providers | Falls through to lower-precedence Review defaults, then Claude followed by Codex. The host is excluded during automatic selection. |
-| `defaults.roles`             | Object with only the three keys below                       | Reserved configuration; not applied by current workflow composition resolvers.                                                     |
-| `defaults.roles.panelist`    | Array of at least one agent object, distinct providers      | Reserved; not an alternative to `defaults.panelists`.                                                                              |
-| `defaults.roles.advisor`     | One agent object                                            | Reserved; does not automatically select Phone a Friend's peer.                                                                     |
-| `defaults.roles.synthesizer` | One agent object                                            | Reserved; does not replace `--synthesizer`.                                                                                        |
+| JSON field                   | Type and constraints                                        | When omitted / behavior                                                                                                                                 |
+| ---------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `schema_version`             | Required string, exactly `"v1"`                             | Invalid if missing.                                                                                                                                     |
+| `defaults`                   | Object                                                      | This file supplies no overrides.                                                                                                                        |
+| `defaults.peers`             | Array of exactly two agent objects, distinct providers      | Falls through to lower-precedence peer defaults, then built-ins.                                                                                        |
+| `defaults.panelists`         | Array of at least two agent objects, distinct providers     | Falls through to lower-precedence panel defaults, then built-ins.                                                                                       |
+| `defaults.panel_size`        | Integer ≥ 2, not a numeric string                           | Uses a lower-precedence size when applicable, otherwise the selected list length, or 2.                                                                 |
+| `defaults.reviewers`         | Nonempty ordered array of agent objects, distinct providers | Falls through to lower-precedence Review defaults, then Claude followed by Codex. The host is excluded during automatic selection.                      |
+| `defaults.roles`             | Object with only the three keys below                       | Reserved configuration; not applied by current workflow composition resolvers.                                                                          |
+| `defaults.roles.panelist`    | Array of at least one agent object, distinct providers      | Reserved; not an alternative to `defaults.panelists`.                                                                                                   |
+| `defaults.roles.advisor`     | One agent object                                            | Reserved; does not automatically select Phone a Friend's peer.                                                                                          |
+| `defaults.roles.synthesizer` | One agent object                                            | Reserved; does not replace `--synthesizer`.                                                                                                             |
+| `defaults.provider_models`   | Object mapping an extended provider ID to a model ID        | An extended provider needs a model on every run; this supplies it when `--model` is omitted. See [Extended provider models](#extended-provider-models). |
 
 An **agent object** has this shape:
 
-| Field      | Type and constraints                                    | Meaning                                                                                                                                       |
-| ---------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `provider` | Required string matching `^[A-Za-z0-9][A-Za-z0-9._-]*$` | Provider adapter ID, currently `claude`, `codex`, or `cursor`. A syntactically valid ID still needs an available adapter and usable provider. |
-| `model`    | Optional nonempty string                                | Provider-specific model ID. No model catalog is validated by the config parser.                                                               |
-| `effort`   | Optional nonempty string                                | Provider-specific effort value. The config parser does not enforce an enum.                                                                   |
+| Field      | Type and constraints                                    | Meaning                                                                                                                                                                                                                         |
+| ---------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `provider` | Required string matching `^[A-Za-z0-9][A-Za-z0-9._-]*$` | Provider adapter ID, such as `claude`, `codex`, or `cursor`. The extended providers run text-only, so these JSON-mode workflows cannot use them. A syntactically valid ID still needs an available adapter and usable provider. |
+| `model`    | Optional nonempty string                                | Provider-specific model ID. No model catalog is validated by the config parser.                                                                                                                                                 |
+| `effort`   | Optional nonempty string                                | Provider-specific effort value. The config parser does not enforce an enum.                                                                                                                                                     |
 
 Uniqueness is by **provider**, not by provider/model pair: two Codex entries with
 different models are rejected in the same list. A provider may appear in both
@@ -173,11 +174,13 @@ expecting an older install to ignore it.
 These are the capabilities of this plugin's adapters, not a claim about every
 feature of the upstream provider CLI:
 
-| Provider | Model forwarding  | Effort forwarding                   |
-| -------- | ----------------- | ----------------------------------- |
-| `claude` | `--model <value>` | `--effort <value>`                  |
-| `codex`  | `--model <value>` | `-c model_reasoning_effort=<value>` |
-| `cursor` | `--model <value>` | Unsupported by this adapter         |
+| Provider               | Model forwarding                     | Effort forwarding                   |
+| ---------------------- | ------------------------------------ | ----------------------------------- |
+| `claude`               | `--model <value>`                    | `--effort <value>`                  |
+| `codex`                | `--model <value>`                    | `-c model_reasoning_effort=<value>` |
+| `cursor`               | `--model <value>`                    | Unsupported by this adapter         |
+| `antigravity`, `droid` | ACP session option `model`, required | Unsupported                         |
+| `gemini`               | `-m <value>` at launch, required     | Unsupported                         |
 
 When a workflow forwards them, omitted fields leave the corresponding provider
 options unset. The provider CLI supplies its own defaults. Model availability
@@ -193,6 +196,42 @@ A peer whose configured model or effort the selected provider cannot honor
 fails with `PROVIDER_UNSUPPORTED_OPTION` rather than running with the option
 silently dropped. `consensus config get` shows stored values; provider
 availability still decides whether a stored value is usable.
+
+### Extended provider models
+
+An [extended provider](provider-setup.md#extended-providers) always runs a
+model someone chose, never the provider's own default. `consensus run` uses
+`--model` when given, and otherwise `defaults.provider_models.<provider-id>`:
+
+```json
+{
+  "schema_version": "v1",
+  "defaults": {
+    "provider_models": {
+      "antigravity": "<antigravity-model-id>",
+      "gemini": "<gemini-model-id>",
+      "droid": "<droid-model-id>"
+    }
+  }
+}
+```
+
+- Keys must be registered extended provider IDs (`antigravity`, `gemini`,
+  `droid`); any other key, or a value that is not a nonempty string, makes the
+  config invalid.
+- A project config entry wins over the user config's entry for the same
+  provider only: a project entry for `droid` leaves the user's `gemini` entry
+  in effect.
+- With neither `--model` nor an entry, the run is refused before launch with
+  `PROVIDER_UNSUPPORTED_OPTION` and `attempts.terminal_reason: "model_required"`.
+- The continuation receipt keeps `requested_model` for a model you passed and
+  records a configured one as `default_model`.
+- The agent must offer the model. Antigravity and Droid refuse an ID they do
+  not list, and the error names some that they do.
+
+There is no `config set` flag for this key: edit the JSON file or import it
+with `--from-file`. `consensus config get` shows it, and only
+`config clear --key all` clears it.
 
 ## Config paths and precedence
 
@@ -304,7 +343,9 @@ node plugins/consensus/skills/panel/scripts/consensus-panel.mjs \
 `--panelists` must list at least two provider ids. `--panel-size` must be 2 or
 larger. If `--panel-size` is smaller than the configured panelist list, the first
 N configured panelists are selected. If it is larger, the resolver appends ready
-providers from inventory order when possible.
+core providers from inventory order when possible. It never adds an extended
+provider, and a listed one cannot answer a panel: panel runs are JSON-mode and
+extended providers are text-only.
 
 ## Synthesizer
 

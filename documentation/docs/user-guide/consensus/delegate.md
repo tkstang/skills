@@ -39,15 +39,22 @@ The host picks the mode from what you ask:
   Codex look into why X fails"), and whenever the host consults a peer on its
   own initiative.
 
-If the host cannot tell, it asks. Cursor runs read-only only.
+If the host cannot tell, it asks. Cursor and the extended providers run
+read-only only.
 
 ## Peers
 
-By default the host picks a ready provider other than itself, checked with a
-scoped preflight. Name a peer to choose it yourself; any provider works,
-including the host's own. Pass a model or effort only when you want one;
-Cursor accepts a model, including for read-only delegation, but does not support
-effort.
+By default the host picks a ready core provider (Codex, Claude or Cursor) other
+than itself, checked with a scoped preflight. Name a peer to choose it
+yourself; any provider works, including the host's own. Pass a model or
+effort only when you want one; Cursor accepts a model, including for read-only
+delegation, but does not support effort.
+
+The [extended providers](provider-setup.md#extended-providers), Antigravity
+(`antigravity`), Gemini CLI (`gemini`), and Droid (`droid`), are experimental
+and run only when named. Each needs a model: name one, or save it as
+[`defaults.provider_models`](configuration.md#extended-provider-models). The
+host does not pick one for you. They take no effort and have no continuation.
 
 ## How a write run works
 
@@ -73,10 +80,15 @@ work, or discard the worktree; the host does those
 only when you ask.
 
 A read-only run uses the repository root as its working directory and skips
-the worktree and snapshots. The host still checks the peer's load-bearing
-claims against the source before relying on them. Its verification command
-must not write to your checkout; verification that may write runs in a separate
-worktree.
+the worktree and the host's snapshots. For an extended peer the consensus CLI
+checks the checkout itself and fails the run if anything changed; see
+[Working-tree check](provider-run-controls.md#working-tree-check). The host
+still checks the peer's load-bearing claims against the source before relying
+on them. A read-only brief names either a verification command or, always
+for an extended peer, a requirement to cite file:line evidence for every
+claim, and the host opens each citation to confirm it. A verification command
+must not write to your checkout; verification that may write runs in a
+separate worktree.
 
 ## What the peer can do
 
@@ -84,11 +96,12 @@ The provider policies come from `consensus run`; see
 [Provider run controls](provider-run-controls.md) for the full
 behaviour.
 
-| Peer   | Write mode                                          | Read-only mode                |
-| ------ | --------------------------------------------------- | ----------------------------- |
-| Codex  | `--sandbox workspace-write --approval-policy never` | `--sandbox read-only`         |
-| Claude | `--permission-mode workspace-write`, `--allow-bash` | `--permission-mode read-only` |
-| Cursor | not supported                                       | `--permission-mode read-only` |
+| Peer           | Write mode                                          | Read-only mode                |
+| -------------- | --------------------------------------------------- | ----------------------------- |
+| Codex          | `--sandbox workspace-write --approval-policy never` | `--sandbox read-only`         |
+| Claude         | `--permission-mode workspace-write`, `--allow-bash` | `--permission-mode read-only` |
+| Cursor         | not supported                                       | `--permission-mode read-only` |
+| Extended (ACP) | not supported                                       | `--permission-mode read-only` |
 
 - **Codex** edits inside the worktree and can also write to `/tmp` and
   `$TMPDIR`. Writes to other paths, including `$HOME`, are denied. It cannot
@@ -105,6 +118,15 @@ behaviour.
   worktree. After a Claude write run the host compares tracked and non-ignored
   untracked files in your checkout and reports any difference. Ignored paths,
   such as `.env` or build outputs, are outside that check.
+- **Extended peers** run in the provider's read-only mode, confirmed before
+  the prompt and held for the whole turn (a mode change cancels the turn and
+  discards its answer), and every permission request they make is denied.
+  Consensus tells them not to edit files or run commands, so the brief asks for
+  file:line evidence rather than a verification command. These controls cover
+  the peer's tool calls only: hooks and MCP servers from the provider's own
+  configuration, yours or the repository's, can run without a permission
+  request. Use extended peers only in checkouts you control; see
+  [What every extended run gets](provider-setup.md#what-every-extended-run-gets).
 
 A commit made by any peer is reported, never accepted silently.
 
@@ -113,11 +135,26 @@ A commit made by any peer is reported, never accepted silently.
 The host reads the JSON envelope, not the exit code. If the peer timed out,
 was interrupted, or ended in an unknown turn state, it may still have changed
 files: the host inspects the worktree and reports what it finds, and never
-resends the brief. A failure before the turn started, such as a usage or
+resends the brief. For an extended peer it reports the CLI's working-tree check
+instead and runs no Git command in your checkout. A failure before the turn started, such as a usage or
 preflight error, is fixed and run again. `PROVIDER_LIMIT_REACHED` stops the run
 and reports the provider's human message without retrying or switching providers.
 If its turn state is `unknown`, the host still accounts for possible file changes;
 a limit does not by itself prove that nothing ran.
+
+For an extended peer, `PROVIDER_WORKTREE_CHANGED` means the checkout changed
+during the turn. The host reports the message and the changed paths verbatim
+and leaves them for you to review; the change may be your own edit made during
+the run. The same code reports a run that failed with an error, before or
+after launch, and also changed the checkout; the error appears in the message
+and in `diagnostics.warnings`. `PROVIDER_PERMISSION_DENIED` means the peer tried to
+act outside read-only and ended without an answer; the host reports each
+denied request: its tool, kind, and the first path it named. When no
+before/after comparison ran, because the run was refused before launch or
+the CLI returned no envelope, the host reports the check as "comparison
+unavailable" rather than "unchanged". It does not run `git status` in its
+place, because ordinary Git commands can run the filter drivers the check
+switches off.
 
 ## Continuing
 
@@ -134,8 +171,8 @@ You can also request further work explicitly. Before each continued write
 turn, the host checks that the worktree has changed only in what the previous
 report recorded; any other change waits for your decision. Timeouts,
 interrupts, unknown execution, and unusable replies still stop for inspection
-and reporting. Cursor has no continuation, so the host reports its failed
-verification rather than starting another session.
+and reporting. Cursor and the extended peers have no continuation, so the host
+reports a failed verification rather than starting another session.
 
 ## Limits
 

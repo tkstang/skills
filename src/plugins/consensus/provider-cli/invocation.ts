@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import type { AcpSessionPlan } from './acp/client.js';
 import type { ProviderAdapter } from './adapters.js';
 import { composeClaudePermissionProfile } from './runtime-policy.js';
 import type {
@@ -23,6 +24,8 @@ export interface ProviderInvocation {
   cleanup_last_message_file?: boolean;
   // Claude only: the permission controls this invocation applies.
   permission_profile?: ProviderPermissionProfile;
+  // ACP adapters only: the session plan their run hook drives.
+  acp_plan?: AcpSessionPlan;
   shell: false;
 }
 
@@ -34,8 +37,12 @@ export interface BuildProviderInvocationOptions {
   // Continue this exact provider session. Callers validate the id and the
   // adapter's verified continuation capability before building.
   resumeSessionId?: string;
-  // Replaces the adapter's command (see resolveProviderExecutable).
+  // Replaces the adapter's command (see resolveProviderExecutable). The run
+  // path passes the absolute path it resolved.
   executable?: string;
+  // The absolute path of each prerequisite the run path checked, keyed by
+  // prerequisite name, so the adapter launches exactly what was checked.
+  prerequisiteExecutables?: Readonly<Record<string, string>>;
 }
 
 export type ProviderInvocationBuilder = (
@@ -55,6 +62,9 @@ export function buildProviderInvocation(
     preserveLastMessageFile: options.preserveLastMessageFile,
     resumeSessionId: options.resumeSessionId,
     executable: options.executable,
+    ...(options.prerequisiteExecutables
+      ? { prerequisiteExecutables: options.prerequisiteExecutables }
+      : {}),
   });
 }
 

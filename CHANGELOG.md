@@ -2,11 +2,100 @@
 
 ## [Unreleased]
 
+### Added
+
+- `consensus` 0.2.14 registers three experimental extended providers,
+  Antigravity (`antigravity`), Gemini CLI (`gemini`) and Factory Droid
+  (`droid`). Each passed a live smoke test on 2026-11-21 (agy 1.5.13 on its
+  desktop login and `GEMINI_API_KEY`, Gemini CLI 0.70.0 on `GEMINI_API_KEY`,
+  Droid 1.16.0 on its desktop login; see
+  `.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md`). They
+  run only when named, read-only and text-only, with one attempt, no effort,
+  no `--env-allow` and no native resume. The provider CLI drives each agent's
+  ACP command through its own stdio JSON-RPC client (no new dependency): it
+  confirms the provider's read-only mode and the model before the prompt and
+  watches the mode through the turn (a mode report that arrives before setup
+  counts as the starting state, and one dropped from the full early buffer
+  leaves it unknown), denies every permission request, offers no
+  file system, terminal or MCP servers, prepends read-only brief lines, and
+  stops the agent's process group on every exit; a teardown that cannot
+  confirm the group exited adds a warning, which a later failure to remove
+  the private settings directory keeps in its error. Extended runs need a model:
+  `--model`, or the new `defaults.provider_models.<id>` consensus-config key,
+  recorded in the receipt as `default_model`; with neither the run is refused
+  before launch. Every extended read-only turn is bracketed by a git
+  working-tree check, so the working directory must be a git checkout. The
+  check compares HEAD, the `git status` entries, and the content and
+  permission bits of tracked and non-ignored untracked files, runs no filter
+  driver and passes git no credentials; it fails rather than run when a
+  filter driver or submodule name is not valid UTF-8. A change fails the run with the new
+  code `PROVIDER_WORKTREE_CHANGED`, which lists `HEAD` and the paths in
+  `diagnostics.working_tree_changes`; a run that throws and changed the
+  checkout returns it too, with the redacted error in `diagnostics.warnings`
+  (`turn: not_started` and no attempt when it threw before launch), and on
+  an unchanged checkout the CLI prints only the redacted error. Ignored files, byte changes git's built-in
+  conversions normalize back, case-only renames on case-insensitive file
+  systems and files inside untracked nested repositories are not covered.
+  A peer that is denied a tool and ends without an answer
+  fails with the new code `PROVIDER_PERMISSION_DENIED`. Extended run
+  envelopes add `diagnostics.acp` (agent, auth route, phase, stop reason,
+  setup evidence, teardown) and `diagnostics.permission_denials.requests`,
+  which gives each denied request's tool, ACP kind and first path (relative
+  to the working directory) and never tool input. Envelope `stdout`, on
+  success and failure, is the answer text only; the values of the provider's
+  credential variables and provider patterns such as Droid's pairing code are
+  redacted from answer text, metadata, denial details, change paths and
+  stderr, and everything but answer text, plus the answer of an error-text or
+  limit failure, also loses common credential shapes (API keys, tokens, JWTs,
+  `Bearer` values). Stderr is kept up to 64 KiB and ends at its last
+  complete line before the first cut. Preflight
+  probes extended providers with `--version` only, without their
+  credentials, and reports only MAJOR.MINOR.PATCH plus a plain prerelease
+  tag, or no version when the version output holds anything redaction would
+  alter. The docs state the trust boundary: extended peers, like core ones,
+  load their CLI's configuration, so repository and user hooks and MCP
+  servers can run without a permission request, and the working-tree check is
+  a backstop, not isolation.
+  `phone-a-friend` 0.3.5 tells the host that the extended providers are
+  text-only and offers a core peer instead.
+  `consensus-delegate` 0.2.2 (standalone `delegate`, `consensus:delegate`)
+  accepts the extended providers as read-only peers and reports both codes.
+  Its brief template adds a read-only verification block that asks for
+  file:line evidence instead of a command, which the host checks, and its
+  report adds a "comparison unavailable" outcome for runs where no
+  working-tree comparison completed, without running Git in the checkout to
+  fill the gap.
+  The other skill versions in this release are listed under Changed.
+
 ### Changed
 
 - `seshtk-cli` 1.1.0 describes bounded post-compaction readback with Session
   Toolkit 0.2.0. The CLI adds backward paging to `read` and `parse` and names
   the omitted end in forward byte-budget warnings. Addresses #172.
+
+- `consensus` 0.2.14 adds provider-CLI groundwork for an extended provider
+  tier, and `claude`, `codex` and `cursor` run as before. Adapters now carry their tier, executable override
+  and credential variables, and own their provider-specific run rules through
+  hooks. `provider ls` lists core providers only; a named `--provider` still
+  resolves any registered adapter, and panel auto-fill and delegate fallback
+  select core providers only. Adapters can declare probe prerequisites with
+  presence checks or inclusive version pins that keep prerelease tags for exact
+  matches; inventory and preflight report a missing or out-of-pin prerequisite
+  with an `install_hint`, and `consensus run` checks prerequisites before
+  spawning. A registered provider awaiting admission probes as `unsupported`
+  with a "registered, not admitted" diagnostic and `run` refuses it before
+  launch. Probes and runs search only absolute `PATH` entries, and both start
+  the absolute program path they resolve; a run whose program is missing now
+  fails with `PROVIDER_MISSING` before spawning. The lookup skips directories
+  named like the program and, on Windows, also tries `.exe` and `.com`. Exact
+  pins compare the complete version token as written, build metadata
+  included; ranges ignore build metadata; and an invalid pin, including
+  `exact` combined with `min` or `max`, reports
+  `PROVIDER_PREREQUISITE_PIN_INVALID`.
+  Checked prerequisite paths reach the adapter's invocation builder, and
+  wrapper unavailable errors keep install hints and probe warnings. Internal
+  `FIRST_SCOPE_PROVIDER_IDS` is renamed `CORE_PROVIDER_IDS`.
+  The shared runtime refresh bumps `consensus-create` 0.1.26, `consensus-decide` 0.1.26, `consensus-plan` 0.1.26, `consensus-refine` 0.1.29, `consensus-evaluate` 0.1.30, `consensus-review` 0.3.1, `consensus-panel` 0.1.23, `consensus-delegate` 0.2.2, `phone-a-friend` 0.3.5, `session-observer` 1.1.7, `session-observer-collab` 1.0.85, and `session-fork-to-destination` 0.3.12.
 
 - `kim` 1.0.1 (`session` 0.9.1) leads its description with "Keep it moving
   (kim)", and the docs label it Keep It Moving (kim), so skill lists and

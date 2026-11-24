@@ -2,8 +2,8 @@
 
 Write the brief as a file outside the worktree and pass it with
 `--prompt-file`. Fill in every block; delete the line for the mode you are not
-using. Keep the context to what the task needs, and leave out secrets,
-credentials, and private data.
+using, and keep one of the two verification lines. Keep the context to what
+the task needs, and leave out secrets, credentials, and private data.
 
 ```text
 <task>
@@ -26,28 +26,39 @@ End with one final reply that contains:
 - Summary: what you did and why, in a few sentences.
 - Changes (write) or Findings (read-only): each file you changed with a
   one-line reason, or each finding with file:line evidence.
-- Verification: each command you ran and its result.
+- Verification: each command you ran and its result, or (read-only evidence)
+  the file:line evidence behind each claim and anything you could not confirm.
 - Open issues: anything unfinished, uncertain, or blocked, including commands
   or writes that were denied.
 </output_contract>
 
 <verification_loop>
-Run `<exact verification command>` in the working directory. If it fails, fix
-the cause and run it again until it passes or you stop making progress, then
-report the last failing output. Do not skip, weaken, or delete tests to make it
-pass.
+Command: run `<exact verification command>` in the working directory. If it
+fails, fix the cause and run it again until it passes or you stop making
+progress, then report the last failing output. Do not skip, weaken, or delete
+tests to make it pass.
+Read-only evidence: do not run commands. Support every claim with file:line
+evidence, and list anything you could not confirm by reading.
 </verification_loop>
 ```
 
 ## Notes
 
-- Name one exact verification command. You rerun the same command after the
-  peer finishes. For a read-only task, the verification can be "cite file:line
-  evidence for every claim". Use a command that cannot write to the checkout;
-  run any verification that may write in a separate worktree.
+- Keep the `Command:` line for a write task and name one exact verification
+  command; you rerun the same command after the peer finishes. For a
+  read-only task, keep either line. A command must not be able to write to
+  the checkout; run any verification that may write in a separate worktree.
 - A Claude write run can execute only the Bash commands you grant with
   `--allow-bash`, so grant the verification command. A Codex run may have no
   network, depending on the user's Codex sandbox configuration, so install
   dependencies before the run rather than asking the peer to.
+- Consensus tells an extended peer (Antigravity, Gemini CLI, Droid) not to run
+  commands and denies its permission requests, so always keep the
+  `Read-only evidence:` line for one, and drop `Command:`. Consensus puts its
+  own read-only lines before the brief: for Antigravity also a ban on
+  `invoke_subagent`, `swarm`, `run_workflow` and `schedule` and a line to read
+  only inside the working directory, and for Droid a ban on its loop,
+  ConnectApp, automation, and cloud or computer tools. Do not contradict
+  them.
 - For a continued turn, write a short follow-up that names what to change, and
   repeat the verification loop. The resumed session keeps the earlier context.

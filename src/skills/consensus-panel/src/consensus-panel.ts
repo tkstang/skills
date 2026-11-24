@@ -36,7 +36,7 @@ import {
   nearestExistingPath,
   pathExists,
   providerInventoryEntries,
-  providerStatusMap,
+  providerUnavailability,
   requireValue,
   validateProviderId,
 } from '../../../plugins/consensus/shared/cli-helpers-core.js';
@@ -1320,13 +1320,21 @@ async function preflightPanelists({
       continue;
     }
 
-    const preflightStatus =
-      providerStatusMap(preflight).get(agent.provider) ?? 'unavailable';
+    const unavailable = providerUnavailability(
+      preflight,
+      agent.provider,
+      'unavailable',
+    );
     readiness.push({
       agent,
       status: 'unavailable',
       diagnostics: [
-        panelistUnavailableMessage(agent.provider, preflightStatus),
+        panelistUnavailableMessage(
+          agent.provider,
+          unavailable.status,
+          unavailable.install_hint,
+        ),
+        ...(unavailable.warnings ?? []),
       ],
     });
   }
@@ -1334,8 +1342,14 @@ async function preflightPanelists({
   return readiness;
 }
 
-function panelistUnavailableMessage(provider: string, status: string) {
-  return `Panelist ${provider} unavailable: ${status}`;
+function panelistUnavailableMessage(
+  provider: string,
+  status: string,
+  installHint?: string,
+) {
+  return installHint
+    ? `Panelist ${provider} unavailable: ${status}. Install hint: ${installHint}`
+    : `Panelist ${provider} unavailable: ${status}`;
 }
 
 async function invokePanelistViaCli({

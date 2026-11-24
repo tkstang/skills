@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*), Read
 argument-hint: base_branch=<ref> | range=<base>..<head> | --files <paths...> | --document <path> --host <runtime>
 metadata:
   author: Thomas Stang
-  version: '0.3.0'
+  version: '0.3.1'
 ---
 
 # Consensus Review

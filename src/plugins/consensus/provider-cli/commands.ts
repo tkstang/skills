@@ -19,6 +19,7 @@ import type {
   ConsensusWorkflow,
 } from '../config/consensus-config.js';
 import { providerRegistry } from './adapters.js';
+import type { ProviderAdapterRegistry } from './adapters.js';
 import {
   ConsensusCliUsageError,
   normalizeRunRequest,
@@ -33,7 +34,11 @@ import type {
 } from './args.js';
 import { processExitForEnvelope, usageFailure } from './envelope.js';
 import { evaluateHostGuard, hostContextFromEnv } from './host-guard.js';
-import { nodeProbeCommandRunner, probeProviderRegistry } from './probe.js';
+import {
+  nodeProbeCommandRunner,
+  notAdmittedEntry,
+  probeProviderRegistry,
+} from './probe.js';
 import type { ProbeCommandRunner } from './probe.js';
 import { validateSchemaSubset } from './schema-validate.js';
 import { runProviderTurn } from './structured-output.js';
@@ -97,7 +102,12 @@ export type ConfigFieldSource = 'user' | 'project';
 
 export type ConfigFieldSources = Partial<
   Record<
-    'peers' | 'panelists' | 'panel-size' | 'reviewers' | 'roles',
+    | 'peers'
+    | 'panelists'
+    | 'panel-size'
+    | 'reviewers'
+    | 'roles'
+    | 'provider-models',
     ConfigFieldSource
   >
 >;
@@ -152,6 +162,9 @@ export interface SubmitResult {
 export interface ProviderCommandOptions {
   registry?: ProviderInventoryEntry[] | ProviderRegistryLoader;
   probeRunner?: ProbeCommandRunner;
+  // The adapters to list or probe when `registry` is not given. Default:
+  // the built-in provider registry.
+  adapters?: ProviderAdapterRegistry;
 }
 
 export interface PreflightCommandOptions extends ProviderCommandOptions {
@@ -220,8 +233,10 @@ export async function runPreflight(
     options.host,
   );
   const usable = providers.every((provider) => provider.status === 'ready');
+  // A registered provider can also be `unsupported` (not admitted, or a
+  // prerequisite outside its pin); its own diagnostics say why.
   const diagnostics =
-    options.provider && providers[0]?.status === 'unsupported'
+    options.provider && !registry.some((entry) => entry.id === options.provider)
       ? {
           warnings: [
             `Requested provider is not registered: ${options.provider}`,
@@ -406,6 +421,7 @@ export async function runConsensusCli(
       readSchema: async (schemaPath) =>
         JSON.parse(await io.readFile(schemaPath)),
       parentEnv: io.env,
+      ...(options.adapters ? { registry: options.adapters } : {}),
     });
     writeJson(io, envelope);
     return processExitForEnvelope(envelope);
@@ -582,6 +598,7 @@ function effectiveFieldSources(
     ['panel-size', 'panel_size'],
     ['reviewers', 'reviewers'],
     ['roles', 'roles'],
+    ['provider-models', 'provider_models'],
   ] as const;
   for (const [key, field] of fields) {
     if (project?.defaults?.[field] !== undefined) {
@@ -615,6 +632,14 @@ function mergeConfigFields(
   if (source.panel_size !== undefined) target.panel_size = source.panel_size;
   if (source.reviewers !== undefined) target.reviewers = source.reviewers;
   if (source.roles !== undefined) target.roles = source.roles;
+  // Per provider: a project entry replaces only that provider's user entry,
+  // as on the run path.
+  if (source.provider_models !== undefined) {
+    target.provider_models = {
+      ...target.provider_models,
+      ...source.provider_models,
+    };
+  }
 }
 
 function configHasDefaults(
@@ -691,7 +716,8 @@ function configDefaultsHasValues(
       defaults.panelists !== undefined ||
       defaults.panel_size !== undefined ||
       defaults.reviewers !== undefined ||
-      defaults.roles !== undefined)
+      defaults.roles !== undefined ||
+      defaults.provider_models !== undefined)
   );
 }
 
@@ -828,31 +854,42 @@ function mergeDiagnostics(
 
 async function resolveRegistry(
   registry: ProviderCommandOptions['registry'],
-  options: Pick<ProviderCommandOptions, 'probeRunner'> = {},
+  options: Pick<ProviderCommandOptions, 'probeRunner' | 'adapters'> = {},
   provider?: ProviderId,
   requiredCapabilities?: readonly ProviderPreflightCapability[],
 ) {
   if (Array.isArray(registry)) return registry;
   if (typeof registry === 'function') return registry();
+  const adapters = options.adapters ?? providerRegistry();
   if (options.probeRunner) {
     return probeProviderRegistry({
-      registry: providerRegistry(),
+      registry: adapters,
       runner: options.probeRunner,
       ...(provider ? { provider } : {}),
       ...(requiredCapabilities ? { requiredCapabilities } : {}),
     });
   }
-  return defaultProviderRegistry();
+  return defaultProviderRegistry(adapters, provider);
 }
 
-function defaultProviderRegistry(): ProviderInventoryEntry[] {
-  return providerRegistry()
+// Like probeProviderRegistry: a named provider from any tier, otherwise core.
+function defaultProviderRegistry(
+  adapters: ProviderAdapterRegistry,
+  provider?: ProviderId,
+): ProviderInventoryEntry[] {
+  return adapters
     .list()
-    .map((adapter) => ({
-      id: adapter.id,
-      status: 'missing',
-      capabilities: adapter.capabilities,
-    }));
+    .filter((adapter) =>
+      provider ? adapter.id === provider : adapter.tier === 'core',
+    )
+    .map(
+      (adapter) =>
+        notAdmittedEntry(adapter) ?? {
+          id: adapter.id,
+          status: 'missing',
+          capabilities: adapter.capabilities,
+        },
+    );
 }
 
 function placeholderCapabilities(): ProviderCapabilities {

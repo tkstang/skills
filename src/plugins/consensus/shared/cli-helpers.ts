@@ -15,8 +15,10 @@ import {
   isJsonRecord,
   nearestExistingPath,
   pathExists,
+  providerUnavailableMessage,
   validateProviderId,
 } from './cli-helpers-core.js';
+import type { ProviderUnavailability } from './cli-helpers-core.js';
 
 // Shared CLI helper primitives used by the consensus command modules
 // (create/decide/plan/evaluate). Extracted verbatim from those modules'
@@ -45,24 +47,22 @@ export {
   promptBlockData,
   providerInventoryEntries,
   providerStatusMap,
+  providerUnavailability,
+  providerUnavailableMessage,
   requireValue,
+  unavailabilityEvidence,
   validateProviderId,
 } from './cli-helpers-core.js';
+export type { ProviderUnavailability } from './cli-helpers-core.js';
 
 export function providerCliUnavailableError(
-  providers: Array<{ id: string; status: string }>,
+  providers: ProviderUnavailability[],
 ) {
-  const summary = providers
-    .map((provider) => `${provider.id} (${provider.status})`)
-    .join(', ');
-  return new ConsensusError(
-    `Consensus providers are unavailable: ${summary}. Run "consensus preflight --json --provider <id> --capability run" and resolve provider compatibility, authentication, or availability before retrying.`,
-    {
-      code: 'PEER_UNAVAILABLE',
-      exitCode: EXIT_CODES.CONFIG,
-      details: { providers },
-    },
-  );
+  return new ConsensusError(providerUnavailableMessage(providers), {
+    code: 'PEER_UNAVAILABLE',
+    exitCode: EXIT_CODES.CONFIG,
+    details: { providers },
+  });
 }
 
 export async function confineWrite(targetPath: string, rootPath: string) {

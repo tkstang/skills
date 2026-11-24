@@ -57,7 +57,10 @@ const EXPECTED_CORE_NAMES = [
   'promptBlockData',
   'providerInventoryEntries',
   'providerStatusMap',
+  'providerUnavailability',
+  'providerUnavailableMessage',
   'requireValue',
+  'unavailabilityEvidence',
   'validateProviderId',
 ];
 
@@ -87,6 +90,7 @@ const PANEL_GUARDED_NAMES = [
   'pathExists',
   'providerInventoryEntries',
   'providerStatusMap',
+  'providerUnavailability',
   'requireValue',
   'validateProviderId',
 ];

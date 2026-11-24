@@ -84,7 +84,7 @@ If `skills` is already configured as a marketplace from another local checkout, 
 
 - Node.js 22 or newer.
 - The generated consensus CLI from this plugin, used for provider inventory, preflight, peer invocation, and peer verdict submission.
-- Local provider CLIs for the requested peers. The first supported provider floor is `claude`, `codex`, and `cursor`.
+- Local provider CLIs for the requested peers. The supported provider floor is `claude`, `codex`, and `cursor`. The extended providers `antigravity`, `gemini`, and `droid` are experimental, run read-only only, and are used only when named. They were [smoke-tested live on 2026-11-21](https://github.com/tkstang/skills/blob/main/.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md): Antigravity on its desktop login and on `GEMINI_API_KEY`, Gemini CLI on `GEMINI_API_KEY` only, and Droid on its desktop login only (its `FACTORY_API_KEY` route is untested).
 
 The wrappers always invoke peers through the generated provider CLI. There is no alternate backend selector in v0.1.
 
@@ -296,7 +296,16 @@ full diff, and reruns the brief's verification command. On Claude and Codex,
 ordinary verification failures within the original task go back to the same peer automatically,
 with the same session and permissions; the host checks every follow-up. It never merges or
 pushes; the user decides what to keep. Codex and Claude can write and continue
-a session; Cursor is read-only. See `skills/delegate/SKILL.md` and the
+a session; Cursor and the extended providers are read-only. An extended peer
+needs a model (`--model` or `defaults.provider_models`) and a git checkout.
+The consensus CLI snapshots the checkout before and after the turn and fails
+the run with `PROVIDER_WORKTREE_CHANGED` if HEAD, the `git status` entries, or
+the content or permission bits of a tracked or non-ignored untracked file
+changed; ignored files and a few other cases are not covered (see
+[Working-tree check](https://tkstang.github.io/skills/user-guide/consensus/provider-run-controls/#working-tree-check)).
+The check is a backstop, not isolation: provider hooks and MCP servers can run
+without a permission request, so use extended peers only in checkouts and with
+provider configuration you control. See `skills/delegate/SKILL.md` and the
 [Delegate guide](https://tkstang.github.io/skills/user-guide/consensus/delegate/).
 
 ## Permissions
@@ -359,7 +368,7 @@ consensus provider ls --json
 consensus preflight --json --provider claude --capability run
 ```
 
-The first supported provider floor is `claude`, `codex`, and `cursor`; future providers are extension points, not v0.1 support claims. Requested peers must be present and usable in provider inventory/preflight before live use. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_VERSION_UNPARSEABLE`, `PROVIDER_VERSION_UNSUPPORTED`, `PROVIDER_CAPABILITY_MISSING`, and `PROVIDER_UNSUPPORTED_OPTION`.
+The supported provider floor is `claude`, `codex`, and `cursor`. `provider ls` lists these core providers only; a provider outside the core tier is used only when named with `preflight --provider` or `run --provider`. The extended tier registers `antigravity`, `gemini`, and `droid`, driven through the CLI's own ACP client; each is experimental. [Live smoke tests on 2026-11-21](https://github.com/tkstang/skills/blob/main/.oat/repo/reference/evidence/2026-11-21-extended-provider-smoke.md) covered Antigravity on its desktop login and `GEMINI_API_KEY`, Gemini CLI on `GEMINI_API_KEY` only, and Droid on its desktop login only. See [Extended providers](https://tkstang.github.io/skills/user-guide/consensus/provider-setup/#extended-providers). Requested peers must be present and usable in provider inventory/preflight before live use. For an extended provider, preflight checks only that its CLI is installed at the minimum version; sign-in and the model are first checked by a run. The wrappers surface provider-neutral diagnostics such as `PROVIDER_MISSING`, `PROVIDER_AUTH_REQUIRED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_VERSION_UNPARSEABLE`, `PROVIDER_VERSION_UNSUPPORTED`, `PROVIDER_CAPABILITY_MISSING`, and `PROVIDER_UNSUPPORTED_OPTION`, and keep any inventory or preflight `install_hint` in their unavailable errors. See [Prerequisites, version pins, and admission](https://github.com/tkstang/skills/blob/main/documentation/docs/user-guide/consensus/provider-setup.md#prerequisites-version-pins-and-admission).
 
 Cursor accepts `--model <id>` in both default and read-only profiles, for example
 `--model composer-2.5`; list IDs with `cursor-agent --list-models`. Effort remains
@@ -378,7 +387,7 @@ Verdict submission is enabled through an injected submit command and environment
 
 Cursor is included in the provider floor, but local auth state is still operator-owned. If inventory or preflight reports Cursor as `auth_required`, unlock the OS keychain or authenticate the Cursor CLI in the current user session before retrying. When agent shells cannot read the Cursor sign-in, export `CURSOR_API_KEY` or point `CONSENSUS_CURSOR_EXECUTABLE` at a wrapper that loads it.
 
-`CONSENSUS_CLAUDE_EXECUTABLE`, `CONSENSUS_CODEX_EXECUTABLE`, and `CONSENSUS_CURSOR_EXECUTABLE` replace a provider's CLI with another program, given as an absolute path, such as a wrapper that loads the provider's credential from the OS keychain. Only the parent environment sets them. See [Provider programs](https://github.com/tkstang/skills/blob/main/documentation/docs/user-guide/consensus/provider-setup.md#provider-programs) for when to use one and how probes and runs call it.
+`CONSENSUS_CLAUDE_EXECUTABLE`, `CONSENSUS_CODEX_EXECUTABLE`, and `CONSENSUS_CURSOR_EXECUTABLE` (and, for the extended providers, `CONSENSUS_ANTIGRAVITY_EXECUTABLE`, `CONSENSUS_GEMINI_EXECUTABLE`, and `CONSENSUS_DROID_EXECUTABLE`) replace a provider's CLI with another program, given as an absolute path, such as a wrapper that loads the provider's credential from the OS keychain. Only the parent environment sets them. See [Provider programs](https://github.com/tkstang/skills/blob/main/documentation/docs/user-guide/consensus/provider-setup.md#provider-programs) for when to use one and how probes and runs call it.
 
 Native Cursor submit-tool support is reserved for a later acceptance path; the provider-neutral submit CLI path is used instead.
 

@@ -59,7 +59,8 @@ Claude, `--permission-mode workspace-write`:
 - An `--allow-bash` pattern, such as `git status:*`, is one line of at most 256
   characters with no parentheses or commas, and must name a command.
 
-Cursor has no write mode.
+Cursor and the extended providers (Antigravity, Gemini CLI, Droid) have no
+write mode.
 
 Both Claude and Codex keep the same write policy on a resumed turn.
 
