@@ -1,8 +1,15 @@
-import { mkdtemp, readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
+import {
+  mkdtemp,
+  readdir,
+  readFile,
+  writeFile,
+  mkdir,
+  rm,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 
 import * as validation from '../../scripts/validate.js';
 const {
@@ -40,6 +47,7 @@ async function createValidTempRepository() {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-validator-'),
   );
+  onTestFinished(() => rm(tempRoot, { recursive: true, force: true }));
 
   await mkdir(path.join(tempRoot, 'skills'), { recursive: true });
   await mkdir(path.join(tempRoot, 'src/skills/session-fork-to-destination'), {

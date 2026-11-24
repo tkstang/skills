@@ -145,9 +145,10 @@ inherits the canonical owner's single quoted stable `metadata.version`.
 Plugin releases are separate: `plugins/consensus/` and `plugins/session/` each
 have their own provider and marketplace manifest version. Bumping a plugin does
 not rewrite its member skill versions; bumping a skill does not rewrite either
-plugin release version. Any change to a plugin's shipped content, including a
-regenerated member-skill payload, must still raise that plugin's release version;
-`scripts/validate-skill-versions.ts` enforces this against the merge-base. The
+plugin release version. A change to shipped plugin content, including a
+regenerated member-skill payload, must raise that plugin's release version.
+`scripts/validate-skill-versions.ts` compares versions at the merge-base.
+A new plugin with no provider manifest at the merge-base is exempt. The
 plugin-root `AGENTS.md`, `README.md` and `.gitkeep` placeholders are exempt:
 no provider loads them automatically as plugin components.
 
