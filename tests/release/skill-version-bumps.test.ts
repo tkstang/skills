@@ -1,10 +1,10 @@
 import { execFile as execFileCallback } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 
 import { validateChangedSkillVersions } from '../../scripts/validate-skill-versions.js';
 import { gitEnv } from '../helpers/git-env.mjs';
@@ -57,6 +57,7 @@ async function initRepo(
   baseVersion = '1.0.0',
 ): Promise<{ root: string; baseSha: string }> {
   const root = await mkdtemp(path.join(os.tmpdir(), 'skill-version-'));
+  onTestFinished(() => rm(root, { recursive: true, force: true }));
   await git(root, ['init', '-q']);
   await git(root, ['config', 'user.email', 'test@example.com']);
   await git(root, ['config', 'user.name', 'Test']);
@@ -78,6 +79,68 @@ async function initRepo(
 
   return { root, baseSha };
 }
+
+const CONSENSUS_MANIFESTS = [
+  'plugins/consensus/.claude-plugin/plugin.json',
+  'plugins/consensus/.cursor-plugin/plugin.json',
+  'plugins/consensus/.codex-plugin/plugin.json',
+];
+
+async function writeManifests(
+  root: string,
+  version: string,
+  manifests: readonly string[] = CONSENSUS_MANIFESTS,
+) {
+  for (const manifest of manifests) {
+    await mkdir(path.dirname(path.join(root, manifest)), { recursive: true });
+    await writeFile(
+      path.join(root, manifest),
+      `${JSON.stringify({ name: 'consensus', version }, null, 2)}\n`,
+    );
+  }
+}
+
+/** Adds a released consensus plugin with shipped and maintainer files. */
+async function initPluginRepo(): Promise<{ root: string; baseSha: string }> {
+  const { root } = await initRepo();
+  await writeManifests(root, '0.1.0');
+  await mkdir(path.join(root, 'plugins/consensus/scripts'), {
+    recursive: true,
+  });
+  await mkdir(path.join(root, 'plugins/consensus/skills/demo'), {
+    recursive: true,
+  });
+  await mkdir(path.join(root, 'plugins/consensus/agents'), { recursive: true });
+  await writeFile(
+    path.join(root, 'plugins/consensus/scripts/run.mjs'),
+    'export const value = 1;\n',
+  );
+  await writeFile(
+    path.join(root, 'plugins/consensus/skills/demo/SKILL.md'),
+    skillFrontmatter('demo', '1.0.0'),
+  );
+  await writeFile(path.join(root, 'plugins/consensus/README.md'), '# c\n');
+  await writeFile(path.join(root, 'plugins/consensus/AGENTS.md'), '# c\n');
+  await writeFile(path.join(root, 'plugins/consensus/agents/.gitkeep'), '');
+  await git(root, ['add', '-A']);
+  await git(root, ['commit', '-qm', 'add consensus plugin']);
+  return { root, baseSha: (await git(root, ['rev-parse', 'HEAD'])).trim() };
+}
+
+const DEMO_IN_CONSENSUS = [
+  {
+    owner: 'demo',
+    source: 'src/skills/demo',
+    targets: [
+      {
+        kind: 'plugin' as const,
+        plugin: 'consensus',
+        name: 'demo',
+        output: 'plugins/consensus/skills/demo',
+      },
+    ],
+  },
+];
 
 describe('validateChangedSkillVersions', () => {
   it('flags a script change without a version bump', async () => {
@@ -311,6 +374,7 @@ metadata:
 
   it('preserves version identity across a clean-break owner rename', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'skill-version-rename-'));
+    onTestFinished(() => rm(root, { recursive: true, force: true }));
     await git(root, ['init', '-q']);
     await git(root, ['config', 'user.email', 'test@example.com']);
     await git(root, ['config', 'user.name', 'Test']);
@@ -551,6 +615,221 @@ metadata:
     });
 
     expect(result.bumpedPlugins).toEqual(['consensus']);
+    expect(result.findings).toEqual([]);
+  });
+
+  it('flags shipped plugin content changed without a release bump', async () => {
+    const { root, baseSha } = await initPluginRepo();
+    await writeFile(
+      path.join(root, 'plugins/consensus/scripts/run.mjs'),
+      'export const value = 2;\n',
+    );
+    await git(root, ['commit', '-aqm', 'change plugin script']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+      declarations: [],
+    });
+
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].skill).toBe('plugin:consensus');
+    expect(result.findings[0].message).toContain('base 0.1.0, current 0.1.0');
+    expect(result.findings[0].message).toContain(
+      'plugins/consensus/scripts/run.mjs',
+    );
+    expect(result.findings[0].message).toContain(
+      'pnpm tsx scripts/bump-version.ts <x.y.z> --plugin consensus',
+    );
+  });
+
+  it('flags a generated plugin skill payload change even when the skill bumped', async () => {
+    const { root, baseSha } = await initPluginRepo();
+    await writeFile(
+      path.join(root, 'src/skills/demo/SKILL.md'),
+      skillFrontmatter('demo', '1.0.1'),
+    );
+    await writeFile(
+      path.join(root, 'plugins/consensus/skills/demo/SKILL.md'),
+      skillFrontmatter('demo', '1.0.1'),
+    );
+    await writeChangelogEntry(root, '- `demo` 1.0.1 changes its payload.');
+    await git(root, ['commit', '-aqm', 'bump skill only']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+      declarations: DEMO_IN_CONSENSUS,
+    });
+
+    expect(result.bumpedSkills).toEqual(['demo']);
+    expect(result.findings.map((finding) => finding.skill)).toEqual([
+      'plugin:consensus',
+    ]);
+  });
+
+  it('accepts shipped plugin content changed with a release bump', async () => {
+    const { root, baseSha } = await initPluginRepo();
+    await writeFile(
+      path.join(root, 'plugins/consensus/scripts/run.mjs'),
+      'export const value = 2;\n',
+    );
+    await writeManifests(root, '0.2.0');
+    await writeChangelogEntry(root, '- `consensus` 0.2.0 changes its script.');
+    await git(root, ['commit', '-aqm', 'change plugin script with bump']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+      declarations: [],
+    });
+
+    expect(result.findings).toEqual([]);
+  });
+
+  it.each([
+    ['a lower version', CONSENSUS_MANIFESTS, '0.0.9'],
+    ['a bump in only one manifest', CONSENSUS_MANIFESTS.slice(0, 1), '0.2.0'],
+  ])(
+    'flags shipped plugin content changed with %s',
+    async (_label, manifests, version) => {
+      const { root, baseSha } = await initPluginRepo();
+      await writeFile(
+        path.join(root, 'plugins/consensus/scripts/run.mjs'),
+        'export const value = 2;\n',
+      );
+      await writeManifests(root, version, manifests);
+      await writeChangelogEntry(root, `- \`consensus\` ${version} changes.`);
+      await git(root, ['commit', '-aqm', 'change plugin script']);
+
+      const result = await validateChangedSkillVersions(root, {
+        baseRef: baseSha,
+        declarations: [],
+      });
+
+      expect(result.findings.map((finding) => finding.skill)).toEqual([
+        'plugin:consensus',
+      ]);
+    },
+  );
+
+  it.each([
+    [
+      'moving a shipped file out of the plugin',
+      async (root: string) => {
+        await mkdir(path.join(root, 'moved'), { recursive: true });
+        await git(root, [
+          'mv',
+          'plugins/consensus/scripts/run.mjs',
+          'moved/run.mjs',
+        ]);
+      },
+    ],
+    [
+      'adding a shipped file with a non-ASCII name',
+      async (root: string) => {
+        await writeFile(
+          path.join(root, 'plugins/consensus/scripts/café.mjs'),
+          'export {};\n',
+        );
+        await git(root, ['add', '-A']);
+      },
+    ],
+    [
+      'replacing a shipped file with a symlink',
+      async (root: string) => {
+        const script = path.join(root, 'plugins/consensus/scripts/run.mjs');
+        await rm(script);
+        await symlink('../../../src/skills/demo/scripts/run.mjs', script);
+        await git(root, ['add', '-A']);
+      },
+    ],
+  ])('flags %s without a release bump', async (_label, change) => {
+    const { root, baseSha } = await initPluginRepo();
+    await change(root);
+    await git(root, ['commit', '-qm', 'change plugin files']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+      declarations: [],
+    });
+
+    expect(result.findings.map((finding) => finding.skill)).toEqual([
+      'plugin:consensus',
+    ]);
+  });
+
+  it('reads every baseline from the merge-base when the base branch moved on', async () => {
+    const { root, baseSha } = await initPluginRepo();
+    const mainBranch = (
+      await git(root, ['rev-parse', '--abbrev-ref', 'HEAD'])
+    ).trim();
+    await writeManifests(root, '0.3.0');
+    await writeChangelogEntry(root, '- `consensus` 0.3.0 release.');
+    await git(root, ['commit', '-aqm', 'release consensus 0.3.0 on main']);
+    await git(root, ['checkout', '-q', '-b', 'feature', baseSha]);
+    await writeFile(
+      path.join(root, 'plugins/consensus/scripts/run.mjs'),
+      'export const value = 2;\n',
+    );
+    await writeManifests(root, '0.2.0');
+    await writeChangelogEntry(root, '- `consensus` 0.2.0 changes its script.');
+    await git(root, ['commit', '-aqm', 'change plugin script with bump']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: mainBranch,
+      declarations: [],
+    });
+
+    expect(result.findings).toEqual([]);
+  });
+
+  it('accepts a plugin release version change with no other content', async () => {
+    const { root, baseSha } = await initPluginRepo();
+    await writeManifests(root, '0.1.1');
+    await writeChangelogEntry(root, '- `consensus` 0.1.1 release.');
+    await git(root, ['commit', '-aqm', 'release consensus 0.1.1']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+      declarations: [],
+    });
+
+    expect(result.bumpedPlugins).toEqual(['consensus']);
+    expect(result.findings).toEqual([]);
+  });
+
+  it('exempts a plugin that has no manifest at the base', async () => {
+    const { root, baseSha } = await initRepo();
+    await writeManifests(root, '0.1.0');
+    await mkdir(path.join(root, 'plugins/consensus/scripts'), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(root, 'plugins/consensus/scripts/run.mjs'),
+      'export const value = 1;\n',
+    );
+    await writeChangelogEntry(root, '- `consensus` 0.1.0 first release.');
+    await git(root, ['add', '-A']);
+    await git(root, ['commit', '-qm', 'add consensus plugin']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+      declarations: [],
+    });
+
+    expect(result.findings).toEqual([]);
+  });
+
+  it('ignores plugin-root maintainer docs and placeholders', async () => {
+    const { root, baseSha } = await initPluginRepo();
+    for (const file of ['README.md', 'AGENTS.md', 'agents/.gitkeep']) {
+      await writeFile(path.join(root, 'plugins/consensus', file), '# edit\n');
+    }
+    await git(root, ['commit', '-aqm', 'edit plugin docs']);
+
+    const result = await validateChangedSkillVersions(root, {
+      baseRef: baseSha,
+      declarations: [],
+    });
+
     expect(result.findings).toEqual([]);
   });
 });

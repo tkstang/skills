@@ -1,8 +1,10 @@
 # Releasing
 
-The `consensus` and `session` plugins have independent release versions. Select
-one plugin release target, run the full automated gate, and verify the provider
-paths affected by that plugin before tagging it. A passing static package check
+The `consensus` and `session` plugins have independent release versions, and
+any PR that changes a plugin's shipped content already raises its version (see
+[Versioning](#versioning)). Select one plugin release target, run the full
+automated gate, and verify the provider paths affected by that plugin before
+tagging it. A passing static package check
 does not establish live provider discovery or permission behavior.
 
 ## Checklist
@@ -168,6 +170,15 @@ together. Contributions land their notes under `## [Unreleased]`; releasing move
 those entries under the new version heading with its release date, leaving
 `## [Unreleased]` empty for the next change. Plugin versions and skill versions
 are separate release boundaries.
+
+Every PR that changes a plugin's shipped content must raise that plugin's
+release version above the merge-base version.
+`scripts/validate-skill-versions.ts` enforces it in the PR `static` job and the
+`pre-push` hook. Shipped content is everything under `plugins/<name>/` except
+the plugin-root `AGENTS.md` and `README.md` (maintainer and human docs no
+provider loads) and `.gitkeep` placeholders. Claude Code's `plugin update`
+compares manifest versions only, so a same-version content change would never
+reach existing installs. A brand-new plugin (no manifest at the base) is exempt.
 
 Use:
 

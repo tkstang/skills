@@ -163,21 +163,32 @@ async function changedFilesSince(
   // The explicit merge-base diff is authoritative for committed changes. The
   // remaining calls add local index, worktree and untracked edits so pre-push
   // use cannot silently miss a version-sensitive change.
+  // NUL-delimited, unquoted paths; --no-renames reports both sides of a move.
   const outputs = await Promise.all([
     git([
       'diff',
       '--name-only',
-      '--diff-filter=ACMRD',
+      '-z',
+      '--no-renames',
+      '--diff-filter=ACMDT',
       `${baseRef}...HEAD`,
       '--',
     ]),
-    git(['diff', '--name-only', '--diff-filter=ACMRD', 'HEAD', '--']),
-    git(['ls-files', '--others', '--exclude-standard']),
+    git([
+      'diff',
+      '--name-only',
+      '-z',
+      '--no-renames',
+      '--diff-filter=ACMDT',
+      'HEAD',
+      '--',
+    ]),
+    git(['ls-files', '-z', '--others', '--exclude-standard']),
   ]);
   return new Set(
     outputs
-      .flatMap((output) => output.split('\n'))
-      .map((file) => posix(file.trim()))
+      .flatMap((output) => output.split('\0'))
+      .map((file) => posix(file))
       .filter(Boolean),
   );
 }
@@ -391,6 +402,86 @@ async function bumpedPluginReleases(
     .toSorted((a, b) => a.name.localeCompare(b.name));
 }
 
+/**
+ * Plugin-root files that are copied into a provider cache but not loaded
+ * automatically as plugin components: maintainer guidance (`AGENTS.md`), human package docs
+ * (`README.md`) and empty-directory placeholders. Everything else under the
+ * plugin root ships, including manifests and generated `skills/` payloads.
+ */
+function isNonShippingPluginFile(relativeToPluginRoot: string): boolean {
+  return (
+    relativeToPluginRoot === 'AGENTS.md' ||
+    relativeToPluginRoot === 'README.md' ||
+    path.posix.basename(relativeToPluginRoot) === '.gitkeep'
+  );
+}
+
+const MAX_LISTED_PLUGIN_FILES = 5;
+
+/**
+ * Claude Code's `plugin update` is keyed on the manifest version, so shipped
+ * plugin content that changes without a release bump never reaches existing
+ * installs. Require a strictly greater release version for every plugin whose
+ * shipped content changed; a plugin with no manifest at the base is new.
+ * Cross-manifest agreement is enforced by `validateVersionConsistency` in
+ * scripts/validate.ts; here the lowest current manifest version must increase.
+ */
+async function unbumpedPluginReleases(
+  root: string,
+  runner: GitRunner,
+  baseRef: string,
+  changedFiles: ReadonlySet<string>,
+): Promise<VersionFinding[]> {
+  const findings: VersionFinding[] = [];
+  for (const target of pluginReleaseTargets) {
+    const pluginRoot = path.posix.dirname(
+      path.posix.dirname(target.providerManifests[0]),
+    );
+    const shipped = [...changedFiles]
+      .filter(
+        (file) =>
+          file.startsWith(`${pluginRoot}/`) &&
+          !isNonShippingPluginFile(file.slice(pluginRoot.length + 1)),
+      )
+      .toSorted();
+    if (shipped.length === 0) continue;
+
+    const baseVersions: string[] = [];
+    const currentVersions: string[] = [];
+    for (const manifest of target.providerManifests) {
+      const base = await showAtBase(runner, baseRef, manifest);
+      const baseValue = base === null ? null : manifestVersion(base);
+      if (baseValue !== null) baseVersions.push(baseValue);
+      const current = await readFile(path.join(root, manifest), 'utf8').catch(
+        () => null,
+      );
+      const currentValue = current === null ? null : manifestVersion(current);
+      if (currentValue !== null) currentVersions.push(currentValue);
+    }
+    if (baseVersions.length === 0) continue;
+
+    const baseVersion = baseVersions.toSorted((a, b) => compareSemver(b, a))[0];
+    const nextVersion =
+      currentVersions.toSorted((a, b) => compareSemver(a, b))[0] ?? '(none)';
+    if (
+      currentVersions.length > 0 &&
+      compareSemver(nextVersion, baseVersion) > 0
+    ) {
+      continue;
+    }
+    const listed = shipped.slice(0, MAX_LISTED_PLUGIN_FILES).join(', ');
+    const more =
+      shipped.length > MAX_LISTED_PLUGIN_FILES
+        ? ` (+${shipped.length - MAX_LISTED_PLUGIN_FILES} more)`
+        : '';
+    findings.push({
+      skill: `plugin:${target.name}`,
+      message: `Plugin ${target.name} shipped content changed relative to ${baseRef} without a release version increase (base ${baseVersion}, current ${nextVersion}); changed: ${listed}${more}. Existing installs only update when the plugin version increases. Run \`pnpm tsx scripts/bump-version.ts <x.y.z> --plugin ${target.name}\` with a version greater than ${baseVersion}, and add a CHANGELOG.md ## [Unreleased] entry naming ${target.name} and that version.`,
+    });
+  }
+  return findings;
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
@@ -429,12 +520,15 @@ export async function validateChangedSkillVersions(
   bumpedSkills: string[];
   bumpedPlugins: string[];
 }> {
-  const { baseRef } = options;
-  if (!baseRef)
+  const { baseRef: requestedBase } = options;
+  if (!requestedBase)
     throw new Error('validateChangedSkillVersions requires a baseRef');
   const git = options.gitExecFile ?? defaultGitExecFile(root);
   // Fail closed when the caller supplies an unresolved or shallow base.
-  await git(['rev-parse', '--verify', `${baseRef}^{commit}`]);
+  await git(['rev-parse', '--verify', `${requestedBase}^{commit}`]);
+  // Every baseline read (paths, versions, changelog) uses the same merge-base,
+  // so a base branch that moved on cannot mix two baselines.
+  const baseRef = (await git(['merge-base', requestedBase, 'HEAD'])).trim();
 
   const declarations = options.declarations ?? distributions;
   // No repository-wide rename map: every merged rename is already on the base
@@ -551,6 +645,10 @@ export async function validateChangedSkillVersions(
       // Structural validation owns malformed historical files.
     }
   }
+
+  findings.push(
+    ...(await unbumpedPluginReleases(root, git, baseRef, changedFiles)),
+  );
 
   // A released version change only reaches users through the changelog, so the
   // entry is required in the same change that moves the version.

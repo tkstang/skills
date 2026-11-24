@@ -18,8 +18,11 @@ claiming release readiness.
 
 Any change under a canonical skill directory requires increasing its skill
 version, including instructions, runtime, tests, references, assets, and build
-declarations. Never edit generated skill versions directly. See
-[Repository Conventions](../contributing/development/conventions.md).
+declarations. Any change to a plugin's shipped content, including a regenerated
+member-skill payload, requires increasing that plugin's release version too; the
+plugin-root `AGENTS.md`, `README.md` and `.gitkeep` placeholders are exempt.
+Never edit generated skill versions directly. See
+[Repository Conventions](../contributing/development/conventions.md#plugin-release-bump-on-edit).
 
 The [version tool](https://github.com/tkstang/skills/blob/main/scripts/bump-version.ts)
 keeps the selected boundary together. For example, after

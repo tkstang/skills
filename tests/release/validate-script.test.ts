@@ -1,8 +1,15 @@
-import { mkdtemp, readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
+import {
+  mkdtemp,
+  readdir,
+  readFile,
+  writeFile,
+  mkdir,
+  rm,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 
 import * as validation from '../../scripts/validate.js';
 const {
@@ -40,6 +47,7 @@ async function createValidTempRepository() {
   const tempRoot = await mkdtemp(
     path.join(os.tmpdir(), 'consensus-validator-'),
   );
+  onTestFinished(() => rm(tempRoot, { recursive: true, force: true }));
 
   await mkdir(path.join(tempRoot, 'skills'), { recursive: true });
   await mkdir(path.join(tempRoot, 'src/skills/session-fork-to-destination'), {
@@ -464,6 +472,30 @@ describe('validate-script', () => {
     const malformed = await validateRepository({ root: tempRoot });
     expect(malformed.ok).toBe(false);
     expect(malformed.errors.join('\n')).toMatch(/valid semver/);
+  });
+
+  it('version consistency rejects a stale marketplace entry version', async () => {
+    const tempRoot = await createValidTempRepository();
+    const marketplacePath = path.join(
+      tempRoot,
+      '.claude-plugin/marketplace.json',
+    );
+    const marketplace = JSON.parse(await readFile(marketplacePath, 'utf8'));
+    const entry = marketplace.plugins.find(
+      (plugin: { name: string }) => plugin.name === 'consensus',
+    );
+    const current = (await validateVersionConsistency(tempRoot)).filter(
+      (issue) => issue.startsWith('consensus '),
+    );
+    expect(current).toEqual([]);
+    entry.version = '0.0.1';
+    await writeJson(marketplacePath, marketplace);
+
+    expect(await validateVersionConsistency(tempRoot)).toEqual([
+      expect.stringMatching(
+        /^consensus plugin manifest versions differ: .*\.claude-plugin\/marketplace\.json:consensus\.version=0\.0\.1/,
+      ),
+    ]);
   });
 
   it('full repository validation rejects invalid standalone skill directories', async () => {
