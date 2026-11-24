@@ -468,6 +468,59 @@ describe('ACP session driver', () => {
     });
   });
 
+  it('does not confirm the starting mode when a contrary report shares the session/new chunk (agy)', async () => {
+    const recorded = await fixture('agy-key-default');
+    const sessionId = (
+      recorded.steps[3] as { respond: { result: { sessionId: string } } }
+    ).respond.result.sessionId;
+    const scenario = cutAfter(
+      recorded,
+      nthIndex((step) => 'respond' in step, 3),
+    );
+    const modeUpdate = JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'session/update',
+      params: {
+        sessionId,
+        update: {
+          sessionUpdate: 'current_mode_update',
+          currentModeId: 'accept-edits',
+        },
+      },
+    });
+    // Delivers the update right after the session/new response, before the
+    // driver's await resumes, as one stdout chunk carrying both would.
+    const { outcome, methods } = await run(
+      scenario,
+      { mode: AGY_MODE, configOptions: AGY_CONFIG },
+      {
+        wrapSpawn: (spawn) => (options) =>
+          spawn({
+            ...options,
+            onLine: (line) => {
+              options.onLine(line);
+              if (JSON.parse(line).result?.sessionId === sessionId) {
+                options.onLine(modeUpdate);
+              }
+            },
+          }),
+      },
+    );
+
+    expectNoMismatch(outcome);
+    expect(methods).toEqual([
+      'initialize',
+      'session/new',
+      'session/set_mode',
+      'session/close',
+    ]);
+    expect(outcome.result).toMatchObject({
+      prompt_sent: false,
+      setup: [{ step: 'mode', confirmed: false }],
+      error: { phase: 'setup', kind: 'unconfirmed_setup' },
+    });
+  });
+
   it('refuses a model the agent does not offer, listing offered ids, without setting it', async () => {
     const scenario = cutAfter(
       await fixture('agy-key-default'),

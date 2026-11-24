@@ -1879,6 +1879,7 @@ var DEFAULT_MAX_OUTPUT_BYTES2 = 10 * 1024 * 1024;
 var MAX_REFUSED_METHODS = 20;
 var MAX_META_CHARS = 200;
 var ADVERTISED_SAMPLE = 5;
+var MAX_EARLY_SESSIONS = 4;
 var stdioAcpTransport = { run: runAcpTurn };
 async function runAcpTurn(input) {
   const timing = { ...DEFAULT_ACP_TIMING, ...input.timing };
@@ -2241,7 +2242,14 @@ var SessionState = class {
   // The confirmed read-only mode, watched until the session ends.
   held;
   promptActive = false;
+  // The starting mode: session/new's report, unless a mode report before
+  // the watch began disagrees with it (initialConflict).
   initialMode;
+  initialConflict = false;
+  // Mode and option updates that arrived before the session/new response
+  // was handled (in the same stdout chunk, or earlier): the latest of each
+  // kind per session id, replayed once the session id is known.
+  early = /* @__PURE__ */ new Map();
   // Agent-reported strings are redacted before they are shortened, so a
   // clip never leaves part of a secret behind.
   keep(value) {
@@ -2270,6 +2278,11 @@ var SessionState = class {
     const modes = isRecord2(response.modes) ? response.modes : {};
     this.initialMode = typeof modes.currentModeId === "string" ? modes.currentModeId : void 0;
     this.configOptionsSeen(response.configOptions);
+    const early = this.early.get(response.sessionId);
+    this.early.clear();
+    for (const params of early?.values() ?? []) {
+      this.notification("session/update", params);
+    }
   }
   configOptionsSeen(options) {
     if (!Array.isArray(options)) return;
@@ -2312,7 +2325,11 @@ var SessionState = class {
     return flattenOptionValues(option.options);
   }
   watchMode(step) {
-    this.modeWatch = { step, initial: this.initialMode, contrary: false };
+    this.modeWatch = {
+      step,
+      initial: this.initialConflict ? void 0 : this.initialMode,
+      contrary: false
+    };
   }
   modeEvidence() {
     const watch = this.modeWatch;
@@ -2345,13 +2362,21 @@ var SessionState = class {
   }
   notification(method, params) {
     if (method !== "session/update" || !isRecord2(params)) return;
-    if (this.result.session_id === void 0 || params.sessionId !== this.result.session_id) {
-      return;
-    }
     const update = isRecord2(params.update) ? params.update : {};
     const kind = update.sessionUpdate;
+    if (this.result.session_id === void 0) {
+      this.keepEarly(params, kind);
+      return;
+    }
+    if (params.sessionId !== this.result.session_id) return;
     const watch = this.modeWatch;
     if (kind === "current_mode_update") {
+      if (!watch && !this.held && typeof update.currentModeId === "string") {
+        this.initialMode ??= update.currentModeId;
+        if (update.currentModeId !== this.initialMode) {
+          this.initialConflict = true;
+        }
+      }
       if (this.held && typeof update.currentModeId === "string" && update.currentModeId !== this.held.step.modeId) {
         this.drifted(update.currentModeId);
       }
@@ -2378,6 +2403,20 @@ var SessionState = class {
     if (watch && marker !== void 0 && content.text === marker) {
       watch.echoed ??= "marker";
     }
+  }
+  keepEarly(params, kind) {
+    if (kind !== "current_mode_update" && kind !== "config_option_update") {
+      return;
+    }
+    if (typeof params.sessionId !== "string") return;
+    let kinds = this.early.get(params.sessionId);
+    if (!kinds) {
+      if (this.early.size >= MAX_EARLY_SESSIONS) return;
+      kinds = /* @__PURE__ */ new Map();
+      this.early.set(params.sessionId, kinds);
+    }
+    kinds.delete(kind);
+    kinds.set(kind, params);
   }
 };
 var MAX_DISPLAY_PATH_CHARS = 240;

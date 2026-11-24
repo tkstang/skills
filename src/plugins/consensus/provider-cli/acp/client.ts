@@ -42,7 +42,8 @@ export const ACP_PROTOCOL_VERSION = 1;
 // How a mode change is confirmed. Any enabled kind of evidence confirms it;
 // a current_mode_update naming another mode always fails it.
 export interface AcpModeConfirmation {
-  // session/new already reports the mode (agy sends no echo for set_mode).
+  // session/new already reports the mode, and no mode report before
+  // set_mode disagrees (agy sends no echo for set_mode).
   initialState?: boolean;
   // A current_mode_update naming the mode.
   currentModeUpdate?: boolean;
@@ -109,6 +110,8 @@ const DEFAULT_MAX_OUTPUT_BYTES = 10 * 1024 * 1024;
 const MAX_REFUSED_METHODS = 20;
 const MAX_META_CHARS = 200;
 const ADVERTISED_SAMPLE = 5;
+// Distinct session ids whose early updates are kept before session/new.
+const MAX_EARLY_SESSIONS = 4;
 
 export interface AcpRunInput {
   executable: string;
@@ -563,7 +566,14 @@ class SessionState {
   // The confirmed read-only mode, watched until the session ends.
   private held: { step: AcpModeStep; drift?: string } | undefined;
   private promptActive = false;
+  // The starting mode: session/new's report, unless a mode report before
+  // the watch began disagrees with it (initialConflict).
   private initialMode: string | undefined;
+  private initialConflict = false;
+  // Mode and option updates that arrived before the session/new response
+  // was handled (in the same stdout chunk, or earlier): the latest of each
+  // kind per session id, replayed once the session id is known.
+  private readonly early = new Map<string, Map<string, unknown>>();
 
   constructor(
     private readonly result: AcpTurnResult,
@@ -607,6 +617,11 @@ class SessionState {
     this.initialMode =
       typeof modes.currentModeId === 'string' ? modes.currentModeId : undefined;
     this.configOptionsSeen(response.configOptions);
+    const early = this.early.get(response.sessionId as string);
+    this.early.clear();
+    for (const params of early?.values() ?? []) {
+      this.notification('session/update', params);
+    }
   }
 
   configOptionsSeen(options: unknown) {
@@ -657,7 +672,11 @@ class SessionState {
   }
 
   watchMode(step: AcpModeStep) {
-    this.modeWatch = { step, initial: this.initialMode, contrary: false };
+    this.modeWatch = {
+      step,
+      initial: this.initialConflict ? undefined : this.initialMode,
+      contrary: false,
+    };
   }
 
   modeEvidence(): AcpSetupEvidence['evidence'] | undefined {
@@ -700,17 +719,24 @@ class SessionState {
 
   notification(method: string, params: unknown) {
     if (method !== 'session/update' || !isRecord(params)) return;
-    // Updates for another session (or before ours exists) are ignored.
-    if (
-      this.result.session_id === undefined ||
-      params.sessionId !== this.result.session_id
-    ) {
-      return;
-    }
     const update = isRecord(params.update) ? params.update : {};
     const kind = update.sessionUpdate;
+    if (this.result.session_id === undefined) {
+      this.keepEarly(params, kind);
+      return;
+    }
+    // Updates for another session are ignored.
+    if (params.sessionId !== this.result.session_id) return;
     const watch = this.modeWatch;
     if (kind === 'current_mode_update') {
+      // Before the watch, a report is part of the starting state; one that
+      // disagrees with session/new leaves the starting mode unknown.
+      if (!watch && !this.held && typeof update.currentModeId === 'string') {
+        this.initialMode ??= update.currentModeId;
+        if (update.currentModeId !== this.initialMode) {
+          this.initialConflict = true;
+        }
+      }
       if (
         this.held &&
         typeof update.currentModeId === 'string' &&
@@ -741,6 +767,22 @@ class SessionState {
     if (watch && marker !== undefined && content.text === marker) {
       watch.echoed ??= 'marker';
     }
+  }
+
+  private keepEarly(params: Record<string, unknown>, kind: unknown) {
+    if (kind !== 'current_mode_update' && kind !== 'config_option_update') {
+      return;
+    }
+    if (typeof params.sessionId !== 'string') return;
+    let kinds = this.early.get(params.sessionId);
+    if (!kinds) {
+      if (this.early.size >= MAX_EARLY_SESSIONS) return;
+      kinds = new Map();
+      this.early.set(params.sessionId, kinds);
+    }
+    // Re-inserted so replay keeps arrival order.
+    kinds.delete(kind);
+    kinds.set(kind, params);
   }
 }
 
