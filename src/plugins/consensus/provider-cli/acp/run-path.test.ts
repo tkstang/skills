@@ -481,6 +481,43 @@ describe('extended runs through runProviderTurn', () => {
     expect(JSON.stringify(envelope)).not.toContain(secret);
   });
 
+  it('redacts the default credential shapes from the stdout of an error-text failure', async () => {
+    const token = 'Bearer abcdef0123456789xyz';
+    const scenario = insertAfter(
+      await agySession(),
+      expects('session/prompt'),
+      [
+        {
+          send: {
+            method: 'session/update',
+            params: {
+              sessionId: 'd1dc1bef-c052-4b55-a232-505704b45765',
+              update: {
+                sessionUpdate: 'agent_message_chunk',
+                content: {
+                  type: 'text',
+                  text: `agent executor error (${token}) `,
+                },
+              },
+            },
+          },
+        },
+      ],
+    );
+    const { envelope } = await runTurn(ANTIGRAVITY_DESCRIPTOR, scenario, {
+      model: 'gemini-3.8-flash',
+    });
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_EXIT',
+      attempts: { terminal_reason: 'acp_error_text' },
+      stdout:
+        'agent executor error (<redacted>) marker-85b2d6a11e65\nGemini 3.8 Flash',
+    });
+    expect(JSON.stringify(envelope)).not.toContain('abcdef0123456789xyz');
+  });
+
   it('stops before the prompt, as not started, when the read-only mode is not confirmed', async () => {
     // Droid normally echoes the mode change; here set_mode answers without one.
     const scenario = cutAfter(

@@ -2485,6 +2485,10 @@ function clip(value, max = MAX_META_CHARS) {
 // src/plugins/consensus/provider-cli/acp/adapter.ts
 var ACP_READ_ONLY_BRIEF_LINE = "This is a read-only run. Use only read and search tools. Do not edit files or run shell commands; such requests are denied and end the turn.";
 var ACP_CLIENT_INFO = { name: "consensus", version: "0" };
+var FULLY_REDACTED_STDOUT = /* @__PURE__ */ new Set([
+  "acp_error_text",
+  "provider_limit_reached"
+]);
 var ACP_UNSETTLED_TEARDOWN_WARNING = "The agent's process group was still present after SIGKILL; the post-run working-tree check could not confirm the group had exited.";
 function acpAdapter(descriptor, options = {}) {
   const transport = options.transport ?? stdioAcpTransport;
@@ -2535,7 +2539,12 @@ function acpAdapter(descriptor, options = {}) {
     classifyReportedFailure: (stdout) => failureClassification(classify(stdout)),
     extractText: (_invocation, result) => extractAcpText(result.stdout),
     // Never the serialized turn result: only its (redacted) answer text.
-    envelopeStdout: (stdout) => parseAcpTurnResult(stdout)?.text ?? "",
+    envelopeStdout: (stdout) => {
+      const result = parseAcpTurnResult(stdout);
+      if (!result) return "";
+      const classification = classifyAcpTurn(result, classifyOptions);
+      return !classification.ok && FULLY_REDACTED_STDOUT.has(classification.terminal_reason) ? redactText(result.text) : result.text;
+    },
     extractSession: (stdout) => extractAcpSession(stdout, descriptor),
     extractPermissionDenials: extractAcpPermissionDenials,
     submitCaptureEligible: () => false,

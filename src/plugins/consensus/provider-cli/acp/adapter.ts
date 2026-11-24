@@ -49,6 +49,7 @@ import type {
 import {
   classifyAcpTurn,
   parseAcpTurnResult,
+  redactText,
   serializeAcpTurnResult,
 } from './transcript.js';
 
@@ -57,6 +58,12 @@ export const ACP_READ_ONLY_BRIEF_LINE =
   'This is a read-only run. Use only read and search tools. Do not edit files or run shell commands; such requests are denied and end the turn.';
 
 export const ACP_CLIENT_INFO = { name: 'consensus', version: '0' } as const;
+
+// Failures whose envelope stdout gets full diagnostic redaction.
+const FULLY_REDACTED_STDOUT: ReadonlySet<string> = new Set([
+  'acp_error_text',
+  'provider_limit_reached',
+]);
 
 // Added to diagnostics.warnings when teardown settles by settlement_timeout.
 const ACP_UNSETTLED_TEARDOWN_WARNING =
@@ -137,7 +144,18 @@ export function acpAdapter(
       failureClassification(classify(stdout)),
     extractText: (_invocation, result) => extractAcpText(result.stdout),
     // Never the serialized turn result: only its (redacted) answer text.
-    envelopeStdout: (stdout) => parseAcpTurnResult(stdout)?.text ?? '',
+    envelopeStdout: (stdout) => {
+      const result = parseAcpTurnResult(stdout);
+      if (!result) return '';
+      const classification = classifyAcpTurn(result, classifyOptions);
+      // Error text or a stop at a limit, not a usable answer: the default
+      // credential shapes come out too, as they do from the message (the
+      // literal values and descriptor patterns already did).
+      return !classification.ok &&
+        FULLY_REDACTED_STDOUT.has(classification.terminal_reason)
+        ? redactText(result.text)
+        : result.text;
+    },
     extractSession: (stdout) => extractAcpSession(stdout, descriptor),
     extractPermissionDenials: extractAcpPermissionDenials,
     submitCaptureEligible: () => false,
