@@ -41,6 +41,10 @@
   text-only and offers a core peer instead.
   `consensus-delegate` 0.2.2 (standalone `delegate`, `consensus:delegate`)
   accepts the extended providers as read-only peers and reports both codes.
+  Its brief template adds a read-only verification block that asks for
+  file:line evidence instead of a command, which the host checks, and its
+  report adds a "comparison unavailable" outcome for runs where no
+  working-tree comparison completed.
   The other skill versions in this release are listed under Changed.
 
 ### Changed

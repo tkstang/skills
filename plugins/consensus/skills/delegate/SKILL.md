@@ -60,7 +60,9 @@ checks neither its sign-in nor its model, so the run can still fail with
 
 1. **Write the brief** from the [brief template](references/brief-template.md):
    `<task>`, `<output_contract>`, and `<verification_loop>` blocks, with the
-   exact verification command. Include only the context the task needs, and
+   exact verification command, or for a read-only run the file:line evidence
+   requirement. Always use the evidence requirement for an extended peer,
+   which cannot run commands. Include only the context the task needs, and
    never secrets or credentials. Save it in the state directory described in
    [accounting](references/accounting.md#state-directory), outside the
    worktree, so it does not show up as a change.
@@ -78,9 +80,10 @@ checks neither its sign-in nor its model, so the run can still fail with
    never accept one silently.
 6. **Verify.** Read the full diff (write mode) or check the load-bearing claims
    against source (read-only). Rerun the brief's verification command yourself
-   in the same directory. In read-only mode, use a command that cannot write
-   to the checkout, or run it in a separate worktree. Give a reason for every
-   claim or change you dismiss.
+   in the same directory; for an evidence brief, open each cited file:line and
+   confirm it supports the claim. In read-only mode, use a command that cannot
+   write to the checkout, or run it in a separate worktree. Give a reason for
+   every claim or change you dismiss.
    If verification finds an ordinary failure within the original task, follow
    [Continue](#continue) to have the same peer fix it automatically, then account
    for and verify that turn too.
@@ -131,7 +134,10 @@ prompt and watches it during the turn, puts its own read-only lines before the
 brief, and denies every permission request the peer makes. The CLI also
 checks the working tree itself: it snapshots the whole git work tree that
 contains `--cwd` before the turn and compares it after, so `--cwd` must be
-inside a git checkout.
+inside a git checkout. These controls govern the peer's tool calls only: the
+provider's own hooks and MCP servers, from the user's or the repository's
+configuration, can run without a permission request. Run an extended peer
+only in a checkout, and with provider configuration, the user controls.
 
 For a Claude write run, grant the brief's verification command, such as
 `--allow-bash 'pnpm run test:*'`, and any other command the task needs. Other
@@ -175,11 +181,14 @@ A success has `ok: true`, `output_kind: "text"`, and the peer's final reply in
   read-only turn, whatever the turn returned. Report the message and, when
   present, `diagnostics.working_tree_changes` verbatim. A leading `HEAD` entry
   means HEAD moved; with no list, the checkout could not be re-checked and
-  counts as changed. The change may also be the user's own edit during the
+  counts as changed. A `The run failed: ...` entry in `diagnostics.warnings`
+  means the run also failed with an error after launch (`turn: unknown`);
+  report it too. The change may also be the user's own edit during the
   run. Treat the reply as unusable, and do not
   revert anything unless the user asks.
 - `PROVIDER_PERMISSION_DENIED`: an extended peer asked for a tool outside
-  read-only, was denied, and ended without an answer. Report the message and
+  read-only, was denied, and ended without an answer; any partial text in
+  `stdout` is not an answer. Report the message and
   each entry of `diagnostics.permission_denials.requests` (tool, kind, and the
   first path it named); do not resend.
 - `attempts.terminal_reason: "acp_mode_changed"` (`PROVIDER_EXIT`,

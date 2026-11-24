@@ -84,8 +84,11 @@ the worktree and the host's snapshots. For an extended peer the consensus CLI
 checks the checkout itself and fails the run if anything changed; see
 [Working-tree check](provider-run-controls.md#working-tree-check). The host
 still checks the peer's load-bearing claims against the source before relying
-on them. Its verification command must not write to your checkout;
-verification that may write runs in a separate worktree.
+on them. A read-only brief names either a verification command or, always
+for an extended peer, a requirement to cite file:line evidence for every
+claim, and the host opens each citation to confirm it. A verification command
+must not write to your checkout; verification that may write runs in a
+separate worktree.
 
 ## What the peer can do
 
@@ -119,7 +122,11 @@ behaviour.
   the prompt and held for the whole turn (a mode change cancels the turn and
   discards its answer), and every permission request they make is denied.
   Consensus tells them not to edit files or run commands, so the brief asks for
-  file:line evidence rather than a verification command.
+  file:line evidence rather than a verification command. These controls cover
+  the peer's tool calls only: hooks and MCP servers from the provider's own
+  configuration, yours or the repository's, can run without a permission
+  request. Use extended peers only in checkouts you control; see
+  [What every extended run gets](provider-setup.md#what-every-extended-run-gets).
 
 A commit made by any peer is reported, never accepted silently.
 
@@ -137,9 +144,14 @@ a limit does not by itself prove that nothing ran.
 For an extended peer, `PROVIDER_WORKTREE_CHANGED` means the checkout changed
 during the turn. The host reports the message and the changed paths verbatim
 and leaves them for you to review; the change may be your own edit made during
-the run. `PROVIDER_PERMISSION_DENIED` means the peer tried to act outside
-read-only and ended without an answer; the host reports each denied request:
-its tool, kind, and the first path it named.
+the run. The same code reports a run that failed with an error after launch
+and also changed the checkout; the error appears in the message and in
+`diagnostics.warnings`. `PROVIDER_PERMISSION_DENIED` means the peer tried to
+act outside read-only and ended without an answer; the host reports each
+denied request: its tool, kind, and the first path it named. When no
+before/after comparison ran, because the run was refused before launch or
+the CLI returned no envelope, the host reports the check as "comparison
+unavailable" rather than "unchanged".
 
 ## Continuing
 

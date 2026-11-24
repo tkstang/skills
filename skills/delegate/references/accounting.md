@@ -146,12 +146,23 @@ the final report:
   "unobserved".
 - Permission denials (`diagnostics.permission_denials`, with each request's
   tool, kind, and path for an extended peer), or "none".
-- For an extended read-only run: the CLI's working-tree check, either
-  "unchanged" or the `PROVIDER_WORKTREE_CHANGED` message and
-  `diagnostics.working_tree_changes`, verbatim. The check covers HEAD and the
-  tracked and non-ignored untracked files of the whole git work tree that
-  contains `--cwd`. It does not see ignored files or paths outside that work
-  tree.
+- For an extended read-only run: the CLI's working-tree check. It covers HEAD,
+  the `git status` entries, and the content and permission bits of tracked
+  and non-ignored untracked files in the whole git work tree that contains
+  `--cwd`, but not ignored files, paths outside that work tree, or the other
+  limits listed in the Provider run controls guide. Report it as one of:
+  - "comparison unavailable", when no before/after comparison result
+    exists: `attempts.cli_attempts` is 0, so the run was refused or failed
+    before launch (give the terminal reason, such as `model_required` or
+    `working_tree_unavailable`), or the CLI exited without a JSON envelope.
+    For a missing envelope, report the CLI's error output and what
+    `git status` in the checkout shows now. A run that changed the checkout
+    returns `PROVIDER_WORKTREE_CHANGED` even when it fails with an error
+    after launch.
+  - "unchanged", when a launched run (`attempts.cli_attempts` 1 or more)
+    returned any code other than `PROVIDER_WORKTREE_CHANGED`.
+  - Otherwise the `PROVIDER_WORKTREE_CHANGED` message and
+    `diagnostics.working_tree_changes`, verbatim.
 - For a write run: the worktree path and branch, the baseline and closing IDs,
   new commits, staged, unstaged, and untracked changes, the changes this turn
   made, any changes your verification made, and, for Claude, any change to your
