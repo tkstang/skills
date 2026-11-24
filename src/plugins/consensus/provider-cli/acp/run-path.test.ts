@@ -746,6 +746,60 @@ describe('extended runs through runProviderTurn', () => {
     expect((error as Error).cause).toBeUndefined();
   });
 
+  it('keeps the teardown warning when the private settings directory cannot be removed', async () => {
+    // Returns an unsettled outcome after making the private settings directory
+    // unremovable.
+    const unsettledAndLocked: AcpTransport = {
+      async run(input) {
+        const flag = input.argv.find((arg) => arg.startsWith('--gemini-dir='));
+        if (!flag) throw new Error('expected a private settings directory');
+        const locked = path.join(flag.slice('--gemini-dir='.length), 'config');
+        cleanup.push(async () => {
+          await chmod(locked, 0o700);
+          await rm(path.dirname(locked), { recursive: true, force: true });
+        });
+        await chmod(locked, 0o500);
+        // The recorded session has no authenticate step.
+        const { authenticate: _authenticate, ...plan } = input.plan;
+        const outcome = await stdioAcpTransport.run({ ...input, plan });
+        return {
+          ...outcome,
+          teardown: {
+            scope: 'process_group',
+            exited_before_signal: false,
+            signals: ['SIGTERM', 'SIGKILL'],
+            settled_by: 'settlement_timeout',
+          },
+        };
+      },
+    };
+    const scenario = insertAfter(
+      await agySession(),
+      expects('session/prompt'),
+      [{ writeFile: { path: 'peer-note.txt', content: 'written\n' } }],
+    );
+    const { envelope } = await runTurn(
+      ANTIGRAVITY_DESCRIPTOR,
+      scenario,
+      { model: 'gemini-3.8-flash' },
+      {
+        transport: unsettledAndLocked,
+        parentEnv: { GEMINI_API_KEY: 'test-api-key-value' },
+      },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_WORKTREE_CHANGED',
+      diagnostics: { working_tree_changes: ['peer-note.txt'] },
+    });
+    expect(envelope.diagnostics?.warnings).toEqual([
+      expect.stringMatching(
+        /^The run failed: EACCES.*The agent's process group was still present after SIGKILL; the post-run working-tree check could not confirm the group had exited\.$/,
+      ),
+    ]);
+  });
+
   it('succeeds with a warning when teardown could not confirm the group exited', async () => {
     const unsettled: AcpTransport = {
       async run(input) {

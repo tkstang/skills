@@ -287,7 +287,20 @@ async function runAcpInvocation(
     if (privateHome) await removePrivateHomeAfter(privateHome, error);
     throw error;
   }
-  if (privateHome) await rm(privateHome, { recursive: true, force: true });
+  if (privateHome) {
+    const unsettled = outcome.teardown?.settled_by === 'settlement_timeout';
+    await rm(privateHome, { recursive: true, force: true }).catch(
+      (error: unknown) => {
+        if (!unsettled) throw error;
+        // The outcome, and the warning its diagnostics would carry, is lost
+        // with this error, so the error carries the warning.
+        throw new Error(
+          `${errorMessage(error)}. ${ACP_UNSETTLED_TEARDOWN_WARNING}`,
+          { cause: error },
+        );
+      },
+    );
+  }
 
   const result = outcome.result;
   const classification = classifyAcpTurn(result, context.classifyOptions);

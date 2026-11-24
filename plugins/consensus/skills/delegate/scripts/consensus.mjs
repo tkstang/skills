@@ -2657,7 +2657,18 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
     if (privateHome) await removePrivateHomeAfter(privateHome, error);
     throw error;
   }
-  if (privateHome) await rm3(privateHome, { recursive: true, force: true });
+  if (privateHome) {
+    const unsettled = outcome.teardown?.settled_by === "settlement_timeout";
+    await rm3(privateHome, { recursive: true, force: true }).catch(
+      (error) => {
+        if (!unsettled) throw error;
+        throw new Error(
+          `${errorMessage(error)}. ${ACP_UNSETTLED_TEARDOWN_WARNING}`,
+          { cause: error }
+        );
+      }
+    );
+  }
   const result = outcome.result;
   const classification = classifyAcpTurn(result, context.classifyOptions);
   const stdout = serializeAcpTurnResult(result);
