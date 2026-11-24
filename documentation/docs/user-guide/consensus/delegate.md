@@ -135,7 +135,8 @@ A commit made by any peer is reported, never accepted silently.
 The host reads the JSON envelope, not the exit code. If the peer timed out,
 was interrupted, or ended in an unknown turn state, it may still have changed
 files: the host inspects the worktree and reports what it finds, and never
-resends the brief. A failure before the turn started, such as a usage or
+resends the brief. For an extended peer it reports the CLI's working-tree check
+instead and runs no Git command in your checkout. A failure before the turn started, such as a usage or
 preflight error, is fixed and run again. `PROVIDER_LIMIT_REACHED` stops the run
 and reports the provider's human message without retrying or switching providers.
 If its turn state is `unknown`, the host still accounts for possible file changes;
@@ -144,14 +145,16 @@ a limit does not by itself prove that nothing ran.
 For an extended peer, `PROVIDER_WORKTREE_CHANGED` means the checkout changed
 during the turn. The host reports the message and the changed paths verbatim
 and leaves them for you to review; the change may be your own edit made during
-the run. The same code reports a run that failed with an error after launch
-and also changed the checkout; the error appears in the message and in
-`diagnostics.warnings`. `PROVIDER_PERMISSION_DENIED` means the peer tried to
+the run. The same code reports a run that failed with an error, before or
+after launch, and also changed the checkout; the error appears in the message
+and in `diagnostics.warnings`. `PROVIDER_PERMISSION_DENIED` means the peer tried to
 act outside read-only and ended without an answer; the host reports each
 denied request: its tool, kind, and the first path it named. When no
 before/after comparison ran, because the run was refused before launch or
 the CLI returned no envelope, the host reports the check as "comparison
-unavailable" rather than "unchanged".
+unavailable" rather than "unchanged". It does not run `git status` in its
+place, because ordinary Git commands can run the filter drivers the check
+switches off.
 
 ## Continuing
 

@@ -58,7 +58,8 @@
   Its brief template adds a read-only verification block that asks for
   file:line evidence instead of a command, which the host checks, and its
   report adds a "comparison unavailable" outcome for runs where no
-  working-tree comparison completed.
+  working-tree comparison completed, without running Git in the checkout to
+  fill the gap.
   The other skill versions in this release are listed under Changed.
 
 ### Changed

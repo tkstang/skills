@@ -182,8 +182,9 @@ A success has `ok: true`, `output_kind: "text"`, and the peer's final reply in
   present, `diagnostics.working_tree_changes` verbatim. A leading `HEAD` entry
   means HEAD moved; with no list, the checkout could not be re-checked and
   counts as changed. A `The run failed: ...` entry in `diagnostics.warnings`
-  means the run also failed with an error after launch (`turn: unknown`);
-  report it too. The change may also be the user's own edit during the
+  means the run also failed with an error: after launch (`turn: unknown`),
+  or before it (`turn: not_started`, `attempts.cli_attempts` 0); report it
+  too. The change may also be the user's own edit during the
   run. Treat the reply as unusable, and do not
   revert anything unless the user asks.
 - `PROVIDER_PERMISSION_DENIED`: an extended peer asked for a tool outside
@@ -199,7 +200,9 @@ A success has `ok: true`, `output_kind: "text"`, and the peer's final reply in
   the peer. Fix the cause and run again.
 - `PROVIDER_TIMEOUT`, an interrupt, or `turn: unknown`: the peer may have
   changed files. Inspect the worktree with the after-run procedure and report.
-  Never resend the brief.
+  For an extended peer, report the CLI's working-tree check from
+  [accounting](references/accounting.md#report) instead, and run no Git
+  command in the checkout. Never resend the brief.
 - `turn: completed` with `PROVIDER_EMPTY_OUTPUT` or
   `PROVIDER_MALFORMED_RESULT`: the turn ran but its reply is unusable. Account
   for the worktree and report; do not resend.

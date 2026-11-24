@@ -151,18 +151,20 @@ the final report:
   and non-ignored untracked files in the whole git work tree that contains
   `--cwd`, but not ignored files, paths outside that work tree, or the other
   limits listed in the Provider run controls guide. Report it as one of:
+  - The `PROVIDER_WORKTREE_CHANGED` message and
+    `diagnostics.working_tree_changes`, verbatim, whenever the code is
+    `PROVIDER_WORKTREE_CHANGED`. A run that changed the checkout returns it
+    even when it fails with an error, before launch or after.
   - "comparison unavailable", when no before/after comparison result
     exists: `attempts.cli_attempts` is 0, so the run was refused or failed
     before launch (give the terminal reason, such as `model_required` or
     `working_tree_unavailable`), or the CLI exited without a JSON envelope.
-    For a missing envelope, report the CLI's error output and what
-    `git status` in the checkout shows now. A run that changed the checkout
-    returns `PROVIDER_WORKTREE_CHANGED` even when it fails with an error
-    after launch.
+    For a missing envelope, report the CLI's error output. Do not run
+    `git status` or any other Git command in the checkout to fill the gap:
+    ordinary Git commands can run the filter drivers the CLI's check
+    switches off.
   - "unchanged", when a launched run (`attempts.cli_attempts` 1 or more)
-    returned any code other than `PROVIDER_WORKTREE_CHANGED`.
-  - Otherwise the `PROVIDER_WORKTREE_CHANGED` message and
-    `diagnostics.working_tree_changes`, verbatim.
+    returned any other code.
 - For a write run: the worktree path and branch, the baseline and closing IDs,
   new commits, staged, unstaged, and untracked changes, the changes this turn
   made, any changes your verification made, and, for Claude, any change to your
