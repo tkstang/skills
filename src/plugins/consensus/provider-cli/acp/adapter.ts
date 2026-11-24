@@ -69,6 +69,10 @@ const FULLY_REDACTED_STDOUT: ReadonlySet<string> = new Set([
 const ACP_UNSETTLED_TEARDOWN_WARNING =
   "The agent's process group was still present after SIGKILL; the post-run working-tree check could not confirm the group had exited.";
 
+// Thrown when an extended run fails before the agent could be launched (the
+// transport was never entered), so no provider attempt was made.
+export class AcpNotLaunchedError extends Error {}
+
 export interface AcpAdapterOptions {
   transport?: AcpTransport;
   // The spawn-group primitive the stdio transport uses; tests substitute one
@@ -237,7 +241,9 @@ async function runAcpInvocation(
 ): Promise<ProviderProcessResult> {
   const basePlan = invocation.acp_plan;
   if (!basePlan) {
-    throw new Error(`${descriptor.id} invocation has no ACP session plan.`);
+    throw new AcpNotLaunchedError(
+      `${descriptor.id} invocation has no ACP session plan.`,
+    );
   }
   const env = options.env ?? {};
   const apiKey = descriptor.api_key;
@@ -250,6 +256,7 @@ async function runAcpInvocation(
 
   let privateHome: string | undefined;
   let outcome: AcpRunOutcome;
+  let launched = false;
   try {
     const home = useApiKey ? apiKey.private_home : undefined;
     if (home) {
@@ -268,6 +275,7 @@ async function runAcpInvocation(
         `${home.app_data_flag}=${home.app_data_name}`,
       );
     }
+    launched = true;
     outcome = await context.transport.run({
       executable: invocation.executable,
       argv,
@@ -284,8 +292,11 @@ async function runAcpInvocation(
     });
   } catch (error) {
     // The run's own error wins; a failed removal is added to its message.
-    if (privateHome) await removePrivateHomeAfter(privateHome, error);
-    throw error;
+    const failure = privateHome
+      ? await withPrivateHomeRemoved(privateHome, error)
+      : error;
+    if (launched) throw failure;
+    throw new AcpNotLaunchedError(errorMessage(failure), { cause: failure });
   }
   if (privateHome) {
     const unsettled = outcome.teardown?.settled_by === 'settlement_timeout';
@@ -326,10 +337,14 @@ async function runAcpInvocation(
   };
 }
 
-// Removes the private settings directory after the run threw `runError`.
-// When the removal fails too, throws an error that leads with the run's
-// message, names the cleanup failure, and keeps the run error as its cause.
-async function removePrivateHomeAfter(privateHome: string, runError: unknown) {
+// Removes the private settings directory after the run threw `runError`, and
+// returns the error to throw: `runError`, or, when the removal fails too, an
+// error that leads with the run's message, names the cleanup failure, and
+// keeps the run error as its cause.
+async function withPrivateHomeRemoved(
+  privateHome: string,
+  runError: unknown,
+): Promise<unknown> {
   const cleanupFailure = await rm(privateHome, {
     recursive: true,
     force: true,
@@ -337,8 +352,8 @@ async function removePrivateHomeAfter(privateHome: string, runError: unknown) {
     () => undefined,
     (error: unknown) => ({ error }),
   );
-  if (!cleanupFailure) return;
-  throw new Error(
+  if (!cleanupFailure) return runError;
+  return new Error(
     `${errorMessage(runError)} (removing the private settings directory also failed: ${errorMessage(cleanupFailure.error)})`,
     { cause: runError },
   );

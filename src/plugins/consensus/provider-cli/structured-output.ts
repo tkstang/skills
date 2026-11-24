@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { resolveProviderDefaultModel } from '../config/consensus-config.js';
+import { AcpNotLaunchedError } from './acp/adapter.js';
 import { redactText } from './acp/transcript.js';
 import { providerExecutableEnvNames, providerRegistry } from './adapters.js';
 import type { ProviderAdapter, ProviderAdapterRegistry } from './adapters.js';
@@ -435,10 +436,12 @@ async function runCheckedExtendedTurn(
     throw new Error(runFailure);
   }
   const changes = found && { ...found, paths: found.paths.map(redact) };
+  // A run that failed before launch made no attempt and started no turn.
+  const notLaunched = runError instanceof AcpNotLaunchedError;
   const outcome = envelope
     ? `turn ${envelope.ok ? 'succeeded' : `failed with ${envelope.code}`}`
     : `run failed: ${runFailure}`;
-  if (!envelope) {
+  if (!envelope && !notLaunched) {
     // The turn was launched, but whether it was accepted is not known.
     trace.process ??= { ok: false, stdout: '' };
     trace.turn = 'unknown';
@@ -460,7 +463,7 @@ async function runCheckedExtendedTurn(
     stdout: envelope?.stdout,
     stderr: envelope?.stderr,
     attempts: {
-      cli_attempts: envelope?.attempts.cli_attempts ?? 1,
+      cli_attempts: envelope?.attempts.cli_attempts ?? (notLaunched ? 0 : 1),
       terminal_reason: 'working_tree_changed',
     },
     diagnostics: {

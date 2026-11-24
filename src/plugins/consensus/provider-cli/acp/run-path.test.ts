@@ -800,6 +800,39 @@ describe('extended runs through runProviderTurn', () => {
     ]);
   });
 
+  it('reports a run that failed before launch as not started, even when the checkout changed', async () => {
+    const cwd = await checkout();
+    // The first settings file lands in the checkout, standing in for a
+    // concurrent edit; the second cannot be written under a file, so the run
+    // fails before the agent is launched.
+    const note = `../${path.basename(cwd)}/peer-note.txt`;
+    const descriptor: AcpProviderDescriptor = {
+      ...ANTIGRAVITY_DESCRIPTOR,
+      api_key: {
+        ...ANTIGRAVITY_DESCRIPTOR.api_key!,
+        private_home: {
+          ...ANTIGRAVITY_DESCRIPTOR.api_key!.private_home!,
+          settings_files: [note, `${note}/settings.json`],
+        },
+      },
+    };
+    const { envelope, harness } = await runTurn(
+      descriptor,
+      await agySession(),
+      { model: 'gemini-3.8-flash' },
+      { cwd, parentEnv: { GEMINI_API_KEY: 'test-api-key-value' } },
+    );
+
+    expect(harness.launches).toEqual([]);
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: 'PROVIDER_WORKTREE_CHANGED',
+      attempts: { cli_attempts: 0, terminal_reason: 'working_tree_changed' },
+      diagnostics: { working_tree_changes: ['peer-note.txt'] },
+      continuation: { turn: 'not_started' },
+    });
+  });
+
   it('succeeds with a warning when teardown could not confirm the group exited', async () => {
     const unsettled: AcpTransport = {
       async run(input) {

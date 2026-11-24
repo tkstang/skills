@@ -2499,6 +2499,8 @@ var FULLY_REDACTED_STDOUT = /* @__PURE__ */ new Set([
   "provider_limit_reached"
 ]);
 var ACP_UNSETTLED_TEARDOWN_WARNING = "The agent's process group was still present after SIGKILL; the post-run working-tree check could not confirm the group had exited.";
+var AcpNotLaunchedError = class extends Error {
+};
 function acpAdapter(descriptor, options = {}) {
   const transport = options.transport ?? stdioAcpTransport;
   const classifyOptions = {
@@ -2613,7 +2615,9 @@ function buildAcpInvocation(descriptor, request, options = {}) {
 async function runAcpInvocation(descriptor, invocation2, options, context) {
   const basePlan = invocation2.acp_plan;
   if (!basePlan) {
-    throw new Error(`${descriptor.id} invocation has no ACP session plan.`);
+    throw new AcpNotLaunchedError(
+      `${descriptor.id} invocation has no ACP session plan.`
+    );
   }
   const env = options.env ?? {};
   const apiKey = descriptor.api_key;
@@ -2623,6 +2627,7 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
   const timeoutSec = options.timeoutSec ?? DEFAULT_TIMEOUT_SEC;
   let privateHome;
   let outcome;
+  let launched = false;
   try {
     const home = useApiKey ? apiKey.private_home : void 0;
     if (home) {
@@ -2641,6 +2646,7 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
         `${home.app_data_flag}=${home.app_data_name}`
       );
     }
+    launched = true;
     outcome = await context.transport.run({
       executable: invocation2.executable,
       argv,
@@ -2654,8 +2660,9 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
       ...context.spawn ? { spawn: context.spawn } : {}
     });
   } catch (error) {
-    if (privateHome) await removePrivateHomeAfter(privateHome, error);
-    throw error;
+    const failure3 = privateHome ? await withPrivateHomeRemoved(privateHome, error) : error;
+    if (launched) throw failure3;
+    throw new AcpNotLaunchedError(errorMessage(failure3), { cause: failure3 });
   }
   if (privateHome) {
     const unsettled = outcome.teardown?.settled_by === "settlement_timeout";
@@ -2692,7 +2699,7 @@ async function runAcpInvocation(descriptor, invocation2, options, context) {
     ...base
   };
 }
-async function removePrivateHomeAfter(privateHome, runError) {
+async function withPrivateHomeRemoved(privateHome, runError) {
   const cleanupFailure = await rm3(privateHome, {
     recursive: true,
     force: true
@@ -2700,8 +2707,8 @@ async function removePrivateHomeAfter(privateHome, runError) {
     () => void 0,
     (error) => ({ error })
   );
-  if (!cleanupFailure) return;
-  throw new Error(
+  if (!cleanupFailure) return runError;
+  return new Error(
     `${errorMessage(runError)} (removing the private settings directory also failed: ${errorMessage(cleanupFailure.error)})`,
     { cause: runError }
   );
@@ -6371,8 +6378,9 @@ async function runCheckedExtendedTurn(request, dependencies, trace, turnOptions 
     throw new Error(runFailure);
   }
   const changes = found && { ...found, paths: found.paths.map(redact) };
+  const notLaunched = runError instanceof AcpNotLaunchedError;
   const outcome = envelope ? `turn ${envelope.ok ? "succeeded" : `failed with ${envelope.code}`}` : `run failed: ${runFailure}`;
-  if (!envelope) {
+  if (!envelope && !notLaunched) {
     trace.process ??= { ok: false, stdout: "" };
     trace.turn = "unknown";
   }
@@ -6389,7 +6397,7 @@ async function runCheckedExtendedTurn(request, dependencies, trace, turnOptions 
     stdout: envelope?.stdout,
     stderr: envelope?.stderr,
     attempts: {
-      cli_attempts: envelope?.attempts.cli_attempts ?? 1,
+      cli_attempts: envelope?.attempts.cli_attempts ?? (notLaunched ? 0 : 1),
       terminal_reason: "working_tree_changed"
     },
     diagnostics: {
