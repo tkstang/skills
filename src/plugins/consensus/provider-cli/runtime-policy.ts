@@ -264,7 +264,7 @@ export interface ClaudePermissionCompositionFailure {
 }
 
 // The accepted Claude mode and grant pairings are documented in "Claude
-// permission profiles" (documentation/docs/user-guide/consensus/configuration.md);
+// permission profiles" (documentation/docs/user-guide/consensus/provider-run-controls.md);
 // every other pairing is rejected.
 export function composeClaudePermissionProfile(
   policy: ProviderRuntimePolicy,
