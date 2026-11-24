@@ -141,7 +141,7 @@ function cli(
   };
 }
 describe('built operational CLI', () => {
-  it('renders a queued Claude prompt once and keeps a later identical human prompt', async () =>
+  it('renders a delivered Claude prompt once and keeps identical repeated and pending prompts', async () =>
     fixture(async (home, cwd, paths) => {
       const prompt = 'Review the fixture plan.';
       const records = [
@@ -160,11 +160,7 @@ describe('built operational CLI', () => {
         },
         { type: 'assistant', message: { content: 'Fixture reviewed.' } },
         { type: 'user', promptSource: 'typed', message: { content: prompt } },
-        {
-          type: 'queue-operation',
-          operation: 'enqueue',
-          content: 'Pending prompt.',
-        },
+        { type: 'queue-operation', operation: 'enqueue', content: prompt },
       ].map((record) => ({ ...record, sessionId: ID, cwd }));
       await writeFile(
         paths['claude-code'],
@@ -187,12 +183,12 @@ describe('built operational CLI', () => {
 
       expect(
         plain.stdout.split('\n').filter((line) => line === `[user] ${prompt}`),
-      ).toHaveLength(2);
+      ).toHaveLength(3);
       expect(
         (await readFile(out, 'utf8'))
           .split('\n')
           .filter((line) => line === prompt),
-      ).toHaveLength(2);
+      ).toHaveLength(3);
       expect(
         machine.value.data.messages.map(
           (message: { recordIndex: number }) => message.recordIndex,
