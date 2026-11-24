@@ -245,9 +245,9 @@ compare prerelease tags.
   [Working-tree check](provider-run-controls.md#working-tree-check).
 - **Cleanup.** When the turn ends, consensus closes the session where the agent
   supports that, then stops the agent's whole process group (on Windows, the
-  agent process only), even after a normal exit, so helpers in that group do
-  not outlive the run. A helper in its own process group, such as a Droid MCP
-  server, is not reached.
+  agent process only), even after a normal exit, so helpers in that group are
+  stopped unless teardown could not confirm the group exited. A helper in its
+  own process group, such as a Droid MCP server, is not reached.
 
 ### Sign-in
 

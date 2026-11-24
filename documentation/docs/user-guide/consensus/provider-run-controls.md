@@ -122,14 +122,17 @@ agent to exit (no wait after an interrupt). It then signals the group with
 SIGTERM, or the forwarded interrupt signal, sends SIGKILL half a second later
 if anything in the group survives, and waits up to a second more for the group
 to go. Helpers in the agent's process group, such as MCP servers it started,
-do not outlive the run; a helper that moves to its own process group escapes
-it, as Droid's MCP servers do. When a timeout, output-cap breach, interrupt,
+are stopped with it unless teardown cannot confirm the group exited (below);
+a helper that moves to its own process group escapes it, as Droid's MCP
+servers do. When a timeout, output-cap breach, interrupt,
 or mode change stops a turn whose prompt is in flight, it sends
 `session/cancel` first. `diagnostics.acp.teardown` records the signals sent
 and `settled_by`, the step that ended teardown. `settlement_timeout` means
 the group was still present after SIGKILL and the final wait, so its exit was
 not confirmed; the run keeps its own outcome and adds a warning to
-`diagnostics.warnings`.
+`diagnostics.warnings`. If removing Antigravity's private settings directory
+then fails, the run fails with that error instead, and the error ends with
+the same warning.
 
 ## Claude permission profiles
 
@@ -214,15 +217,21 @@ around every extended read-only turn, so direct `consensus run` calls are
 covered as well as delegate:
 
 - Before launch it records `HEAD`; the entries of
-  `git status --porcelain=v1 -z --untracked-files=all`; a SHA-256 of the
-  current content, with the permission bits, of every path that status lists
-  and of every index entry marked assume-unchanged or skip-worktree, which
-  status never reports; the permission bits of every other tracked file; and
-  `.git/info/exclude`. Tracked entries are listed from the repository root,
-  so a working directory in a subdirectory still covers the whole tree.
+  `git status --porcelain=v1 -z --untracked-files=all`; a fingerprint of
+  every path that status lists and of every index entry marked
+  assume-unchanged or skip-worktree, which status never reports; the
+  permission bits of every other tracked file; and `.git/info/exclude`. A
+  fingerprint is a SHA-256 of the content plus the permission bits for a
+  regular file, a SHA-256 of the target for a symbolic link, and a fixed
+  marker for a directory. Tracked entries are listed from the repository
+  root, so a working directory in a subdirectory still covers the whole tree.
 - The snapshot writes nothing and runs no filters: no `git add`, no index
   refresh, and every filter driver configured for the repository, or for any
-  checked-out submodule, is switched off, so status compares raw bytes. git
+  checked-out submodule, is switched off. Status is git's own comparison with
+  the index and HEAD, made with those filters off; git's built-in conversions
+  still apply (see the limits below). If a filter driver's name or a
+  checked-out submodule's path is not valid UTF-8, consensus cannot switch
+  that filter off, so the snapshot fails. git
   runs with fsmonitor and the untracked cache turned off and `core.filemode`
   on, so a repository setting cannot hide a content or file-mode change. From
   your environment git gets only `PATH`, `HOME`, `XDG_CONFIG_HOME`, the
@@ -244,13 +253,15 @@ covered as well as delegate:
   `diagnostics.working_tree_changes` lists them all. A checkout that cannot
   be read afterwards is reported as changed, without a list. The receipt's
   `turn` keeps the turn's own state.
-- A run that fails with an error after launch, instead of returning a result,
-  is checked too. If the checkout changed or cannot be re-read, the run
-  returns `PROVIDER_WORKTREE_CHANGED` with `turn: "unknown"`, no `stdout` or
-  `stderr`, and the error, redacted, at the end of the message and in
-  `diagnostics.warnings` as `The run failed: <error>`. If the checkout is
-  unchanged, the error is reported as before: the CLI prints it to stderr and
-  exits 1 without an envelope.
+- A run that fails with an error, instead of returning a result, is checked
+  too. If the checkout changed or cannot be re-read, the run returns
+  `PROVIDER_WORKTREE_CHANGED` with no `stdout` or `stderr`, and the error,
+  redacted, at the end of the message and in `diagnostics.warnings` as
+  `The run failed: <error>`. `turn` is `"unknown"`, or `"not_started"` with
+  `attempts.cli_attempts` 0 when the run failed before the agent was
+  launched, such as while writing Antigravity's private settings directory.
+  If the checkout is unchanged, the CLI prints the redacted error to stderr
+  and exits 1 without an envelope.
 
 The check is a loud backstop, not the prevention: the confirmed read-only mode
 and the denials are what keep the agent from writing. It cannot tell the
@@ -288,10 +299,11 @@ agent's changes from your own edits made during the run, and it does not see:
   or a read-only mode or model the agent did not confirm, or a contrary mode
   or autonomy update reported while the read-only mode is being confirmed or
   held (`acp_setup_unconfirmed`). A mode report that arrives before setup,
-  even before the agent's `session/new` reply, counts as the starting state;
-  if it disagrees with the mode that reply names, a provider whose read-only
-  mode is its starting mode (Antigravity's `default`) cannot confirm it and
-  fails here.
+  even before the agent's `session/new` reply, counts as the starting state.
+  If it disagrees with the mode that reply names, or was dropped because
+  early reports for four sessions were already held, a provider whose
+  read-only mode is its starting mode (Antigravity's `default`) cannot
+  confirm it and fails here.
 - `PROVIDER_LIMIT_REACHED`: a `max_tokens` or `max_turn_requests` stop, or a
   quota error the provider returned as answer text.
 - `PROVIDER_EMPTY_OUTPUT`: the turn ended with no answer text and no denial.
@@ -315,9 +327,13 @@ recognize every secret:
   API keys, `sk-`, `ghp_`, `github_pat_`, and similar tokens, JWTs, and
   `Bearer` tokens.
 - Messages, metadata, denial details, working-tree change paths, and `stderr`
-  get the same full redaction. `stderr` cut short by an output cap ends at
-  its last complete line, so redaction never sees a partial line;
-  `diagnostics.output_bytes.stderr` still counts every byte.
+  get the same full redaction. Consensus keeps up to 64 KiB of `stderr`.
+  Once a chunk is cut, by that limit or by the combined output cap, nothing
+  later is kept, and the kept text ends at its last complete line before the
+  cut, so redaction never sees a partial line.
+  `diagnostics.output_bytes.stderr` counts the stderr bytes observed up to
+  and including the chunk that crosses the combined output cap, so it can
+  exceed what was kept.
 
 `diagnostics.acp` records the agent's name and version, whether the run used
 an API key or the saved sign-in, each setup step and what confirmed it, the

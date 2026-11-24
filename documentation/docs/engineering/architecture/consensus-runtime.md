@@ -99,12 +99,14 @@ no provider branches.
   `not_started`. The mode stays watched from session creation: a contrary
   mode or autonomy update reported while the read-only mode is being
   confirmed or held stops the run as `not_started`, and one during the turn
-  cancels it (`PROVIDER_EXIT`, `acp_mode_changed`). Mode and config updates
-  that arrive before the `session/new` response is handled are kept (the
-  latest of each kind, for up to four session ids) and replayed once it is,
-  so a pre-setup report counts as the starting state; if it disagrees with
-  the mode in the response, initial-state confirmation (Antigravity's
-  `default`) fails. Permission requests get a
+  cancels it (`PROVIDER_EXIT`, `acp_mode_changed`). Valid mode and config
+  updates that arrive before the `session/new` response is handled are kept
+  for up to four session ids and applied once it is; malformed ones are
+  ignored. Every early mode report counts as the starting state: if one
+  disagrees with the response or another report, or one was dropped because
+  the buffer was full, initial-state confirmation (Antigravity's `default`)
+  fails. The response's config options take precedence over an early option
+  update. Permission requests get a
   `reject_once` (else `reject_always`) option chosen by its kind, or
   `cancelled`; every other agent request gets `-32601`. Each denial keeps only
   the tool, its ACP kind, and the first path it named (relative to the
@@ -116,8 +118,9 @@ no provider branches.
   change paths, and stderr. Everything but answer text also loses default
   credential shapes (Google API keys, `sk-`/`ghp_`-style tokens, JWTs,
   `Bearer` tokens), and so does the failure `stdout` of an `acp_error_text`
-  or `provider_limit_reached` turn. Capped stderr is cut back to its last
-  complete line before redaction. Redaction is value- and pattern-based and
+  or `provider_limit_reached` turn. Stderr is kept up to 64 KiB; after the
+  first cut chunk nothing more is kept, and the kept text is cut back to its
+  last complete line before the cut, before redaction. Redaction is value- and pattern-based and
   cannot recognize every secret.
 - **Process group.** The ACP client tears down the agent's process group on
   every exit path, a normal exit included (a single process on Windows),
@@ -130,7 +133,8 @@ no provider branches.
   outlives the grace period, then waits a bounded time for it to go.
   `diagnostics.acp.teardown.settled_by` records the step that ended teardown;
   `settlement_timeout` (the group still present after SIGKILL) adds a
-  warning, and the run keeps its outcome. A helper that starts its own
+  warning, and the run keeps its outcome; if removing the private settings
+  directory then fails, that error carries the warning. A helper that starts its own
   process group, as Droid's MCP servers do, is not reached. When a timeout,
   output-cap breach, interrupt, or mode change stops a turn whose prompt is
   in flight, it sends `session/cancel` first.
@@ -146,18 +150,24 @@ no provider branches.
   credentials, no inherited `GIT_*` repository or config variables), and no
   optional locks; it writes no objects or index, and it switches off every
   filter driver configured for the repository or any checked-out submodule,
-  so no filter command runs. No checkout refuses the run before launch. The
-  snapshot is HEAD, the `git status` entries, a content hash with permission
-  bits for every status-listed path and every assume-unchanged or
-  skip-worktree entry, the permission bits of every other tracked file, and
+  so no filter command runs. Discovery reads git's output as bytes; a filter
+  driver name or checked-out submodule path that is not valid UTF-8 fails
+  the snapshot, since it could not be switched off exactly. No checkout, or a
+  failed snapshot, refuses the run before launch. The snapshot is HEAD, the
+  `git status` entries, a fingerprint of every status-listed path and every
+  assume-unchanged or skip-worktree entry (content hash with permission bits
+  for a regular file, a target hash for a symlink, a marker for a
+  directory), the permission bits of every other tracked file, and
   `.git/info/exclude`. A change to any of these fails the run with
   `PROVIDER_WORKTREE_CHANGED` and lists the paths in
   `diagnostics.working_tree_changes`; a checkout that cannot be re-read fails
   the same way. The second snapshot runs once the bounded teardown returns,
-  not on a confirmed group exit. A run that throws after launch is checked
-  too: a changed checkout turns the throw into a `PROVIDER_WORKTREE_CHANGED`
-  envelope (`turn: "unknown"`, the error in `diagnostics.warnings`), and an
-  unchanged one lets the error propagate. It is a backstop behind the
+  not on a confirmed group exit. A run that throws is checked too: a changed
+  checkout turns the throw into a `PROVIDER_WORKTREE_CHANGED` envelope with
+  the redacted error in `diagnostics.warnings` (`turn: "unknown"`, or
+  `not_started` with `cli_attempts` 0 when the adapter threw
+  `AcpNotLaunchedError` before launch), and an unchanged one rethrows only
+  the redacted message. It is a backstop behind the
   read-only mode and deny-all, and it does not see ignored files, byte changes
   git's built-in conversions normalize back, case-only renames on a
   case-insensitive file system, changes inside an untracked nested

@@ -15,21 +15,25 @@
   ACP command through its own stdio JSON-RPC client (no new dependency): it
   confirms the provider's read-only mode and the model before the prompt and
   watches the mode through the turn (a mode report that arrives before setup
-  counts as the starting state), denies every permission request, offers no
+  counts as the starting state, and one dropped from the full early buffer
+  leaves it unknown), denies every permission request, offers no
   file system, terminal or MCP servers, prepends read-only brief lines, and
   stops the agent's process group on every exit; a teardown that cannot
-  confirm the group exited adds a warning. Extended runs need a model:
+  confirm the group exited adds a warning, which a later failure to remove
+  the private settings directory keeps in its error. Extended runs need a model:
   `--model`, or the new `defaults.provider_models.<id>` consensus-config key,
   recorded in the receipt as `default_model`; with neither the run is refused
   before launch. Every extended read-only turn is bracketed by a git
   working-tree check, so the working directory must be a git checkout. The
   check compares HEAD, the `git status` entries, and the content and
   permission bits of tracked and non-ignored untracked files, runs no filter
-  driver and passes git no credentials. A change fails the run with the new
+  driver and passes git no credentials; it fails rather than run when a
+  filter driver or submodule name is not valid UTF-8. A change fails the run with the new
   code `PROVIDER_WORKTREE_CHANGED`, which lists `HEAD` and the paths in
-  `diagnostics.working_tree_changes`; a run that throws after launch and
-  changed the checkout returns it too, with the error in
-  `diagnostics.warnings`. Ignored files, byte changes git's built-in
+  `diagnostics.working_tree_changes`; a run that throws and changed the
+  checkout returns it too, with the redacted error in `diagnostics.warnings`
+  (`turn: not_started` and no attempt when it threw before launch), and on
+  an unchanged checkout the CLI prints only the redacted error. Ignored files, byte changes git's built-in
   conversions normalize back, case-only renames on case-insensitive file
   systems and files inside untracked nested repositories are not covered.
   A peer that is denied a tool and ends without an answer
@@ -43,7 +47,8 @@
   redacted from answer text, metadata, denial details, change paths and
   stderr, and everything but answer text, plus the answer of an error-text or
   limit failure, also loses common credential shapes (API keys, tokens, JWTs,
-  `Bearer` values). Capped stderr ends at its last complete line. Preflight
+  `Bearer` values). Stderr is kept up to 64 KiB and ends at its last
+  complete line before the first cut. Preflight
   probes extended providers with `--version` only, without their
   credentials, and reports only MAJOR.MINOR.PATCH plus a plain prerelease
   tag, or no version when the version output holds anything redaction would
