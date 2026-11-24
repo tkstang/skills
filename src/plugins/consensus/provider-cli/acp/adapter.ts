@@ -58,6 +58,10 @@ export const ACP_READ_ONLY_BRIEF_LINE =
 
 export const ACP_CLIENT_INFO = { name: 'consensus', version: '0' } as const;
 
+// Added to diagnostics.warnings when teardown settles by settlement_timeout.
+const ACP_UNSETTLED_TEARDOWN_WARNING =
+  "The agent's process group was still present after SIGKILL; the post-run working-tree check could not confirm the group had exited.";
+
 export interface AcpAdapterOptions {
   transport?: AcpTransport;
   // The spawn-group primitive the stdio transport uses; tests substitute one
@@ -337,12 +341,16 @@ function processDiagnostics(
     result.abort && result.abort !== 'mode_changed' && teardown
       ? terminationFor(result.abort, teardown)
       : undefined;
+  // The run keeps its outcome; the warning says the working-tree check that
+  // follows did not wait for a confirmed exit.
+  const unsettled = teardown?.settled_by === 'settlement_timeout';
   return {
     provider_exit_code: outcome.exit_code,
     provider_signal: outcome.signal,
     output_bytes: { ...outcome.output_bytes },
     timeout_sec: input.timeoutSec,
     ...(termination ? { termination } : {}),
+    ...(unsettled ? { warnings: [ACP_UNSETTLED_TEARDOWN_WARNING] } : {}),
     acp,
   };
 }

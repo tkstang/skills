@@ -675,6 +675,39 @@ describe('extended runs through runProviderTurn', () => {
     ).rejects.toThrow('cleanup failed');
   });
 
+  it('succeeds with a warning when teardown could not confirm the group exited', async () => {
+    const unsettled: AcpTransport = {
+      async run(input) {
+        const outcome = await stdioAcpTransport.run(input);
+        return {
+          ...outcome,
+          teardown: {
+            scope: 'process_group',
+            exited_before_signal: false,
+            signals: ['SIGTERM', 'SIGKILL'],
+            settled_by: 'settlement_timeout',
+          },
+        };
+      },
+    };
+    const { envelope } = await runTurn(
+      ANTIGRAVITY_DESCRIPTOR,
+      await agySession(),
+      { model: 'gemini-3.8-flash' },
+      { transport: unsettled },
+    );
+
+    expect(envelope).toMatchObject({
+      ok: true,
+      diagnostics: {
+        warnings: [
+          "The agent's process group was still present after SIGKILL; the post-run working-tree check could not confirm the group had exited.",
+        ],
+        acp: { teardown: { settled_by: 'settlement_timeout' } },
+      },
+    });
+  });
+
   it('refuses to launch outside a git checkout', async () => {
     const cwd = await tempDir('consensus-acp-plain-');
     const { envelope, harness } = await runTurn(

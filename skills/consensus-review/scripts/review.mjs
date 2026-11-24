@@ -1874,6 +1874,7 @@ function clip(value, max = MAX_META_CHARS) {
 // src/plugins/consensus/provider-cli/acp/adapter.ts
 var ACP_READ_ONLY_BRIEF_LINE = "This is a read-only run. Use only read and search tools. Do not edit files or run shell commands; such requests are denied and end the turn.";
 var ACP_CLIENT_INFO = { name: "consensus", version: "0" };
+var ACP_UNSETTLED_TEARDOWN_WARNING = "The agent's process group was still present after SIGKILL; the post-run working-tree check could not confirm the group had exited.";
 function acpAdapter(descriptor, options = {}) {
   const transport = options.transport ?? stdioAcpTransport;
   const classifyOptions = {
@@ -2079,12 +2080,14 @@ function processDiagnostics(outcome, input) {
     } : {}
   };
   const termination = result.abort && result.abort !== "mode_changed" && teardown ? terminationFor(result.abort, teardown) : void 0;
+  const unsettled = teardown?.settled_by === "settlement_timeout";
   return {
     provider_exit_code: outcome.exit_code,
     provider_signal: outcome.signal,
     output_bytes: { ...outcome.output_bytes },
     timeout_sec: input.timeoutSec,
     ...termination ? { termination } : {},
+    ...unsettled ? { warnings: [ACP_UNSETTLED_TEARDOWN_WARNING] } : {},
     acp
   };
 }
