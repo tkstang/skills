@@ -5,10 +5,6 @@ plugin versions. These notes describe package content, not publication receipts.
 
 ## [Unreleased]
 
-- Render queued Claude Code prompts once when the captured records include
-  their delivery. Keep API request snapshots in the raw records and omit them
-  from the conversation.
-
 ## [0.2.0]
 
 - Read the latest page with `seshtk read --from-end` or `seshtk parse --from-end`.
@@ -16,6 +12,9 @@ plugin versions. These notes describe package content, not publication receipts.
   counts backward and coverage reports which ends of the transcript were omitted.
 - A forward read that runs out of bytes now identifies the omitted end in its
   text warning. Forward JSON and cursors keep their existing contract.
+- Render queued Claude Code prompts once when the captured records include
+  their delivery. Keep API request snapshots in the raw records and omit them
+  from the conversation.
 
 ## [0.1.0]
 
