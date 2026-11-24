@@ -5390,12 +5390,12 @@ async function runCheckedExtendedTurn(request, dependencies, trace, turnOptions 
   if (envelope && !trace.process) return envelope;
   const after = await snapshotWorkingTree(cwd, { env });
   const found = after.ok ? compareWorkingTrees(before.snapshot, after.snapshot) : void 0;
+  const runFailure = envelope ? void 0 : redact(runError instanceof Error ? runError.message : String(runError));
   if (found && !hasWorkingTreeChanges(found)) {
     if (envelope) return envelope;
-    throw runError;
+    throw new Error(runFailure);
   }
   const changes = found && { ...found, paths: found.paths.map(redact) };
-  const runFailure = envelope ? void 0 : redact(runError instanceof Error ? runError.message : String(runError));
   const outcome = envelope ? `turn ${envelope.ok ? "succeeded" : `failed with ${envelope.code}`}` : `run failed: ${runFailure}`;
   if (!envelope) {
     trace.process ??= { ok: false, stdout: "" };

@@ -742,7 +742,8 @@ describe('extended runs through runProviderTurn', () => {
     expect((error as Error).message).toMatch(
       /^run failed \(removing the private settings directory also failed: EACCES/,
     );
-    expect((error as Error).cause).toMatchObject({ message: 'run failed' });
+    // The cause would carry the unredacted text.
+    expect((error as Error).cause).toBeUndefined();
   });
 
   it('succeeds with a warning when teardown could not confirm the group exited', async () => {
@@ -902,10 +903,12 @@ describe('extended runs through consensus run --request-json', () => {
     scenario: Scenario,
     request: Record<string, unknown>,
     projectConfig?: unknown,
+    options: SetupOptions = {},
   ) {
     const { harness, cwd, parentEnv, registry } = await setup(
       descriptor,
       scenario,
+      options,
     );
     if (projectConfig) {
       // Committed, so the checkout is clean apart from what the peer does.
@@ -932,11 +935,12 @@ describe('extended runs through consensus run --request-json', () => {
       }),
     );
     let stdout = '';
+    let stderr = '';
     const code = await runConsensusCli(
       ['run', '--request-json', requestPath, '--json'],
       {
         stdout: { write: (chunk: unknown) => (stdout += String(chunk)) },
-        stderr: { write: () => true },
+        stderr: { write: (chunk: unknown) => (stderr += String(chunk)) },
         stdin: process.stdin,
         cwd,
         env: parentEnv,
@@ -945,8 +949,51 @@ describe('extended runs through consensus run --request-json', () => {
       },
       { adapters: registry },
     );
-    return { code, envelope: JSON.parse(stdout), harness };
+    return {
+      code,
+      envelope: stdout === '' ? undefined : JSON.parse(stdout),
+      stderr,
+      harness,
+    };
   }
+
+  it('redacts a cleanup error it prints when the checkout is unchanged', async () => {
+    const secret = 'zq-literal-credential-4711';
+    // Leaves an unremovable directory named after the key in the private
+    // settings home, then throws.
+    const failingRunAndCleanup: AcpTransport = {
+      async run(input) {
+        const flag = input.argv.find((arg) => arg.startsWith('--gemini-dir='));
+        if (!flag) throw new Error('expected a private settings directory');
+        const locked = path.join(flag.slice('--gemini-dir='.length), secret);
+        await mkdir(locked);
+        await writeFile(path.join(locked, 'note.txt'), 'x\n');
+        cleanup.push(async () => {
+          await chmod(locked, 0o700);
+          await rm(path.dirname(locked), { recursive: true, force: true });
+        });
+        await chmod(locked, 0o500);
+        throw new Error('run failed');
+      },
+    };
+    const { code, envelope, stderr } = await runCli(
+      ANTIGRAVITY_DESCRIPTOR,
+      await agySession(),
+      { model: 'gemini-3.8-flash' },
+      undefined,
+      {
+        transport: failingRunAndCleanup,
+        parentEnv: { GEMINI_API_KEY: secret },
+      },
+    );
+
+    expect(code).toBe(1);
+    expect(envelope).toBeUndefined();
+    expect(stderr).toMatch(
+      /^run failed \(removing the private settings directory also failed: EACCES.*<redacted>/,
+    );
+    expect(stderr).not.toContain(secret);
+  });
 
   it('runs a registry adapter on the project default model and returns the text envelope', async () => {
     const { code, envelope } = await runCli(

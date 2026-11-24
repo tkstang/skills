@@ -404,9 +404,10 @@ async function runCheckedExtendedTurn(
       terminalReason: 'working_tree_unavailable',
     });
   }
-  // A run that throws after launch (its private settings directory could not
-  // be removed, say) is still checked: a change is reported with the error,
-  // and an unchanged checkout lets the error propagate.
+  // A run that throws (its private settings directory could not be removed,
+  // say) is still checked: a change is reported with the error, and an
+  // unchanged checkout lets the error propagate. Either way only its redacted
+  // message leaves.
   let envelope: ConsensusCliRunEnvelope | undefined;
   let runError: unknown;
   try {
@@ -425,14 +426,15 @@ async function runCheckedExtendedTurn(
   const found = after.ok
     ? compareWorkingTrees(before.snapshot, after.snapshot)
     : undefined;
-  if (found && !hasWorkingTreeChanges(found)) {
-    if (envelope) return envelope;
-    throw runError;
-  }
-  const changes = found && { ...found, paths: found.paths.map(redact) };
   const runFailure = envelope
     ? undefined
     : redact(runError instanceof Error ? runError.message : String(runError));
+  if (found && !hasWorkingTreeChanges(found)) {
+    if (envelope) return envelope;
+    // No cause: it would carry the unredacted text.
+    throw new Error(runFailure);
+  }
+  const changes = found && { ...found, paths: found.paths.map(redact) };
   const outcome = envelope
     ? `turn ${envelope.ok ? 'succeeded' : `failed with ${envelope.code}`}`
     : `run failed: ${runFailure}`;
