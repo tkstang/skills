@@ -250,6 +250,32 @@ describe('working-tree snapshot', () => {
     await expect(access(marker)).rejects.toThrow();
   });
 
+  it('discovers filters in a checkout whose name ends in whitespace', async () => {
+    const parent = await scratchDir();
+    const marker = path.join(parent, 'filter-ran');
+    // A sibling whose name is the checkout's without the trailing space.
+    git(parent, 'init', '-q', '-b', 'main', 'checkout');
+    const dir = path.join(parent, 'checkout ');
+    await mkdir(dir);
+    git(dir, 'init', '-q', '-b', 'main');
+    await writeFile(path.join(dir, 'clean.txt'), 'one\n');
+    await writeFile(path.join(dir, '.gitattributes'), '*.txt filter=probe\n');
+    git(dir, 'add', '.');
+    git(dir, 'commit', '-q', '-m', 'init');
+    git(dir, 'config', 'filter.probe.clean', `echo ran >> '${marker}'; cat`);
+    // An old mtime makes status re-read the file, which is when it filters.
+    const old = new Date('2020-01-01T00:00:00Z');
+    await utimes(path.join(dir, 'clean.txt'), old, old);
+
+    const before = await snapshot(dir);
+
+    expect(before.root).toBe(dir);
+    await expect(access(marker)).rejects.toThrow();
+    await writeFile(path.join(dir, 'clean.txt'), 'two\n');
+    expect(await changesAfter(dir, before)).toEqual(['clean.txt']);
+    await expect(access(marker)).rejects.toThrow();
+  });
+
   it('hides the caller environment from git', async () => {
     const dir = await repo();
     const shims = await scratchDir();

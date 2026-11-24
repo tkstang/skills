@@ -97,7 +97,11 @@ export async function snapshotWorkingTree(
     if (inside.trim() !== 'true') {
       return { ok: false, message: `${cwd} is not inside a git work tree` };
     }
-    const root = (await git.run(['rev-parse', '--show-toplevel'])).trim();
+    // Only the newline: a checkout name can end in whitespace, and a trimmed
+    // path would name a different directory.
+    const root = withoutNewline(
+      await git.run(['rev-parse', '--show-toplevel']),
+    );
     const head = (
       await git.run(['rev-parse', '--verify', '--quiet', 'HEAD'], {
         allowExit: [1],
@@ -138,7 +142,9 @@ export async function snapshotWorkingTree(
     }
     const exclude = path.resolve(
       cwd,
-      (await git.run(['rev-parse', '--git-path', 'info/exclude'])).trim(),
+      withoutNewline(
+        await git.run(['rev-parse', '--git-path', 'info/exclude']),
+      ),
     );
     const excludeKey = path.relative(root, exclude).startsWith('..')
       ? exclude
@@ -366,6 +372,10 @@ function snapshotEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     if (base[name] !== undefined) env[name] = base[name];
   }
   return env;
+}
+
+function withoutNewline(output: string) {
+  return output.endsWith('\n') ? output.slice(0, -1) : output;
 }
 
 function runGit(cwd: string, env: NodeJS.ProcessEnv) {

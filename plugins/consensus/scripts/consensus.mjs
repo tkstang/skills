@@ -5831,7 +5831,9 @@ async function snapshotWorkingTree(cwd, options = {}) {
     if (inside.trim() !== "true") {
       return { ok: false, message: `${cwd} is not inside a git work tree` };
     }
-    const root = (await git.run(["rev-parse", "--show-toplevel"])).trim();
+    const root = withoutNewline(
+      await git.run(["rev-parse", "--show-toplevel"])
+    );
     const head = (await git.run(["rev-parse", "--verify", "--quiet", "HEAD"], {
       allowExit: [1]
     })).trim();
@@ -5869,7 +5871,9 @@ async function snapshotWorkingTree(cwd, options = {}) {
     }
     const exclude = path11.resolve(
       cwd,
-      (await git.run(["rev-parse", "--git-path", "info/exclude"])).trim()
+      withoutNewline(
+        await git.run(["rev-parse", "--git-path", "info/exclude"])
+      )
     );
     const excludeKey = path11.relative(root, exclude).startsWith("..") ? exclude : path11.relative(root, exclude);
     content.set(excludeKey, await fingerprint(exclude));
@@ -6043,6 +6047,9 @@ function snapshotEnv(base) {
     if (base[name] !== void 0) env[name] = base[name];
   }
   return env;
+}
+function withoutNewline(output) {
+  return output.endsWith("\n") ? output.slice(0, -1) : output;
 }
 function runGit(cwd, env) {
   return (args, runOptions = {}) => new Promise((resolve, reject) => {
