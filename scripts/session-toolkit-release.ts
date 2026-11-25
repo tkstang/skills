@@ -264,6 +264,23 @@ function publishedIntegrity(
   return value as string;
 }
 
+/**
+ * The registry can take over a minute to list a version it has just accepted.
+ * Poll until it appears, so a successful publish is not reported as a failure.
+ */
+export function awaitPublishedIntegrity(
+  manifest: ReleaseManifest,
+  root = repositoryRoot,
+  attempts = 30,
+  delayMs = 10_000,
+): string | null {
+  for (let attempt = 1; ; attempt += 1) {
+    const integrity = publishedIntegrity(manifest, root);
+    if (integrity !== null || attempt >= attempts) return integrity;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+  }
+}
+
 export function registryReleaseDecision(
   manifest: ReleaseManifest,
   root = repositoryRoot,
@@ -330,8 +347,15 @@ export function publishRelease(
     ],
     root,
   );
+  const published = awaitPublishedIntegrity(manifest, root);
+  // Not yet listed is not a mismatch: the retry path verifies integrity later.
+  assert.notEqual(
+    published,
+    null,
+    `Registry did not list ${manifest.name}@${manifest.version} within the wait; rerun the workflow to verify integrity`,
+  );
   assert.equal(
-    publishedIntegrity(manifest, root),
+    published,
     manifest.integrity,
     'Published registry integrity does not match the validated archive',
   );

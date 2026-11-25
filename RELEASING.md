@@ -360,7 +360,9 @@ The publication command requires `SESSION_TOOLKIT_RELEASE_ENABLED=true` unless
 explicitly bootstrapping. An existing version is an idempotent success **only**
 when registry `dist.integrity` equals the validated archive. A mismatched
 integrity, registry/auth/network error or malformed response refuses publication;
-only explicit registry `E404` permits a new publish. Recheck the registry after
+only explicit registry `E404` permits a new publish. After publishing, the
+command waits about five minutes for the registry to list the new version before
+it compares integrity. Recheck the registry after
 publication and record actual provenance/CI receipts. Manual workflow retries
 prepare a candidate from the existing tag and apply the same integrity rule;
 they do not overwrite a version.
