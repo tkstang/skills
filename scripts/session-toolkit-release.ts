@@ -347,8 +347,15 @@ export function publishRelease(
     ],
     root,
   );
+  const published = awaitPublishedIntegrity(manifest, root);
+  // Not yet listed is not a mismatch: the retry path verifies integrity later.
+  assert.notEqual(
+    published,
+    null,
+    `Registry did not list ${manifest.name}@${manifest.version} within the wait; rerun the workflow to verify integrity`,
+  );
   assert.equal(
-    awaitPublishedIntegrity(manifest, root),
+    published,
     manifest.integrity,
     'Published registry integrity does not match the validated archive',
   );

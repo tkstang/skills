@@ -261,9 +261,10 @@ describe('registry publication/retry decision', () => {
       { mode: 0o755 },
     );
     process.env.PATH = `${bin}:${originalPath ?? ''}`;
-    expect(awaitPublishedIntegrity(manifest, root, 2, 1)).toBeNull();
-    expect(awaitPublishedIntegrity(manifest, root, 2, 1)).toBe(
+    expect(awaitPublishedIntegrity(manifest, root, 3, 1)).toBe(
       manifest.integrity,
     );
+    registryResult(1, { error: { code: 'E404' } });
+    expect(awaitPublishedIntegrity(manifest, root, 2, 1)).toBeNull();
   });
 });
