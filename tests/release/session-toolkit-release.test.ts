@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   readRelease,
+  awaitPublishedIntegrity,
   registryReleaseDecision,
   type ReleaseManifest,
 } from '../../scripts/session-toolkit-release.js';
@@ -246,6 +247,23 @@ describe('registry publication/retry decision', () => {
     registryResult(0, null);
     expect(() => registryReleaseDecision(manifest, root)).toThrow(
       'no published integrity',
+    );
+  });
+
+  it('waits for a just-published version to appear and gives up after its attempts', () => {
+    const bin = join(owned, 'bin');
+    const calls = join(owned, 'npm-calls');
+    mkdirSync(bin, { recursive: true });
+    // Misses twice, then lists the version, as the registry does after a publish.
+    writeFileSync(
+      join(bin, 'npm'),
+      `#!/bin/sh\nprintf x >> '${calls}'\nif [ "$(wc -c < '${calls}')" -lt 3 ]; then printf '%s' '{"error":{"code":"E404"}}'; exit 1; fi\nprintf '%s' '${JSON.stringify(manifest.integrity)}'\n`,
+      { mode: 0o755 },
+    );
+    process.env.PATH = `${bin}:${originalPath ?? ''}`;
+    expect(awaitPublishedIntegrity(manifest, root, 2, 1)).toBeNull();
+    expect(awaitPublishedIntegrity(manifest, root, 2, 1)).toBe(
+      manifest.integrity,
     );
   });
 });
